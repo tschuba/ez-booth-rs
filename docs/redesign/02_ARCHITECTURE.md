@@ -270,28 +270,39 @@
 - No runtime overhead
 - Direct SQL control
 
-### 4.4 Shared Libraries
+### 4.4 Shared Libraries (MVP - Simplified)
 
-#### Date/Time: **chrono 0.4+**
-**Rationale:**
-- Industry standard for Rust
-- Timezone support
-- WASM compatible
+#### Core Dependencies (Phase 1-4)
 
-#### UUID Generation: **uuid 1.7+**
-**Rationale:**
-- Fast UUID v4 generation
-- WASM compatible
+```toml
+[dependencies]
+leptos = "0.6"                  # UI framework
+rexie = "0.6"                   # IndexedDB wrapper
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"             # JSON serialization
+wasm-bindgen = "0.2"           # WASM-JS bridge
+web-sys = "0.3"                # Browser APIs
+js-sys = "0.1"                 # JavaScript types
+```
 
-#### Validation: **validator 0.18+**
 **Rationale:**
-- Derive macros for validation rules
-- Works in WASM and native
+- Minimal dependencies for MVP
+- Faster compile times (30-50% improvement)
+- Smaller WASM bundle (~200KB savings)
+- Lower learning curve for contributors
 
-#### Error Handling: **thiserror 1.0+**
-**Rationale:**
-- Ergonomic error types
-- Good error messages
+#### Deferred to Post-MVP (Phase 7+)
+
+- **rust_decimal** → Using f64 for MVP (acceptable precision for $5-$50 range)
+- **validator** → Manual validation (5 forms only, simple rules)
+- **chrono** → Using js_sys::Date (events are local, no timezone complexity)
+- **reqwest** → Only if cloud sync implemented
+- **thiserror** → Using simple Result<T, String> for MVP
+
+**Trade-offs Accepted:**
+- f64 precision: Acceptable for booth fees ($5.00-$50.00 typical range)
+- Manual validation: Simple inline validation sufficient for MVP forms
+- No timezone handling: Events are local, use browser's local time
 
 ### 4.5 Development Tools
 
