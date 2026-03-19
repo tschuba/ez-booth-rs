@@ -17,9 +17,11 @@
 6. [Data Architecture](#data-architecture)
 7. [User Interface Design](#user-interface-design)
 8. [Deployment Models](#deployment-models)
-9. [Cross-Browser Data Portability](#cross-browser-data-portability)
-10. [Security & Privacy](#security--privacy)
-11. [Performance Targets](#performance-targets)
+9. [Cross-Browser Data Portability](#9-cross-browser-data-portability)
+10. [Internationalization (i18n)](#10-internationalization-i18n)
+11. [Security & Privacy](#11-security--privacy)
+12. [Performance Targets](#11-performance-targets)
+13. [Appendices](#appendices)
 
 ---
 
