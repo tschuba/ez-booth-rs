@@ -1632,27 +1632,126 @@ Locale-aware formatting for:
 | Booth Management | 35 | Forms, validation, status |
 | Checkout | 25 | Keypad, confirmation, receipts |
 | Vendor Reports | 20 | Lists, statistics, printing |
+| Report Templates | 15 | Print headers, totals, labels |
 | Export/Import | 30 | File operations, notifications |
 | Generic | 14 | Buttons, errors, common text |
 
-### 10.7 Implementation Timeline
+**Total:** ~142 translation keys (expandable to match Java's 172)
 
-**Phase 1 (Week 1):** Setup i18n infrastructure (8 hours)  
+### 10.7 Report Template Localization
+
+#### Current Problem
+Java version uses hardcoded German strings in Thymeleaf templates:
+- `VendorReport.template.html`: "Verkäufer-Quittung", "Gesamtsumme", "Zeitraum"
+- Reports cannot be generated in other languages
+- No locale-aware date/number formatting in templates
+
+#### Proposed Solution
+**Template Rendering with i18n:**
+```rust
+pub fn render_vendor_report(
+    vendor: &Vendor,
+    items: &[PurchaseItem],
+    locale: Locale,
+) -> String {
+    let i18n = get_translations(locale);
+    
+    format!(r#"
+        <html>
+        <head>
+            <title>{}</title>
+            <style>/* Print-friendly CSS */</style>
+        </head>
+        <body>
+            <h1>{}</h1>
+            <table>
+                <tr>
+                    <th>{}</th>
+                    <th>{}</th>
+                    <th>{}</th>
+                </tr>
+                {items_html}
+            </table>
+            <div class="total">
+                {}: {total}
+            </div>
+        </body>
+        </html>
+    "#,
+        i18n.report.vendor_receipt,
+        i18n.report.vendor_receipt,
+        i18n.report.date,
+        i18n.report.item,
+        i18n.report.amount,
+        items_html = render_items(items, locale),
+        i18n.report.total,
+        total = format_currency(calculate_total(items), locale)
+    )
+}
+```
+
+**Key Translation Keys for Reports:**
+```json
+{
+  "report": {
+    "vendor_receipt": {
+      "de": "Verkäufer-Quittung",
+      "en": "Vendor Receipt"
+    },
+    "total": {
+      "de": "Gesamtsumme",
+      "en": "Total"
+    },
+    "period": {
+      "de": "Zeitraum",
+      "en": "Period"
+    },
+    "date": {
+      "de": "Datum",
+      "en": "Date"
+    },
+    "item": {
+      "de": "Artikel",
+      "en": "Item"
+    },
+    "amount": {
+      "de": "Betrag",
+      "en": "Amount"
+    },
+    "quantity": {
+      "de": "Anzahl",
+      "en": "Quantity"
+    }
+  }
+}
+```
+
+**Locale-Aware Formatting:**
+- **Currency:** `12,50 €` (DE) vs `€12.50` (EN)
+- **Date:** `19.03.2026` (DE) vs `03/19/2026` (EN)
+- **Numbers:** `1.234,56` (DE) vs `1,234.56` (EN)
+
+**Print CSS remains language-agnostic** - page breaks, margins, fonts work for all languages.
+
+### 10.8 Implementation Timeline
+
+**Phase 1 (Week 1):** Setup i18n infrastructure + report templates (10 hours)  
 **Phase 2 (Ongoing):** Replace hardcoded strings (4 hours)  
 **Phase 4 (Week 1):** Testing and validation (2 hours)
 
-**Total Additional Effort:** 14 hours (~1.75 days)
+**Total Additional Effort:** 16 hours (~2 days)
 
-### 10.8 Success Metrics
+### 10.9 Success Metrics
 
 | Metric | Target |
 |--------|--------|
-| Translation coverage | 100% (172 keys) |
+| Translation coverage | 100% (UI + reports) |
 | Browser locale detection | 95%+ accuracy |
 | Language switch latency | <50ms |
 | Bundle size impact | <20KB |
+| Report language accuracy | 100% |
 
-**For detailed implementation, see:** `/extended/06_LOCALIZATION_ARCHITECTURE.md`
+**For detailed implementation, see:** `/changelog/06_LOCALIZATION_ARCHITECTURE.md`
 
 ---
 

@@ -13,14 +13,16 @@
 2. [Resource Efficiency](#resource-efficiency)
 3. [Deployment Simplicity](#deployment-simplicity)
 4. [Cross-Browser Data Portability](#cross-browser-data-portability)
-5. [User Experience](#user-experience)
-6. [Data Synchronization](#data-synchronization)
-7. [Performance](#performance)
-8. [Maintainability](#maintainability)
-9. [Extensibility](#extensibility)
-10. [Testing & Quality](#testing--quality)
-11. [Documentation](#documentation)
-12. [Priority Matrix](#priority-matrix)
+5. [Internationalization & Localization](#internationalization--localization)
+6. [Internationalization & Localization](#internationalization--localization)
+7. [User Experience](#user-experience)
+7. [Data Synchronization](#data-synchronization)
+8. [Performance](#performance)
+9. [Maintainability](#maintainability)
+10. [Extensibility](#extensibility)
+11. [Testing & Quality](#testing--quality)
+12. [Documentation](#documentation)
+13. [Priority Matrix](#priority-matrix)
 
 ---
 
@@ -28,14 +30,15 @@
 
 This document identifies key areas where `ez-booth-rs` will improve upon the original `ez-booth` Java implementation. Each area includes specific problems from the current implementation, proposed solutions, and measurable success metrics.
 
-### Top 6 Improvement Areas
+### Top 7 Improvement Areas
 
 1. **Resource Efficiency** - 10-50x reduction in binary size and memory usage
 2. **Deployment Simplicity** - From multi-step JPackage process to single HTML file
 3. **Cross-Browser Data Portability** - Export/import data between any browser
-4. **Data Synchronization** - From manual file exchange to CRDT-based automatic sync
-5. **Startup Performance** - From 5-15s to <500ms time-to-interactive
-6. **True Offline Capability** - From server-dependent to fully browser-based
+4. **Internationalization & Localization** - From hardcoded German to multi-language support
+5. **Data Synchronization** - From manual file exchange to CRDT-based automatic sync
+6. **Startup Performance** - From 5-15s to <500ms time-to-interactive
+7. **True Offline Capability** - From server-dependent to fully browser-based
 
 ---
 
@@ -360,7 +363,79 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 5. Performance
+## 5. Internationalization & Localization
+
+### 5.1 Multi-Language Support
+
+#### Current Problems (ez-booth Java)
+- **Hardcoded German:** All UI text, reports, and messages in German only
+- **No i18n Framework:** No internationalization infrastructure
+- **Report Templates:** Thymeleaf templates have hardcoded German strings
+  - "Verkäufer-Quittung", "Gesamtsumme", "Zeitraum" in VendorReport.template.html
+- **No Language Detection:** Cannot detect user's browser language
+- **No Fallback Chain:** No graceful degradation for missing translations
+
+#### Proposed Solutions (ez-booth-rs)
+- **Primary: German** - Default language matching primary user base
+- **Fallback: English** - Universal fallback when German unavailable
+- **Browser Detection:** Automatic language selection from `navigator.language`
+- **i18n Framework:** Use `fluent-rs` or `i18next` for Rust/WASM
+- **Translation Files:** JSON/YAML per language with key-based lookup
+- **Report Localization:** Template strings extracted to translation files
+- **Manual Override:** User can select language in settings
+- **Future Languages:** Easy addition of new languages (French, Italian, etc.)
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Supported languages | 1 (German only) | 2+ (DE/EN + extensible) | **2x+ languages** |
+| Translation coverage | N/A | 100% UI + reports | **Full coverage** |
+| Language switch time | N/A | <100ms | **Instant** |
+| Missing key fallback | Crash/blank | English fallback | **Graceful** |
+| Add new language | Code changes | Add JSON file | **No code change** |
+
+#### Implementation Details
+```rust
+// Translation key structure
+{
+  "checkout.total": {
+    "de": "Gesamtsumme",
+    "en": "Total"
+  },
+  "vendor.receipt": {
+    "de": "Verkäufer-Quittung", 
+    "en": "Vendor Receipt"
+  },
+  "report.period": {
+    "de": "Zeitraum",
+    "en": "Period"
+  }
+}
+```
+
+**Language Selection Priority:**
+1. User's manual selection (stored in localStorage)
+2. Browser language (`navigator.language`)
+3. English (default fallback)
+
+**Report Template Approach:**
+- Replace hardcoded strings with translation keys
+- Render reports with user's selected language
+- Print-friendly CSS remains language-agnostic
+- Date/time/number formatting respects locale
+
+### 5.2 Cultural Considerations
+
+#### Proposed Solutions
+- **Date Format:** Locale-aware (DE: DD.MM.YYYY, EN: MM/DD/YYYY)
+- **Currency:** Euro (€) with German/English formatting
+- **Time Format:** 24-hour (DE) vs 12-hour (EN) options
+- **Number Format:** Comma vs period (1.234,56 vs 1,234.56)
+- **Sorting:** Locale-aware string comparison (ä, ö, ü handling)
+
+---
+
+## 6. Performance
 
 ### 12.1 Startup Performance
 
@@ -429,7 +504,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 6. Maintainability
+## 7. Maintainability
 
 ### 12.1 Codebase Complexity
 
@@ -499,7 +574,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 7. Extensibility
+## 8. Extensibility
 
 ### 12.1 Plugin Architecture
 
@@ -547,7 +622,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 8. User Experience
+## 7. User Experience
 
 ### 12.1 Installation Experience
 
@@ -616,7 +691,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 9. Documentation
+## 10. Documentation
 
 ### 12.1 User Documentation
 
@@ -663,7 +738,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 10. Priority Matrix
+## 11. Priority Matrix
 
 ### 10.1 Improvement Priority Ranking
 
@@ -735,7 +810,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 11. Measurable Success Criteria
+## 12. Measurable Success Criteria
 
 ### 12.1 Phase 1 Targets (Foundation)
 
@@ -769,7 +844,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 12. Risk Mitigation
+## 13. Risk Mitigation
 
 ### 12.1 Technical Risks
 

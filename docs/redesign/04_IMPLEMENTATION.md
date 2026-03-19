@@ -150,6 +150,10 @@ ez-booth-rs/
 │   │   ├── assets/
 │   │   │   ├── icons/
 │   │   │   └── manifest.json
+│   │   ├── locales/              # i18n translations (NEW)
+│   │   │   ├── de.json           # German translations
+│   │   │   ├── en.json           # English translations
+│   │   │   └── translations.json # i18n config
 │   │   ├── src/
 │   │   │   ├── main.rs
 │   │   │   ├── app.rs            # Root component
@@ -168,6 +172,10 @@ ez-booth-rs/
 │   │   │   │   ├── table.rs
 │   │   │   │   ├── form.rs
 │   │   │   │   └── modal.rs
+│   │   │   ├── i18n/             # i18n setup & formatters (NEW)
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── locale.rs      # Locale detection & switching
+│   │   │   │   └── formatters.rs  # Currency, date, number formatting
 │   │   │   ├── state/            # Global state
 │   │   │   │   ├── mod.rs
 │   │   │   │   ├── app_state.rs
@@ -925,12 +933,13 @@ ez-booth-storage = { path = "../storage" }
 leptos = { version = "0.6", features = ["csr", "nightly"] }
 leptos_meta = { version = "0.6", features = ["csr"] }
 leptos_router = { version = "0.6", features = ["csr"] }
+leptos_i18n = { version = "0.3", features = ["csr"] }
 
 # WASM
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Window", "Document", "HtmlElement"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlElement", "Navigator"] }
 
 # Serialization
 serde = { workspace = true }
@@ -1081,6 +1090,392 @@ impl AppState {
         self.selected_booth.get()
             .and_then(|id| self.booths.get().get(&id).cloned())
     }
+}
+```
+
+### 4.4 Internationalization (i18n) Implementation
+
+#### 4.4.1 Translation Files
+
+**File:** `crates/frontend/locales/de.json` (German - Primary)
+
+```json
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "yes": "Ja",
+    "no": "Nein"
+  },
+  "booth": {
+    "title": "Stand",
+    "name_label": "Name",
+    "description_label": "Beschreibung",
+    "list_title": "Stände",
+    "create": "Stand erstellen",
+    "edit": "Stand bearbeiten"
+  },
+  "checkout": {
+    "title": "Kasse",
+    "total": "Gesamt",
+    "confirm": "Bestätigen",
+    "amount": "Betrag"
+  },
+  "report": {
+    "vendor_receipt": "Verkäufer-Quittung",
+    "total": "Gesamtsumme",
+    "period": "Zeitraum",
+    "date": "Datum",
+    "item": "Artikel",
+    "amount": "Betrag",
+    "quantity": "Anzahl",
+    "export": "Exportieren",
+    "print": "Drucken"
+  },
+  "sync": {
+    "title": "Synchronisierung",
+    "status": "Status",
+    "last_sync": "Letzte Synchronisierung"
+  },
+  "export": {
+    "title": "Daten exportieren",
+    "format": "Format",
+    "download": "Herunterladen"
+  },
+  "import": {
+    "title": "Daten importieren",
+    "select_file": "Datei auswählen",
+    "upload": "Hochladen"
+  }
+}
+```
+
+**File:** `crates/frontend/locales/en.json` (English - Fallback)
+
+```json
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "booth": {
+    "title": "Booth",
+    "name_label": "Name",
+    "description_label": "Description",
+    "list_title": "Booths",
+    "create": "Create Booth",
+    "edit": "Edit Booth"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "total": "Total",
+    "confirm": "Confirm",
+    "amount": "Amount"
+  },
+  "report": {
+    "vendor_receipt": "Vendor Receipt",
+    "total": "Total",
+    "period": "Period",
+    "date": "Date",
+    "item": "Item",
+    "amount": "Amount",
+    "quantity": "Quantity",
+    "export": "Export",
+    "print": "Print"
+  },
+  "sync": {
+    "title": "Synchronization",
+    "status": "Status",
+    "last_sync": "Last Sync"
+  },
+  "export": {
+    "title": "Export Data",
+    "format": "Format",
+    "download": "Download"
+  },
+  "import": {
+    "title": "Import Data",
+    "select_file": "Select File",
+    "upload": "Upload"
+  }
+}
+```
+
+**File:** `crates/frontend/locales/translations.json` (Config)
+
+```json
+{
+  "default": "de",
+  "locales": ["de", "en"]
+}
+```
+
+#### 4.4.2 i18n Module Implementation
+
+**File:** `crates/frontend/src/i18n/mod.rs`
+
+```rust
+pub mod locale;
+pub mod formatters;
+
+pub use locale::{init_i18n, get_locale, set_locale, Locale};
+pub use formatters::{format_currency, format_date, format_number};
+```
+
+**File:** `crates/frontend/src/i18n/locale.rs`
+
+```rust
+use leptos::*;
+use leptos_i18n::*;
+use web_sys::window;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Locale {
+    De,
+    En,
+}
+
+impl Locale {
+    pub fn from_str(s: &str) -> Self {
+        match s.split('-').next() {
+            Some("de") => Locale::De,
+            Some("en") => Locale::En,
+            _ => Locale::De, // Default to German
+        }
+    }
+    
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Locale::De => "de",
+            Locale::En => "en",
+        }
+    }
+}
+
+/// Initialize i18n with browser locale detection
+pub fn init_i18n() -> Locale {
+    // Check localStorage for user preference
+    if let Ok(Some(storage)) = window()
+        .and_then(|w| w.local_storage().ok().flatten())
+    {
+        if let Ok(Some(saved_locale)) = storage.get_item("ez_booth_locale") {
+            return Locale::from_str(&saved_locale);
+        }
+    }
+    
+    // Detect browser language
+    if let Some(window) = window() {
+        if let Some(lang) = window.navigator().language() {
+            return Locale::from_str(&lang);
+        }
+    }
+    
+    // Default to German
+    Locale::De
+}
+
+/// Get current locale from context
+pub fn get_locale() -> Locale {
+    use_context::<RwSignal<Locale>>()
+        .map(|signal| signal.get())
+        .unwrap_or(Locale::De)
+}
+
+/// Set locale and persist to localStorage
+pub fn set_locale(locale: Locale) {
+    if let Some(signal) = use_context::<RwSignal<Locale>>() {
+        signal.set(locale);
+        
+        // Persist to localStorage
+        if let Ok(Some(storage)) = window()
+            .and_then(|w| w.local_storage().ok().flatten())
+        {
+            let _ = storage.set_item("ez_booth_locale", locale.to_str());
+        }
+    }
+}
+```
+
+**File:** `crates/frontend/src/i18n/formatters.rs`
+
+```rust
+use super::Locale;
+use chrono::{DateTime, Local};
+use rust_decimal::Decimal;
+
+/// Format currency according to locale
+pub fn format_currency(amount: Decimal, locale: Locale) -> String {
+    let value = amount.to_string();
+    
+    match locale {
+        Locale::De => {
+            // German: 12,50 €
+            format!("{} €", value.replace('.', ','))
+        }
+        Locale::En => {
+            // English: €12.50
+            format!("€{}", value)
+        }
+    }
+}
+
+/// Format date according to locale
+pub fn format_date(date: DateTime<Local>, locale: Locale) -> String {
+    match locale {
+        Locale::De => date.format("%d.%m.%Y").to_string(), // 19.03.2026
+        Locale::En => date.format("%m/%d/%Y").to_string(), // 03/19/2026
+    }
+}
+
+/// Format number according to locale
+pub fn format_number(num: f64, locale: Locale) -> String {
+    match locale {
+        Locale::De => {
+            // German: 1.234,56
+            let formatted = format!("{:.2}", num);
+            formatted
+                .replace('.', ",")
+                .replace(',', "X")
+                .replace('.', ",")
+                .replace('X', ".")
+        }
+        Locale::En => {
+            // English: 1,234.56
+            format!("{:.2}", num)
+        }
+    }
+}
+```
+
+#### 4.4.3 App Integration
+
+Update `crates/frontend/src/app.rs` to provide i18n context:
+
+```rust
+use leptos::*;
+use leptos_meta::*;
+use leptos_router::*;
+use crate::i18n::{init_i18n, Locale};
+
+#[component]
+pub fn App() -> impl IntoView {
+    provide_meta_context();
+    
+    // Initialize i18n
+    let locale = create_rw_signal(init_i18n());
+    provide_context(locale);
+
+    view! {
+        <Stylesheet id="leptos" href="/pkg/ez-booth-frontend.css"/>
+        <Title text="ez-booth"/>
+        <Meta name="description" content="Portable booth management system"/>
+        
+        <Router>
+            <nav class="navbar">
+                <A href="/">{move || t!(locale, "nav.home")}</A>
+                <A href="/booths">{move || t!(locale, "booth.list_title")}</A>
+                <A href="/checkout">{move || t!(locale, "checkout.title")}</A>
+                <A href="/reports">{move || t!(locale, "report.title")}</A>
+                <A href="/sync">{move || t!(locale, "sync.title")}</A>
+                
+                {/* Language switcher */}
+                <select 
+                    on:change=move |ev| {
+                        let value = event_target_value(&ev);
+                        let new_locale = if value == "de" { Locale::De } else { Locale::En };
+                        set_locale(new_locale);
+                    }
+                >
+                    <option value="de" selected=move || locale.get() == Locale::De>"Deutsch"</option>
+                    <option value="en" selected=move || locale.get() == Locale::En>"English"</option>
+                </select>
+            </nav>
+            
+            <main>
+                <Routes>
+                    {/* Routes... */}
+                </Routes>
+            </main>
+        </Router>
+    }
+}
+```
+
+#### 4.4.4 Report Template Localization
+
+**File:** `crates/frontend/src/pages/reports.rs`
+
+```rust
+use crate::i18n::{get_locale, format_currency, format_date, Locale};
+
+pub fn render_vendor_report(
+    vendor: &Vendor,
+    items: &[PurchaseItem],
+) -> String {
+    let locale = get_locale();
+    let t = get_translations(locale);
+    
+    let items_html = items.iter()
+        .map(|item| format!(
+            "<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
+            format_date(item.date, locale),
+            item.description,
+            format_currency(item.amount, locale)
+        ))
+        .collect::<String>();
+    
+    let total = items.iter()
+        .map(|i| i.amount)
+        .sum::<Decimal>();
+    
+    format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>{}</title>
+            <style>
+                @media print {{
+                    body {{ margin: 0; padding: 20px; }}
+                }}
+                table {{ width: 100%; border-collapse: collapse; }}
+                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                .total {{ margin-top: 20px; font-weight: bold; text-align: right; }}
+            </style>
+        </head>
+        <body>
+            <h1>{}</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{}</th>
+                        <th>{}</th>
+                        <th>{}</th>
+                    </tr>
+                </thead>
+                <tbody>{}</tbody>
+            </table>
+            <div class="total">{}: {}</div>
+        </body>
+        </html>
+    "#,
+        t.report.vendor_receipt,
+        t.report.vendor_receipt,
+        t.report.date,
+        t.report.item,
+        t.report.amount,
+        items_html,
+        t.report.total,
+        format_currency(total, locale)
+    )
 }
 ```
 
