@@ -395,27 +395,33 @@ ez-booth-rs/
 ### 5.2 Dependency Graph
 
 ```
-┌─────────┐
-│  core   │◄─────────┐
-└─────────┘          │
-     ▲               │
-     │               │
-┌────┴────┐     ┌────┴────┐
-│ storage │     │ shared  │
-└─────────┘     └─────────┘
-     ▲               ▲
-     │               │
-┌────┴────┐     ┌────┴────┐
-│frontend │     │ server  │
-└─────────┘     └─────────┘
+        ┌─────────┐
+        │  core   │ (no dependencies)
+        └─────────┘
+         ▲       ▲
+         │       │
+         │       └──────────────┐
+         │                      │
+    ┌────┴────┐           ┌─────┴───┐
+    │ storage │           │ shared  │
+    └─────────┘           └─────────┘
+         ▲                      ▲
+         │                      │
+         └──────────┬───────────┘
+                    │
+              ┌─────┴─────┐
+              │  frontend │
+              └───────────┘
 ```
 
 **Dependency Rules:**
-- `core` has no dependencies (pure business logic)
-- `storage` depends on `core` (implements storage for entities)
-- `shared` depends on `core` (serializable DTOs)
-- `frontend` depends on `core`, `storage`, `shared`
-- `server` depends on `core`, `storage`, `shared`
+- `core` has no dependencies (pure business logic with domain models)
+- `storage` depends on `core` (implements persistence for core entities)
+- `shared` depends on `core` (defines serializable DTOs from core types)
+- `frontend` depends on `core`, `storage`, `shared` (UI layer using all others)
+- `server` (future) would depend on `core`, `storage`, `shared`
+
+**Note:** Server crate is not part of P0 implementation (web-only phase).
 
 ---
 
