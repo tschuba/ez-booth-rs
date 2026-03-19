@@ -10,19 +10,19 @@
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Resource Efficiency](#1-resource-efficiency)
-3. [Deployment Simplicity](#2-deployment-simplicity)
-4. [Cross-Browser Data Portability](#3-cross-browser-data-portability)
-5. [Data Synchronization](#4-data-synchronization)
-6. [Internationalization & Localization](#5-internationalization--localization)
-7. [Performance](#6-performance)
-8. [Maintainability](#7-maintainability)
-9. [Extensibility](#8-extensibility)
-10. [User Experience](#7-user-experience)
-11. [Documentation](#10-documentation)
-12. [Priority Matrix](#11-priority-matrix)
-13. [Measurable Success Criteria](#12-measurable-success-criteria)
-14. [Risk Mitigation](#13-risk-mitigation)
+2. [Why Migrate?](#2-why-migrate)
+3. [Resource Efficiency](#3-resource-efficiency)
+4. [Deployment Simplicity](#4-deployment-simplicity)
+5. [Cross-Browser Data Portability](#5-cross-browser-data-portability)
+6. [Data Synchronization](#6-data-synchronization)
+7. [Internationalization & Localization](#7-internationalization--localization)
+8. [Performance](#8-performance)
+9. [Maintainability](#9-maintainability)
+10. [User Experience](#10-user-experience)
+11. [Priority Matrix](#11-priority-matrix)
+12. [Cost-Benefit Analysis](#12-cost-benefit-analysis)
+13. [Risk Assessment](#13-risk-assessment)
+14. [Measurable Success Criteria](#14-measurable-success-criteria)
 
 ---
 
@@ -42,9 +42,70 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 1. Resource Efficiency
+## 2. Why Migrate?
 
-### 1.1 Binary Size Reduction
+### 2.1 Business Drivers
+
+#### Deployment Complexity
+The current Java/Vaadin implementation requires:
+- JDK installation and configuration
+- JPackage builds for each platform (Linux, Windows, macOS)
+- 50-100MB distribution per platform
+- Complex update mechanism
+
+**Impact:** High barrier to adoption, difficult distribution to event organizers.
+
+#### Resource Requirements
+Current implementation demands:
+- 150-300MB RAM per instance
+- Full Java runtime environment
+- Server process for each deployment
+- Database management
+
+**Impact:** Cannot run on low-end devices, requires technical expertise.
+
+#### Limited Portability
+Desktop-only application with:
+- No browser-based access
+- No cross-device data transfer
+- Manual backup/restore process
+- Single-machine limitation
+
+**Impact:** Users tied to specific machine, risk of data loss.
+
+### 2.2 Technical Debt
+
+The Java implementation has accumulated:
+- Hardcoded German UI strings (no i18n framework)
+- Vaadin server-side rendering overhead
+- Complex deployment pipeline
+- Platform-specific builds
+
+**Migration Benefits:**
+- Modern architecture (WASM-first)
+- Built-in i18n from day 1
+- Single build for all platforms
+- Simplified deployment
+
+### 2.3 Market Opportunity
+
+**Browser-based advantage:**
+- Zero installation friction - open URL and start
+- Works on any device (desktop, tablet, mobile)
+- Progressive Web App capabilities
+- Broader market reach
+
+**WASM benefits:**
+- Near-native performance
+- Type safety and reliability
+- Smaller footprint than electron apps
+- Future-proof technology
+
+---
+
+## 3. Resource Efficiency
+
+### 3.1 Binary Size Reduction
 
 #### Current Problems (ez-booth Java)
 - **Distribution Size:** 50-100MB per platform (JLink-optimized JRE + JAR)
@@ -66,7 +127,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Disk space per install | 100-150MB | 3.5MB | **29-43x smaller** |
 | Platform builds | 3 (Linux/Win/Mac) | 1 (WASM) | **3x fewer** |
 
-### 1.2 Memory Usage Reduction
+### 3.2 Memory Usage Reduction
 
 #### Current Problems (ez-booth Java)
 - **JVM Heap:** 100-200MB minimum heap size
@@ -88,7 +149,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Memory growth | Yes (GC cycles) | Minimal | **Stable** |
 | GC pauses | 10-100ms | None | **Eliminated** |
 
-### 1.3 CPU Efficiency
+### 3.3 CPU Efficiency
 
 #### Current Problems (ez-booth Java)
 - **JIT Warmup:** Slow startup until JIT optimizes hot paths
@@ -111,7 +172,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 2. Deployment Simplicity
+## 4. Deployment Simplicity
 
 ### 2.1 Installation Process
 
@@ -185,9 +246,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 3. Cross-Browser Data Portability
+## 5. Cross-Browser Data Portability
 
-### 3.1 Browser Data Isolation
+### 5.1 Browser Data Isolation
 
 #### Current Problems (ez-booth Java)
 - **No Browser Switching:** Data locked to JVM instance on single machine
@@ -217,9 +278,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 4. Data Synchronization
+## 6. Data Synchronization
 
-### 3.1 Multi-Instance Synchronization
+### 6.1 Multi-Instance Synchronization
 
 #### Current Problems (ez-booth Java)
 - **Manual Process:** Export/import via file transfer
@@ -304,9 +365,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 5. Internationalization & Localization
+## 7. Internationalization & Localization
 
-### 5.1 Multi-Language Support
+### 7.1 Multi-Language Support
 
 #### Current Problems (ez-booth Java)
 - **Hardcoded German:** All UI text, reports, and messages in German only
@@ -334,9 +395,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 6. Performance
+## 8. Performance
 
-### 12.1 Startup Performance
+### 8.1 Startup Performance
 
 #### Current Problems (ez-booth Java)
 - **Spring Boot Init:** 3-8s for component scanning, bean creation
@@ -357,7 +418,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Subsequent loads | 3-8s | <100ms | **30-80x faster** |
 | Time to interactive | 8-20s | <500ms | **16-40x faster** |
 
-### 12.2 Runtime Performance
+### 8.2 Runtime Performance
 
 #### Current Problems (ez-booth Java)
 - **Server Roundtrips:** Every UI interaction hits server
@@ -379,7 +440,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | UI responsiveness | 50-200ms | <16ms | **3-12x faster** |
 | 99th percentile latency | 500ms | 100ms | **5x lower** |
 
-### 12.3 Scalability
+### 8.3 Scalability
 
 #### Current Problems (ez-booth Java)
 - **Memory per User:** Each Vaadin session = 50-100MB
@@ -403,9 +464,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 7. Maintainability
+## 9. Maintainability
 
-### 12.1 Codebase Complexity
+### 9.1 Codebase Complexity
 
 #### Current Problems (ez-booth Java)
 - **Multiple Frameworks:** Spring + Vaadin + gRPC + Hibernate
@@ -427,7 +488,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Config files | 10+ | 2-3 | **3-5x fewer** |
 | Compilation time | 3-5 minutes | 30-60s | **3-6x faster** |
 
-### 12.2 Type Safety
+### 9.2 Type Safety
 
 #### Current Problems (ez-booth Java)
 - **Runtime Errors:** NullPointerException still possible
@@ -449,7 +510,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Runtime errors | ~30% of bugs | ~5% | **6x reduction** |
 | Compilation catches | 60% | 90% | **1.5x better** |
 
-### 12.3 Testing
+### 9.3 Testing
 
 #### Current Problems (ez-booth Java)
 - **Slow Tests:** Spring context startup = 10-30s
@@ -473,173 +534,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 8. Extensibility
-
-### 12.1 Plugin Architecture
-
-#### Current Problems (ez-booth Java)
-- **Monolithic:** Hard to add features without rebuilding
-- **Spring Context:** Plugins must understand Spring
-- **JAR Dependencies:** Complex dependency management
-- **Restart Required:** Changes need application restart
-
-#### Proposed Solutions (ez-booth-rs)
-- **Dynamic Loading:** Load WASM modules at runtime
-- **Trait-Based:** Clean plugin interfaces
-- **Feature Flags:** Compile-time feature selection
-- **Hot Reload:** Update plugins without restart
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Plugin development | Complex | Simple | **3x easier** |
-| Plugin loading | Restart needed | Dynamic | **No restart** |
-| Plugin isolation | Weak | Strong | **Better safety** |
-| Custom features | Difficult | Easy | **2x faster dev** |
-
-### 12.2 Data Export/Import
-
-#### Current Problems (ez-booth Java)
-- **Single Format:** Proto binary or JSON
-- **Schema Migration:** Manual code updates
-- **Large Exports:** Entire database exported
-- **No Filtering:** All-or-nothing export
-
-#### Proposed Solutions (ez-booth-rs)
-- **Multiple Formats:** JSON, CSV, Excel, PDF
-- **Versioned Schema:** Backward compatibility
-- **Incremental Export:** Export only changes
-- **Flexible Filtering:** Date ranges, vendors, etc.
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Export formats | 1-2 | 5+ | **3-5x more** |
-| Export speed | Slow | Fast | **5-10x faster** |
-| File size | Large | Optimized | **2-5x smaller** |
-| Filtering options | None | Many | **New capability** |
-
----
-
-## 7. User Experience
-
-### 12.1 Installation Experience
-
-#### Current Problems (ez-booth Java)
-- **Download:** Large file (50-100MB)
-- **Extract:** Manual unzip/untar
-- **Permissions:** Execute permissions on Linux/Mac
-- **First Run:** Slow startup (5-15s)
-
-#### Proposed Solutions (ez-booth-rs)
-- **Open URL:** Works immediately
-- **PWA Install:** One-click install
-- **No Permissions:** Runs in browser sandbox
-- **Instant:** <500ms startup
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Time to first use | 5-10 minutes | <30 seconds | **10-20x faster** |
-| Steps to install | 4-5 steps | 1-2 steps | **2-5x simpler** |
-| Install failures | ~10% | <1% | **10x more reliable** |
-
-### 12.2 Interface Responsiveness
-
-#### Current Problems (ez-booth Java)
-- **Server Latency:** Every click = network roundtrip
-- **Rendering Lag:** Server-side rendering delay
-- **Network Dependency:** Unusable on slow connections
-- **Loading States:** Frequent spinners
-
-#### Proposed Solutions (ez-booth-rs)
-- **Instant Response:** All logic local
-- **Smooth Animations:** 60fps rendering
-- **Offline Works:** No network needed
-- **Optimistic UI:** Immediate feedback
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Click response | 100-300ms | <16ms | **6-18x faster** |
-| Animation FPS | 30-45 | 60 | **1.3-2x smoother** |
-| Network dependency | 100% | 0% | **Eliminated** |
-| Loading spinners | Frequent | Rare | **10x fewer** |
-
-### 12.3 Mobile Experience
-
-#### Current Problems (ez-booth Java)
-- **Desktop-First:** UI not optimized for mobile
-- **Server Load:** Heavy for mobile data plans
-- **Touch Issues:** Not touch-optimized
-- **Battery Drain:** Server connection drains battery
-
-#### Proposed Solutions (ez-booth-rs)
-- **Mobile-First:** Responsive from ground up
-- **Lightweight:** <1MB network transfer
-- **Touch-Friendly:** 44x44px minimum tap targets
-- **Battery Efficient:** Local processing
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Mobile usability | Poor | Excellent | **10x better** |
-| Data usage | 50-100MB | <1MB | **50-100x less** |
-| Touch targets | Inconsistent | Standard | **100% compliant** |
-| Battery impact | High | Low | **5-10x better** |
-
----
-
-## 10. Documentation
-
-### 12.1 User Documentation
-
-#### Current Problems (ez-booth Java)
-- **Installation Guide:** Complex, platform-specific
-- **Troubleshooting:** JVM issues, port conflicts
-- **Update Process:** Multi-step, error-prone
-- **Screenshots:** Desktop-only
-
-#### Proposed Solutions (ez-booth-rs)
-- **Getting Started:** "Open URL, done"
-- **No Troubleshooting:** Works or doesn't (binary)
-- **Auto-Updates:** Service worker handles it
-- **Responsive Docs:** Mobile screenshots
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Doc pages | 20+ | 5-10 | **2-4x simpler** |
-| Support tickets | 10/month | 2/month | **5x reduction** |
-| Time to productivity | 30 minutes | 5 minutes | **6x faster** |
-
-### 12.2 Developer Documentation
-
-#### Current Problems (ez-booth Java)
-- **Setup Guide:** Complex (JDK, Maven, IDE plugins)
-- **Architecture:** Spread across multiple frameworks
-- **Build Process:** Multi-step, platform-specific
-- **Testing:** Requires database setup
-
-#### Proposed Solutions (ez-booth-rs)
-- **Quick Start:** `cargo install trunk`, `trunk serve`
-- **Single Stack:** Rust everywhere
-- **One Command:** `trunk build`
-- **Unit Tests:** `cargo test` (no setup)
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Setup time | 2-4 hours | 15-30 minutes | **4-8x faster** |
-| Prerequisites | 5+ tools | 2 tools | **2.5x simpler** |
-| Build complexity | High | Low | **5x simpler** |
-| Contribution barrier | High | Low | **3x lower** |
-
----
-
 ## 11. Priority Matrix
 
-### 10.1 Improvement Priority Ranking
+### 11.1 Improvement Priority Ranking
 
 | Area | Impact | Effort | Priority | Phase |
 |------|--------|--------|----------|-------|
@@ -669,7 +566,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 - ⭐⭐ Low
 - ⭐ Nice-to-have
 
-### 10.2 Quick Wins (High Impact, Low Effort)
+### 11.2 Quick Wins (High Impact, Low Effort)
 
 1. **Deployment Simplicity** (P0)
    - Static file hosting
@@ -691,7 +588,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
    - Browser independence
    - Implementation: Phase 6
 
-### 10.3 Long-Term Investments (High Impact, High Effort)
+### 11.3 Long-Term Investments (High Impact, High Effort)
 
 1. **True Offline** (P0)
    - IndexedDB storage
@@ -716,9 +613,140 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 12. Measurable Success Criteria
+## 12. Cost-Benefit Analysis
 
-### 12.1 Phase 1 Targets (Foundation)
+### 12.1 Development Investment
+
+**Initial Development (12 weeks MVP):**
+- **Phase 1 (4 weeks):** Core entities, storage, basic UI, booths, vendors, checkout
+- **Phase 2 (3 weeks):** Reports, printing, export/import, cross-browser portability
+- **Phase 3 (3 weeks):** Responsive design, DE/EN localization, PWA, accessibility
+- **Phase 4 (2 weeks):** E2E tests, browser testing, performance optimization
+
+**Estimated Effort:** 1 developer @ 12 weeks = ~480 hours
+
+**Learning Curve:**
+- Rust fundamentals: 1-2 weeks (if new to Rust)
+- Leptos framework: 1 week
+- WASM ecosystem: 1 week
+- **Total ramp-up:** 2-4 weeks for team without Rust experience
+
+### 12.2 Cost Savings
+
+**Deployment & Infrastructure:**
+- **Java version:** Server hosting ($20-100/month), maintenance, SSL certificates
+- **Rust version:** Static file hosting ($0-5/month on GitHub Pages/Netlify)
+- **Annual savings:** $180-1,140 per deployment
+
+**Support & Maintenance:**
+- **Java version:** ~10 support tickets/month (installation, JVM issues, updates)
+- **Rust version:** ~2 support tickets/month (browser compatibility, usage questions)
+- **Time savings:** ~8 tickets/month × 30 min/ticket = 4 hours/month = 48 hours/year
+
+**Distribution:**
+- **Java version:** 3 platform builds, 50-100MB each, manual testing per platform
+- **Rust version:** 1 WASM build, <3MB, single test suite
+- **Time savings:** ~2-4 hours per release
+
+### 12.3 Value Delivered
+
+**Immediate Benefits (MVP - Week 12):**
+- ✅ 10-50x smaller distribution size
+- ✅ Zero-installation deployment
+- ✅ True offline capability
+- ✅ Cross-browser data portability
+- ✅ 10-30x faster startup
+
+**Medium-Term Benefits (Weeks 13-24):**
+- ✅ German + English localization
+- ✅ Mobile-responsive UI
+- ✅ PWA installation
+- ✅ Improved UX and accessibility
+
+**Long-Term Benefits (Post-MVP):**
+- ✅ Automatic data synchronization (CRDT)
+- ✅ Plugin system for extensibility
+- ✅ Additional languages as needed
+- ✅ Advanced reporting features
+
+### 12.4 ROI Calculation
+
+**Investment:**
+- Development: 480 hours @ $50/hour = $24,000
+- Ramp-up (if needed): 160 hours @ $50/hour = $8,000
+- **Total: $24,000-32,000**
+
+**Annual Returns:**
+- Infrastructure savings: $180-1,140
+- Support time savings: 48 hours @ $50/hour = $2,400
+- Faster releases: 10 releases × 3 hours × $50/hour = $1,500
+- **Total annual savings: $4,080-5,040**
+
+**Break-even:** 5-8 years based on cost savings alone
+
+**However, intangible benefits:**
+- Broader market reach (browser-based, zero-install)
+- Better user experience (10x faster, offline-capable)
+- Reduced barrier to adoption
+- Modern, maintainable codebase
+- Future-proof technology stack
+
+**Strategic Value:** High - positions product for growth and reduces technical debt
+
+---
+
+## 13. Risk Assessment
+
+### 13.1 Technical Risks
+
+| Risk | Impact | Probability | Mitigation Strategy |
+|------|--------|-------------|-------------------|
+| **WASM performance issues** | Medium | Low | Benchmark early, optimize hot paths |
+| **Browser compatibility gaps** | Medium | Low | Polyfills, test on target browsers (95% coverage) |
+| **IndexedDB storage limits** | Medium | Low | Document limits (usually 50MB-1GB), provide warnings |
+| **CRDT implementation complexity** | High | Medium | Start with simple manual export/import, defer CRDT to Phase 7+ |
+| **Rust learning curve** | Medium | High | Allocate 2-4 weeks ramp-up, pair programming, code reviews |
+| **Leptos ecosystem maturity** | Low | Medium | Leptos 0.6+ is stable, large community, active development |
+
+### 13.2 Adoption Risks
+
+| Risk | Impact | Probability | Mitigation Strategy |
+|------|--------|-------------|-------------------|
+| **User resistance to change** | Medium | Medium | Familiar UI, migration guide, demo mode |
+| **Data migration challenges** | High | Low | Provide automated Java→Rust migration tool |
+| **Feature parity gaps** | High | Medium | Phase 1 targets 100% parity, Phase 2+ adds improvements |
+| **Browser requirement pushback** | Low | Low | Support browsers from 2020+ (95% market coverage) |
+| **Training requirements** | Low | Medium | Intuitive UI, guided tour, in-app help tooltips |
+| **Loss of data** | High | Low | Robust export/import, checksums, backup reminders |
+
+### 13.3 Business Risks
+
+| Risk | Impact | Probability | Mitigation Strategy |
+|------|--------|-------------|-------------------|
+| **Development overruns** | Medium | Medium | 4-phase structure with clear milestones, weekly reviews |
+| **Key developer unavailable** | High | Low | Document architecture, pair programming, code reviews |
+| **Changing requirements** | Medium | Medium | Modular design, clear interfaces, extensible architecture |
+| **Technology obsolescence** | Low | Low | WASM is W3C standard, Rust is stable, Leptos is actively developed |
+
+### 13.4 Risk Response Plan
+
+**High-Priority Mitigations (Week 1-2):**
+1. Set up CI/CD with browser testing (Chrome, Firefox, Safari, Edge)
+2. Create prototype for critical user flows (booth creation, checkout, reports)
+3. Benchmark WASM performance vs Java baseline
+4. Document architecture decisions and trade-offs
+
+**Ongoing Monitoring:**
+- Weekly: Check progress against 4-phase timeline
+- Bi-weekly: Run browser compatibility tests
+- Monthly: Review technical debt and refactoring needs
+- Per-phase: User acceptance testing with stakeholders
+
+---
+
+## 14. Measurable Success Criteria
+
+### 14.1 Phase 1 Targets (Foundation)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -728,7 +756,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Test coverage | >80% | `cargo tarpaulin` |
 | Documentation | 100% public APIs | `cargo doc` |
 
-### 12.2 Phase 2-3 Targets (MVP)
+### 14.2 Phase 2-3 Targets (MVP)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -738,7 +766,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Lighthouse score | >90 | Lighthouse CI |
 | Browser support | 95% coverage | Can I Use data |
 
-### 12.3 Phase 4-6 Targets (Feature Complete)
+### 14.3 Phase 4-6 Targets (Feature Complete)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -750,49 +778,43 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 13. Risk Mitigation
-
-### 12.1 Technical Risks
-
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| CRDT complexity | High | Medium | Start with simple sync, iterate |
-| Browser compatibility | Medium | Low | Polyfills, fallbacks |
-| IndexedDB limits | Medium | Low | Document limits, provide warnings |
-| WASM maturity | Low | Low | Well-supported in modern browsers |
-
-### 12.2 Adoption Risks
-
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| User training | Low | Medium | Intuitive UI, guided tour |
-| Data migration | High | Low | Provide Java→Rust migration tool |
-| Feature gaps | Medium | Medium | Phase 1: Parity, Phase 2: Improvements |
-| Browser requirement | Medium | Low | Clear minimum browser version |
-
----
-
 ## Conclusion
 
-The transition from `ez-booth` (Java) to `ez-booth-rs` (Rust/WASM) offers transformative improvements across all dimensions:
+The transition from `ez-booth` (Java/Vaadin) to `ez-booth-rs` (Rust/WASM) represents a strategic modernization that delivers substantial improvements across all dimensions:
 
-### Top 3 Improvements
-1. **10-50x reduction** in resource usage (size, memory, CPU)
-2. **10-30x faster** startup and response times
-3. **True offline capability** with browser-based storage
+### Quantified Benefits
+- **10-50x smaller** distribution size (50-100MB → <3MB)
+- **10-15x lower** memory footprint (150-300MB → 20-50MB)
+- **10-30x faster** startup time (5-15s → <500ms)
+- **Unlimited scalability** (no server capacity limits)
+- **Zero deployment friction** (URL access vs multi-step installation)
 
-### Top 3 Challenges
-1. **CRDT-based sync** implementation complexity
-2. **Browser storage limits** documentation and UX
-3. **Data migration** from Java SQLite to IndexedDB
+### Strategic Advantages
+1. **Market Expansion:** Browser-based access removes adoption barriers
+2. **Cost Reduction:** $180-1,140/year savings per deployment on infrastructure
+3. **Modern Stack:** Future-proof technology (WASM, Rust, Leptos)
+4. **Better UX:** Offline-capable, instant response, cross-device portability
+5. **Maintainability:** Type-safe, single codebase, automated testing
 
-### Overall Assessment
-**Recommended:** Proceed with Rust/WASM redesign. Benefits far outweigh costs, with clear path to MVP in 12-18 weeks.
+### Recommended Approach
+1. **Phase 1 (4 weeks):** Core MVP with feature parity
+2. **Phase 2 (3 weeks):** Reports and cross-browser portability
+3. **Phase 3 (3 weeks):** Polish, i18n (DE/EN), PWA
+4. **Phase 4 (2 weeks):** Testing and launch
+5. **Total: 12 weeks to production-ready MVP**
+
+### Risk Management
+- **Low technical risk:** WASM and Rust are mature, proven technologies
+- **Manageable complexity:** Clear 4-phase structure with milestones
+- **Controlled adoption:** Provide migration tools and parallel running if needed
+
+**Recommendation: Proceed with migration.** The benefits significantly outweigh the development investment, and the risk profile is acceptable with proper planning and execution.
 
 ---
 
-**Document Status:** Ready for Review  
+**Document Status:** Consolidated and ready for review  
 **Next Steps:**
-1. Review and approval of identified improvements
-2. Finalize priority ranking
-3. Begin Phase 1 implementation
+1. Review and approval of improvements and priorities
+2. Review cost-benefit analysis and risk assessment
+3. Finalize Phase 1 implementation plan
+4. Begin development
