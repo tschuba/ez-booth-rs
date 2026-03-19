@@ -12,14 +12,15 @@
 1. [Executive Summary](#executive-summary)
 2. [Resource Efficiency](#resource-efficiency)
 3. [Deployment Simplicity](#deployment-simplicity)
-4. [User Experience](#user-experience)
-5. [Data Synchronization](#data-synchronization)
-6. [Performance](#performance)
-7. [Maintainability](#maintainability)
-8. [Extensibility](#extensibility)
-9. [Testing & Quality](#testing--quality)
-10. [Documentation](#documentation)
-11. [Priority Matrix](#priority-matrix)
+4. [Cross-Browser Data Portability](#cross-browser-data-portability)
+5. [User Experience](#user-experience)
+6. [Data Synchronization](#data-synchronization)
+7. [Performance](#performance)
+8. [Maintainability](#maintainability)
+9. [Extensibility](#extensibility)
+10. [Testing & Quality](#testing--quality)
+11. [Documentation](#documentation)
+12. [Priority Matrix](#priority-matrix)
 
 ---
 
@@ -27,13 +28,14 @@
 
 This document identifies key areas where `ez-booth-rs` will improve upon the original `ez-booth` Java implementation. Each area includes specific problems from the current implementation, proposed solutions, and measurable success metrics.
 
-### Top 5 Improvement Areas
+### Top 6 Improvement Areas
 
 1. **Resource Efficiency** - 10-50x reduction in binary size and memory usage
 2. **Deployment Simplicity** - From multi-step JPackage process to single HTML file
-3. **Data Synchronization** - From manual file exchange to CRDT-based automatic sync
-4. **Startup Performance** - From 5-15s to <500ms time-to-interactive
-5. **True Offline Capability** - From server-dependent to fully browser-based
+3. **Cross-Browser Data Portability** - Export/import data between any browser
+4. **Data Synchronization** - From manual file exchange to CRDT-based automatic sync
+5. **Startup Performance** - From 5-15s to <500ms time-to-interactive
+6. **True Offline Capability** - From server-dependent to fully browser-based
 
 ---
 
@@ -180,7 +182,98 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 3. Data Synchronization
+## 3. Cross-Browser Data Portability
+
+### 3.1 Browser Data Isolation
+
+#### Current Problems (ez-booth Java)
+- **No Browser Switching:** Data locked to JVM instance on single machine
+- **Manual Backup Only:** No built-in export/import functionality
+- **Server Dependency:** Vaadin requires server to access data
+- **No Cross-Device:** Cannot easily transfer data between devices
+
+**Root Cause:** Traditional desktop application model with local SQLite database
+
+#### Proposed Solutions (ez-booth-rs)
+- **Built-in Export/Import:** One-click JSON export/import
+- **Browser Independence:** Works in Chrome, Firefox, Safari, Edge
+- **Cross-Device Ready:** Export from desktop, import on tablet
+- **Multiple Strategies:** Replace, merge, or preview before import
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Browser switching | Not supported | ✅ Supported | **New capability** |
+| Data export | Manual SQLite | One-click JSON | **Automated** |
+| Import time | N/A | <5 seconds | **Fast** |
+| Merge strategies | N/A | 3 options | **Flexible** |
+| Cross-device | Difficult | Easy | **10x simpler** |
+
+### 3.2 Export/Import Features
+
+#### Current Problems (ez-booth Java)
+- **No Export Feature:** Must manually copy SQLite database file
+- **Technical Knowledge Required:** Users must know where database is stored
+- **No Integrity Checks:** Corrupted files may cause data loss
+- **No Merge Options:** All-or-nothing import
+
+#### Proposed Solutions (ez-booth-rs)
+- **User-Friendly Export:** Download button creates JSON file
+- **Checksum Verification:** Detect corrupted exports
+- **Schema Versioning:** Backward compatibility for old exports
+- **Smart Merge:** Choose replace, merge (newer wins), or preview
+
+**Export Format Example:**
+```json
+{
+  "version": "0.1.0",
+  "exported_at": "2026-03-19T14:31:00Z",
+  "client_id": "chrome-desktop-abc123",
+  "booths": [...],
+  "vendors": [...],
+  "purchases": [...],
+  "checksum": "a3f5b8c9d2e1f4a7..."
+}
+```
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Export UX | Complex | One click | **10x easier** |
+| File format | Binary SQLite | Human-readable JSON | **Debuggable** |
+| Integrity check | None | SHA-256 checksum | **Secure** |
+| Corruption detection | None | Automatic | **Reliable** |
+| Version compatibility | Breaks | Backward compatible | **Future-proof** |
+
+### 3.3 File System Access API (Enhanced)
+
+#### Current Problems (ez-booth Java)
+- **Manual File Management:** User must remember where they saved export
+- **No Cloud Integration:** Cannot save directly to Dropbox/Google Drive
+- **Multiple Steps:** Export → Save → Navigate to folder → Import
+
+#### Proposed Solutions (ez-booth-rs)
+- **Native Save Dialog:** Browser's "Save As" dialog
+- **Cloud Folder Selection:** Save to synced folder (Dropbox, Google Drive)
+- **Automatic Sync:** OS handles file sync across devices
+- **One-Time Setup:** Configure once, auto-sync forever
+
+**User Workflow:**
+1. Export → Choose Dropbox folder → Save
+2. File syncs to all devices automatically
+3. On other device → Import → Select synced file → Done
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Save steps | 3-4 | 1-2 | **2-3x simpler** |
+| Cloud integration | None | Automatic | **New capability** |
+| Cross-device sync | Manual | Automatic | **Automated** |
+| User effort | High | Minimal | **10x less** |
+
+---
+
+## 4. Data Synchronization
 
 ### 3.1 Multi-Instance Synchronization
 
@@ -267,9 +360,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 4. Performance
+## 5. Performance
 
-### 4.1 Startup Performance
+### 12.1 Startup Performance
 
 #### Current Problems (ez-booth Java)
 - **Spring Boot Init:** 3-8s for component scanning, bean creation
@@ -290,7 +383,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Subsequent loads | 3-8s | <100ms | **30-80x faster** |
 | Time to interactive | 8-20s | <500ms | **16-40x faster** |
 
-### 4.2 Runtime Performance
+### 12.2 Runtime Performance
 
 #### Current Problems (ez-booth Java)
 - **Server Roundtrips:** Every UI interaction hits server
@@ -312,7 +405,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | UI responsiveness | 50-200ms | <16ms | **3-12x faster** |
 | 99th percentile latency | 500ms | 100ms | **5x lower** |
 
-### 4.3 Scalability
+### 12.3 Scalability
 
 #### Current Problems (ez-booth Java)
 - **Memory per User:** Each Vaadin session = 50-100MB
@@ -336,9 +429,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 5. Maintainability
+## 6. Maintainability
 
-### 5.1 Codebase Complexity
+### 12.1 Codebase Complexity
 
 #### Current Problems (ez-booth Java)
 - **Multiple Frameworks:** Spring + Vaadin + gRPC + Hibernate
@@ -360,7 +453,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Config files | 10+ | 2-3 | **3-5x fewer** |
 | Compilation time | 3-5 minutes | 30-60s | **3-6x faster** |
 
-### 5.2 Type Safety
+### 12.2 Type Safety
 
 #### Current Problems (ez-booth Java)
 - **Runtime Errors:** NullPointerException still possible
@@ -382,7 +475,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Runtime errors | ~30% of bugs | ~5% | **6x reduction** |
 | Compilation catches | 60% | 90% | **1.5x better** |
 
-### 5.3 Testing
+### 12.3 Testing
 
 #### Current Problems (ez-booth Java)
 - **Slow Tests:** Spring context startup = 10-30s
@@ -406,9 +499,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 6. Extensibility
+## 7. Extensibility
 
-### 6.1 Plugin Architecture
+### 12.1 Plugin Architecture
 
 #### Current Problems (ez-booth Java)
 - **Monolithic:** Hard to add features without rebuilding
@@ -430,7 +523,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Plugin isolation | Weak | Strong | **Better safety** |
 | Custom features | Difficult | Easy | **2x faster dev** |
 
-### 6.2 Data Export/Import
+### 12.2 Data Export/Import
 
 #### Current Problems (ez-booth Java)
 - **Single Format:** Proto binary or JSON
@@ -454,9 +547,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 7. User Experience
+## 8. User Experience
 
-### 7.1 Installation Experience
+### 12.1 Installation Experience
 
 #### Current Problems (ez-booth Java)
 - **Download:** Large file (50-100MB)
@@ -477,7 +570,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Steps to install | 4-5 steps | 1-2 steps | **2-5x simpler** |
 | Install failures | ~10% | <1% | **10x more reliable** |
 
-### 7.2 Interface Responsiveness
+### 12.2 Interface Responsiveness
 
 #### Current Problems (ez-booth Java)
 - **Server Latency:** Every click = network roundtrip
@@ -499,7 +592,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Network dependency | 100% | 0% | **Eliminated** |
 | Loading spinners | Frequent | Rare | **10x fewer** |
 
-### 7.3 Mobile Experience
+### 12.3 Mobile Experience
 
 #### Current Problems (ez-booth Java)
 - **Desktop-First:** UI not optimized for mobile
@@ -523,9 +616,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 8. Documentation
+## 9. Documentation
 
-### 8.1 User Documentation
+### 12.1 User Documentation
 
 #### Current Problems (ez-booth Java)
 - **Installation Guide:** Complex, platform-specific
@@ -546,7 +639,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Support tickets | 10/month | 2/month | **5x reduction** |
 | Time to productivity | 30 minutes | 5 minutes | **6x faster** |
 
-### 8.2 Developer Documentation
+### 12.2 Developer Documentation
 
 #### Current Problems (ez-booth Java)
 - **Setup Guide:** Complex (JDK, Maven, IDE plugins)
@@ -570,14 +663,15 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 9. Priority Matrix
+## 10. Priority Matrix
 
-### 9.1 Improvement Priority Ranking
+### 10.1 Improvement Priority Ranking
 
 | Area | Impact | Effort | Priority | Timeline |
 |------|--------|--------|----------|----------|
 | **Resource Efficiency** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | **P0** | Phase 1 |
 | **Deployment Simplicity** | ⭐⭐⭐⭐⭐ | ⭐⭐ | **P0** | Phase 1-2 |
+| **Cross-Browser Portability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | **P0** | Phase 6 |
 | **Startup Performance** | ⭐⭐⭐⭐ | ⭐⭐ | **P1** | Phase 2 |
 | **True Offline** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | **P0** | Phase 2-3 |
 | **Data Sync (Basic)** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 4 |
@@ -594,7 +688,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 - ⭐⭐ Low
 - ⭐ Nice-to-have
 
-### 9.2 Quick Wins (High Impact, Low Effort)
+### 10.2 Quick Wins (High Impact, Low Effort)
 
 1. **Deployment Simplicity** (P0)
    - Static file hosting
@@ -611,28 +705,39 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
    - Compile-time guarantees
    - Implementation: Phase 1
 
-### 9.3 Long-Term Investments (High Impact, High Effort)
+4. **Cross-Browser Export/Import** (P0)
+   - JSON export/import
+   - Browser independence
+   - Implementation: Phase 6
+
+### 10.3 Long-Term Investments (High Impact, High Effort)
 
 1. **True Offline** (P0)
    - IndexedDB storage
    - Service worker
    - Implementation: Phase 2-3
 
-2. **CRDT Sync** (P2)
+2. **Cross-Browser Portability** (P0)
+   - Manual export/import (core)
+   - File System API (enhanced)
+   - Cloud sync (optional)
+   - Implementation: Phase 6-7
+
+3. **CRDT Sync** (P2)
    - Automatic conflict resolution
    - Distributed consistency
    - Implementation: Phase 6+
 
-3. **Plugin System** (P3)
+4. **Plugin System** (P3)
    - Dynamic WASM loading
    - Extensibility framework
    - Implementation: Phase 7+
 
 ---
 
-## 10. Measurable Success Criteria
+## 11. Measurable Success Criteria
 
-### 10.1 Phase 1 Targets (Foundation)
+### 12.1 Phase 1 Targets (Foundation)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -642,7 +747,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Test coverage | >80% | `cargo tarpaulin` |
 | Documentation | 100% public APIs | `cargo doc` |
 
-### 10.2 Phase 2-3 Targets (MVP)
+### 12.2 Phase 2-3 Targets (MVP)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -652,7 +757,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Lighthouse score | >90 | Lighthouse CI |
 | Browser support | 95% coverage | Can I Use data |
 
-### 10.3 Phase 4-6 Targets (Feature Complete)
+### 12.3 Phase 4-6 Targets (Feature Complete)
 
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
@@ -664,9 +769,9 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ---
 
-## 11. Risk Mitigation
+## 12. Risk Mitigation
 
-### 11.1 Technical Risks
+### 12.1 Technical Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
@@ -675,7 +780,7 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | IndexedDB limits | Medium | Low | Document limits, provide warnings |
 | WASM maturity | Low | Low | Well-supported in modern browsers |
 
-### 11.2 Adoption Risks
+### 12.2 Adoption Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|

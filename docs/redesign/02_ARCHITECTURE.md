@@ -17,8 +17,9 @@
 6. [Data Architecture](#data-architecture)
 7. [User Interface Design](#user-interface-design)
 8. [Deployment Models](#deployment-models)
-9. [Security & Privacy](#security--privacy)
-10. [Performance Targets](#performance-targets)
+9. [Cross-Browser Data Portability](#cross-browser-data-portability)
+10. [Security & Privacy](#security--privacy)
+11. [Performance Targets](#performance-targets)
 
 ---
 
@@ -829,9 +830,369 @@ CMD ["server"]
 
 ---
 
-## Security & Privacy
+## 9. Cross-Browser Data Portability
 
-### 9.1 Data Protection
+### 9.1 Challenge: Browser-Specific Storage
+
+**Problem:** IndexedDB data is isolated per browser and per profile, creating data silos:
+
+- ❌ Chrome data ≠ Firefox data
+- ❌ Desktop Chrome ≠ Mobile Chrome  
+- ❌ Chrome Profile A ≠ Chrome Profile B
+- ❌ No automatic data transfer between browsers
+
+**Impact:** Users cannot easily:
+- Switch browsers without losing data
+- Use multiple devices with the same data
+- Recover data after browser reinstall
+- Work across different browser profiles
+
+### 9.2 Solution: Multi-Layer Portability Strategy
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              User's Device Ecosystem                     │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │   Chrome     │  │   Firefox    │  │    Safari    │ │
+│  │  IndexedDB   │  │  IndexedDB   │  │  IndexedDB   │ │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │
+│         │                  │                  │          │
+│         └──────────────────┼──────────────────┘          │
+│                            ▼                             │
+│              ┌─────────────────────────┐                │
+│              │  Portability Solutions  │                │
+│              │                         │                │
+│              │  1. Export/Import (P0) │                │
+│              │  2. File System (P1)   │                │
+│              │  3. Cloud Sync (P2)    │                │
+│              └─────────────────────────┘                │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 9.3 Layer 1: Manual Export/Import (P0 - Core Feature)
+
+**Priority:** Must-have for MVP  
+**Complexity:** Low  
+**Implementation:** Phase 6 (Sync)
+
+#### Export Functionality
+
+```rust
+// JSON export with integrity verification
+pub struct ExportData {
+    pub version: String,              // Schema version
+    pub exported_at: DateTime<Utc>,   // Export timestamp
+    pub client_id: String,            // Browser identifier
+    pub booths: Vec<Booth>,
+    pub vendors: Vec<Vendor>,
+    pub purchases: Vec<Purchase>,
+    pub checksum: String,             // SHA-256 integrity hash
+}
+
+impl ExportService {
+    pub async fn export_as_json(&self) -> Result<String, Error> {
+        let data = ExportData {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            exported_at: Utc::now(),
+            client_id: self.get_client_id(),
+            booths: self.fetch_all_booths().await?,
+            vendors: self.fetch_all_vendors().await?,
+            purchases: self.fetch_all_purchases().await?,
+            checksum: String::new(), // Calculated after serialization
+        };
+        
+        let json = serde_json::to_string_pretty(&data)?;
+        Ok(json)
+    }
+    
+    pub async fn download_export(&self) -> Result<(), JsValue> {
+        let json = self.export_as_json().await?;
+        let filename = format!(
+            "ez-booth-export-{}.json",
+            Utc::now().format("%Y%m%d-%H%M%S")
+        );
+        
+        // Trigger browser download
+        self.trigger_download(&json, &filename).await
+    }
+}
+```
+
+#### Import Functionality
+
+```rust
+pub enum MergeStrategy {
+    Replace,  // Clear existing, import all
+    Merge,    // Merge by timestamp (newer wins)
+    Preview,  // Show changes without applying
+}
+
+impl ImportService {
+    pub async fn import_from_json(
+        &self,
+        json: &str,
+        strategy: MergeStrategy,
+    ) -> Result<ImportResult, Error> {
+        // 1. Parse and validate
+        let data: ExportData = serde_json::from_str(json)?;
+        self.verify_checksum(&data)?;
+        self.validate_schema_version(&data.version)?;
+        
+        // 2. Apply strategy
+        match strategy {
+            MergeStrategy::Replace => self.import_replace(data).await?,
+            MergeStrategy::Merge => self.import_merge(data).await?,
+            MergeStrategy::Preview => return self.preview_changes(data).await,
+        }
+        
+        Ok(ImportResult {
+            booths_imported: data.booths.len(),
+            vendors_imported: data.vendors.len(),
+            purchases_imported: data.purchases.len(),
+        })
+    }
+    
+    async fn import_merge(&self, data: ExportData) -> Result<(), Error> {
+        // Merge logic: newer timestamp wins
+        for booth in data.booths {
+            match self.db.get_booth(&booth.id).await? {
+                Some(existing) if existing.updated_at > booth.updated_at => {
+                    // Keep existing (newer)
+                    continue;
+                }
+                _ => {
+                    // Import (newer or new)
+                    self.db.save_booth(&booth).await?;
+                }
+            }
+        }
+        // Repeat for vendors and purchases...
+        Ok(())
+    }
+}
+```
+
+#### UI Integration
+
+**Sync Page Component:**
+```rust
+#[component]
+pub fn SyncPage() -> impl IntoView {
+    view! {
+        <div class="sync-page">
+            <section class="export-section">
+                <h2>"Export Data"</h2>
+                <p>"Download all data as JSON file for:"</p>
+                <ul>
+                    <li>"✓ Switching to another browser"</li>
+                    <li>"✓ Backing up your data"</li>
+                    <li>"✓ Transferring to another device"</li>
+                </ul>
+                <button on:click=handle_export>
+                    "📥 Download Export"
+                </button>
+            </section>
+            
+            <section class="import-section">
+                <h2>"Import Data"</h2>
+                <input 
+                    type="file" 
+                    accept=".json"
+                    on:change=handle_import
+                />
+                <select name="strategy">
+                    <option value="merge">"Merge with existing"</option>
+                    <option value="replace">"Replace all data"</option>
+                    <option value="preview">"Preview changes"</option>
+                </select>
+            </section>
+        </div>
+    }
+}
+```
+
+**User Flow:**
+1. User opens Chrome → "Export Data" → Downloads `ez-booth-export-20260319.json`
+2. User opens Firefox → "Import Data" → Selects file → "Merge" → Done
+3. Data now available in both browsers
+
+### 9.4 Layer 2: File System Access API (P1 - Enhanced)
+
+**Priority:** Nice-to-have for better UX  
+**Complexity:** Medium  
+**Implementation:** Phase 7 (Polish)
+
+#### Automatic Cloud Folder Sync
+
+**Feature:** Save export directly to synced folder (Dropbox, Google Drive, iCloud)
+
+```rust
+#[cfg(feature = "file-system-access")]
+impl ExportService {
+    pub async fn export_to_file_system(&self) -> Result<(), JsValue> {
+        // Use native File System Access API
+        let file_handle = self.show_save_file_picker(
+            "ez-booth-data.json",
+            "application/json"
+        ).await?;
+        
+        let writable = file_handle.create_writable().await?;
+        let json = self.export_as_json().await?;
+        
+        writable.write(&JsValue::from_str(&json)).await?;
+        writable.close().await?;
+        
+        Ok(())
+    }
+}
+```
+
+**Benefits:**
+- User selects save location (e.g., `~/Dropbox/ez-booth-data.json`)
+- OS/cloud provider handles sync automatically
+- Other devices can import from same synced file
+- No manual download/upload needed
+
+**Browser Support:**
+- Chrome 86+ ✅
+- Edge 86+ ✅
+- Firefox: In development ⚠️
+- Safari: Not supported ❌
+
+**Fallback:** Use standard download for unsupported browsers
+
+### 9.5 Layer 3: Optional Cloud Sync (P2 - Advanced)
+
+**Priority:** Future enhancement  
+**Complexity:** High  
+**Implementation:** Phase 6+ (Optional feature)
+
+#### Cloud Sync Architecture
+
+```
+┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+│  Browser A   │         │  Cloud Sync  │         │  Browser B   │
+│  (Chrome)    │◄───────►│   Service    │◄───────►│  (Firefox)   │
+│  IndexedDB   │  HTTPS  │              │  HTTPS  │  IndexedDB   │
+└──────────────┘         └──────────────┘         └──────────────┘
+                                │
+                                ▼
+                         ┌──────────────┐
+                         │   Storage    │
+                         │ (PostgreSQL  │
+                         │  or Supabase)│
+                         └──────────────┘
+```
+
+#### Cloud Sync Service
+
+```rust
+pub struct CloudSyncService {
+    backend_url: String,
+    user_token: Option<String>,
+    auto_sync_enabled: bool,
+}
+
+impl CloudSyncService {
+    pub async fn sync_to_cloud(&self) -> Result<(), Error> {
+        let export = ExportService::new().export_all_data().await?;
+        
+        // Upload to backend
+        let response = reqwest::Client::new()
+            .post(&format!("{}/api/sync", self.backend_url))
+            .bearer_auth(self.user_token.as_ref().unwrap())
+            .json(&export)
+            .send()
+            .await?;
+        
+        if response.status().is_success() {
+            self.update_last_sync_timestamp().await?;
+            Ok(())
+        } else {
+            Err(Error::SyncFailed)
+        }
+    }
+    
+    pub fn enable_auto_sync(&mut self, interval_minutes: u32) {
+        self.auto_sync_enabled = true;
+        
+        // Background sync every N minutes
+        spawn_local(async move {
+            loop {
+                sleep(Duration::from_secs(interval_minutes as u64 * 60)).await;
+                let _ = self.sync_to_cloud().await;
+            }
+        });
+    }
+}
+```
+
+### 9.6 Data Format Specification
+
+#### Export JSON Schema
+
+```json
+{
+  "version": "0.1.0",
+  "exported_at": "2026-03-19T14:31:00Z",
+  "client_id": "chrome-desktop-abc123",
+  "booths": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "description": "Spring Fair 2026",
+      "date": "2026-03-25",
+      "fees": {
+        "participation_fee": "10.00",
+        "sales_fee_percent": "5.0",
+        "rounding_step": "0.50"
+      },
+      "status": { "type": "Open" },
+      "created_at": "2026-03-19T10:00:00Z",
+      "updated_at": "2026-03-19T14:00:00Z"
+    }
+  ],
+  "vendors": [...],
+  "purchases": [...],
+  "checksum": "a3f5b8c9d2e1f4a7b6c5d8e9f2a1b4c7"
+}
+```
+
+**Schema Features:**
+- **Versioned:** `version` field for backward compatibility
+- **Timestamped:** `exported_at` for audit trail  
+- **Checksummed:** Integrity verification
+- **Human-readable:** JSON for easy debugging
+
+### 9.7 Implementation Priorities
+
+| Priority | Feature | Phase | Effort |
+|----------|---------|-------|--------|
+| **P0** | Manual Export/Import | Phase 6 | 3 days |
+| **P0** | JSON format with checksum | Phase 6 | 1 day |
+| **P0** | Merge strategies | Phase 6 | 2 days |
+| **P1** | File System Access API | Phase 7 | 2 days |
+| **P2** | Cloud sync service | Phase 8+ | 2 weeks |
+
+### 9.8 Success Criteria
+
+**Phase 6 (MVP):**
+- ✅ User can export all data as JSON
+- ✅ User can import JSON in another browser
+- ✅ Merge strategy preserves newer data
+- ✅ Checksum verification prevents corruption
+- ✅ <5 seconds for typical export/import
+
+**Phase 7 (Enhanced):**
+- ✅ File System Access API works in Chrome/Edge
+- ✅ User can save to synced folder
+- ✅ Graceful fallback for unsupported browsers
+
+---
+
+## 10. Security & Privacy
+
+### 10.1 Data Protection
 
 #### Browser-Only Mode
 - **Encryption at Rest:** Not required (local-only data)
@@ -844,14 +1205,14 @@ CMD ["server"]
 - **Authorization:** Role-based access control (RBAC)
 - **Data Encryption:** Encrypt sensitive fields in database
 
-### 9.2 Input Validation
+### 10.2 Input Validation
 
 - **Frontend:** Immediate validation feedback
 - **Backend:** Re-validate all inputs (never trust client)
 - **Type Safety:** Rust types prevent injection attacks
 - **Sanitization:** Escape user input in reports/exports
 
-### 9.3 CSRF Protection
+### 10.3 CSRF Protection
 
 - **SameSite Cookies:** Use `SameSite=Strict` for session cookies
 - **CSRF Tokens:** For state-changing operations
@@ -859,9 +1220,9 @@ CMD ["server"]
 
 ---
 
-## Performance Targets
+## 11. Performance Targets
 
-### 10.1 Bundle Size
+### 11.1 Bundle Size
 
 | Asset | Target | Rationale |
 |-------|--------|-----------|
@@ -870,7 +1231,7 @@ CMD ["server"]
 | CSS | <50KB | Tailwind purged of unused classes |
 | **Total** | **<3.5MB** | Initial load, cached thereafter |
 
-### 10.2 Runtime Performance
+### 11.2 Runtime Performance
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
@@ -880,7 +1241,7 @@ CMD ["server"]
 | Memory Usage | <50MB | Browser DevTools |
 | Checkout Transaction | <100ms | Lighthouse audit |
 
-### 10.3 Storage Limits
+### 11.3 Storage Limits
 
 | Storage | Limit | Notes |
 |---------|-------|-------|
@@ -932,10 +1293,12 @@ CMD ["server"]
 | Phase 3: UI Core | 3 weeks | Component library, routing, state |
 | Phase 4: Features | 3 weeks | Booth mgmt, vendors, checkout |
 | Phase 5: Reports | 2 weeks | Report generation, printing |
-| Phase 6: Sync | 2 weeks | Export/import, server protocol |
-| Phase 7: Polish | 2 weeks | Styling, PWA, accessibility |
+| Phase 6: Sync | 2 weeks | **Export/import, cross-browser portability** |
+| Phase 7: Polish | 2 weeks | Styling, PWA, accessibility, File System API |
 | Phase 8: Testing | 2 weeks | E2E tests, browser testing |
 | **Total** | **18 weeks** | **MVP Release** |
+
+**Cross-Browser Portability Added:** Phase 6 now includes manual export/import as core feature, with enhanced File System Access API in Phase 7.
 
 ---
 

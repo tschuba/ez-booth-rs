@@ -1186,9 +1186,481 @@ async fn main() -> anyhow::Result<()> {
 
 ---
 
-## 6. Data Synchronization Protocol
+## 6. Cross-Browser Data Portability & Synchronization
 
-### 6.1 Sync Protocol Definition
+### 6.1 Export/Import Service (Core Feature - Phase 6)
+
+**File:** `crates/frontend/src/services/export_service.rs`
+
+```rust
+use ez_booth_core::entities::{booth::Booth, vendor::Vendor, purchase::Purchase};
+use ez_booth_storage::indexeddb::database::Database;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use wasm_bindgen::JsValue;
+use web_sys::{Blob, Url};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExportData {
+    pub version: String,              // Schema version for compatibility
+    pub exported_at: DateTime<Utc>,   // Export timestamp
+    pub client_id: String,            // Browser/device identifier
+    pub booths: Vec<Booth>,
+    pub vendors: Vec<Vendor>,
+    pub purchases: Vec<Purchase>,
+    pub checksum: String,             // Integrity verification
+}
+
+pub struct ExportService {
+    db: Database,
+}
+
+impl ExportService {
+    pub fn new(db: Database) -> Self {
+        Self { db }
+    }
+    
+    pub async fn export_all_data(&self) -> Result<ExportData, JsValue> {
+        // 1. Fetch all data from IndexedDB
+        let booths = self.fetch_all_booths().await?;
+        let vendors = self.fetch_all_vendors().await?;
+        let purchases = self.fetch_all_purchases().await?;
+        
+        // 2. Calculate checksum for integrity
+        let checksum = Self::calculate_checksum(&booths, &vendors, &purchases);
+        
+        // 3. Create export structure
+        let export = ExportData {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            exported_at: Utc::now(),
+            client_id: Self::get_client_id(),
+            booths,
+            vendors,
+            purchases,
+            checksum,
+        };
+        
+        Ok(export)
+    }
+    
+    pub async fn download_as_json(&self) -> Result<(), JsValue> {
+        let export = self.export_all_data().await?;
+        let json = serde_json::to_string_pretty(&export)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        
+        let filename = format!(
+            "ez-booth-export-{}.json",
+            Utc::now().format("%Y%m%d-%H%M%S")
+        );
+        
+        // Create blob and trigger download
+        let blob = Blob::new_with_str_sequence(&js_sys::Array::from_iter([
+            JsValue::from_str(&json)
+        ]))?;
+        
+        let url = Url::create_object_url_with_blob(&blob)?;
+        
+        // Trigger browser download
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let a = document.create_element("a")?;
+        a.set_attribute("href", &url)?;
+        a.set_attribute("download", &filename)?;
+        a.dyn_ref::<web_sys::HtmlElement>().unwrap().click();
+        
+        Url::revoke_object_url(&url)?;
+        Ok(())
+    }
+    
+    fn calculate_checksum(
+        booths: &[Booth],
+        vendors: &[Vendor],
+        purchases: &[Purchase],
+    ) -> String {
+        let mut hasher = DefaultHasher::new();
+        booths.hash(&mut hasher);
+        vendors.hash(&mut hasher);
+        purchases.hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
+    
+    fn get_client_id() -> String {
+        // Generate stable client ID from browser info
+        format!(
+            "{}-{}",
+            web_sys::window().unwrap().navigator().user_agent().unwrap_or_default(),
+            uuid::Uuid::new_v4()
+        )
+    }
+    
+    async fn fetch_all_booths(&self) -> Result<Vec<Booth>, JsValue> {
+        // Implementation using BoothRepository
+        todo!()
+    }
+    
+    async fn fetch_all_vendors(&self) -> Result<Vec<Vendor>, JsValue> {
+        // Implementation using VendorRepository
+        todo!()
+    }
+    
+    async fn fetch_all_purchases(&self) -> Result<Vec<Purchase>, JsValue> {
+        // Implementation using PurchaseRepository
+        todo!()
+    }
+}
+```
+
+### 6.2 Import Service with Merge Strategies
+
+**File:** `crates/frontend/src/services/import_service.rs`
+
+```rust
+use ez_booth_core::entities::{booth::Booth, vendor::Vendor, purchase::Purchase};
+use ez_booth_storage::indexeddb::database::Database;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
+use super::export_service::{ExportData, ExportService};
+
+#[derive(Clone, Copy, Debug)]
+pub enum MergeStrategy {
+    Replace,  // Clear existing data and import all
+    Merge,    // Merge by timestamp (newer wins)
+    Preview,  // Show changes without applying
+}
+
+pub struct ImportResult {
+    pub booths_imported: usize,
+    pub vendors_imported: usize,
+    pub purchases_imported: usize,
+    pub conflicts: Vec<String>,
+}
+
+pub struct ImportService {
+    db: Database,
+}
+
+impl ImportService {
+    pub fn new(db: Database) -> Self {
+        Self { db }
+    }
+    
+    pub async fn import_from_file(
+        &self,
+        file: web_sys::File,
+        strategy: MergeStrategy,
+    ) -> Result<ImportResult, JsValue> {
+        // 1. Read file as text
+        let text = Self::read_file_as_text(&file).await?;
+        
+        // 2. Parse JSON
+        let export: ExportData = serde_json::from_str(&text)
+            .map_err(|e| JsValue::from_str(&format!("Parse error: {}", e)))?;
+        
+        // 3. Verify integrity
+        self.verify_checksum(&export)?;
+        
+        // 4. Check version compatibility
+        self.validate_schema_version(&export.version)?;
+        
+        // 5. Apply import strategy
+        match strategy {
+            MergeStrategy::Replace => self.import_replace(export).await,
+            MergeStrategy::Merge => self.import_merge(export).await,
+            MergeStrategy::Preview => self.preview_changes(export).await,
+        }
+    }
+    
+    async fn read_file_as_text(file: &web_sys::File) -> Result<String, JsValue> {
+        let promise = file.text();
+        let js_value = JsFuture::from(promise).await?;
+        Ok(js_value.as_string().unwrap())
+    }
+    
+    fn verify_checksum(&self, export: &ExportData) -> Result<(), JsValue> {
+        let calculated = ExportService::calculate_checksum(
+            &export.booths,
+            &export.vendors,
+            &export.purchases,
+        );
+        
+        if calculated != export.checksum {
+            return Err(JsValue::from_str(
+                "Data integrity check failed - file may be corrupted"
+            ));
+        }
+        
+        Ok(())
+    }
+    
+    fn validate_schema_version(&self, version: &str) -> Result<(), JsValue> {
+        // Check if import version is compatible
+        let current = env!("CARGO_PKG_VERSION");
+        
+        // Simple version check - can be enhanced with semver crate
+        if version > current {
+            return Err(JsValue::from_str(&format!(
+                "Export from newer version ({}) - please update ez-booth",
+                version
+            )));
+        }
+        
+        Ok(())
+    }
+    
+    async fn import_replace(&self, export: ExportData) -> Result<ImportResult, JsValue> {
+        // 1. Clear all existing data
+        self.clear_all_data().await?;
+        
+        // 2. Import all data
+        for booth in &export.booths {
+            self.db.save_booth(booth).await?;
+        }
+        for vendor in &export.vendors {
+            self.db.save_vendor(vendor).await?;
+        }
+        for purchase in &export.purchases {
+            self.db.save_purchase(purchase).await?;
+        }
+        
+        Ok(ImportResult {
+            booths_imported: export.booths.len(),
+            vendors_imported: export.vendors.len(),
+            purchases_imported: export.purchases.len(),
+            conflicts: vec![],
+        })
+    }
+    
+    async fn import_merge(&self, export: ExportData) -> Result<ImportResult, JsValue> {
+        let mut conflicts = Vec::new();
+        
+        // Merge booths (newer timestamp wins)
+        for booth in export.booths {
+            match self.db.get_booth(&booth.id).await? {
+                Some(existing) => {
+                    if booth.updated_at > existing.updated_at {
+                        self.db.save_booth(&booth).await?;
+                    } else {
+                        conflicts.push(format!(
+                            "Booth {} kept existing (newer)",
+                            booth.id
+                        ));
+                    }
+                }
+                None => {
+                    self.db.save_booth(&booth).await?;
+                }
+            }
+        }
+        
+        // Merge vendors (newer timestamp wins)
+        for vendor in export.vendors {
+            match self.db.get_vendor(&vendor.id).await? {
+                Some(existing) => {
+                    if vendor.created_at > existing.created_at {
+                        self.db.save_vendor(&vendor).await?;
+                    }
+                }
+                None => {
+                    self.db.save_vendor(&vendor).await?;
+                }
+            }
+        }
+        
+        // Merge purchases (newer timestamp wins)
+        for purchase in export.purchases {
+            match self.db.get_purchase(&purchase.id).await? {
+                Some(existing) => {
+                    if purchase.purchased_at > existing.purchased_at {
+                        self.db.save_purchase(&purchase).await?;
+                    }
+                }
+                None => {
+                    self.db.save_purchase(&purchase).await?;
+                }
+            }
+        }
+        
+        Ok(ImportResult {
+            booths_imported: export.booths.len(),
+            vendors_imported: export.vendors.len(),
+            purchases_imported: export.purchases.len(),
+            conflicts,
+        })
+    }
+    
+    async fn preview_changes(&self, export: ExportData) -> Result<ImportResult, JsValue> {
+        // Calculate what would change without applying
+        let mut conflicts = Vec::new();
+        
+        for booth in &export.booths {
+            if let Some(existing) = self.db.get_booth(&booth.id).await? {
+                if booth.updated_at != existing.updated_at {
+                    conflicts.push(format!(
+                        "Booth {} would be updated",
+                        booth.id
+                    ));
+                }
+            }
+        }
+        
+        Ok(ImportResult {
+            booths_imported: 0,
+            vendors_imported: 0,
+            purchases_imported: 0,
+            conflicts,
+        })
+    }
+    
+    async fn clear_all_data(&self) -> Result<(), JsValue> {
+        // Clear all object stores
+        self.db.clear_booths().await?;
+        self.db.clear_vendors().await?;
+        self.db.clear_purchases().await?;
+        Ok(())
+    }
+}
+```
+
+### 6.3 UI Integration - Sync Page
+
+**File:** `crates/frontend/src/pages/sync.rs`
+
+```rust
+use leptos::*;
+use wasm_bindgen::JsCast;
+use super::services::{ExportService, ImportService, MergeStrategy};
+
+#[component]
+pub fn SyncPage() -> impl IntoView {
+    let (export_status, set_export_status) = create_signal(None::<String>);
+    let (import_status, set_import_status) = create_signal(None::<String>);
+    let (merge_strategy, set_merge_strategy) = create_signal(MergeStrategy::Merge);
+    
+    let handle_export = move |_| {
+        spawn_local(async move {
+            set_export_status(Some("Exporting...".to_string()));
+            
+            let export_service = ExportService::new(/* db */);
+            match export_service.download_as_json().await {
+                Ok(_) => {
+                    set_export_status(Some("✓ Export downloaded successfully".to_string()));
+                }
+                Err(e) => {
+                    set_export_status(Some(format!("✗ Export failed: {:?}", e)));
+                }
+            }
+        });
+    };
+    
+    let handle_import = move |ev: web_sys::Event| {
+        let input = ev.target().unwrap()
+            .dyn_into::<web_sys::HtmlInputElement>().unwrap();
+        
+        if let Some(files) = input.files() {
+            if files.length() > 0 {
+                let file = files.get(0).unwrap();
+                
+                spawn_local(async move {
+                    set_import_status(Some("Importing...".to_string()));
+                    
+                    let import_service = ImportService::new(/* db */);
+                    match import_service.import_from_file(file, merge_strategy.get()).await {
+                        Ok(result) => {
+                            set_import_status(Some(format!(
+                                "✓ Imported {} booths, {} vendors, {} purchases",
+                                result.booths_imported,
+                                result.vendors_imported,
+                                result.purchases_imported
+                            )));
+                        }
+                        Err(e) => {
+                            set_import_status(Some(format!("✗ Import failed: {:?}", e)));
+                        }
+                    }
+                });
+            }
+        }
+    };
+    
+    let handle_strategy_change = move |ev: web_sys::Event| {
+        let select = ev.target().unwrap()
+            .dyn_into::<web_sys::HtmlSelectElement>().unwrap();
+        
+        let strategy = match select.value().as_str() {
+            "replace" => MergeStrategy::Replace,
+            "merge" => MergeStrategy::Merge,
+            "preview" => MergeStrategy::Preview,
+            _ => MergeStrategy::Merge,
+        };
+        
+        set_merge_strategy(strategy);
+    };
+    
+    view! {
+        <div class="sync-page max-w-4xl mx-auto p-6">
+            <h1 class="text-3xl font-bold mb-6">"Cross-Browser Data Portability"</h1>
+            
+            <section class="export-section mb-8 p-6 bg-white rounded-lg shadow">
+                <h2 class="text-2xl font-semibold mb-4">"Export Data"</h2>
+                <p class="mb-4">"Download all your data as a JSON file for:"</p>
+                <ul class="list-disc list-inside mb-4 space-y-2">
+                    <li>"✓ Switching to another browser (Chrome → Firefox)"</li>
+                    <li>"✓ Backing up your data safely"</li>
+                    <li>"✓ Transferring to another device"</li>
+                    <li>"✓ Sharing with team members"</li>
+                </ul>
+                <button 
+                    on:click=handle_export
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    "📥 Download Export"
+                </button>
+                {move || export_status.get().map(|status| view! {
+                    <p class="mt-4 text-sm">{status}</p>
+                })}
+            </section>
+            
+            <section class="import-section p-6 bg-white rounded-lg shadow">
+                <h2 class="text-2xl font-semibold mb-4">"Import Data"</h2>
+                <p class="mb-4">"Upload a previously exported JSON file"</p>
+                
+                <div class="mb-4">
+                    <label class="block mb-2 font-medium">"Import Strategy:"</label>
+                    <select 
+                        on:change=handle_strategy_change
+                        class="w-full px-4 py-2 border rounded-lg"
+                    >
+                        <option value="merge" selected>"Merge with existing (newer wins)"</option>
+                        <option value="replace">"Replace all data"</option>
+                        <option value="preview">"Preview changes only"</option>
+                    </select>
+                </div>
+                
+                <input 
+                    type="file" 
+                    accept=".json"
+                    on:change=handle_import
+                    class="block w-full px-4 py-2 border rounded-lg cursor-pointer"
+                />
+                
+                {move || import_status.get().map(|status| view! {
+                    <p class="mt-4 text-sm">{status}</p>
+                })}
+                
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-sm text-yellow-800">
+                        "⚠️ Tip: Save exports to a cloud folder (Dropbox, Google Drive) for automatic sync across devices"
+                    </p>
+                </div>
+            </section>
+        </div>
+    }
+}
+```
+
+### 6.4 Data Synchronization Protocol (Server - Optional)
 
 **File:** `crates/shared/src/protocol/mod.rs`
 
