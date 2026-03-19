@@ -1,13 +1,64 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 
-/// Unique identifier for entities
+// Type-safe ID types using macro to reduce boilerplate
+macro_rules! define_id {
+    ($name:ident) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[serde(transparent)]
+        pub struct $name(Uuid);
+
+        impl $name {
+            pub fn new() -> Self {
+                Self(Uuid::new_v4())
+            }
+
+            pub fn from_uuid(uuid: Uuid) -> Self {
+                Self(uuid)
+            }
+
+            pub fn as_uuid(&self) -> &Uuid {
+                &self.0
+            }
+
+            pub fn as_str(&self) -> String {
+                self.0.to_string()
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+
+        impl From<Uuid> for $name {
+            fn from(uuid: Uuid) -> Self {
+                Self(uuid)
+            }
+        }
+    };
+}
+
+// Define type-safe IDs
+define_id!(BoothId);
+define_id!(PurchaseId);
+define_id!(ItemId);
+
+// Legacy Id type for backward compatibility during migration
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Id(String);
 
 impl Id {
     pub fn new() -> Self {
-        Self(uuid::Uuid::new_v4().to_string())
+        Self(Uuid::new_v4().to_string())
     }
 
     pub fn from_string(s: String) -> Self {
@@ -40,48 +91,6 @@ impl From<String> for Id {
 impl From<&str> for Id {
     fn from(s: &str) -> Self {
         Self(s.to_string())
-    }
-}
-
-/// Money value in cents to avoid floating point issues
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct Money(i64);
-
-impl Money {
-    pub fn from_cents(cents: i64) -> Self {
-        Self(cents)
-    }
-
-    pub fn from_euros(euros: f64) -> Self {
-        Self((euros * 100.0).round() as i64)
-    }
-
-    pub fn cents(&self) -> i64 {
-        self.0
-    }
-
-    pub fn euros(&self) -> f64 {
-        self.0 as f64 / 100.0
-    }
-
-    pub fn add(&self, other: &Money) -> Money {
-        Money(self.0 + other.0)
-    }
-
-    pub fn subtract(&self, other: &Money) -> Money {
-        Money(self.0 - other.0)
-    }
-}
-
-impl Default for Money {
-    fn default() -> Self {
-        Self(0)
-    }
-}
-
-impl fmt::Display for Money {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "€{:.2}", self.euros())
     }
 }
 

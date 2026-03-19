@@ -1,61 +1,84 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
-use super::shared::{Id, Money};
+use super::shared::{BoothId, VendorId};
 
 /// Represents a bazaar booth/event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct Booth {
-    pub id: Id,
-    pub name: String,
-    pub date: DateTime<Utc>,
-    pub location: Option<String>,
-    pub description: Option<String>,
+    pub id: BoothId,
+    
+    #[validate(length(min = 1, max = 200))]
+    pub description: String,
+    
+    pub date: NaiveDate,
+    
+    #[validate]
+    pub fees: FeeConfig,
+    
+    pub status: BoothStatus,
+    
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub is_archived: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct FeeConfig {
+    #[validate(range(min = 0.0))]
+    pub participation_fee: Decimal,
+    
+    #[validate(range(min = 0.0, max = 100.0))]
+    pub sales_fee_percent: Decimal,
+    
+    #[validate(range(min = 0.0))]
+    pub rounding_step: Decimal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", content = "data")]
+pub enum BoothStatus {
+    Open,
+    Closed { closed_at: DateTime<Utc> },
 }
 
 impl Booth {
-    pub fn new(name: String, date: DateTime<Utc>) -> Self {
+    pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Self {
         let now = Utc::now();
         Self {
-            id: Id::new(),
-            name,
+            id: BoothId::new(),
+            description,
             date,
-            location: None,
-            description: None,
+            fees,
+            status: BoothStatus::Open,
             created_at: now,
             updated_at: now,
-            is_archived: false,
         }
     }
 
-    pub fn with_location(mut self, location: String) -> Self {
-        self.location = Some(location);
-        self
-    }
-
-    pub fn with_description(mut self, description: String) -> Self {
-        self.description = Some(description);
-        self
-    }
-
-    pub fn archive(&mut self) {
-        self.is_archived = true;
+    pub fn close(&mut self) {
+        self.status = BoothStatus::Closed {
+            closed_at: Utc::now(),
+        };
         self.updated_at = Utc::now();
     }
 
-    pub fn unarchive(&mut self) {
-        self.is_archived = false;
-        self.updated_at = Utc::now();
+    pub fn is_open(&self) -> bool {
+        matches!(self.status, BoothStatus::Open)
     }
 
-    pub fn update(&mut self, name: String, date: DateTime<Utc>, location: Option<String>, description: Option<String>) {
-        self.name = name;
-        self.date = date;
-        self.location = location;
+    pub fn is_closed(&self) -> bool {
+        matches!(self.status, BoothStatus::Closed { .. })
+    }
+
+    pub fn update_description(&mut self, description: String) {
         self.description = description;
+        self.updated_at = Utc::now();
+    }
+
+    pub fn update_fees(&mut self, fees: FeeConfig) {
+        self.fees = fees;
         self.updated_at = Utc::now();
     }
 }
@@ -63,8 +86,19 @@ impl Booth {
 /// Summary statistics for a booth
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoothSummary {
-    pub booth_id: Id,
-    pub total_revenue: Money,
+    pub booth_id: BoothId,
+    pub total_revenue: Decimal,
     pub total_purchases: usize,
     pub unique_vendors: usize,
+    pub vendor_summaries: Vec<VendorBoothSummary>,
+}
+
+/// Per-vendor statistics within a booth
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VendorBoothSummary {
+    pub vendor_id: VendorId,
+    pub gross_sales: Decimal,
+    pub fees_due: Decimal,
+    pub net_payout: Decimal,
+    pub purchase_count: usize,
 }

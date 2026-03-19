@@ -1,22 +1,21 @@
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use super::shared::{Id, Money, VendorId};
+use super::shared::{BoothId, VendorId};
 
 /// Represents a vendor at the booth
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vendor {
-    pub id: Id,
     pub vendor_id: VendorId,
-    pub booth_id: Id,
+    pub booth_id: BoothId,
     pub name: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
 impl Vendor {
-    pub fn new(vendor_id: VendorId, booth_id: Id) -> Self {
+    pub fn new(vendor_id: VendorId, booth_id: BoothId) -> Self {
         Self {
-            id: Id::new(),
             vendor_id,
             booth_id,
             name: None,
@@ -30,12 +29,12 @@ impl Vendor {
     }
 }
 
-/// Summary statistics for a vendor
+/// Summary statistics for a vendor across all booths
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VendorSummary {
     pub vendor_id: VendorId,
     pub vendor_name: Option<String>,
-    pub total_revenue: Money,
+    pub total_revenue: Decimal,
     pub purchase_count: usize,
 }
 
@@ -44,13 +43,13 @@ impl VendorSummary {
         Self {
             vendor_id,
             vendor_name,
-            total_revenue: Money::default(),
+            total_revenue: Decimal::ZERO,
             purchase_count: 0,
         }
     }
 
-    pub fn add_purchase(&mut self, amount: Money) {
-        self.total_revenue = self.total_revenue.add(&amount);
+    pub fn add_purchase(&mut self, amount: Decimal) {
+        self.total_revenue += amount;
         self.purchase_count += 1;
     }
 }

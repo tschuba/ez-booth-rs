@@ -381,6 +381,7 @@ dependencies = [
  "serde",
  "thiserror",
  "uuid",
+ "validator",
 ]
 
 [[package]]

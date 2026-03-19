@@ -19,21 +19,31 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 **Status:** Complete  
 **Completed:** 2026-03-19
 
-### 1.2 Domain Models (P0) ✅ COMPLETE
-- [x] Define `Booth` model with validation
-- [x] Define `Vendor` model with smart sorting
-- [x] Define `Purchase` model (renamed from Transaction)
-- [x] Implement value objects (VendorId, Money, Id)
-- [x] Add comprehensive unit tests
+### 1.2 Domain Models (P0) ⏳ IN PROGRESS
+- [x] Define type-safe ID types (BoothId, PurchaseId, ItemId)
+- [x] Define `VendorId` with smart numeric/text sorting
+- [x] Update `Booth` model with FeeConfig and BoothStatus
+- [x] Update `Purchase` model to support multiple items
+- [x] Replace Money type with rust_decimal::Decimal
+- [x] Add validator dependency for validation
 - [x] Implement smart VendorId sorting (numeric-first)
-- [x] Add validation rules for all entities
+- [ ] Fix compilation errors in services.rs
+- [ ] Update dependent code (ez-booth-core)
+- [ ] Add comprehensive unit tests
+- [ ] Add validation rules implementation
 
-**Status:** Complete  
-**Completed:** 2026-03-19  
+**Status:** In Progress - Domain models updated but compilation errors remain  
+**Started:** 2026-03-19  
 **Notes:** 
-- VendorId supports both numeric and text IDs with proper ordering
-- Money stored in cents to avoid floating-point issues
-- All tests passing
+- ✅ Core domain models now align with ARCHITECTURE.md specifications
+- ✅ Booth has proper FeeConfig (participation_fee, sales_fee_percent, rounding_step)
+- ✅ Booth uses NaiveDate instead of DateTime for date field
+- ✅ Booth uses BoothStatus enum (Open/Closed) instead of is_archived bool
+- ✅ Purchase supports multiple PurchaseItem entries
+- ✅ All money values use rust_decimal::Decimal
+- ⚠️  Services layer needs updating to match new model structure
+- ⚠️  VendorKey and BoothKey types need definition or refactoring
+- ⚠️  ez-booth-core crate needs alignment with updated domain models
 
 ### 1.3 Storage Layer (P0)
 - [ ] Implement `StorageRepository` trait
