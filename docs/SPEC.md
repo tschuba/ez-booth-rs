@@ -1,0 +1,31 @@
+# ez-booth-rs
+
+## Introduction
+
+`ez-booth-rs` is a redesign of `ez-booth` in Rust.  
+The goal of this project is to create a more efficient, less resource-intense and robust version of `ez-booth` while maintaining its ease of use and functionality.  
+The concept is to migrate to a WebAssembly (WASM) based architecture, which allows for better performance and cross-platform compatibility.  
+This redesign shall also focus on improving the user experience, making it more intuitive and user-friendly.  
+
+## Core features
+
+The redesign shall retain the core features of `ez-booth`, including:
+
+- Portable application without any need for installation
+- Offline functionality, allowing users to use the application without an internet connection
+- Parallel run of one or more disconnected instances
+- optional sync feature using file transfer or wireless or wired network connection if available to consolidate data from multiple instances and bring all clients to the same state
+- User-friendly interface for easy navigation and operation running in any of a client's provided web browser
+- Report printing capabilities, allowing users to generate and print reports based on the data collected by the application
+
+## Implementation Steps
+
+1. Analysis of current state of `ez-booth`
+2. Design of the new architecture and user interface
+3. Identification of areas for improvement
+4. Specification of implementation details and requirements
+5. Review iterations of design and final architecture approval
+6. Development of the new application using Rust and WebAssembly
+7. Testing and debugging to ensure functionality and performance
+8. Documentation and user guide creation
+9. Release and deployment of the new application
