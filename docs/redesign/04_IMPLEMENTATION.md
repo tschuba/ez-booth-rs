@@ -1660,7 +1660,313 @@ pub fn SyncPage() -> impl IntoView {
 }
 ```
 
-### 6.4 Data Synchronization Protocol (Server - Optional)
+### 6.4 User Onboarding & Browser Switch Detection
+
+**File:** `crates/frontend/src/components/welcome_screen.rs`
+
+```rust
+use leptos::*;
+use leptos_router::*;
+use wasm_bindgen::JsCast;
+use web_sys;
+
+#[derive(Clone, Debug)]
+pub struct OnboardingState {
+    pub is_first_visit: bool,
+    pub has_data: bool,
+    pub browser_name: String,
+}
+
+impl OnboardingState {
+    pub async fn detect() -> Self {
+        let has_data = Self::check_database_populated().await;
+        let is_first_visit = Self::check_first_visit_flag();
+        let browser_name = Self::detect_browser_name();
+        
+        Self {
+            is_first_visit,
+            has_data,
+            browser_name,
+        }
+    }
+    
+    async fn check_database_populated() -> bool {
+        // Check if any booths exist
+        let db = Database::new().await.unwrap();
+        let booth_count = db.count_booths().await.unwrap_or(0);
+        booth_count > 0
+    }
+    
+    fn check_first_visit_flag() -> bool {
+        let window = web_sys::window().unwrap();
+        let storage = window.local_storage().unwrap().unwrap();
+        storage.get_item("ez_booth_visited").unwrap().is_none()
+    }
+    
+    fn detect_browser_name() -> String {
+        let window = web_sys::window().unwrap();
+        let ua = window.navigator().user_agent().unwrap_or_default();
+        
+        if ua.contains("Firefox") {
+            "Firefox".to_string()
+        } else if ua.contains("Edg") {
+            "Edge".to_string()
+        } else if ua.contains("Chrome") {
+            "Chrome".to_string()
+        } else if ua.contains("Safari") {
+            "Safari".to_string()
+        } else {
+            "your browser".to_string()
+        }
+    }
+    
+    pub fn mark_visited() {
+        let window = web_sys::window().unwrap();
+        let storage = window.local_storage().unwrap().unwrap();
+        let _ = storage.set_item("ez_booth_visited", "true");
+    }
+}
+
+#[component]
+pub fn WelcomeScreen() -> impl IntoView {
+    let onboarding = create_resource(|| (), |_| OnboardingState::detect());
+    
+    view! {
+        <Suspense fallback=|| view! { 
+            <div class="flex items-center justify-center h-screen">
+                <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            </div>
+        }>
+            {move || onboarding.get().map(|state| {
+                if state.is_first_visit && !state.has_data {
+                    view! { <FirstTimeWelcome state=state /> }.into_view()
+                } else if state.has_data {
+                    view! { <Navigate path="/booths" /> }.into_view()
+                } else {
+                    view! { <EmptyStatePrompt /> }.into_view()
+                }
+            })}
+        </Suspense>
+    }
+}
+
+#[component]
+pub fn FirstTimeWelcome(state: OnboardingState) -> impl IntoView {
+    let navigate = use_navigate();
+    
+    let handle_import = move |_| {
+        OnboardingState::mark_visited();
+        navigate("/sync", Default::default());
+    };
+    
+    let handle_new = move |_| {
+        OnboardingState::mark_visited();
+        navigate("/booths/new", Default::default());
+    };
+    
+    view! {
+        <div class="welcome-screen min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
+            <div class="max-w-3xl mx-auto">
+                <div class="text-center mb-12">
+                    <h1 class="text-5xl font-bold mb-4 text-gray-900">
+                        "👋 Welcome to ez-booth!"
+                    </h1>
+                    <p class="text-xl text-gray-600">
+                        "First time using " {state.browser_name.clone()} "?"
+                    </p>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    // Import existing data card
+                    <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-blue-200 hover:border-blue-400 transition-all">
+                        <div class="text-5xl mb-4">"📥"</div>
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">
+                            "Have data in another browser?"
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            "If you've used ez-booth in Chrome, Firefox, or another browser, 
+                             transfer your data here:"
+                        </p>
+                        <ol class="text-sm text-gray-700 space-y-2 mb-6 pl-5">
+                            <li class="list-decimal">"Open ez-booth in your other browser"</li>
+                            <li class="list-decimal">"Go to Settings → Export Data"</li>
+                            <li class="list-decimal">"Download the JSON file"</li>
+                            <li class="list-decimal">"Come back here and import it"</li>
+                        </ol>
+                        <button 
+                            on:click=handle_import
+                            class="w-full px-6 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+                        >
+                            "📥 Import Existing Data"
+                        </button>
+                    </div>
+                    
+                    // Start fresh card
+                    <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-green-200 hover:border-green-400 transition-all">
+                        <div class="text-5xl mb-4">"🆕"</div>
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">
+                            "First time using ez-booth?"
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            "Start fresh and create your first booth event. 
+                             You can always import data later if needed."
+                        </p>
+                        <div class="text-sm text-gray-700 space-y-2 mb-6 pl-5">
+                            <p class="flex items-start">
+                                <span class="mr-2">"✓"</span>
+                                "No setup required"
+                            </p>
+                            <p class="flex items-start">
+                                <span class="mr-2">"✓"</span>
+                                "Works completely offline"
+                            </p>
+                            <p class="flex items-start">
+                                <span class="mr-2">"✓"</span>
+                                "Data stays in your browser"
+                            </p>
+                        </div>
+                        <button 
+                            on:click=handle_new
+                            class="w-full px-6 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
+                        >
+                            "🚀 Create First Booth"
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 text-center">
+                    <p class="text-sm text-yellow-900">
+                        "💡 <strong>Pro Tip:</strong> "
+                        "Need to use multiple browsers or devices? "
+                        "Export your data to a cloud folder (Dropbox, Google Drive) for easy sync. "
+                        <a href="/help/switching-browsers" class="underline font-semibold">"Learn more"</a>
+                    </p>
+                </div>
+                
+                <div class="mt-8 text-center">
+                    <a 
+                        href="/help/getting-started" 
+                        class="text-blue-600 hover:text-blue-800 underline"
+                    >
+                        "📚 Read the Getting Started Guide"
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+pub fn EmptyStatePrompt() -> impl IntoView {
+    view! {
+        <div class="empty-state min-h-screen flex items-center justify-center p-8">
+            <div class="max-w-2xl text-center">
+                <svg 
+                    class="w-32 h-32 mx-auto mb-6 text-gray-300" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                >
+                    <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                </svg>
+                
+                <h2 class="text-3xl font-bold mb-4 text-gray-900">
+                    "No booths yet"
+                </h2>
+                <p class="text-lg text-gray-600 mb-8">
+                    "Get started by creating a new booth or importing existing data"
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                    <a 
+                        href="/booths/new"
+                        class="px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                    >
+                        "➕ Create New Booth"
+                    </a>
+                    
+                    <a 
+                        href="/sync"
+                        class="px-8 py-4 bg-white border-2 border-gray-300 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                        "📥 Import Data"
+                    </a>
+                </div>
+                
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 inline-block">
+                    <p class="text-sm text-blue-900">
+                        "💡 <strong>Switching browsers?</strong> "
+                        "Export your data from the other browser, then import it here. "
+                        <a href="/help/switching-browsers" class="underline font-semibold">"Learn how →"</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+}
+```
+
+**File:** `crates/frontend/src/components/navbar.rs`
+
+```rust
+use leptos::*;
+use ez_booth_storage::indexeddb::database::Database;
+
+#[component]
+pub fn NavBar() -> impl IntoView {
+    let booth_count = create_resource(
+        || (),
+        |_| async {
+            Database::new()
+                .await
+                .ok()
+                .and_then(|db| db.count_booths().await.ok())
+                .unwrap_or(0)
+        }
+    );
+    
+    view! {
+        <nav class="navbar bg-white shadow-md">
+            <div class="container mx-auto px-4 py-3">
+                {move || booth_count.get().map(|count| {
+                    if count == 0 {
+                        view! {
+                            <div class="import-hint bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-2 rounded">
+                                <p class="text-sm text-yellow-800">
+                                    "💡 No data yet. "
+                                    <a href="/sync" class="underline font-semibold">"Import from another browser?"</a>
+                                    " or "
+                                    <a href="/booths/new" class="underline font-semibold">"create your first booth"</a>
+                                </p>
+                            </div>
+                        }.into_view()
+                    } else {
+                        view! { <div></div> }.into_view()
+                    }
+                })}
+                
+                <div class="flex items-center justify-between">
+                    <a href="/" class="text-2xl font-bold text-blue-600">"ez-booth"</a>
+                    
+                    <div class="flex gap-4">
+                        <a href="/booths" class="nav-link">"Booths"</a>
+                        <a href="/checkout" class="nav-link">"Checkout"</a>
+                        <a href="/reports" class="nav-link">"Reports"</a>
+                        <a href="/sync" class="nav-link">"Sync"</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    }
+}
+```
+
+### 6.5 Data Synchronization Protocol (Server - Optional)
 
 **File:** `crates/shared/src/protocol/mod.rs`
 

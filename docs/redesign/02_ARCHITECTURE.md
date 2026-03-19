@@ -1187,6 +1187,353 @@ impl CloudSyncService {
 - ✅ File System Access API works in Chrome/Edge
 - ✅ User can save to synced folder
 - ✅ Graceful fallback for unsupported browsers
+- ✅ Welcome screen detects empty state and prompts for import
+
+### 9.9 User Onboarding & Browser Switch Detection
+
+#### Problem: Silent Data Loss
+
+When users open ez-booth in a new browser, they see an empty application with no indication that:
+- They might have data in another browser
+- They need to export/import to transfer data
+- The application is working correctly (empty state vs. error)
+
+#### Solution: Smart Welcome Screen
+
+**Detection Logic:**
+```rust
+pub struct OnboardingState {
+    pub is_first_visit: bool,
+    pub has_data: bool,
+    pub browser_info: BrowserInfo,
+}
+
+impl OnboardingState {
+    pub async fn detect() -> Self {
+        let has_data = Self::check_database_populated().await;
+        let is_first_visit = Self::check_first_visit_flag().await;
+        
+        Self {
+            is_first_visit,
+            has_data,
+            browser_info: Self::get_browser_info(),
+        }
+    }
+    
+    async fn check_database_populated() -> bool {
+        // Check if any booths exist
+        let booth_count = Database::new().count_booths().await.unwrap_or(0);
+        booth_count > 0
+    }
+    
+    async fn check_first_visit_flag() -> bool {
+        // Check localStorage for first visit flag
+        let window = web_sys::window().unwrap();
+        let storage = window.local_storage().unwrap().unwrap();
+        
+        storage.get_item("ez_booth_visited").unwrap().is_none()
+    }
+    
+    fn get_browser_info() -> BrowserInfo {
+        let window = web_sys::window().unwrap();
+        let navigator = window.navigator();
+        
+        BrowserInfo {
+            user_agent: navigator.user_agent().unwrap_or_default(),
+            browser_name: Self::detect_browser_name(&navigator),
+        }
+    }
+    
+    fn detect_browser_name(navigator: &web_sys::Navigator) -> String {
+        let ua = navigator.user_agent().unwrap_or_default();
+        
+        if ua.contains("Firefox") {
+            "Firefox".to_string()
+        } else if ua.contains("Edg") {
+            "Edge".to_string()
+        } else if ua.contains("Chrome") {
+            "Chrome".to_string()
+        } else if ua.contains("Safari") {
+            "Safari".to_string()
+        } else {
+            "Unknown".to_string()
+        }
+    }
+}
+```
+
+**Welcome Screen Component:**
+```rust
+#[component]
+pub fn WelcomeScreen() -> impl IntoView {
+    let onboarding = create_resource(|| (), |_| OnboardingState::detect());
+    
+    view! {
+        <Suspense fallback=|| view! { <div>"Loading..."</div> }>
+            {move || onboarding.get().map(|state| {
+                if state.is_first_visit && !state.has_data {
+                    view! { <FirstTimeWelcome browser=state.browser_info.clone() /> }
+                } else if state.has_data {
+                    view! { <Navigate to="/booths" /> }
+                } else {
+                    view! { <EmptyState /> }
+                }
+            })}
+        </Suspense>
+    }
+}
+
+#[component]
+pub fn FirstTimeWelcome(browser: BrowserInfo) -> impl IntoView {
+    view! {
+        <div class="welcome-screen max-w-2xl mx-auto p-8 text-center">
+            <h1 class="text-4xl font-bold mb-4">"Welcome to ez-booth!"</h1>
+            <p class="text-xl mb-8">
+                "You're using " {browser.browser_name.clone()} " for the first time"
+            </p>
+            
+            <div class="mb-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4">"🔍 Have data in another browser?"</h2>
+                <p class="mb-4">
+                    "If you've used ez-booth in Chrome, Firefox, or another browser before, 
+                     you'll need to transfer your data:"
+                </p>
+                <ol class="text-left list-decimal list-inside space-y-2 mb-4">
+                    <li>"Open ez-booth in your other browser"</li>
+                    <li>"Go to Settings → Export Data"</li>
+                    <li>"Download the JSON file"</li>
+                    <li>"Come back here and import it"</li>
+                </ol>
+                <button 
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    on:click=|_| {
+                        // Navigate to import page
+                        use leptos_router::*;
+                        let navigate = use_navigate();
+                        navigate("/sync", Default::default());
+                    }
+                >
+                    "📥 Import Existing Data"
+                </button>
+            </div>
+            
+            <div class="p-6 bg-green-50 border-2 border-green-200 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4">"🆕 First time using ez-booth?"</h2>
+                <p class="mb-4">"Start fresh and create your first booth"</p>
+                <button 
+                    class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    on:click=move |_| {
+                        // Mark as visited and create first booth
+                        let window = web_sys::window().unwrap();
+                        let storage = window.local_storage().unwrap().unwrap();
+                        let _ = storage.set_item("ez_booth_visited", "true");
+                        
+                        let navigate = use_navigate();
+                        navigate("/booths/new", Default::default());
+                    }
+                >
+                    "🚀 Create First Booth"
+                </button>
+            </div>
+            
+            <div class="mt-8 text-sm text-gray-600">
+                <a href="/help/getting-started" class="underline">"Learn more about getting started"</a>
+            </div>
+        </div>
+    }
+}
+```
+
+#### Additional Signals & Prompts
+
+**1. Browser Tab Title Signal**
+```rust
+// Change tab title when empty
+if !has_data {
+    document.set_title("ez-booth (Empty - Import Data?)");
+} else {
+    document.set_title("ez-booth");
+}
+```
+
+**2. Navigation Bar Hint**
+```rust
+#[component]
+pub fn NavBar() -> impl IntoView {
+    let booth_count = create_resource(|| (), |_| async {
+        Database::new().count_booths().await.unwrap_or(0)
+    });
+    
+    view! {
+        <nav class="navbar">
+            {move || booth_count.get().map(|count| {
+                if count == 0 {
+                    view! {
+                        <div class="import-hint bg-yellow-100 border-yellow-400 p-2 text-sm">
+                            "💡 No data yet. "
+                            <a href="/sync" class="underline">"Import from another browser?"</a>
+                        </div>
+                    }
+                } else {
+                    view! { <div></div> }
+                }
+            })}
+            // ... rest of nav
+        </nav>
+    }
+}
+```
+
+**3. Empty State with Import CTA**
+```rust
+#[component]
+pub fn EmptyBoothList() -> impl IntoView {
+    view! {
+        <div class="empty-state text-center p-12">
+            <svg class="w-24 h-24 mx-auto mb-4 text-gray-300">"..."</svg>
+            <h2 class="text-2xl font-semibold mb-2">"No booths yet"</h2>
+            <p class="text-gray-600 mb-6">
+                "Get started by creating a new booth or importing existing data"
+            </p>
+            
+            <div class="flex gap-4 justify-center">
+                <a 
+                    href="/booths/new"
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    "➕ Create New Booth"
+                </a>
+                
+                <a 
+                    href="/sync"
+                    class="px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                    "📥 Import Data"
+                </a>
+            </div>
+            
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg inline-block">
+                <p class="text-sm text-blue-800">
+                    "💡 <strong>Switching browsers?</strong> "
+                    "Export your data from the other browser, then import it here. "
+                    <a href="/help/switching-browsers" class="underline">"Learn how →"</a>
+                </p>
+            </div>
+        </div>
+    }
+}
+```
+
+**4. Persistent Helper in Settings**
+```rust
+#[component]
+pub fn SettingsPage() -> impl IntoView {
+    view! {
+        <div class="settings-page">
+            <h1>"Settings"</h1>
+            
+            // Always show import/export prominently
+            <section class="data-portability bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-8">
+                <h2 class="text-xl font-semibold mb-2">"📦 Data Portability"</h2>
+                <p class="mb-4">"Switch browsers or devices easily"</p>
+                <div class="flex gap-4">
+                    <a href="/sync" class="px-4 py-2 bg-blue-600 text-white rounded">
+                        "Export / Import"
+                    </a>
+                    <a href="/help/switching-browsers" class="px-4 py-2 border rounded">
+                        "Learn More"
+                    </a>
+                </div>
+            </section>
+            
+            // ... other settings
+        </div>
+    }
+}
+```
+
+**5. Browser Detection in Footer**
+```rust
+#[component]
+pub fn Footer() -> impl IntoView {
+    let browser = BrowserInfo::detect();
+    
+    view! {
+        <footer class="text-center text-sm text-gray-500 p-4">
+            <p>"Running in " {browser.browser_name} " | "
+            <a href="/sync" class="underline">"Switch browsers?"</a>
+            "</p>
+        </footer>
+    }
+}
+```
+
+#### Help Documentation
+
+**New Help Page:** `/help/switching-browsers`
+
+```markdown
+# Switching Browsers
+
+## Why do I need to export/import?
+
+ez-booth stores all data in your browser's local storage. Each browser 
+(Chrome, Firefox, Safari, etc.) has its own separate storage that other 
+browsers cannot access.
+
+## Step-by-Step Guide
+
+### From Your Old Browser:
+1. Open ez-booth
+2. Go to Settings → Export Data
+3. Click "Download Export"
+4. Save the `ez-booth-export-YYYYMMDD.json` file
+
+### In Your New Browser:
+1. Open ez-booth
+2. Click "Import Data" on the welcome screen (or go to Settings → Import)
+3. Select the JSON file you downloaded
+4. Choose "Merge with existing" (recommended)
+5. Click Import
+
+### Pro Tip: Use Cloud Sync
+Save your export to Dropbox or Google Drive for automatic sync across 
+devices!
+
+## Troubleshooting
+
+**Q: I don't see the welcome screen**
+A: Go directly to Settings → Export/Import
+
+**Q: Import failed with "Invalid checksum"**
+A: The file may be corrupted. Try exporting again.
+
+**Q: Some data is missing after import**
+A: Check that you selected the correct JSON file and used "Merge" strategy.
+```
+
+#### Implementation Priority
+
+| Feature | Priority | Phase | Effort |
+|---------|----------|-------|--------|
+| Empty state detection | P0 | Phase 6 | 1 hour |
+| Welcome screen | P0 | Phase 6 | 4 hours |
+| Browser detection | P1 | Phase 6 | 2 hours |
+| Help documentation | P0 | Phase 6 | 2 hours |
+| Navigation hints | P1 | Phase 7 | 2 hours |
+| Footer browser info | P2 | Phase 7 | 1 hour |
+
+#### Success Metrics
+
+**User Awareness:**
+- 90%+ of new browser users see welcome screen
+- 80%+ understand they need to import data
+- <5% support tickets about "lost data"
+
+**Conversion Rate:**
+- 70%+ of users with empty state click "Import Data"
+- 60%+ successfully complete import process
+- 40%+ set up cloud folder sync (Phase 7)
 
 ---
 

@@ -265,10 +265,98 @@ Cross-browser data portability has been integrated into all three design documen
 1. ✅ **Complete** - Documented in architecture design
 2. ✅ **Complete** - Added to improvements analysis
 3. ✅ **Complete** - Implementation specifications written
-4. 🔲 **Review** - Architecture review and approval
-5. 🔲 **Implement** - Begin Phase 6 implementation
-6. 🔲 **Test** - Browser compatibility testing
-7. 🔲 **Document** - User guide for export/import
+4. ✅ **Complete** - User onboarding & browser switch detection added
+5. 🔲 **Review** - Architecture review and approval
+6. 🔲 **Implement** - Begin Phase 6 implementation
+7. 🔲 **Test** - Browser compatibility testing
+8. 🔲 **Document** - User guide for export/import
+
+---
+
+## New Addition: Browser Switch Detection & User Onboarding
+
+### Problem Addressed
+Users switching browsers see an empty application with no indication they need to import data from their previous browser.
+
+### Solution Implemented
+
+**1. Smart Welcome Screen**
+- Detects first visit to ez-booth in new browser
+- Checks if database is empty
+- Identifies browser name (Chrome, Firefox, Safari, Edge)
+- Shows two clear paths: Import existing data or Create new booth
+
+**2. Empty State Prompts**
+- Persistent hint in navigation bar when no data exists
+- Empty booth list shows import CTA prominently
+- Footer displays current browser with "Switch browsers?" link
+
+**3. Detection Logic**
+```rust
+pub struct OnboardingState {
+    pub is_first_visit: bool,    // Check localStorage flag
+    pub has_data: bool,           // Count booths in IndexedDB
+    pub browser_name: String,     // Parse user agent
+}
+```
+
+**4. User Flow**
+```
+New browser opened
+    ↓
+Detect: is_first_visit && !has_data
+    ↓
+Show welcome screen with two options:
+    1. "Import Existing Data" (blue card)
+    2. "Create First Booth" (green card)
+    ↓
+User makes choice
+    ↓
+Mark as visited (localStorage flag)
+    ↓
+Navigate to appropriate page
+```
+
+**5. Visual Signals**
+- Welcome screen: Full-screen, impossible to miss
+- Navigation hint: Persistent yellow banner when empty
+- Empty states: Always show import option
+- Browser info: Footer displays current browser
+- Tab title: Shows "(Empty - Import Data?)" when no data
+
+### Implementation Details
+
+**Phase 6 Additions:**
+- `OnboardingState` detection service (2 hours)
+- `WelcomeScreen` component with dual-path UI (4 hours)
+- `EmptyStatePrompt` component (2 hours)
+- Help documentation: "Switching Browsers" guide (2 hours)
+- **Total:** +10 hours to Phase 6
+
+**Success Metrics:**
+- 90%+ of new browser users see welcome screen
+- 80%+ understand they need to import data
+- <5% support tickets about "lost data"
+- 70%+ empty state users click import/create
+- 60%+ successfully complete import
+
+### Code Components Added
+
+1. **Welcome Screen** (`welcome_screen.rs`)
+   - OnboardingState detection
+   - FirstTimeWelcome component with dual cards
+   - EmptyStatePrompt for returning users
+   - Browser detection via user agent
+
+2. **Navigation Hints** (`navbar.rs`)
+   - Booth count detection
+   - Conditional import hint display
+   - Persistent reminder when empty
+
+3. **Help Pages**
+   - `/help/switching-browsers` - Step-by-step guide
+   - `/help/getting-started` - General onboarding
+   - Troubleshooting FAQ
 
 ---
 
