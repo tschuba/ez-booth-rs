@@ -33,6 +33,11 @@ The redesign shall retain the core features of `ez-booth`, including:
 4. Specification of implementation details and requirements
 5. Review iterations of design and final architecture approval
 6. Development of the new application using Rust and WebAssembly
+    1. Setting up the development environment and tools
+    2. Implementing the core features and functionalities
+    3. Integrating the new architecture and ensuring compatibility with existing features
+    4. Adding extended features and functionalities as needed
 7. Testing and debugging to ensure functionality and performance
-8. Documentation and user guide creation
-9. Release and deployment of the new application
+8. Optimization and performance improvements based on testing results
+9. Documentation and user guide creation
+10. Release and deployment of the new application
