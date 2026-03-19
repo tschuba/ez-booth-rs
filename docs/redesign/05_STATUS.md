@@ -19,16 +19,21 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 **Status:** Complete  
 **Completed:** 2026-03-19
 
-### 1.2 Domain Models (P0)
-- [ ] Define `Booth` model with validation
-- [ ] Define `Vendor` model with smart sorting
-- [ ] Define `Transaction` model
-- [ ] Define `Settings` model
-- [ ] Implement value objects (VendorId, Money, etc.)
-- [ ] Add comprehensive unit tests
+### 1.2 Domain Models (P0) ✅ COMPLETE
+- [x] Define `Booth` model with validation
+- [x] Define `Vendor` model with smart sorting
+- [x] Define `Purchase` model (renamed from Transaction)
+- [x] Implement value objects (VendorId, Money, Id)
+- [x] Add comprehensive unit tests
+- [x] Implement smart VendorId sorting (numeric-first)
+- [x] Add validation rules for all entities
 
-**Status:** Not Started  
-**Target:** TBD
+**Status:** Complete  
+**Completed:** 2026-03-19  
+**Notes:** 
+- VendorId supports both numeric and text IDs with proper ordering
+- Money stored in cents to avoid floating-point issues
+- All tests passing
 
 ### 1.3 Storage Layer (P0)
 - [ ] Implement `StorageRepository` trait
