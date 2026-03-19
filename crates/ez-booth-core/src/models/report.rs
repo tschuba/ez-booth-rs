@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use super::{Event, Vendor, VendorId};
+use super::{Booth, Vendor, VendorId};
 use std::collections::HashMap;
 
 /// Report data for an event
@@ -27,7 +27,7 @@ pub struct VendorReport {
 }
 
 impl EventReport {
-    pub fn from_event(event: &Event, commission_rate: Decimal) -> Self {
+    pub fn from_booth(booth: &Booth, commission_rate: Decimal) -> Self {
         // Group transactions by vendor
         let mut vendor_map: HashMap<VendorId, Vendor> = HashMap::new();
         

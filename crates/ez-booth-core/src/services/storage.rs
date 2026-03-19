@@ -1,10 +1,10 @@
-use crate::models::Event;
+use crate::models::Booth;
 use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum StorageError {
-    #[error("Event not found: {0}")]
+    #[error("Booth not found: {0}")]
     NotFound(Uuid),
     #[error("Serialization error: {0}")]
     SerializationError(String),
@@ -14,12 +14,12 @@ pub enum StorageError {
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
-/// Storage abstraction for events
-pub trait EventStorage: Send + Sync {
-    fn save_event(&self, event: &Event) -> StorageResult<()>;
-    fn load_event(&self, id: &Uuid) -> StorageResult<Event>;
-    fn load_all_events(&self) -> StorageResult<Vec<Event>>;
-    fn delete_event(&self, id: &Uuid) -> StorageResult<()>;
+/// Storage abstraction for booths
+pub trait BoothStorage: Send + Sync {
+    fn save_booth(&self, booth: &Booth) -> StorageResult<()>;
+    fn load_booth(&self, id: &Uuid) -> StorageResult<Booth>;
+    fn load_all_booths(&self) -> StorageResult<Vec<Booth>>;
+    fn delete_booth(&self, id: &Uuid) -> StorageResult<()>;
     fn export_data(&self) -> StorageResult<String>;
-    fn import_data(&self, data: &str) -> StorageResult<Vec<Event>>;
+    fn import_data(&self, data: &str) -> StorageResult<Vec<Booth>>;
 }

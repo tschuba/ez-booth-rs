@@ -20,7 +20,7 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 **Completed:** 2026-03-19
 
 ### 1.2 Domain Models (P0)
-- [ ] Define `Event` model with validation
+- [ ] Define `Booth` model with validation
 - [ ] Define `Vendor` model with smart sorting
 - [ ] Define `Transaction` model
 - [ ] Define `Settings` model
@@ -125,7 +125,7 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 **Target:** TBD
 
 ### 3.4 Reporting & Printing (P0)
-- [ ] Event summary report
+- [ ] Booth summary report
 - [ ] Vendor report generation
 - [ ] Print-optimized CSS (media queries)
 - [ ] Page breaks between vendors
