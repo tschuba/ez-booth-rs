@@ -297,9 +297,45 @@ macro_rules! define_id {
 }
 
 define_id!(BoothId);
-define_id!(VendorId);
 define_id!(PurchaseId);
 define_id!(ItemId);
+
+// VendorId is special - user-provided string, not UUID
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct VendorId(String);
+
+impl VendorId {
+    pub fn new(id: String) -> Self {
+        Self(id)
+    }
+    
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+    
+    /// Smart sorting: numeric IDs sorted numerically, alphanumeric sorted lexicographically
+    pub fn compare_smart(&self, other: &VendorId) -> std::cmp::Ordering {
+        match (self.0.parse::<u64>(), other.0.parse::<u64>()) {
+            (Ok(a), Ok(b)) => a.cmp(&b),                    // Both numeric: 1 < 2 < 10
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,    // Numeric before alphanumeric
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater, // Alphanumeric after numeric
+            (Err(_), Err(_)) => self.0.cmp(&other.0),       // Both text: lexicographic
+        }
+    }
+}
+
+impl fmt::Display for VendorId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for VendorId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 ```
 
 **File:** `crates/core/src/entities/booth.rs`
@@ -432,9 +468,10 @@ pub struct Vendor {
 }
 
 impl Vendor {
-    pub fn new(booth_id: BoothId) -> Self {
+    /// Create new vendor with user-provided ID (entered during checkout)
+    pub fn new(id: String, booth_id: BoothId) -> Self {
         Self {
-            id: VendorId::new(),
+            id: VendorId::new(id),
             booth_id,
             created_at: Utc::now(),
         }
@@ -666,6 +703,110 @@ impl<R: BoothRepository> BoothService<R> {
 
     pub async fn delete_booth(&self, id: BoothId) -> Result<(), CoreError> {
         self.repository.delete(id).await
+    }
+}
+```
+
+**File:** `crates/core/src/services/vendor_service.rs`
+
+```rust
+use crate::entities::vendor::Vendor;
+use crate::entities::ids::{BoothId, VendorId};
+use crate::error::CoreError;
+use async_trait::async_trait;
+
+#[async_trait(?Send)] // ?Send for WASM compatibility
+pub trait VendorRepository {
+    async fn save(&self, vendor: &Vendor) -> Result<(), CoreError>;
+    async fn find_by_id(&self, booth_id: BoothId, vendor_id: &VendorId) -> Result<Option<Vendor>, CoreError>;
+    async fn find_all(&self, booth_id: BoothId) -> Result<Vec<Vendor>, CoreError>;
+    async fn delete(&self, booth_id: BoothId, vendor_id: &VendorId) -> Result<(), CoreError>;
+}
+
+pub struct VendorService<R: VendorRepository> {
+    repository: R,
+}
+
+impl<R: VendorRepository> VendorService<R> {
+    pub fn new(repository: R) -> Self {
+        Self { repository }
+    }
+
+    /// Get or create vendor by ID (auto-created during checkout)
+    pub async fn get_or_create(
+        &self,
+        booth_id: BoothId,
+        vendor_id: String,
+    ) -> Result<Vendor, CoreError> {
+        let id = VendorId::new(vendor_id.clone());
+        
+        if let Some(vendor) = self.repository.find_by_id(booth_id, &id).await? {
+            Ok(vendor)
+        } else {
+            let vendor = Vendor::new(vendor_id, booth_id);
+            self.repository.save(&vendor).await?;
+            Ok(vendor)
+        }
+    }
+
+    /// List all vendors with smart sorting.
+    /// Numeric IDs (e.g., "1", "42") sorted numerically: 1, 2, 10, 42
+    /// Alphanumeric IDs sorted lexicographically after numeric IDs.
+    /// Critical for correct print order in vendor reports.
+    pub async fn list_vendors(&self, booth_id: BoothId) -> Result<Vec<Vendor>, CoreError> {
+        let mut vendors = self.repository.find_all(booth_id).await?;
+        vendors.sort_by(|a, b| a.id.compare_smart(&b.id));
+        Ok(vendors)
+    }
+
+    pub async fn get_vendor(
+        &self,
+        booth_id: BoothId,
+        vendor_id: String,
+    ) -> Result<Vendor, CoreError> {
+        let id = VendorId::new(vendor_id);
+        self.repository
+            .find_by_id(booth_id, &id)
+            .await?
+            .ok_or(CoreError::NotFound("Vendor not found".to_string()))
+    }
+
+    pub async fn delete_vendor(
+        &self,
+        booth_id: BoothId,
+        vendor_id: String,
+    ) -> Result<(), CoreError> {
+        let id = VendorId::new(vendor_id);
+        self.repository.delete(booth_id, &id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entities::ids::VendorId;
+
+    #[test]
+    fn test_vendor_id_sorting() {
+        let ids = vec![
+            VendorId::new("10".to_string()),
+            VendorId::new("2".to_string()),
+            VendorId::new("1".to_string()),
+            VendorId::new("V5".to_string()),
+            VendorId::new("25".to_string()),
+            VendorId::new("A3".to_string()),
+        ];
+        
+        let mut sorted = ids.clone();
+        sorted.sort_by(|a, b| a.compare_smart(b));
+        
+        // Expected: numeric IDs first (1, 2, 10, 25), then alphanumeric (A3, V5)
+        assert_eq!(sorted[0].as_str(), "1");
+        assert_eq!(sorted[1].as_str(), "2");
+        assert_eq!(sorted[2].as_str(), "10");
+        assert_eq!(sorted[3].as_str(), "25");
+        assert_eq!(sorted[4].as_str(), "A3");
+        assert_eq!(sorted[5].as_str(), "V5");
     }
 }
 ```

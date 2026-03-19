@@ -458,10 +458,19 @@ pub enum BoothStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Vendor {
-    pub id: VendorId,
+    pub id: VendorId,          // String-based ID (e.g., "V123", "42")
     pub booth_id: BoothId,
-    // Extensible design - can add fields later
+    pub created_at: DateTime<Utc>,
+    // Minimal data - vendors created dynamically during checkout
+    // Extensible design - can add name, contact, etc. later
 }
+
+// Vendor ID Design Rationale:
+// - String-based to support both numeric ("1", "42") and alphanumeric ("V123", "A5") IDs
+// - User enters vendor ID attached to sold products during checkout
+// - Most common: purely numeric IDs for simplicity
+// - Smart sorting ensures numeric IDs sort correctly (1, 2, 10 not 1, 10, 2)
+// - Critical for vendor report printing order
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Purchase {
@@ -484,8 +493,21 @@ pub struct PurchaseItem {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BoothId(Uuid);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct VendorId(Uuid);
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VendorId(String);  // User-provided string (e.g., "V123", "42")
+
+impl VendorId {
+    /// Smart sorting: numeric IDs sorted numerically, alphanumeric sorted lexicographically
+    pub fn compare_smart(&self, other: &VendorId) -> std::cmp::Ordering {
+        // Try parsing both as integers
+        match (self.0.parse::<u64>(), other.0.parse::<u64>()) {
+            (Ok(a), Ok(b)) => a.cmp(&b),     // Both numeric: compare numerically
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,   // Numeric before alphanumeric
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater, // Alphanumeric after numeric
+            (Err(_), Err(_)) => self.0.cmp(&other.0),  // Both alphanumeric: lexicographic
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PurchaseId(Uuid);
@@ -545,6 +567,62 @@ impl ChargingService {
             (value / step).round() * step
         }
     }
+}
+
+// crates/core/src/services/purchase_service.rs
+
+pub trait PurchaseService {
+    /// Process checkout with multiple items.
+    /// Vendors are created automatically if they don't exist.
+    async fn checkout(
+        &self,
+        booth_id: BoothId,
+        items: Vec<CheckoutItem>,
+    ) -> Result<Purchase, PurchaseError>;
+    
+    async fn get_purchase(&self, id: PurchaseId) -> Result<Purchase, PurchaseError>;
+    
+    async fn list_purchases(&self, booth_id: BoothId) -> Result<Vec<Purchase>, PurchaseError>;
+}
+
+#[derive(Clone, Debug)]
+pub struct CheckoutItem {
+    pub vendor_id: String,  // User-entered vendor ID (e.g., "V123")
+    pub price: Decimal,
+    pub purchased_at: DateTime<Utc>,
+}
+
+// crates/core/src/services/vendor_service.rs
+
+pub trait VendorService {
+    /// Get or create a vendor by ID.
+    /// If vendor doesn't exist, creates it automatically.
+    async fn get_or_create(
+        &self,
+        booth_id: BoothId,
+        vendor_id: String,
+    ) -> Result<Vendor, VendorError>;
+    
+    /// List vendors with smart sorting.
+    /// Numeric IDs (e.g., "1", "42") sorted numerically: 1, 2, 10, 42
+    /// Alphanumeric IDs sorted lexicographically after numeric IDs
+    /// Critical for correct print order in vendor reports.
+    async fn list_vendors(&self, booth_id: BoothId) -> Result<Vec<Vendor>, VendorError>;
+    
+    async fn get_vendor_sales(
+        &self,
+        booth_id: BoothId,
+        vendor_id: String,
+    ) -> Result<VendorSalesReport, VendorError>;
+}
+
+#[derive(Clone, Debug)]
+pub struct VendorSalesReport {
+    pub vendor: Vendor,
+    pub items: Vec<PurchaseItem>,
+    pub total_sales: Decimal,
+    pub fees: FeeCalculation,
+    pub net_revenue: Decimal,
 }
 ```
 
@@ -634,7 +712,63 @@ CREATE INDEX idx_items_vendor ON purchase_items(booth_id, vendor_id);
 CREATE INDEX idx_items_date ON purchase_items(purchased_at);
 ```
 
-### 6.3 Data Flow
+### 6.3 Vendor ID Sorting Strategy
+
+**Requirement:** Vendors must be sortable correctly for report printing, especially when IDs are numeric.
+
+**Problem:**
+- Lexicographic sorting: "1", "10", "2", "25", "3" → incorrect order
+- Numeric sorting: "1", "2", "3", "10", "25" → correct order
+- Mixed IDs: Need to handle both "42" (numeric) and "V123" (alphanumeric)
+
+**Solution: Smart Natural Sorting**
+
+```rust
+impl VendorId {
+    /// Compare vendor IDs intelligently:
+    /// - Pure numeric IDs (e.g., "1", "42"): Compare numerically
+    /// - Alphanumeric IDs (e.g., "V123", "A5"): Compare lexicographically
+    /// - Mixed: Numeric IDs always sort before alphanumeric
+    pub fn compare_smart(&self, other: &VendorId) -> std::cmp::Ordering {
+        match (self.0.parse::<u64>(), other.0.parse::<u64>()) {
+            (Ok(a), Ok(b)) => a.cmp(&b),                    // Both numeric: 1 < 2 < 10
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,    // Numeric before alphanumeric
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater, // Alphanumeric after numeric
+            (Err(_), Err(_)) => self.0.cmp(&other.0),      // Both text: lexicographic
+        }
+    }
+}
+
+// Usage in VendorService
+impl VendorService {
+    async fn list_vendors(&self, booth_id: BoothId) -> Result<Vec<Vendor>, VendorError> {
+        let mut vendors = self.repository.get_all(booth_id).await?;
+        vendors.sort_by(|a, b| a.id.compare_smart(&b.id));
+        Ok(vendors)
+    }
+}
+```
+
+**Examples:**
+
+| Input IDs | Sorted Output | Notes |
+|-----------|---------------|-------|
+| "10", "2", "1", "3" | "1", "2", "3", "10" | Numeric sorting |
+| "V10", "V2", "V1" | "V1", "V10", "V2" | Lexicographic (standard) |
+| "1", "10", "V5", "2", "A3" | "1", "2", "10", "A3", "V5" | Numeric first, then alpha |
+
+**Critical for:**
+- Vendor report printing order
+- UI vendor list display
+- Multi-vendor report page order
+- Export file consistency
+
+**Database Considerations:**
+- IndexedDB: Sorting done in application layer (JavaScript has no natural sort index)
+- SQLite (future): Can use custom collation or application-layer sort
+- Keep logic in Rust layer for consistency across storage backends
+
+### 6.4 Data Flow
 
 #### Write Operation (Browser-Only)
 ```
@@ -730,10 +864,19 @@ App
 - Financial summary
 
 #### Checkout Page
-- Vendor selection (grid or dropdown)
+- Dynamic vendor input (enter vendor ID during checkout)
 - Quick price entry (numeric keypad)
-- Shopping cart with items
+- Shopping cart with items (vendor ID + price per item)
+- Automatic vendor creation if vendor doesn't exist
 - Print receipt option
+
+**Workflow:**
+1. User enters vendor ID (attached to product)
+2. User enters item price
+3. System checks if vendor exists, creates if not
+4. Item added to cart
+5. Repeat for additional items
+6. Complete purchase with optional receipt printing
 
 #### Reports Page
 - Vendor selection (multi-select)
@@ -767,6 +910,301 @@ App
 - Keyboard navigation support
 - Focus indicators
 - Screen reader friendly
+
+### 7.5 Report Generation & Printing
+
+#### Architecture Overview
+
+Reports use **browser-native printing** (`window.print()`) with CSS media queries for professional output.
+
+**Key Features:**
+- Localizable report templates (see section 10.7)
+- Natural vendor ID sorting (numeric IDs sorted numerically)
+- Automatic page breaks between vendors
+- Print-optimized CSS (clean layout, appropriate fonts)
+
+#### Report Types
+
+**1. Vendor Settlement Report**
+- Single vendor or multiple vendors
+- Item-by-item breakdown with timestamps
+- Calculated totals (sales, fees, net revenue)
+- Booth information (date, fees configuration)
+
+**2. Booth Summary Report**
+- All vendors for a booth
+- Total sales by vendor (sorted by vendor ID)
+- Overall booth statistics
+- Fee calculations
+
+#### Vendor Sorting for Reports
+
+Reports **must** display vendors in natural sort order:
+- Numeric IDs: `1, 2, 10, 100` (not `1, 10, 100, 2`)
+- Mixed IDs: Numeric before alphanumeric: `1, 2, A1, A2`
+- Alphanumeric IDs: Lexicographic: `A1, A2, A10, B1`
+
+**Implementation:** Use `VendorId::compare_smart()` (defined in section 6.1) when sorting vendor lists for reports.
+
+#### Print Layout
+
+```css
+@media print {
+    /* Page setup */
+    @page {
+        size: A4 portrait;
+        margin: 2cm;
+    }
+    
+    /* Hide non-print elements */
+    nav, .no-print, button {
+        display: none !important;
+    }
+    
+    /* Vendor page breaks */
+    .vendor-report-section {
+        page-break-after: always;
+    }
+    
+    .vendor-report-section:last-child {
+        page-break-after: auto; /* No blank page at end */
+    }
+    
+    /* Typography */
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 12pt;
+        color: #000;
+    }
+    
+    h1 { font-size: 18pt; margin-bottom: 0.5cm; }
+    h2 { font-size: 14pt; margin-top: 0.5cm; }
+    
+    /* Tables */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    th, td {
+        border: 1px solid #000;
+        padding: 0.2cm;
+        text-align: left;
+    }
+    
+    th {
+        background-color: #f0f0f0;
+    }
+}
+```
+
+#### Print Workflow
+
+1. User selects vendors to include in report
+2. System generates HTML report in hidden container
+3. Vendors sorted using natural sort algorithm
+4. Each vendor's data wrapped in `.vendor-report-section`
+5. User clicks "Print" → triggers `window.print()`
+6. Browser's print dialog opens with preview
+7. User can adjust print settings, save as PDF, or print
+
+**Benefits:**
+- No external dependencies
+- Works offline
+- User controls paper size, margins, printer
+- Can save as PDF natively
+- Familiar interface for users
+
+### 7.6 First-Time User Onboarding
+
+When a user opens ez-booth-rs with no local data, provide a guided onboarding experience.
+
+#### Welcome Screen
+
+```rust
+#[component]
+pub fn WelcomeScreen() -> impl IntoView {
+    let i18n = use_i18n();
+    let (selected_locale, set_locale) = create_signal(detect_browser_locale());
+    
+    view! {
+        <div class="welcome-container">
+            <h1>{t!(i18n, welcome.title)}</h1>
+            <p>{t!(i18n, welcome.description)}</p>
+            
+            // Language selection
+            <LanguageSelector 
+                selected=selected_locale
+                on_change=set_locale
+            />
+            
+            // Data import decision
+            <div class="import-options">
+                <h2>{t!(i18n, welcome.have_data_question)}</h2>
+                
+                <button on:click=move |_| navigate_to_import()>
+                    {t!(i18n, welcome.import_from_browser)}
+                </button>
+                
+                <button on:click=move |_| navigate_to_main()>
+                    {t!(i18n, welcome.start_fresh)}
+                </button>
+            </div>
+        </div>
+    }
+}
+```
+
+#### Onboarding Steps
+
+**Step 1: Language Detection**
+- Detect browser locale (navigator.language)
+- Default to German if locale is `de-*`
+- Default to English for all other locales
+- Show language selector dropdown
+- User can override detected language
+
+**Step 2: Data Source Decision**
+
+Present three options:
+1. **Import from another browser** → File picker for .json export
+2. **Import from Java ez-booth** → Future feature placeholder
+3. **Start fresh** → Skip to dashboard with empty state
+
+**Step 3: Import Flow (if chosen)**
+
+```rust
+#[component]
+pub fn ImportFlow() -> impl IntoView {
+    let (import_status, set_import_status) = create_signal(ImportStatus::SelectFile);
+    
+    view! {
+        <div class="import-flow">
+            {move || match import_status.get() {
+                ImportStatus::SelectFile => view! {
+                    <FileDropZone 
+                        on_file_selected=|file| validate_and_preview(file)
+                    />
+                },
+                ImportStatus::Preview(data) => view! {
+                    <ImportPreview 
+                        data=data
+                        on_confirm=|strategy| import_data(strategy)
+                        on_cancel=|| set_import_status(ImportStatus::SelectFile)
+                    />
+                },
+                ImportStatus::Importing => view! {
+                    <LoadingSpinner />
+                },
+                ImportStatus::Success => view! {
+                    <SuccessMessage />
+                    <button on:click=|_| navigate_to_dashboard()>
+                        {t!(i18n, welcome.go_to_dashboard)}
+                    </button>
+                },
+                ImportStatus::Error(msg) => view! {
+                    <ErrorMessage message=msg />
+                    <button on:click=|_| set_import_status(ImportStatus::SelectFile)>
+                        {t!(i18n, common.retry)}
+                    </button>
+                },
+            }}
+        </div>
+    }
+}
+```
+
+**Step 4: First Transaction Guide**
+
+After onboarding complete, show contextual tooltips for first-time actions:
+
+```rust
+// Show tooltip on first checkout
+if is_first_checkout() {
+    show_tooltip(
+        target: "#vendor-id-input",
+        message: t!(i18n, help.first_checkout_vendor),
+        position: TooltipPosition::Below,
+    );
+}
+
+// Dismiss after successful checkout
+on_checkout_complete(|| {
+    mark_tutorial_step_complete("first_checkout");
+});
+```
+
+#### Recurring User Experience
+
+**For users with existing data:**
+- Skip welcome screen
+- Load directly to dashboard
+- Show last active booth (if any)
+
+**Cross-browser awareness banner:**
+```rust
+#[component]
+pub fn CrossBrowserBanner() -> impl IntoView {
+    let (dismissed, set_dismissed) = use_local_storage("banner:cross_browser_dismissed");
+    let session_count = get_session_count();
+    
+    // Show for first 3 sessions unless dismissed
+    if session_count <= 3 && !dismissed {
+        view! {
+            <div class="info-banner">
+                <Icon name="info" />
+                <span>{t!(i18n, banner.data_browser_specific)}</span>
+                <a href="/export">{t!(i18n, banner.export_data_link)}</a>
+                <button on:click=move |_| set_dismissed(true)>
+                    <Icon name="close" />
+                </button>
+            </div>
+        }
+    } else {
+        view! { }
+    }
+}
+```
+
+#### Export Reminders
+
+Encourage regular exports to prevent data loss:
+
+```rust
+pub fn should_show_export_reminder() -> bool {
+    let transactions_since_export = get_transactions_since_last_export();
+    let days_since_export = get_days_since_last_export();
+    
+    // Remind after 50 transactions or 7 days
+    transactions_since_export >= 50 || days_since_export >= 7
+}
+
+#[component]
+pub fn ExportReminder() -> impl IntoView {
+    if should_show_export_reminder() {
+        view! {
+            <div class="reminder-banner">
+                <Icon name="backup" />
+                <span>{t!(i18n, reminder.export_suggested)}</span>
+                <button on:click=|_| trigger_export()>
+                    {t!(i18n, reminder.export_now)}
+                </button>
+                <button on:click=|_| dismiss_reminder()>
+                    {t!(i18n, reminder.later)}
+                </button>
+            </div>
+        }
+    } else {
+        view! { }
+    }
+}
+```
+
+**Auto-generated export filenames:**
+- Format: `ezb-export-YYYY-MM-DD-HHMMSS.json`
+- Example: `ezb-export-2026-03-19-143052.json`
+- Saves to browser's Downloads folder
+- No file dialog needed for quick exports
 
 ---
 
@@ -1040,7 +1478,199 @@ pub fn SyncPage() -> impl IntoView {
 2. User opens Firefox → "Import Data" → Selects file → "Merge" → Done
 3. Data now available in both browsers
 
-### 9.4 Layer 2: File System Access API (P1 - Enhanced)
+### 9.4 User Education & Cross-Browser Awareness
+
+Since IndexedDB data is browser-specific, users need clear guidance to avoid data loss when switching browsers or devices.
+
+#### Challenge: Invisible Isolation
+
+Users accustomed to cloud-synced applications expect data to follow them across devices and browsers. With IndexedDB:
+- Data **does not** automatically sync between browsers
+- Opening the app in Firefox shows empty state (even if Chrome has data)
+- Users may think data is lost when it's actually in another browser
+
+#### Education Strategy
+
+**1. Persistent Cross-Browser Banner**
+
+Display a dismissible banner for first 3 sessions:
+
+```rust
+#[component]
+pub fn CrossBrowserBanner() -> impl IntoView {
+    let i18n = use_i18n();
+    let storage = use_local_storage();
+    let session_count = storage.get_session_count();
+    let dismissed = storage.get("banner:cross_browser_dismissed").unwrap_or(false);
+    
+    if session_count <= 3 && !dismissed {
+        view! {
+            <div class="info-banner warning">
+                <Icon name="info-circle" />
+                <div class="banner-content">
+                    <strong>{t!(i18n, banner.important)}</strong>
+                    <p>{t!(i18n, banner.data_browser_specific)}</p>
+                    <p>{t!(i18n, banner.export_recommendation)}</p>
+                </div>
+                <a href="/export" class="banner-action">
+                    {t!(i18n, banner.export_now)}
+                </a>
+                <button 
+                    class="banner-dismiss"
+                    on:click=move |_| storage.set("banner:cross_browser_dismissed", true)
+                >
+                    <Icon name="close" />
+                </button>
+            </div>
+        }
+    } else {
+        view! { <></> }
+    }
+}
+```
+
+**Translation Keys:**
+```json
+{
+  "banner": {
+    "important": {
+      "de": "Wichtig",
+      "en": "Important"
+    },
+    "data_browser_specific": {
+      "de": "Ihre Daten werden nur in diesem Browser gespeichert",
+      "en": "Your data is stored in this browser only"
+    },
+    "export_recommendation": {
+      "de": "Exportieren Sie regelmäßig Ihre Daten, um sie in anderen Browsern zu verwenden",
+      "en": "Export your data regularly to use it in other browsers"
+    },
+    "export_now": {
+      "de": "Jetzt exportieren",
+      "en": "Export now"
+    }
+  }
+}
+```
+
+**2. Prominent Export Button**
+
+Make export easily accessible:
+- Header navigation: "Export" button always visible
+- Dashboard: "Export Data" card with last export date
+- Settings: Export section with one-click download
+
+**3. Regular Export Reminders**
+
+Trigger gentle reminders based on activity:
+
+```rust
+pub struct ExportReminderState {
+    transactions_since_export: u32,
+    days_since_export: u32,
+}
+
+impl ExportReminderState {
+    pub fn should_show_reminder(&self) -> bool {
+        self.transactions_since_export >= 50 || self.days_since_export >= 7
+    }
+}
+
+#[component]
+pub fn ExportReminder() -> impl IntoView {
+    let state = use_export_reminder_state();
+    
+    if state.should_show_reminder() {
+        view! {
+            <div class="reminder-card">
+                <Icon name="backup" size=24 />
+                <div class="reminder-content">
+                    <h3>{t!(i18n, reminder.backup_suggested)}</h3>
+                    <p>{t!(i18n, reminder.backup_reason, 
+                        transactions: state.transactions_since_export
+                    )}</p>
+                </div>
+                <button class="primary" on:click=|_| trigger_export()>
+                    {t!(i18n, reminder.export_now)}
+                </button>
+                <button class="secondary" on:click=|_| snooze_reminder()>
+                    {t!(i18n, reminder.remind_later)}
+                </button>
+            </div>
+        }
+    } else {
+        view! { <></> }
+    }
+}
+```
+
+**4. First-Time Import Prompt**
+
+When opening app with empty storage, ask if user has existing data:
+
+```rust
+#[component]
+pub fn EmptyStatePrompt() -> impl IntoView {
+    let storage = use_storage();
+    let is_first_visit = storage.is_empty();
+    
+    if is_first_visit {
+        view! {
+            <div class="empty-state-prompt">
+                <h2>{t!(i18n, welcome.first_time_question)}</h2>
+                <div class="option-cards">
+                    <Card on:click=navigate_to_import>
+                        <Icon name="download" size=48 />
+                        <h3>{t!(i18n, welcome.import_existing)}</h3>
+                        <p>{t!(i18n, welcome.import_description)}</p>
+                    </Card>
+                    <Card on:click=navigate_to_new_booth>
+                        <Icon name="plus" size=48 />
+                        <h3>{t!(i18n, welcome.start_fresh)}</h3>
+                        <p>{t!(i18n, welcome.fresh_description)}</p>
+                    </Card>
+                </div>
+            </div>
+        }
+    } else {
+        view! { <></> }
+    }
+}
+```
+
+**5. Export Filename Auto-Generation**
+
+Make export effortless:
+- Format: `ezb-export-YYYY-MM-DD-HHMMSS.json`
+- Example: `ezb-export-2026-03-19-143052.json`
+- Automatic download to browser's Downloads folder
+- No save dialog needed for quick exports
+
+**6. In-App Documentation**
+
+Provide accessible help:
+- FAQ section: "How do I use my data on another device?"
+- Tutorial video: "Exporting and importing your data"
+- Settings page: Clear explanation of browser-based storage
+
+#### Expected User Behavior
+
+**Ideal workflow for multi-browser users:**
+1. Use ez-booth in primary browser (e.g., Chrome)
+2. See banner about browser-specific storage
+3. Export data to Downloads folder
+4. Switch to secondary browser (e.g., Firefox)
+5. Import previously exported file
+6. Continue working with synced data
+7. Repeat export when needed (after significant changes)
+
+**Safety nets:**
+- Banner reminds users regularly
+- Export reminder triggers based on activity
+- One-click export minimizes friction
+- Auto-generated filenames prevent overwrites
+
+### 9.5 Layer 2: File System Access API (P1 - Enhanced)
 
 **Priority:** Nice-to-have for better UX  
 **Complexity:** Medium  
@@ -1085,7 +1715,7 @@ impl ExportService {
 
 **Fallback:** Use standard download for unsupported browsers
 
-### 9.5 Layer 3: Optional Cloud Sync (P2 - Advanced)
+### 9.6 Layer 3: Optional Cloud Sync (P2 - Advanced)
 
 **Priority:** Future enhancement  
 **Complexity:** High  
@@ -1151,7 +1781,7 @@ impl CloudSyncService {
 }
 ```
 
-### 9.6 Data Format Specification
+### 9.7 Data Format Specification
 
 #### Export JSON Schema
 
@@ -1187,7 +1817,7 @@ impl CloudSyncService {
 - **Checksummed:** Integrity verification
 - **Human-readable:** JSON for easy debugging
 
-### 9.7 Implementation Priorities
+### 9.8 Implementation Priorities
 
 | Priority | Feature | Phase | Effort |
 |----------|---------|-------|--------|
@@ -1197,7 +1827,7 @@ impl CloudSyncService {
 | **P1** | File System Access API | Phase 7 | 2 days |
 | **P2** | Cloud sync service | Phase 8+ | 2 weeks |
 
-### 9.8 Success Criteria
+### 9.9 Success Criteria
 
 **Phase 6 (MVP):**
 - ✅ User can export all data as JSON
@@ -1212,7 +1842,7 @@ impl CloudSyncService {
 - ✅ Graceful fallback for unsupported browsers
 - ✅ Welcome screen detects empty state and prompts for import
 
-### 9.9 User Onboarding & Browser Switch Detection
+### 9.10 User Onboarding & Browser Switch Detection
 
 #### Problem: Silent Data Loss
 
