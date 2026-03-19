@@ -1,10 +1,8 @@
 [workspace]
 members = [
-    "crates/core",
-    "crates/storage",
-    "crates/frontend",
-    "crates/server",
-    "crates/shared",
+    "crates/ez-booth-core",
+    "crates/ez-booth-ui",
+    "crates/ez-booth-app",
 ]
 resolver = "2"
 
@@ -44,6 +42,16 @@ validator = { version = "0.18", features = ["derive"] }
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Leptos framework
+leptos = { version = "0.6", features = ["csr"] }
+leptos_router = { version = "0.6", features = ["csr"] }
+leptos_meta = { version = "0.6", features = ["csr"] }
+
+# WASM
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["Storage", "Window"] }
+gloo-storage = "0.3"
 
 [profile.release]
 opt-level = "z"     # Optimize for size
