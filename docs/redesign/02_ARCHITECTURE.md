@@ -20,7 +20,8 @@
 9. [Cross-Browser Data Portability](#9-cross-browser-data-portability)
 10. [Internationalization (i18n)](#10-internationalization-i18n)
 11. [Security & Privacy](#11-security--privacy)
-12. [Performance Targets](#11-performance-targets)
+12. [Error Handling & User Support](#12-error-handling--user-support)
+13. [Performance Targets](#13-performance-targets)
 13. [Appendices](#appendices)
 
 ---
@@ -1911,9 +1912,169 @@ pub fn render_multi_vendor_report(
 
 ---
 
-## 11. Performance Targets
+## 12. Error Handling & User Support
 
-### 11.1 Bundle Size
+### 12.1 Overview
+
+Comprehensive error handling and support infrastructure to minimize user frustration and support burden.
+
+**Key Features:**
+1. User-friendly error messages (localized)
+2. Automatic error recovery mechanisms
+3. Built-in diagnostic tools
+4. Self-service help system
+5. One-click support bundle export
+
+### 12.2 Error Hierarchy
+
+```rust
+pub enum AppError {
+    // User-recoverable (show friendly message + action)
+    Validation(ValidationError),
+    NotFound(EntityType, String),
+    Conflict(ConflictError),
+    
+    // System errors (show recovery options)
+    Storage(StorageError),
+    Network(NetworkError),
+    Sync(SyncError),
+    
+    // Fatal errors (show diagnostic export)
+    Corruption(CorruptionError),
+    BrowserCompatibility(CompatError),
+    OutOfMemory,
+}
+```
+
+### 12.3 Error Display Strategy
+
+**User-Recoverable:**
+```
+⚠️ Vendor name required
+Please enter a name for this vendor.
+[Go back] [Learn more]
+```
+
+**System Errors:**
+```
+❌ Failed to save changes
+Could not write to local storage.
+
+Try these steps:
+• Refresh the page and try again
+• Check browser storage settings
+• Export your data as backup
+
+[Retry] [Export Backup] [Get Help]
+```
+
+**Fatal Errors:**
+```
+🔴 Critical Error
+The application encountered a problem it cannot 
+recover from automatically.
+
+Your data is safe. Download a support bundle to 
+share with our team.
+
+[Download Support Bundle] [Contact Support] [Reload App]
+```
+
+### 12.4 Diagnostic Tools
+
+**System Health Check** (Settings → Diagnostics):
+```
+System Health
+─────────────────────────────────────────
+✅ Browser: Chrome 120.0.6099 (supported)
+✅ Storage: 45.2 MB / 500 MB available
+✅ WASM: Loaded successfully
+✅ Database: 3 tables, 156 records
+⚠️  IndexedDB version: 2 (upgrade available)
+✅ Last backup: 2026-03-18 14:32
+
+[Run Full Diagnostic] [Export Diagnostic Report]
+```
+
+**Diagnostic Report Export:**
+- System information (browser, platform, versions)
+- Error logs (last 7 days)
+- Performance metrics
+- Storage statistics
+- Feature flags
+- **NO sensitive data** (no vendor names, purchase data)
+
+### 12.5 Self-Service Support
+
+**In-App Help System:**
+- Searchable help articles
+- Context-sensitive tooltips
+- Guided tours for new users
+- FAQ database
+- Troubleshooting guides
+
+**Categories:**
+- Getting Started
+- Data Management (export/import/backup)
+- Reports & Printing
+- Settings & Configuration
+- Troubleshooting
+
+### 12.6 Error Recovery
+
+**Automatic Recovery:**
+- Transaction rollback on failures
+- Optimistic retry with exponential backoff
+- Graceful degradation for missing features
+
+**Manual Recovery:**
+- Data repair wizard (orphaned records, invalid data)
+- Database rebuild from backup
+- Conflict resolution UI
+
+### 12.7 Support Bundle
+
+**One-Click Export:**
+User clicks "Download Support Bundle" → generates ZIP with:
+- `diagnostic-report.json` - System health
+- `error-log.json` - Recent errors
+- `performance-metrics.json` - Performance data
+- `system-info.json` - Browser & platform
+- `README.txt` - Instructions for support
+
+**Privacy Guarantee:** Bundle contains NO sensitive data (verified by automated tests).
+
+### 12.8 Success Metrics
+
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Support tickets (errors) | 10/month | 2/month | **80% reduction** |
+| Time to diagnose issue | 30 min | 5 min | **6x faster** |
+| Self-service resolution | 20% | 70% | **3.5x higher** |
+| User error understanding | 30% | 90% | **3x better** |
+
+### 12.9 Implementation Priority
+
+| Feature | Priority | Phase | Effort |
+|---------|----------|-------|--------|
+| User-friendly error messages | P0 | 2 | 8h |
+| Error recovery (retry) | P0 | 2 | 4h |
+| In-app help system | P1 | 4 | 12h |
+| Diagnostic report export | P1 | 4 | 6h |
+| Support bundle generation | P1 | 4 | 4h |
+| Error log viewer | P2 | 5 | 4h |
+| Data repair wizard | P2 | 6 | 8h |
+| Guided tours | P2 | 6 | 8h |
+
+**Total Effort:** ~54 hours (1.5 weeks)
+
+**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+
+---
+
+## 13. Performance Targets
+
+### 13.1 Bundle Size
 
 | Asset | Target | Rationale |
 |-------|--------|-----------|
@@ -1922,7 +2083,7 @@ pub fn render_multi_vendor_report(
 | CSS | <50KB | Tailwind purged of unused classes |
 | **Total** | **<3.5MB** | Initial load, cached thereafter |
 
-### 11.2 Runtime Performance
+### 13.2 Runtime Performance
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
@@ -1932,7 +2093,7 @@ pub fn render_multi_vendor_report(
 | Memory Usage | <50MB | Browser DevTools |
 | Checkout Transaction | <100ms | Lighthouse audit |
 
-### 11.3 Storage Limits
+### 13.3 Storage Limits
 
 | Storage | Limit | Notes |
 |---------|-------|-------|

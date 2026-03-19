@@ -18,7 +18,8 @@
 7. [Build & Deployment](#7-build--deployment)
 8. [Testing Strategy](#8-testing-strategy)
 9. [Performance Optimization](#9-performance-optimization)
-10. [Security Implementation](#10-security-implementation)
+10. [Error Handling Implementation](#10-error-handling-implementation)
+11. [Security Implementation](#11-security-implementation)
 
 ---
 
@@ -2725,7 +2726,620 @@ gzip -9 output.wasm
 
 ---
 
-## 10. Security Implementation
+---
+
+## 10. Error Handling Implementation
+
+### 10.1 Error Type Hierarchy
+
+**File:** `crates/core/src/error.rs`
+
+```rust
+use thiserror::Error;
+use serde::{Serialize, Deserialize};
+
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+pub enum AppError {
+    // User-recoverable errors
+    #[error("Validation failed: {0}")]
+    Validation(#[from] ValidationError),
+    
+    #[error("{entity_type} not found: {id}")]
+    NotFound {
+        entity_type: EntityType,
+        id: String,
+    },
+    
+    #[error("Conflict: {0}")]
+    Conflict(ConflictError),
+    
+    // System errors
+    #[error("Storage error: {0}")]
+    Storage(#[from] StorageError),
+    
+    #[error("Network error: {0}")]
+    Network(String),
+    
+    #[error("Sync error: {0}")]
+    Sync(SyncError),
+    
+    // Fatal errors
+    #[error("Data corruption detected: {0}")]
+    Corruption(CorruptionError),
+    
+    #[error("Browser not compatible: {0}")]
+    BrowserCompatibility(String),
+    
+    #[error("Out of memory")]
+    OutOfMemory,
+    
+    // Fallback
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+}
+
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationError {
+    pub field: String,
+    pub message_key: String,
+    pub suggestion_key: Option<String>,
+}
+
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[error("Storage operation failed: {operation}")]
+pub struct StorageError {
+    pub operation: StorageOp,
+    pub cause: String,
+    pub recoverable: bool,
+    pub recovery_steps: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StorageOp {
+    Read,
+    Write,
+    Delete,
+    Transaction,
+}
+
+impl AppError {
+    /// Get user-friendly message key for localization
+    pub fn message_key(&self) -> String {
+        match self {
+            AppError::Validation(e) => e.message_key.clone(),
+            AppError::NotFound { entity_type, .. } => 
+                format!("errors.not_found.{}", entity_type.as_str()),
+            AppError::Storage(e) if e.recoverable => 
+                "errors.storage.save_failed".to_string(),
+            AppError::Storage(_) => 
+                "errors.storage.fatal".to_string(),
+            AppError::Corruption(_) => 
+                "errors.corruption.detected".to_string(),
+            AppError::BrowserCompatibility(_) => 
+                "errors.browser.not_supported".to_string(),
+            _ => "errors.unknown".to_string(),
+        }
+    }
+    
+    /// Get recovery actions for user
+    pub fn recovery_actions(&self) -> Vec<RecoveryAction> {
+        match self {
+            AppError::Storage(e) if e.recoverable => vec![
+                RecoveryAction::Retry,
+                RecoveryAction::ExportBackup,
+                RecoveryAction::ContactSupport,
+            ],
+            AppError::Corruption(_) => vec![
+                RecoveryAction::DownloadSupportBundle,
+                RecoveryAction::ContactSupport,
+            ],
+            AppError::Validation(_) => vec![
+                RecoveryAction::GoBack,
+            ],
+            _ => vec![
+                RecoveryAction::Retry,
+                RecoveryAction::ContactSupport,
+            ],
+        }
+    }
+    
+    /// Check if error is transient (can retry)
+    pub fn is_transient(&self) -> bool {
+        matches!(self, 
+            AppError::Storage(e) if e.recoverable || 
+            AppError::Network(_)
+        )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RecoveryAction {
+    Retry,
+    GoBack,
+    ExportBackup,
+    DownloadSupportBundle,
+    ContactSupport,
+    Reload,
+}
+```
+
+### 10.2 Automatic Error Recovery
+
+**File:** `crates/storage/src/resilient.rs`
+
+```rust
+use crate::error::StorageError;
+use std::time::Duration;
+use gloo_timers::future::sleep;
+
+pub struct ResilientStorage<S> {
+    inner: S,
+    max_retries: u8,
+    initial_backoff_ms: u64,
+}
+
+impl<S> ResilientStorage<S> {
+    pub fn new(storage: S) -> Self {
+        Self {
+            inner: storage,
+            max_retries: 3,
+            initial_backoff_ms: 100,
+        }
+    }
+    
+    pub async fn resilient_save<T>(
+        &self,
+        entity: &T,
+    ) -> Result<(), StorageError>
+    where
+        S: Storage<T>,
+    {
+        let mut attempts = 0;
+        let mut backoff_ms = self.initial_backoff_ms;
+        
+        loop {
+            match self.inner.save(entity).await {
+                Ok(()) => return Ok(()),
+                Err(e) if attempts < self.max_retries && e.is_transient() => {
+                    attempts += 1;
+                    log::warn!(
+                        "Save failed (attempt {}/{}): {}. Retrying...",
+                        attempts,
+                        self.max_retries,
+                        e
+                    );
+                    sleep(Duration::from_millis(backoff_ms)).await;
+                    backoff_ms *= 2; // Exponential backoff
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+}
+```
+
+### 10.3 Error Display Component
+
+**File:** `crates/frontend/src/components/error_display.rs`
+
+```rust
+use leptos::*;
+use ez_booth_core::error::*;
+use crate::i18n::*;
+
+#[component]
+pub fn ErrorDisplay(
+    error: AppError,
+    on_action: impl Fn(RecoveryAction) + 'static,
+) -> impl IntoView {
+    let i18n = use_i18n();
+    let message_key = error.message_key();
+    let message = move || i18n.get(&message_key);
+    let actions = error.recovery_actions();
+    
+    let severity_class = match error {
+        AppError::Validation(_) => "warning",
+        AppError::Corruption(_) | 
+        AppError::BrowserCompatibility(_) => "critical",
+        _ => "error",
+    };
+    
+    view! {
+        <div class=format!("error-display error-{}", severity_class)>
+            <div class="error-icon">
+                {match severity_class {
+                    "warning" => "⚠️",
+                    "critical" => "🔴",
+                    _ => "❌",
+                }}
+            </div>
+            <div class="error-content">
+                <h3>{message}</h3>
+                {error.details().map(|details| view! {
+                    <p class="error-details">{details}</p>
+                })}
+            </div>
+            <div class="error-actions">
+                <For
+                    each=move || actions.clone()
+                    key=|action| format!("{:?}", action)
+                    children=move |action| {
+                        let action_label = action.label(&i18n);
+                        let on_click = {
+                            let action = action.clone();
+                            move |_| on_action(action.clone())
+                        };
+                        view! {
+                            <button 
+                                class="error-action"
+                                on:click=on_click
+                            >
+                                {action_label}
+                            </button>
+                        }
+                    }
+                />
+            </div>
+        </div>
+    }
+}
+```
+
+### 10.4 Diagnostic Report Generation
+
+**File:** `crates/frontend/src/diagnostics.rs`
+
+```rust
+use serde::{Serialize, Deserialize};
+use web_sys::window;
+
+#[derive(Serialize, Deserialize)]
+pub struct DiagnosticReport {
+    pub diagnostic_version: String,
+    pub timestamp: String,
+    pub app_version: String,
+    pub browser: BrowserInfo,
+    pub storage: StorageInfo,
+    pub data_summary: DataSummary,
+    pub errors: Vec<ErrorLog>,
+    pub performance: PerformanceMetrics,
+    pub features: FeatureFlags,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BrowserInfo {
+    pub name: String,
+    pub version: String,
+    pub user_agent: String,
+    pub language: String,
+    pub platform: String,
+}
+
+pub async fn generate_diagnostic_report() -> DiagnosticReport {
+    let window = window().expect("window");
+    let navigator = window.navigator();
+    
+    DiagnosticReport {
+        diagnostic_version: "1.0".to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        browser: BrowserInfo {
+            name: detect_browser_name(),
+            version: detect_browser_version(),
+            user_agent: navigator.user_agent().unwrap_or_default(),
+            language: navigator.language().unwrap_or_default(),
+            platform: navigator.platform().unwrap_or_default(),
+        },
+        storage: collect_storage_info().await,
+        data_summary: collect_data_summary().await,
+        errors: collect_error_log().await,
+        performance: collect_performance_metrics(),
+        features: detect_feature_flags(),
+    }
+}
+
+pub async fn export_diagnostic_bundle() -> Result<Vec<u8>, AppError> {
+    let report = generate_diagnostic_report().await;
+    
+    // Create ZIP bundle
+    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+    
+    // Add diagnostic report
+    zip.start_file("diagnostic-report.json", FileOptions::default())?;
+    zip.write_all(serde_json::to_string_pretty(&report)?.as_bytes())?;
+    
+    // Add error log
+    zip.start_file("error-log.json", FileOptions::default())?;
+    zip.write_all(serde_json::to_string_pretty(&report.errors)?.as_bytes())?;
+    
+    // Add README
+    zip.start_file("README.txt", FileOptions::default())?;
+    zip.write_all(SUPPORT_BUNDLE_README.as_bytes())?;
+    
+    Ok(zip.finish()?.into_inner())
+}
+
+const SUPPORT_BUNDLE_README: &str = r#"
+ez-booth Support Bundle
+Generated: {timestamp}
+Version: {version}
+
+This bundle contains diagnostic information to help
+troubleshoot issues with ez-booth.
+
+Privacy Notice:
+NO sensitive data is included (no vendor names, sales
+data, or personal information).
+
+To get support:
+1. Email this bundle to support@ez-booth.com
+2. Or create a GitHub issue and attach this file
+3. Include a description of your problem
+
+Response time: Usually within 24 hours
+"#;
+```
+
+### 10.5 In-App Help System
+
+**File:** `crates/frontend/src/components/help_panel.rs`
+
+```rust
+use leptos::*;
+use crate::i18n::*;
+
+#[component]
+pub fn HelpPanel(
+    show: ReadSignal<bool>,
+    set_show: WriteSignal<bool>,
+) -> impl IntoView {
+    let i18n = use_i18n();
+    let (search_query, set_search_query) = create_signal(String::new());
+    let (selected_category, set_selected_category) = create_signal(HelpCategory::GettingStarted);
+    
+    let filtered_articles = create_memo(move |_| {
+        let query = search_query.get().to_lowercase();
+        HELP_ARTICLES
+            .iter()
+            .filter(|article| {
+                article.matches_query(&query) &&
+                (selected_category.get() == HelpCategory::All || 
+                 article.category == selected_category.get())
+            })
+            .collect::<Vec<_>>()
+    });
+    
+    view! {
+        <div 
+            class="help-panel"
+            class:show=move || show.get()
+        >
+            <div class="help-header">
+                <h2>{i18n.get("help.title")}</h2>
+                <button on:click=move |_| set_show.set(false)>"×"</button>
+            </div>
+            
+            <div class="help-search">
+                <input 
+                    type="text"
+                    placeholder={i18n.get("help.search_placeholder")}
+                    on:input=move |ev| {
+                        set_search_query.set(event_target_value(&ev))
+                    }
+                />
+            </div>
+            
+            <div class="help-categories">
+                <For
+                    each=|| HelpCategory::all()
+                    key=|cat| format!("{:?}", cat)
+                    children=move |category| {
+                        view! {
+                            <button
+                                class="category-btn"
+                                class:active=move || selected_category.get() == category
+                                on:click=move |_| set_selected_category.set(category)
+                            >
+                                {category.icon()} {" "} {category.label(&i18n)}
+                            </button>
+                        }
+                    }
+                />
+            </div>
+            
+            <div class="help-articles">
+                <For
+                    each=move || filtered_articles.get()
+                    key=|article| article.id
+                    children=move |article| {
+                        view! {
+                            <HelpArticle article=article />
+                        }
+                    }
+                />
+            </div>
+            
+            <div class="help-footer">
+                <button on:click=move |_| open_support_page()>
+                    {i18n.get("help.contact_support")}
+                </button>
+            </div>
+        </div>
+    }
+}
+```
+
+### 10.6 Error Logging
+
+**File:** `crates/frontend/src/error_log.rs`
+
+```rust
+use std::collections::VecDeque;
+use std::sync::Mutex;
+
+static ERROR_LOG: Mutex<VecDeque<ErrorLogEntry>> = Mutex::new(VecDeque::new());
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ErrorLogEntry {
+    pub timestamp: String,
+    pub error_type: String,
+    pub message: String,
+    pub stack_trace: Option<String>,
+    pub user_action: Option<String>,
+    pub recovered: bool,
+}
+
+pub fn log_error(error: &AppError, user_action: Option<String>, recovered: bool) {
+    let entry = ErrorLogEntry {
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        error_type: format!("{:?}", error),
+        message: error.to_string(),
+        stack_trace: None, // Could use backtrace in dev mode
+        user_action,
+        recovered,
+    };
+    
+    let mut log = ERROR_LOG.lock().unwrap();
+    log.push_back(entry);
+    
+    // Keep only last 100 entries
+    if log.len() > 100 {
+        log.pop_front();
+    }
+}
+
+pub fn get_error_log() -> Vec<ErrorLogEntry> {
+    ERROR_LOG.lock().unwrap().iter().cloned().collect()
+}
+
+pub fn clear_error_log() {
+    ERROR_LOG.lock().unwrap().clear();
+}
+```
+
+### 10.7 Testing Error Scenarios
+
+**File:** `crates/frontend/tests/error_handling_test.rs`
+
+```rust
+#[wasm_bindgen_test]
+async fn test_storage_failure_recovery() {
+    let storage = create_failing_storage(2); // Fail twice, then succeed
+    let resilient = ResilientStorage::new(storage);
+    
+    let result = resilient.resilient_save(&test_vendor()).await;
+    
+    assert!(result.is_ok(), "Should recover after retries");
+    assert_eq!(storage.attempt_count(), 3, "Should retry twice");
+}
+
+#[wasm_bindgen_test]
+async fn test_user_error_message_localization() {
+    let error = AppError::Validation(ValidationError {
+        field: "vendor_name".to_string(),
+        message_key: "errors.validation.vendor_name_required".to_string(),
+        suggestion_key: Some("errors.validation.enter_valid_name".to_string()),
+    });
+    
+    let i18n = I18n::new(Locale::De);
+    let message = i18n.get(&error.message_key());
+    
+    assert!(message.contains("Händlernamen"), "Should be in German");
+}
+
+#[wasm_bindgen_test]
+async fn test_diagnostic_export_no_sensitive_data() {
+    // Create test data with vendor names
+    create_test_vendors().await;
+    
+    let diagnostic = generate_diagnostic_report().await;
+    let json = serde_json::to_string(&diagnostic).unwrap();
+    
+    // Verify no sensitive data leaked
+    assert!(!json.contains("Test Vendor"), "Should not contain vendor names");
+    assert!(!json.contains("test@email.com"), "Should not contain emails");
+    
+    // Verify required data present
+    assert!(diagnostic.browser.name.len() > 0);
+    assert!(diagnostic.storage.used_mb > 0.0);
+}
+```
+
+### 10.8 Localized Error Messages
+
+**File:** `locales/de.json` (error messages section)
+
+```json
+{
+  "errors": {
+    "validation": {
+      "vendor_name_required": "Bitte geben Sie einen Händlernamen ein.",
+      "commission_rate_invalid": "Provision muss zwischen 0% und 100% liegen.",
+      "purchase_amount_required": "Bitte geben Sie einen Betrag ein.",
+      "date_invalid": "Ungültiges Datum."
+    },
+    "storage": {
+      "save_failed": "Änderungen konnten nicht gespeichert werden.",
+      "database_locked": "Datenbank ist gesperrt. Bitte versuchen Sie es erneut.",
+      "quota_exceeded": "Speicherplatz voll. Bitte alte Daten archivieren.",
+      "fatal": "Schwerwiegender Speicherfehler."
+    },
+    "not_found": {
+      "vendor": "Händler nicht gefunden.",
+      "booth": "Stand nicht gefunden.",
+      "purchase": "Kauf nicht gefunden."
+    },
+    "corruption": {
+      "detected": "Datenkorruption erkannt. Bitte Support kontaktieren."
+    },
+    "browser": {
+      "not_supported": "Ihr Browser wird nicht unterstützt. Bitte verwenden Sie Chrome, Firefox, Edge oder Safari."
+    },
+    "recovery": {
+      "retry": "Erneut versuchen",
+      "go_back": "Zurück",
+      "export_backup": "Backup exportieren",
+      "download_support_bundle": "Support-Bundle herunterladen",
+      "contact_support": "Support kontaktieren",
+      "reload": "Anwendung neu laden"
+    },
+    "unknown": "Ein unbekannter Fehler ist aufgetreten."
+  },
+  "help": {
+    "title": "Hilfe",
+    "search_placeholder": "Hilfe durchsuchen...",
+    "getting_started": "Erste Schritte",
+    "data_management": "Datenverwaltung",
+    "reports": "Berichte",
+    "settings": "Einstellungen",
+    "troubleshooting": "Problembehandlung",
+    "contact_support": "Support kontaktieren"
+  }
+}
+```
+
+### 10.9 Implementation Priority
+
+| Component | Phase | Effort | Dependencies |
+|-----------|-------|--------|--------------|
+| Error types & hierarchy | 2 | 4h | Core domain |
+| Automatic retry mechanism | 2 | 4h | Storage layer |
+| Error display component | 2 | 4h | Frontend UI |
+| Error message localization | 3 | 4h | i18n system |
+| Diagnostic report generation | 4 | 6h | Storage access |
+| Support bundle export | 4 | 4h | Diagnostics |
+| In-app help system | 4 | 12h | Content creation |
+| Error log viewer | 5 | 4h | Error logging |
+| Data repair wizard | 6 | 8h | Storage layer |
+| Guided tours | 6 | 8h | UI components |
+
+**Total Effort:** ~58 hours
+
+**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+
+---
+
+## 11. Security Implementation
 
 ### 10.1 Input Validation
 
@@ -2756,7 +3370,7 @@ fn validate_date(date: &NaiveDate) -> Result<(), ValidationError> {
 }
 ```
 
-### 10.2 Content Security Policy
+### 11.2 Content Security Policy
 
 ```html
 <!-- index.html -->

@@ -18,7 +18,7 @@
 7. [Internationalization & Localization](#7-internationalization--localization)
 8. [Performance](#8-performance)
 9. [Maintainability](#9-maintainability)
-10. [User Experience](#10-user-experience)
+10. [Error Handling & User Support](#10-error-handling--user-support)
 11. [Priority Matrix](#11-priority-matrix)
 12. [Cost-Benefit Analysis](#12-cost-benefit-analysis)
 13. [Risk Assessment](#13-risk-assessment)
@@ -534,6 +534,78 @@ The Java implementation has accumulated:
 
 ---
 
+## 10. Error Handling & User Support
+
+### 10.1 Error Messages & Recovery
+
+#### Current Problems (ez-booth Java)
+- **Generic Stack Traces:** Java exceptions shown to users
+- **No Recovery Options:** Users see error, must restart app
+- **Technical Jargon:** Error messages not user-friendly
+- **No Help System:** Users must email support for help
+
+#### Proposed Solutions (ez-booth-rs)
+- **Localized Messages:** Clear, actionable errors in DE/EN
+- **Automatic Recovery:** Retry with exponential backoff
+- **Recovery Actions:** UI shows specific steps to fix problems
+- **In-App Help:** Searchable help system + tooltips
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Error comprehension | 30% | 90% | **3x better** |
+| Self-service resolution | 20% | 70% | **3.5x higher** |
+| Support tickets (errors) | 10/month | 2/month | **80% reduction** |
+| Time to diagnose | 30 min | 5 min | **6x faster** |
+
+### 10.2 Diagnostic Tools
+
+#### Current Problems (ez-booth Java)
+- **Manual Log Collection:** Users must find log files
+- **No System Health Check:** Hard to diagnose browser issues
+- **Missing Context:** Support needs multiple email exchanges
+- **Privacy Concerns:** Log files may contain sensitive data
+
+#### Proposed Solutions (ez-booth-rs)
+- **One-Click Export:** Download diagnostic bundle
+- **System Health Panel:** Built-in diagnostics (Settings)
+- **Privacy-Safe:** Bundle contains NO sensitive data
+- **Error Log Viewer:** In-app error history with filtering
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Support email exchanges | 3-4 per ticket | 1-2 per ticket | **50% reduction** |
+| Log collection success | 60% | 95% | **1.6x higher** |
+| Diagnostic completeness | 40% | 90% | **2.3x better** |
+| Support resolution time | 2-3 days | <1 day | **2-3x faster** |
+
+### 10.3 Self-Service Support
+
+#### Current Problems (ez-booth Java)
+- **No In-App Help:** Must read external documentation
+- **No Guided Tours:** New users struggle to get started
+- **No FAQ:** Common questions not documented
+- **No Context Help:** Unclear what features do
+
+#### Proposed Solutions (ez-booth-rs)
+- **Searchable Help:** In-app help panel with full-text search
+- **Guided Tours:** Interactive onboarding for new users
+- **FAQ Database:** Common questions + solutions
+- **Context-Sensitive Help:** Tooltips + "?" icons everywhere
+
+#### Success Metrics
+| Metric | Current (Java) | Target (Rust) | Improvement |
+|--------|----------------|---------------|-------------|
+| Help system usage | N/A | 50% of users | **New capability** |
+| Onboarding completion | 40% | 80% | **2x higher** |
+| "How do I...?" tickets | 5/month | 1/month | **80% reduction** |
+| Feature discovery | 50% | 85% | **1.7x better** |
+
+**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+
+---
+
 ## 11. Priority Matrix
 
 ### 11.1 Improvement Priority Ranking
@@ -548,6 +620,7 @@ The Java implementation has accumulated:
 | **Type Safety** | ⭐⭐⭐ | ⭐⭐ | **P1** | Phase 1 |
 | **UI Responsiveness** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 1 |
 | **i18n (DE/EN)** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 3 |
+| **Error Handling & Support** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 2-4 |
 | **Mobile Experience** | ⭐⭐⭐ | ⭐⭐⭐ | **P2** | Phase 3 |
 | **Data Sync (CRDT)** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **P3** | Post-MVP |
 | **Plugin System** | ⭐⭐ | ⭐⭐⭐⭐ | **P3** | Post-MVP |
@@ -639,8 +712,9 @@ The Java implementation has accumulated:
 - **Annual savings:** $180-1,140 per deployment
 
 **Support & Maintenance:**
-- **Java version:** ~10 support tickets/month (installation, JVM issues, updates)
-- **Rust version:** ~2 support tickets/month (browser compatibility, usage questions)
+- **Java version:** ~10 support tickets/month (installation, JVM issues, updates, errors)
+- **Rust version:** ~2 support tickets/month (browser compatibility, advanced features)
+- **Breakdown:** 80% reduction from better error handling + diagnostics + self-service help
 - **Time savings:** ~8 tickets/month × 30 min/ticket = 4 hours/month = 48 hours/year
 
 **Distribution:**
