@@ -2466,9 +2466,9 @@ pub fn render_multi_vendor_report(
 **User Interface Features:**
 
 1. **Preview Mode:** On-screen display shows each vendor as a separate "page" with visual separation
-2. **Print Button:** Single click prints all vendors with automatic page breaks
-3. **Individual Print:** Option to print single vendor from dropdown
-4. **Batch Selection:** Checkboxes to select specific vendors for batch printing
+2. **Print All Button (Default):** Primary action - single click prints all vendors with automatic page breaks
+3. **Individual Print (Optional):** Secondary option to print single vendor from dropdown
+4. **Batch Selection (Optional):** Advanced feature - checkboxes to select specific vendors for batch printing
 
 **Translation Keys:**
 ```json
