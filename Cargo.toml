@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/domain",
     "crates/ez-booth-core",
     "crates/ez-booth-ui",
     "crates/ez-booth-app",
