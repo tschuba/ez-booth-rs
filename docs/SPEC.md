@@ -18,6 +18,13 @@ The redesign shall retain the core features of `ez-booth`, including:
 - User-friendly interface for easy navigation and operation running in any of a client's provided web browser
 - Report printing capabilities, allowing users to generate and print reports based on the data collected by the application
 
+## Extended features
+
+- Support for various deployment options
+    1. Backend and frontend running on the same machine (local deployment)
+    2. Backend running on a server and frontend running on clients (client-server deployment)
+- Enhanced data management and synchronization features, allowing for better handling of data across multiple instances and clients
+
 ## Implementation Steps
 
 1. Analysis of current state of `ez-booth`
