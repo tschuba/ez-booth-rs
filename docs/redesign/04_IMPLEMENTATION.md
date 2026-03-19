@@ -1477,7 +1477,105 @@ pub fn render_vendor_report(
         format_currency(total, locale)
     )
 }
+
+// Multi-vendor batch report with page breaks
+pub fn render_multi_vendor_report(
+    vendors: &[Vendor],
+    items_by_vendor: &HashMap<VendorId, Vec<PurchaseItem>>,
+) -> String {
+    let locale = get_locale();
+    let t = get_translations(locale);
+    
+    let vendor_pages: Vec<String> = vendors
+        .iter()
+        .map(|vendor| {
+            let items = items_by_vendor
+                .get(&vendor.id)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+            
+            format!(
+                r#"<div class="vendor-report-page">
+                    <h1>{} - {}</h1>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>{}</th>
+                                <th>{}</th>
+                                <th>{}</th>
+                            </tr>
+                        </thead>
+                        <tbody>{}</tbody>
+                    </table>
+                    <div class="total">{}: {}</div>
+                </div>"#,
+                t.report.vendor_receipt,
+                vendor.name,
+                t.report.date,
+                t.report.item,
+                t.report.amount,
+                render_items(items, locale),
+                t.report.total,
+                format_currency(calculate_total(items), locale)
+            )
+        })
+        .collect();
+    
+    format!(
+        r#"<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>{}</title>
+            <style>
+                body {{ margin: 0; padding: 0; font-family: Arial, sans-serif; }}
+                
+                @media print {{
+                    .vendor-report-page {{
+                        page-break-after: always;
+                        padding: 20px;
+                    }}
+                    .vendor-report-page:last-child {{
+                        page-break-after: auto;
+                    }}
+                    @page {{
+                        margin: 2cm;
+                        size: A4 portrait;
+                    }}
+                }}
+                
+                @media screen {{
+                    .vendor-report-page {{
+                        margin: 20px auto;
+                        max-width: 21cm;
+                        padding: 20px;
+                        border: 1px solid #ccc;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }}
+                }}
+                
+                table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                th {{ background-color: #f5f5f5; font-weight: bold; }}
+                .total {{ margin-top: 20px; font-weight: bold; text-align: right; font-size: 1.2em; }}
+                h1 {{ margin-top: 0; }}
+            </style>
+        </head>
+        <body>
+            {}
+        </body>
+        </html>"#,
+        t.report.all_vendor_receipts,
+        vendor_pages.join("\n")
+    )
+}
 ```
+
+**Implementation Notes:**
+- Each vendor report wrapped in `.vendor-report-page` div with `page-break-after: always`
+- Last vendor doesn't force page break to avoid blank page
+- Screen preview shows separated "cards" with borders for visual verification
+- Print output creates clean page breaks for easy distribution
 
 ---
 

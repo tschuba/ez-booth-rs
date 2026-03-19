@@ -1731,6 +1731,134 @@ pub fn render_vendor_report(
 
 **Print CSS remains language-agnostic** - page breaks, margins, fonts work for all languages.
 
+#### Multi-Vendor Report Pagination
+
+**Requirement:** When printing reports for multiple vendors, each vendor's report should start on a new page for easy separation and distribution.
+
+**Implementation Strategy:**
+
+```css
+/* Print-specific styles for vendor reports */
+@media print {
+    .vendor-report-page {
+        page-break-after: always; /* Force new page after each vendor */
+    }
+    
+    .vendor-report-page:last-child {
+        page-break-after: auto; /* Don't add blank page at end */
+    }
+    
+    @page {
+        margin: 2cm;
+        size: A4 portrait;
+    }
+}
+```
+
+**Template Structure for Bulk Printing:**
+```rust
+pub fn render_multi_vendor_report(
+    vendors: &[Vendor],
+    items_by_vendor: &HashMap<VendorId, Vec<PurchaseItem>>,
+    locale: Locale,
+) -> String {
+    let vendor_pages: Vec<String> = vendors
+        .iter()
+        .map(|vendor| {
+            let items = items_by_vendor.get(&vendor.id).unwrap_or(&vec![]);
+            format!(
+                r#"<div class="vendor-report-page">
+                    {}
+                </div>"#,
+                render_single_vendor_report(vendor, items, locale)
+            )
+        })
+        .collect();
+    
+    format!(
+        r#"<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>{}</title>
+            <style>
+                /* Base report styles */
+                body {{ margin: 0; padding: 0; font-family: Arial, sans-serif; }}
+                
+                @media print {{
+                    .vendor-report-page {{
+                        page-break-after: always;
+                        padding: 20px;
+                    }}
+                    .vendor-report-page:last-child {{
+                        page-break-after: auto;
+                    }}
+                    @page {{
+                        margin: 2cm;
+                        size: A4 portrait;
+                    }}
+                }}
+                
+                @media screen {{
+                    .vendor-report-page {{
+                        margin: 20px auto;
+                        max-width: 21cm;
+                        padding: 20px;
+                        border: 1px solid #ccc;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }}
+                }}
+                
+                table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+                th {{ background-color: #f5f5f5; font-weight: bold; }}
+                .total {{ margin-top: 20px; font-weight: bold; text-align: right; font-size: 1.2em; }}
+                h1 {{ margin-top: 0; }}
+            </style>
+        </head>
+        <body>
+            {}
+        </body>
+        </html>"#,
+        get_translations(locale).report.all_vendor_receipts,
+        vendor_pages.join("\n")
+    )
+}
+```
+
+**User Interface Features:**
+
+1. **Preview Mode:** On-screen display shows each vendor as a separate "page" with visual separation
+2. **Print Button:** Single click prints all vendors with automatic page breaks
+3. **Individual Print:** Option to print single vendor from dropdown
+4. **Batch Selection:** Checkboxes to select specific vendors for batch printing
+
+**Translation Keys:**
+```json
+{
+  "report": {
+    "all_vendor_receipts": {
+      "de": "Alle Verkäufer-Quittungen",
+      "en": "All Vendor Receipts"
+    },
+    "print_all_vendors": {
+      "de": "Alle Verkäufer drucken",
+      "en": "Print All Vendors"
+    },
+    "print_selected": {
+      "de": "Ausgewählte drucken",
+      "en": "Print Selected"
+    }
+  }
+}
+```
+
+**Benefits:**
+- Clean separation for distributing printed reports to individual vendors
+- Preview shows exactly what will print
+- Efficient bulk printing (single print job for all vendors)
+- Works consistently across all browsers and operating systems
+
 ### 10.8 Implementation Timeline
 
 **Phase 1 (Week 1):** Setup i18n infrastructure + report templates (10 hours)  
