@@ -277,6 +277,7 @@
 ```toml
 [dependencies]
 leptos = "0.6"                  # UI framework
+leptos_i18n = "0.3"            # Internationalization
 rexie = "0.6"                   # IndexedDB wrapper
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"             # JSON serialization
@@ -290,6 +291,7 @@ js-sys = "0.1"                 # JavaScript types
 - Faster compile times (30-50% improvement)
 - Smaller WASM bundle (~200KB savings)
 - Lower learning curve for contributors
+- i18n support for German/English localization
 
 #### Deferred to Post-MVP (Phase 7+)
 
@@ -337,6 +339,10 @@ js-sys = "0.1"                 # JavaScript types
 ```
 ez-booth-rs/
 ├── Cargo.toml              # Workspace root
+├── locales/                # i18n translations (NEW)
+│   ├── de.json            # German (primary)
+│   ├── en.json            # English (fallback)
+│   └── translations.json  # Config
 ├── crates/
 │   ├── core/               # Domain model & business logic (shared)
 │   │   ├── Cargo.toml
@@ -364,6 +370,7 @@ ez-booth-rs/
 │   │       ├── components/ # UI components
 │   │       ├── pages/      # Page views
 │   │       ├── state/      # Global state management
+│   │       ├── i18n/       # i18n setup & formatters (NEW)
 │   │       └── api/        # Backend API client
 │   │
 │   ├── server/             # Optional backend (feature-gated)
@@ -1548,7 +1555,108 @@ A: Check that you selected the correct JSON file and used "Merge" strategy.
 
 ---
 
-## 10. Security & Privacy
+## 10. Internationalization (i18n)
+
+### 10.1 Overview
+
+**Primary Language:** German (de)  
+**Fallback Language:** English (en)  
+**Future:** Extensible to additional languages
+
+The Java version has full German localization (172 translation keys). This must be preserved in the Rust version.
+
+### 10.2 Technology
+
+**Library:** `leptos_i18n 0.3+`
+
+**Features:**
+- Compile-time key validation
+- Type-safe translations
+- Browser locale detection
+- Reactive language switching
+- Small footprint (~20KB)
+
+### 10.3 File Structure
+
+```
+locales/
+├── de.json          # German (primary, 172 keys)
+├── en.json          # English (fallback)
+└── translations.json # Config
+```
+
+### 10.4 Implementation
+
+```rust
+use leptos_i18n::*;
+
+// Browser locale detection
+pub fn init_i18n() -> Locale {
+    let browser_lang = window()
+        .navigator()
+        .language()
+        .unwrap_or_default();
+    
+    match browser_lang.split('-').next() {
+        Some("de") => Locale::De,
+        Some("en") => Locale::En,
+        _ => Locale::De, // Default to German
+    }
+}
+
+// Usage in components
+#[component]
+pub fn BoothForm() -> impl IntoView {
+    let i18n = use_i18n();
+    
+    view! {
+        <h2>{t!(i18n, booth.title)}</h2>
+        <label>{t!(i18n, booth.description.label)}</label>
+        <button>{t!(i18n, common.save)}</button>
+    }
+}
+```
+
+### 10.5 Format Helpers
+
+Locale-aware formatting for:
+- **Currency:** EUR vs USD formatting
+- **Dates:** dd.MM.yyyy (de) vs MM/dd/yyyy (en)
+- **Decimals:** Comma vs period separators
+
+### 10.6 Translation Categories
+
+| Category | Keys | Examples |
+|----------|------|----------|
+| App Layout | 3 | Title, tooltips |
+| Booth Management | 35 | Forms, validation, status |
+| Checkout | 25 | Keypad, confirmation, receipts |
+| Vendor Reports | 20 | Lists, statistics, printing |
+| Export/Import | 30 | File operations, notifications |
+| Generic | 14 | Buttons, errors, common text |
+
+### 10.7 Implementation Timeline
+
+**Phase 1 (Week 1):** Setup i18n infrastructure (8 hours)  
+**Phase 2 (Ongoing):** Replace hardcoded strings (4 hours)  
+**Phase 4 (Week 1):** Testing and validation (2 hours)
+
+**Total Additional Effort:** 14 hours (~1.75 days)
+
+### 10.8 Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Translation coverage | 100% (172 keys) |
+| Browser locale detection | 95%+ accuracy |
+| Language switch latency | <50ms |
+| Bundle size impact | <20KB |
+
+**For detailed implementation, see:** `/extended/06_LOCALIZATION_ARCHITECTURE.md`
+
+---
+
+## 11. Security & Privacy
 
 ### 10.1 Data Protection
 
