@@ -198,10 +198,13 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 **Root Cause:** Traditional desktop application model with local SQLite database
 
 #### Proposed Solutions (ez-booth-rs)
-- **Built-in Export/Import:** One-click JSON export/import
+- **Built-in Export/Import:** One-click JSON export/import with checksum verification
 - **Browser Independence:** Works in Chrome, Firefox, Safari, Edge
 - **Cross-Device Ready:** Export from desktop, import on tablet
-- **Multiple Strategies:** Replace, merge, or preview before import
+- **Multiple Strategies:** Replace, merge (newer wins), or preview before import
+- **File System API:** Save to cloud folders for automatic sync (Phase 3)
+
+*For detailed architecture, see [ARCHITECTURE.md Section 9](02_ARCHITECTURE.md#9-cross-browser-data-portability)*
 
 #### Success Metrics
 | Metric | Current (Java) | Target (Rust) | Improvement |
@@ -211,68 +214,6 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Import time | N/A | <5 seconds | **Fast** |
 | Merge strategies | N/A | 3 options | **Flexible** |
 | Cross-device | Difficult | Easy | **10x simpler** |
-
-### 3.2 Export/Import Features
-
-#### Current Problems (ez-booth Java)
-- **No Export Feature:** Must manually copy SQLite database file
-- **Technical Knowledge Required:** Users must know where database is stored
-- **No Integrity Checks:** Corrupted files may cause data loss
-- **No Merge Options:** All-or-nothing import
-
-#### Proposed Solutions (ez-booth-rs)
-- **User-Friendly Export:** Download button creates JSON file
-- **Checksum Verification:** Detect corrupted exports
-- **Schema Versioning:** Backward compatibility for old exports
-- **Smart Merge:** Choose replace, merge (newer wins), or preview
-
-**Export Format Example:**
-```json
-{
-  "version": "0.1.0",
-  "exported_at": "2026-03-19T14:31:00Z",
-  "client_id": "chrome-desktop-abc123",
-  "booths": [...],
-  "vendors": [...],
-  "purchases": [...],
-  "checksum": "a3f5b8c9d2e1f4a7..."
-}
-```
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Export UX | Complex | One click | **10x easier** |
-| File format | Binary SQLite | Human-readable JSON | **Debuggable** |
-| Integrity check | None | SHA-256 checksum | **Secure** |
-| Corruption detection | None | Automatic | **Reliable** |
-| Version compatibility | Breaks | Backward compatible | **Future-proof** |
-
-### 3.3 File System Access API (Enhanced)
-
-#### Current Problems (ez-booth Java)
-- **Manual File Management:** User must remember where they saved export
-- **No Cloud Integration:** Cannot save directly to Dropbox/Google Drive
-- **Multiple Steps:** Export → Save → Navigate to folder → Import
-
-#### Proposed Solutions (ez-booth-rs)
-- **Native Save Dialog:** Browser's "Save As" dialog
-- **Cloud Folder Selection:** Save to synced folder (Dropbox, Google Drive)
-- **Automatic Sync:** OS handles file sync across devices
-- **One-Time Setup:** Configure once, auto-sync forever
-
-**User Workflow:**
-1. Export → Choose Dropbox folder → Save
-2. File syncs to all devices automatically
-3. On other device → Import → Select synced file → Done
-
-#### Success Metrics
-| Metric | Current (Java) | Target (Rust) | Improvement |
-|--------|----------------|---------------|-------------|
-| Save steps | 3-4 | 1-2 | **2-3x simpler** |
-| Cloud integration | None | Automatic | **New capability** |
-| Cross-device sync | Manual | Automatic | **Automated** |
-| User effort | High | Minimal | **10x less** |
 
 ---
 
@@ -371,19 +312,16 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 - **Hardcoded German:** All UI text, reports, and messages in German only
 - **No i18n Framework:** No internationalization infrastructure
 - **Report Templates:** Thymeleaf templates have hardcoded German strings
-  - "Verkäufer-Quittung", "Gesamtsumme", "Zeitraum" in VendorReport.template.html
-- **No Language Detection:** Cannot detect user's browser language
-- **No Fallback Chain:** No graceful degradation for missing translations
 
 #### Proposed Solutions (ez-booth-rs)
 - **Primary: German** - Default language matching primary user base
 - **Fallback: English** - Universal fallback when German unavailable
 - **Browser Detection:** Automatic language selection from `navigator.language`
-- **i18n Framework:** Use `fluent-rs` or `i18next` for Rust/WASM
-- **Translation Files:** JSON/YAML per language with key-based lookup
+- **i18n Framework:** Use `leptos_i18n` for type-safe translations
 - **Report Localization:** Template strings extracted to translation files
-- **Manual Override:** User can select language in settings
 - **Future Languages:** Easy addition of new languages (French, Italian, etc.)
+
+*For detailed architecture and implementation, see [ARCHITECTURE.md Section 10](02_ARCHITECTURE.md#10-internationalization-i18n)*
 
 #### Success Metrics
 | Metric | Current (Java) | Target (Rust) | Improvement |
@@ -393,45 +331,6 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 | Language switch time | N/A | <100ms | **Instant** |
 | Missing key fallback | Crash/blank | English fallback | **Graceful** |
 | Add new language | Code changes | Add JSON file | **No code change** |
-
-#### Implementation Details
-```rust
-// Translation key structure
-{
-  "checkout.total": {
-    "de": "Gesamtsumme",
-    "en": "Total"
-  },
-  "vendor.receipt": {
-    "de": "Verkäufer-Quittung", 
-    "en": "Vendor Receipt"
-  },
-  "report.period": {
-    "de": "Zeitraum",
-    "en": "Period"
-  }
-}
-```
-
-**Language Selection Priority:**
-1. User's manual selection (stored in localStorage)
-2. Browser language (`navigator.language`)
-3. English (default fallback)
-
-**Report Template Approach:**
-- Replace hardcoded strings with translation keys
-- Render reports with user's selected language
-- Print-friendly CSS remains language-agnostic
-- Date/time/number formatting respects locale
-
-### 5.2 Cultural Considerations
-
-#### Proposed Solutions
-- **Date Format:** Locale-aware (DE: DD.MM.YYYY, EN: MM/DD/YYYY)
-- **Currency:** Euro (€) with German/English formatting
-- **Time Format:** 24-hour (DE) vs 12-hour (EN) options
-- **Number Format:** Comma vs period (1.234,56 vs 1,234.56)
-- **Sorting:** Locale-aware string comparison (ä, ö, ü handling)
 
 ---
 
@@ -742,19 +641,26 @@ This document identifies key areas where `ez-booth-rs` will improve upon the ori
 
 ### 10.1 Improvement Priority Ranking
 
-| Area | Impact | Effort | Priority | Timeline |
-|------|--------|--------|----------|----------|
+| Area | Impact | Effort | Priority | Phase |
+|------|--------|--------|----------|-------|
 | **Resource Efficiency** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | **P0** | Phase 1 |
-| **Deployment Simplicity** | ⭐⭐⭐⭐⭐ | ⭐⭐ | **P0** | Phase 1-2 |
-| **Cross-Browser Portability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | **P0** | Phase 6 |
-| **Startup Performance** | ⭐⭐⭐⭐ | ⭐⭐ | **P1** | Phase 2 |
-| **True Offline** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | **P0** | Phase 2-3 |
-| **Data Sync (Basic)** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 4 |
-| **Data Sync (CRDT)** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **P2** | Phase 6+ |
+| **Deployment Simplicity** | ⭐⭐⭐⭐⭐ | ⭐⭐ | **P0** | Phase 1 |
+| **True Offline** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | **P0** | Phase 1 |
+| **Cross-Browser Portability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | **P0** | Phase 2 |
+| **Startup Performance** | ⭐⭐⭐⭐ | ⭐⭐ | **P1** | Phase 1 |
 | **Type Safety** | ⭐⭐⭐ | ⭐⭐ | **P1** | Phase 1 |
-| **UI Responsiveness** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 3 |
-| **Mobile Experience** | ⭐⭐⭐ | ⭐⭐⭐ | **P2** | Phase 5 |
-| **Plugin System** | ⭐⭐ | ⭐⭐⭐⭐ | **P3** | Phase 7+ |
+| **UI Responsiveness** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 1 |
+| **i18n (DE/EN)** | ⭐⭐⭐⭐ | ⭐⭐⭐ | **P1** | Phase 3 |
+| **Mobile Experience** | ⭐⭐⭐ | ⭐⭐⭐ | **P2** | Phase 3 |
+| **Data Sync (CRDT)** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | **P3** | Post-MVP |
+| **Plugin System** | ⭐⭐ | ⭐⭐⭐⭐ | **P3** | Post-MVP |
+
+**Consolidated Timeline:**
+- **Phase 1 (4 weeks):** Core MVP - Entities, storage, basic UI, booths, vendors, checkout
+- **Phase 2 (3 weeks):** Reports & Export - Report generation, printing, export/import, cross-browser portability
+- **Phase 3 (3 weeks):** Polish & i18n - Responsive design, DE/EN localization, PWA, accessibility
+- **Phase 4 (2 weeks):** Testing & Launch - E2E tests, browser testing, performance optimization
+- **Total: 12 weeks to MVP** (reduced from 18 weeks)
 
 **Legend:**
 - ⭐⭐⭐⭐⭐ Critical

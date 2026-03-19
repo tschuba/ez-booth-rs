@@ -270,41 +270,37 @@
 - No runtime overhead
 - Direct SQL control
 
-### 4.4 Shared Libraries (MVP - Simplified)
+### 4.4 Shared Libraries
 
-#### Core Dependencies (Phase 1-4)
+#### Core Dependencies (All Phases)
 
 ```toml
 [dependencies]
 leptos = "0.6"                  # UI framework
-leptos_i18n = "0.3"            # Internationalization
+leptos_i18n = "0.3"            # Internationalization (DE/EN)
 rexie = "0.6"                   # IndexedDB wrapper
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"             # JSON serialization
 wasm-bindgen = "0.2"           # WASM-JS bridge
 web-sys = "0.3"                # Browser APIs
 js-sys = "0.1"                 # JavaScript types
+rust_decimal = "1.34"          # Currency precision
+chrono = "0.4"                 # Date/time handling
+uuid = "1.7"                   # Unique identifiers
 ```
 
 **Rationale:**
-- Minimal dependencies for MVP
-- Faster compile times (30-50% improvement)
-- Smaller WASM bundle (~200KB savings)
-- Lower learning curve for contributors
-- i18n support for German/English localization
+- Essential dependencies for production quality
+- rust_decimal prevents floating-point errors in financial calculations
+- chrono provides consistent date handling and timezone support
+- i18n support built-in from start for German/English localization
 
-#### Deferred to Post-MVP (Phase 7+)
+#### Optional Dependencies (Server Features)
 
-- **rust_decimal** → Using f64 for MVP (acceptable precision for $5-$50 range)
-- **validator** → Manual validation (5 forms only, simple rules)
-- **chrono** → Using js_sys::Date (events are local, no timezone complexity)
 - **reqwest** → Only if cloud sync implemented
-- **thiserror** → Using simple Result<T, String> for MVP
-
-**Trade-offs Accepted:**
-- f64 precision: Acceptable for booth fees ($5.00-$50.00 typical range)
-- Manual validation: Simple inline validation sufficient for MVP forms
-- No timezone handling: Events are local, use browser's local time
+- **tokio** → Server runtime
+- **axum** → Server framework
+- **sqlx** → Database driver
 
 ### 4.5 Development Tools
 
@@ -1853,17 +1849,13 @@ pub fn render_vendor_report(
 
 | Phase | Duration | Deliverables |
 |-------|----------|--------------|
-| Phase 1: Foundation | 2 weeks | Core entities, services, tests |
-| Phase 2: Storage | 2 weeks | IndexedDB wrapper, repositories |
-| Phase 3: UI Core | 3 weeks | Component library, routing, state |
-| Phase 4: Features | 3 weeks | Booth mgmt, vendors, checkout |
-| Phase 5: Reports | 2 weeks | Report generation, printing |
-| Phase 6: Sync | 2 weeks | **Export/import, cross-browser portability** |
-| Phase 7: Polish | 2 weeks | Styling, PWA, accessibility, File System API |
-| Phase 8: Testing | 2 weeks | E2E tests, browser testing |
-| **Total** | **18 weeks** | **MVP Release** |
+| Phase 1: Core MVP | 4 weeks | Entities, services, storage, basic UI, booths, vendors, checkout |
+| Phase 2: Reports & Export | 3 weeks | Report generation, printing, **export/import, cross-browser portability** |
+| Phase 3: Polish & i18n | 3 weeks | Responsive design, DE/EN localization, PWA, accessibility, File System API |
+| Phase 4: Testing & Launch | 2 weeks | E2E tests, browser testing, performance optimization |
+| **Total** | **12 weeks** | **MVP Release** |
 
-**Cross-Browser Portability Added:** Phase 6 now includes manual export/import as core feature, with enhanced File System Access API in Phase 7.
+**Accelerated Timeline:** Consolidated phases reduce MVP delivery from 18 to 12 weeks by combining related work and deferring advanced features (CRDT sync, plugin system, cloud features) to post-MVP.
 
 ---
 
