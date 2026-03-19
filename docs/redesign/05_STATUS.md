@@ -42,7 +42,7 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 **Target:** TBD
 
 ### 1.4 Business Logic Services (P0)
-- [ ] Implement `EventService`
+- [ ] Implement `BoothService`
 - [ ] Implement `VendorService` with smart sorting
 - [ ] Implement `TransactionService` with calculations
 - [ ] Implement `SettingsService`
@@ -90,12 +90,12 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 ## Phase 3: Core Application Features
 
-### 3.1 Event Management (P0)
-- [ ] Event creation/edit UI
-- [ ] Event listing view
-- [ ] Event selection/switching
-- [ ] Event summary display
-- [ ] Event data validation
+### 3.1 Booth Management (P0)
+- [ ] Booth creation/edit UI
+- [ ] Booth listing view
+- [ ] Booth selection/switching
+- [ ] Booth summary display
+- [ ] Booth data validation
 - [ ] Integration tests
 
 **Status:** Not Started  
