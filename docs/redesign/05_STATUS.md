@@ -223,6 +223,19 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 ## Future Enhancements (P2 - Post-Launch)
 
+### Data Migration from ez-booth (P3)
+- [ ] Implement SQLite parsing via sql.js
+- [ ] Create data transformation layer
+- [ ] Build migration wizard UI
+- [ ] Add validation and error handling
+- [ ] Write migration documentation
+- [ ] Test with real ez-booth databases
+
+**Status:** Planned  
+**Target:** Phase 3 (Post-MVP)  
+**Priority:** P3 - Convenience for existing users  
+**Details:** See `/changelog/17_MIGRATION_STRATEGY.md`
+
 ### Advanced Features
 - [ ] Offline-first PWA capabilities
 - [ ] Advanced reporting templates

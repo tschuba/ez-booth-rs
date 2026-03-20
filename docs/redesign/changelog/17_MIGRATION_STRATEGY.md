@@ -26,24 +26,34 @@ The new ez-booth-rs application will use:
 
 ## Migration Approach
 
-### Preferred Strategy: Direct SQLite Access
+### Strategy: Direct SQLite Database Access
 
-We will implement a **one-time migration utility** that reads directly from the ez-booth SQLite database and generates a JSON export file compatible with ez-booth-rs import functionality.
+The ez-booth-rs application will be **extended with migration functionality** that directly accesses the ez-booth SQLite database, extracts the data, and imports it into ez-booth-rs's IndexedDB storage.
 
 #### Why This Approach?
 
-1. **Simplicity**: Direct database access is straightforward and doesn't require running ez-booth
-2. **Independence**: Works even if ez-booth server is not running or configured
-3. **Control**: Full control over data transformation and validation
-4. **Compatibility**: Leverages existing JSON import/export feature for cross-browser data portability
+1. **Integrated Experience**: Migration built into the main application
+2. **Direct Access**: Reads directly from ez-booth's SQLite database
+3. **No External Tools**: Users don't need to install or run separate utilities
+4. **Seamless Import**: Data goes directly from SQLite to IndexedDB
+5. **User-Friendly**: Single-step process within the application UI
 
-#### Alternative Considered: gRPC Sync
+#### Implementation Details
 
-The ez-booth application already provides gRPC-based sync functionality. However, this approach was rejected because:
-- Requires ez-booth server to be running
-- Adds complexity with gRPC client implementation in Rust/WASM
-- Not necessary for one-time migration
-- gRPC is designed for ongoing sync, not one-time migration
+The migration will be implemented as:
+- **WASM Component**: Rust code compiled to WebAssembly for browser execution
+- **SQLite Access**: Using `sql.js` (SQLite compiled to WASM) to read ez-booth database
+- **File Upload**: User uploads their `booth.db` file via file picker
+- **In-Browser Processing**: All processing happens locally in the browser
+- **Direct Import**: Transformed data written directly to IndexedDB
+
+#### Alternative Considered: Separate CLI Utility
+
+A standalone CLI tool (`ez-booth-migrate`) was initially considered but rejected because:
+- Requires separate installation and execution
+- Two-step process (export then import) is less user-friendly
+- Additional maintenance burden for separate tool
+- Integrated approach provides better UX
 
 ## Database Schema Analysis
 
@@ -145,63 +155,63 @@ The target format for ez-booth-rs import:
 
 ## Implementation Plan
 
-### Phase 1: Migration Utility (Rust CLI Tool)
+### Phase 1: Migration Module in ez-booth-rs
 
-Create a standalone Rust CLI tool: `ez-booth-migrate`
-
-**Location**: `crates/ez-booth-migrate/`
+**Location**: `crates/ez-booth-migration/`
 
 **Dependencies**:
 ```toml
 [dependencies]
-rusqlite = "0.31"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["File", "FileReader"] }
+# Note: sql.js will be used via JS interop for SQLite access
 ```
 
 **Features**:
-- Read from ez-booth SQLite database
-- Validate and transform data
-- Generate JSON export file
-- Detailed logging and error handling
+- File upload handling for booth.db
+- SQLite database parsing using sql.js
+- Data validation and transformation
 - Progress reporting
+- Direct IndexedDB import
+- Detailed error handling
 
-**Usage**:
-```bash
-# Auto-detect default database location
-ez-booth-migrate export
-
-# Specify custom database path
-ez-booth-migrate export --db ~/custom/path/booth.db --output migration.json
-
-# Verify migration without creating output
-ez-booth-migrate verify --db ~/Documents/tschuba/ez-booth/booth.db
-```
-
-### Phase 2: Integration with ez-booth-rs
-
-**Import Process**:
-1. User runs migration utility to generate JSON file
-2. User opens ez-booth-rs in browser
-3. User uses "Import Data" feature to load JSON file
-4. ez-booth-rs validates and imports data into IndexedDB
-5. User can now use all their historical data in ez-booth-rs
+### Phase 2: User Interface Integration
 
 **UI Flow**:
 ```
 Welcome Screen (if no booths exist)
 ├─ "Start Fresh" → Create new booth
-└─ "Import from ez-booth" → File picker
-   ├─ Instructions: "Run ez-booth-migrate first"
-   ├─ Select migration.json file
-   ├─ Preview import (booth count, vendor count, etc.)
-   └─ Confirm Import
+└─ "Import from ez-booth" → Migration wizard
+   ├─ Step 1: Instructions
+   │  └─ "Locate your ez-booth database at ~/Documents/tschuba/ez-booth/booth.db"
+   ├─ Step 2: Upload Database
+   │  └─ File picker for booth.db
+   ├─ Step 3: Processing
+   │  ├─ Parse SQLite database
+   │  ├─ Validate data
+   │  └─ Show progress bar
+   ├─ Step 4: Preview
+   │  ├─ Show booth count, vendor count, transaction count
+   │  └─ Display any warnings or issues
+   └─ Step 5: Confirm Import
       ├─ Success → Show imported booths
       └─ Error → Show detailed error, offer export for support
 ```
+
+**Import Process**:
+1. User opens ez-booth-rs in browser
+2. User clicks "Import from ez-booth"
+3. User uploads booth.db file via file picker
+4. Browser reads file and passes to WASM migration module
+5. Migration module parses SQLite data using sql.js
+6. Data is validated and transformed
+7. Transformed data is written directly to IndexedDB
+8. User can now use all their historical data in ez-booth-rs
 
 ### Phase 3: Data Transformation Rules
 
@@ -274,16 +284,30 @@ Welcome Screen (if no booths exist)
 # Migrating from ez-booth to ez-booth-rs
 
 ## Prerequisites
-- ez-booth database at: ~/Documents/tschuba/ez-booth/booth.db
-- ez-booth-migrate utility installed
+- Your ez-booth database file: `~/Documents/tschuba/ez-booth/booth.db`
+- Modern web browser (Chrome, Firefox, Safari, or Edge)
 
 ## Steps
-1. Download ez-booth-migrate for your platform
-2. Run: ez-booth-migrate export
-3. Open ez-booth-rs in your browser
-4. Click "Import from ez-booth"
-5. Select the migration.json file
-6. Verify the preview and confirm import
+1. Open ez-booth-rs in your browser
+2. On the welcome screen, click "Import from ez-booth"
+3. Click "Choose File" and navigate to your booth.db file
+   - Default location: `~/Documents/tschuba/ez-booth/booth.db`
+4. Wait for the migration to process (usually takes a few seconds)
+5. Review the import preview showing your booths, vendors, and transactions
+6. Click "Complete Import" to finish
+7. Your data is now available in ez-booth-rs!
+
+## What Gets Migrated
+- All booth information (dates, fees, settings)
+- All vendor registrations
+- All purchase transactions and items
+- Booth status (open/closed)
+
+## After Migration
+- Your original ez-booth database remains unchanged
+- You can continue using ez-booth if needed
+- Data in ez-booth-rs is stored in your browser
+- Use export/import to transfer data between browsers
 
 ## Troubleshooting
 [Common issues and solutions]
@@ -335,25 +359,27 @@ Create sample databases:
 
 ## Timeline
 
-1. **Week 1**: Implement migration utility CLI
-2. **Week 2**: Implement data transformation and validation
-3. **Week 3**: Integrate with ez-booth-rs import feature
-4. **Week 4**: Testing and documentation
-5. **Week 5**: User acceptance testing with real data
+1. **Phase 1**: Implement migration module structure (Week 1-2)
+2. **Phase 2**: Integrate sql.js and SQLite parsing (Week 2-3)
+3. **Phase 3**: Implement data transformation and validation (Week 3-4)
+4. **Phase 4**: Build migration UI wizard (Week 4-5)
+5. **Phase 5**: Testing and documentation (Week 5-6)
+6. **Phase 6**: User acceptance testing with real data (Week 6-7)
 
 ## Future Enhancements
 
 ### Possible Additions
-- **Incremental Sync**: Merge new ez-booth data into existing ez-booth-rs data
-- **Automated Detection**: Auto-detect ez-booth database and offer migration
-- **Direct Database Mode**: Run ez-booth-rs directly on SQLite (desktop only)
-- **Reverse Migration**: Export from ez-booth-rs back to ez-booth format
+- **Incremental Updates**: Merge new ez-booth data into existing ez-booth-rs data
+- **Automated Detection**: Detect if user previously used ez-booth and offer migration
+- **Backup Creation**: Automatically create backup of original database before migration
 
 ### Not Planned
+- **Separate CLI Tool**: Migration utility as standalone application
+  - Reason: Integrated in-browser experience is more user-friendly
 - **Live Sync**: Real-time synchronization between ez-booth and ez-booth-rs
   - Reason: ez-booth-rs is intended as a replacement, not a parallel system
 - **gRPC Migration**: Using ez-booth's gRPC API for migration
-  - Reason: Unnecessary complexity for one-time migration
+  - Reason: Unnecessary complexity; direct database access is simpler
 
 ## Success Criteria
 
@@ -378,12 +404,18 @@ Create sample databases:
 
 ## Open Questions
 
-- [ ] Should we support merging migrated data with existing ez-booth-rs data?
+- [X] Should we support merging migrated data with existing ez-booth-rs data?
   - Recommendation: No, require clean import (simpler, less error-prone)
-- [ ] Should migration utility be bundled with ez-booth-rs or separate?
-  - Recommendation: Separate for now, bundle later if widely used
-- [ ] Should we archive the original database automatically?
-  - Recommendation: Yes, create backup copy with timestamp
+  - Decision: No merging, user must choose to import into empty ez-booth-rs instance
+- [X] Should migration be available only on first use or always accessible?
+  - Recommendation: Always accessible via settings/import menu
+  - Decision: Always accessible, but prominently offered on first use
+- [X] Should we handle very large database files (>100MB)?
+  - Recommendation: Show file size warning and use chunked processing
+  - Decision: Implement chunked processing for files >50MB, show warning for >100MB
+- [X] How to handle database file format changes in future ez-booth versions?
+  - Recommendation: Implement version detection and schema validation
+  - Decision: Implement version detection, support migration from last 2 versions of ez-booth
 
 ## References
 

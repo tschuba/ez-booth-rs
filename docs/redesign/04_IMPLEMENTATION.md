@@ -15,11 +15,12 @@
 4. [Frontend Implementation](#4-frontend-implementation)
 5. [Backend Implementation (Optional)](#5-backend-implementation-optional)
 6. [Cross-Browser Data Portability & Synchronization](#6-cross-browser-data-portability--synchronization)
-7. [Build & Deployment](#7-build--deployment)
-8. [Testing Strategy](#8-testing-strategy)
-9. [Performance Optimization](#9-performance-optimization)
-10. [Error Handling Implementation](#10-error-handling-implementation)
-11. [Security Implementation](#11-security-implementation)
+7. [Data Migration from ez-booth](#7-data-migration-from-ez-booth)
+8. [Build & Deployment](#8-build--deployment)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Performance Optimization](#10-performance-optimization)
+11. [Error Handling Implementation](#11-error-handling-implementation)
+12. [Security Implementation](#12-security-implementation)
 
 ---
 
@@ -2665,7 +2666,340 @@ pub enum ConflictResolution {
 
 ---
 
-## 7. Build & Deployment
+## 7. Data Migration from ez-booth
+
+### 7.1 Overview
+
+**Module:** `crates/ez-booth-migration/`  
+**Priority:** Phase 3 (Post-MVP)  
+**Target Users:** Existing ez-booth users transitioning to ez-booth-rs
+
+### 7.2 Module Structure
+
+```
+crates/ez-booth-migration/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs              # Public API
+│   ├── parser.rs           # SQLite parsing via sql.js
+│   ├── transformer.rs      # Data transformation
+│   ├── validator.rs        # Data validation
+│   └── error.rs            # Error types
+└── tests/
+    ├── fixtures/           # Sample booth.db files
+    └── integration_tests.rs
+```
+
+### 7.3 Dependencies
+
+```toml
+[dependencies]
+# Core
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# WASM/Browser
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "File",
+    "FileReader",
+    "Blob",
+] }
+
+# Domain models
+ez-booth-core = { path = "../core" }
+ez-booth-storage = { path = "../storage" }
+```
+
+### 7.4 Implementation
+
+**File:** `src/lib.rs`
+
+```rust
+use wasm_bindgen::prelude::*;
+use web_sys::File;
+
+#[wasm_bindgen]
+pub struct MigrationService {
+    // SQL.js will be accessed via JS interop
+}
+
+#[wasm_bindgen]
+impl MigrationService {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {}
+    }
+    
+    /// Main entry point for migration
+    pub async fn migrate_from_file(&self, file: File) -> Result<JsValue, JsValue> {
+        let result = self.migrate_internal(file).await
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        
+        Ok(serde_wasm_bindgen::to_value(&result)?)
+    }
+}
+
+impl MigrationService {
+    async fn migrate_internal(&self, file: File) -> Result<MigrationResult> {
+        // 1. Read file
+        let db_bytes = read_file_bytes(&file).await?;
+        
+        // 2. Parse SQLite via sql.js
+        let db_data = parse_sqlite_database(&db_bytes)?;
+        
+        // 3. Validate schema
+        validate_schema(&db_data)?;
+        
+        // 4. Transform data
+        let transformed = transform_data(db_data)?;
+        
+        // 5. Validate transformed data
+        validate_transformed_data(&transformed)?;
+        
+        Ok(MigrationResult {
+            booths: transformed.booths.len(),
+            vendors: transformed.vendors.len(),
+            transactions: transformed.transactions.len(),
+            warnings: transformed.warnings,
+        })
+    }
+}
+
+#[derive(Serialize)]
+pub struct MigrationResult {
+    pub booths: usize,
+    pub vendors: usize,
+    pub transactions: usize,
+    pub warnings: Vec<String>,
+}
+```
+
+### 7.5 SQL.js Integration
+
+**File:** `frontend/index.html`
+
+```html
+<!-- Load sql.js before WASM module -->
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js"></script>
+<script>
+  // Initialize sql.js
+  window.initSqlJs = initSqlJs;
+</script>
+```
+
+**JavaScript Bridge:** `src/parser.rs`
+
+```rust
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = window)]
+    fn initSqlJs() -> js_sys::Promise;
+    
+    #[wasm_bindgen]
+    type Database;
+    
+    #[wasm_bindgen(method)]
+    fn exec(this: &Database, sql: &str) -> js_sys::Array;
+}
+
+pub async fn parse_sqlite_database(bytes: &[u8]) -> Result<DatabaseData> {
+    // Initialize sql.js
+    let sql_js = JsFuture::from(initSqlJs()).await?;
+    
+    // Load database
+    let db = create_database(sql_js, bytes)?;
+    
+    // Query tables
+    let booths = query_booths(&db)?;
+    let vendors = query_vendors(&db)?;
+    let purchases = query_purchases(&db)?;
+    let items = query_purchase_items(&db)?;
+    
+    Ok(DatabaseData {
+        booths,
+        vendors,
+        purchases,
+        items,
+    })
+}
+```
+
+### 7.6 Data Transformation
+
+**File:** `src/transformer.rs`
+
+```rust
+pub fn transform_data(db: DatabaseData) -> Result<TransformedData> {
+    let booths = transform_booths(db.booths)?;
+    let vendors = transform_vendors(db.vendors, &db.items)?;
+    let transactions = transform_transactions(db.purchases, db.items)?;
+    
+    Ok(TransformedData {
+        booths,
+        vendors,
+        transactions,
+        warnings: vec![],
+    })
+}
+
+fn transform_booths(booths: Vec<SqliteBooth>) -> Result<Vec<Booth>> {
+    booths.into_iter().map(|b| {
+        Ok(Booth {
+            id: BoothId::new(b.booth_id),
+            name: b.description,
+            date: NaiveDate::parse_from_str(&b.date, "%Y-%m-%d")?,
+            participation_fee: Money::from_f64(b.participation_fee)?,
+            sales_fee_percent: b.sales_fee,
+            fee_rounding_step: Money::from_f64(b.fees_rounding_step)?,
+            status: if b.closed { BoothStatus::Closed } else { BoothStatus::Open },
+            closed_at: b.closed_on.map(parse_timestamp).transpose()?,
+            created_at: /* derive from first transaction or date */,
+            updated_at: /* derive from last transaction or closed_on */,
+        })
+    }).collect()
+}
+```
+
+### 7.7 UI Integration
+
+**Component:** `frontend/src/components/MigrationWizard.rs`
+
+```rust
+#[component]
+pub fn MigrationWizard() -> impl IntoView {
+    let (step, set_step) = create_signal(MigrationStep::Welcome);
+    let (file, set_file) = create_signal(None::<File>);
+    let (result, set_result) = create_signal(None::<MigrationResult>);
+    
+    let on_file_select = move |ev: Event| {
+        let input: HtmlInputElement = event_target(&ev);
+        if let Some(files) = input.files() {
+            if let Some(file) = files.get(0) {
+                set_file(Some(file));
+                set_step(MigrationStep::Processing);
+            }
+        }
+    };
+    
+    view! {
+        <div class="migration-wizard">
+            {move || match step.get() {
+                MigrationStep::Welcome => view! {
+                    <WelcomeStep />
+                    <button on:click=move |_| set_step(MigrationStep::Upload)>
+                        {t!(i18n, migration.start)}
+                    </button>
+                },
+                MigrationStep::Upload => view! {
+                    <UploadStep />
+                    <input 
+                        type="file" 
+                        accept=".db" 
+                        on:change=on_file_select 
+                    />
+                },
+                MigrationStep::Processing => view! {
+                    <ProcessingStep file=file.get() on_complete=set_result />
+                },
+                MigrationStep::Preview => view! {
+                    <PreviewStep result=result.get() />
+                    <button on:click=move |_| confirm_import()>
+                        {t!(i18n, migration.confirm)}
+                    </button>
+                },
+                MigrationStep::Complete => view! {
+                    <CompleteStep result=result.get() />
+                },
+            }}
+        </div>
+    }
+}
+```
+
+### 7.8 Testing
+
+**Unit Tests:**
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_booth_transformation() {
+        let sqlite_booth = SqliteBooth {
+            booth_id: "2024-spring".to_string(),
+            description: "Frühjahrsbasar".to_string(),
+            date: "2024-03-15".to_string(),
+            // ...
+        };
+        
+        let booth = transform_booth(sqlite_booth).unwrap();
+        assert_eq!(booth.name, "Frühjahrsbasar");
+        assert_eq!(booth.date.to_string(), "2024-03-15");
+    }
+}
+```
+
+**Integration Tests:**
+```rust
+#[cfg(test)]
+mod integration_tests {
+    use wasm_bindgen_test::*;
+    
+    #[wasm_bindgen_test]
+    async fn test_full_migration() {
+        let test_db = include_bytes!("../tests/fixtures/sample.db");
+        let file = create_test_file(test_db);
+        
+        let service = MigrationService::new();
+        let result = service.migrate_from_file(file).await.unwrap();
+        
+        assert_eq!(result.booths, 2);
+        assert_eq!(result.vendors, 10);
+        assert_eq!(result.transactions, 50);
+    }
+}
+```
+
+### 7.9 Error Handling
+
+**Error Types:**
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum MigrationError {
+    #[error("Invalid database format")]
+    InvalidFormat,
+    
+    #[error("Schema version {0} not supported")]
+    UnsupportedSchema(String),
+    
+    #[error("Data validation failed: {0}")]
+    ValidationError(String),
+    
+    #[error("File read error: {0}")]
+    FileReadError(String),
+}
+```
+
+### 7.10 Documentation
+
+Users will need clear guidance:
+- Default database location: `~/Documents/tschuba/ez-booth/booth.db`
+- Step-by-step wizard with screenshots
+- What data gets migrated
+- What to do if migration fails
+- How to verify migration success
+
+**See:** `/changelog/17_MIGRATION_STRATEGY.md` for complete details.
+
+---
+
+## 8. Build & Deployment
 
 ### 7.1 Build Scripts
 
@@ -2789,7 +3123,7 @@ jobs:
 
 ---
 
-## 8. Testing Strategy
+## 9. Testing Strategy
 
 ### 8.1 Unit Tests
 
@@ -2839,7 +3173,7 @@ async fn test_app_renders() {
 
 ---
 
-## 9. Performance Optimization
+## 10. Performance Optimization
 
 ### 9.1 WASM Optimization
 
@@ -2869,7 +3203,7 @@ gzip -9 output.wasm
 
 ---
 
-## 10. Error Handling Implementation
+## 11. Error Handling Implementation
 
 ### 10.1 Error Type Hierarchy
 
@@ -3480,7 +3814,7 @@ async fn test_diagnostic_export_no_sensitive_data() {
 
 ---
 
-## 11. Security Implementation
+## 12. Security Implementation
 
 ### 10.1 Input Validation
 

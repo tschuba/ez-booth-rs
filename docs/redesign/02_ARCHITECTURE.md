@@ -19,10 +19,11 @@
 8. [Deployment Models](#deployment-models)
 9. [Cross-Browser Data Portability](#9-cross-browser-data-portability)
 10. [Internationalization (i18n)](#10-internationalization-i18n)
-11. [Security & Privacy](#11-security--privacy)
-12. [Error Handling & User Support](#12-error-handling--user-support)
-13. [Performance Targets](#13-performance-targets)
-13. [Appendices](#appendices)
+11. [Data Migration from ez-booth](#11-data-migration-from-ez-booth)
+12. [Security & Privacy](#12-security--privacy)
+13. [Error Handling & User Support](#13-error-handling--user-support)
+14. [Performance Targets](#14-performance-targets)
+15. [Appendices](#appendices)
 
 ---
 
@@ -2518,9 +2519,102 @@ pub fn render_multi_vendor_report(
 
 ---
 
-## 11. Security & Privacy
+## 11. Data Migration from ez-booth
 
-### 10.1 Data Protection
+### 11.1 Overview
+
+ez-booth-rs includes integrated migration functionality to preserve user data when transitioning from the legacy ez-booth (Java/Spring Boot) application. This allows users to import their historical booth data, vendors, purchases, and reports without data loss.
+
+### 11.2 Migration Approach
+
+**Strategy:** Browser-based SQLite import
+
+The migration is implemented as a WASM component within the main application that:
+1. Accepts user upload of ez-booth's SQLite database file (`booth.db`)
+2. Parses the SQLite database using `sql.js` (SQLite compiled to WASM)
+3. Transforms data to match ez-booth-rs domain models
+4. Imports directly into IndexedDB storage
+
+**Benefits:**
+- **Integrated Experience** - No separate tools required
+- **Privacy-Preserving** - All processing happens locally in browser
+- **User-Friendly** - Single-step upload and import process
+- **Seamless Transition** - Original ez-booth database remains intact
+
+### 11.3 Data Mapping
+
+The migration transforms ez-booth's SQLite schema to ez-booth-rs's JSON format:
+
+| ez-booth Entity | ez-booth-rs Entity | Key Transformations |
+|-----------------|-------------------|---------------------|
+| `booth` table | `Booth` | `description` → `name`, `closed` → `status` enum |
+| `vendor` table | `Vendor` | Direct mapping with synthetic `created_at` |
+| `purchase` + `purchase_item` | `Transaction` | Denormalize items into transaction |
+| Numeric vendor IDs | Smart sorting | Ensure natural sort (1, 2, 10 not 1, 10, 2) |
+
+### 11.4 User Interface
+
+**Migration Wizard:**
+1. **Welcome Screen** - "Import from ez-booth" option (prominently displayed if no data exists)
+2. **Instructions** - Show default database location (`~/Documents/tschuba/ez-booth/booth.db`)
+3. **Upload** - File picker for `booth.db`
+4. **Processing** - Progress bar with validation and transformation steps
+5. **Preview** - Display booth/vendor/transaction counts before final import
+6. **Confirmation** - Complete import or cancel with detailed error reporting
+
+**Error Handling:**
+- Schema version detection and validation
+- Referential integrity checks
+- Partial import support (skip corrupt records)
+- Detailed error export for support troubleshooting
+
+### 11.5 Technical Implementation
+
+**Module:** `crates/ez-booth-migration/`
+
+**Dependencies:**
+- `sql.js` (via JS interop) - SQLite parsing
+- `web-sys::File` - Browser file handling
+- `serde_json` - Data transformation
+- Core domain models for validation
+
+**Key Functions:**
+```rust
+pub async fn migrate_from_sqlite(
+    file: web_sys::File
+) -> Result<MigrationResult, MigrationError>;
+
+pub struct MigrationResult {
+    pub booths_imported: usize,
+    pub vendors_imported: usize,
+    pub transactions_imported: usize,
+    pub warnings: Vec<MigrationWarning>,
+}
+```
+
+### 11.6 Testing Strategy
+
+- Unit tests with sample SQLite databases
+- Edge cases: empty DB, large DB (>100MB), corrupt data
+- Integration tests verifying data integrity post-migration
+- Manual testing with real production databases
+
+### 11.7 Migration Timeline
+
+**Not required for MVP** - Migration is a convenience feature for existing ez-booth users. New users start fresh.
+
+**Recommended Phase:** Phase 3 (Post-MVP enhancement)
+- Allows focus on core functionality first
+- Can gather user feedback on must-have migration features
+- Reduces initial complexity
+
+**For complete migration strategy details, see:** `/changelog/17_MIGRATION_STRATEGY.md`
+
+---
+
+## 12. Security & Privacy
+
+### 12.1 Data Protection
 
 #### Browser-Only Mode
 - **Encryption at Rest:** Not required (local-only data)
@@ -2548,7 +2642,7 @@ pub fn render_multi_vendor_report(
 
 ---
 
-## 12. Error Handling & User Support
+## 13. Error Handling & User Support
 
 ### 12.1 Overview
 
@@ -2708,7 +2802,7 @@ User clicks "Download Support Bundle" → generates ZIP with:
 
 ---
 
-## 13. Performance Targets
+## 14. Performance Targets
 
 ### 13.1 Bundle Size
 

@@ -16,13 +16,14 @@
 5. [Cross-Browser Data Portability](#5-cross-browser-data-portability)
 6. [Data Synchronization](#6-data-synchronization)
 7. [Internationalization & Localization](#7-internationalization--localization)
-8. [Performance](#8-performance)
-9. [Maintainability](#9-maintainability)
-10. [Error Handling & User Support](#10-error-handling--user-support)
-11. [Priority Matrix](#11-priority-matrix)
-12. [Cost-Benefit Analysis](#12-cost-benefit-analysis)
-13. [Risk Assessment](#13-risk-assessment)
-14. [Measurable Success Criteria](#14-measurable-success-criteria)
+8. [Data Migration from ez-booth](#8-data-migration-from-ez-booth)
+9. [Performance](#9-performance)
+10. [Maintainability](#10-maintainability)
+11. [Error Handling & User Support](#11-error-handling--user-support)
+12. [Priority Matrix](#12-priority-matrix)
+13. [Cost-Benefit Analysis](#13-cost-benefit-analysis)
+14. [Risk Assessment](#14-risk-assessment)
+15. [Measurable Success Criteria](#15-measurable-success-criteria)
 
 ---
 
@@ -395,7 +396,52 @@ The Java implementation has accumulated:
 
 ---
 
-## 8. Performance
+## 8. Data Migration from ez-booth
+
+### 8.1 Current Challenge
+
+Users transitioning from ez-booth (Java) to ez-booth-rs risk losing their historical data:
+- Booth configurations and settings
+- Vendor registrations
+- Transaction history
+- Closed booth reports
+
+**Impact:** Significant barrier to adoption for existing ez-booth users.
+
+### 8.2 Proposed Solution
+
+**Integrated browser-based migration utility:**
+- User uploads ez-booth's SQLite database file (`booth.db`)
+- Browser-side WASM module parses and transforms data
+- Direct import into IndexedDB (no intermediate files)
+- All processing happens locally (privacy-preserving)
+
+### 8.3 Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero Data Loss** | Complete preservation of historical data |
+| **User-Friendly** | Single-step upload process, no separate tools |
+| **Privacy-First** | Local-only processing, no server upload |
+| **Seamless Transition** | Original database untouched, can coexist |
+
+### 8.4 Success Metrics
+
+- ✅ 100% data fidelity (booths, vendors, transactions)
+- ✅ <5s migration time for typical database
+- ✅ Clear error messages for all failure scenarios
+- ✅ Reports match between ez-booth and ez-booth-rs
+
+### 8.5 Implementation Priority
+
+**Phase:** Post-MVP (Phase 3)
+**Rationale:** Convenience feature for existing users, not critical for new users
+
+**For detailed strategy, see:** `/changelog/17_MIGRATION_STRATEGY.md`
+
+---
+
+## 9. Performance
 
 ### 8.1 Startup Performance
 
@@ -464,7 +510,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 9. Maintainability
+## 10. Maintainability
 
 ### 9.1 Codebase Complexity
 
@@ -534,7 +580,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 10. Error Handling & User Support
+## 11. Error Handling & User Support
 
 ### 10.1 Error Messages & Recovery
 
@@ -606,7 +652,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 11. Priority Matrix
+## 12. Priority Matrix
 
 ### 11.1 Improvement Priority Ranking
 
@@ -686,7 +732,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 12. Cost-Benefit Analysis
+## 13. Cost-Benefit Analysis
 
 ### 12.1 Development Investment
 
@@ -769,7 +815,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 13. Risk Assessment
+## 14. Risk Assessment
 
 ### 13.1 Technical Risks
 
@@ -818,7 +864,7 @@ The Java implementation has accumulated:
 
 ---
 
-## 14. Measurable Success Criteria
+## 15. Measurable Success Criteria
 
 ### 14.1 Phase 1 Targets (Foundation)
 
