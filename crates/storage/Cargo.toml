@@ -1,0 +1,52 @@
+[package]
+name = "ez-booth-storage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ez-booth-core = { path = "../core" }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# WASM
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "IdbFactory",
+    "IdbDatabase",
+    "IdbObjectStore",
+    "IdbTransaction",
+    "IdbRequest",
+    "IdbOpenDbRequest",
+    "IdbCursor",
+    "IdbKeyRange",
+] }
+
+# IndexedDB wrapper
+rexie = "0.6"
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Async
+futures = { workspace = true }
+
+# Date/Time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# Decimal
+rust_decimal = { workspace = true }
+
+# Async trait
+async-trait = "0.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
