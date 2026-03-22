@@ -70,6 +70,17 @@ This project uses a Cargo workspace with multiple crates:
 - [Trunk](https://trunkrs.dev/) for WASM bundling: `cargo install trunk`
 - wasm32 target: `rustup target add wasm32-unknown-unknown`
 
+**Important:** Ensure your shell has the correct PATH set up. Add to `~/.zshrc` (or `~/.bashrc`):
+
+```bash
+# Rust cargo bin
+export PATH="$HOME/.cargo/bin:$PATH"
+# Rustup toolchain binaries
+export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
+```
+
+Then reload: `source ~/.zshrc`
+
 ### Development Server
 
 ```bash
