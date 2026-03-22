@@ -1,0 +1,18 @@
+[[hooks]]
+stage = "pre_build"
+command = "echo"
+command_arguments = ["Starting EZ Booth build..."]
+
+[build]
+target = "index.html"
+dist = "dist"
+public_url = "/"
+
+[watch]
+watch = ["src", "../ez-booth-ui/src", "../domain/src", "../storage/src"]
+ignore = ["dist", "target"]
+
+[serve]
+address = "127.0.0.1"
+port = 8080
+open = true

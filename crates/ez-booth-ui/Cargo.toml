@@ -8,16 +8,22 @@ repository.workspace = true
 
 [dependencies]
 # Workspace crates
-ez-booth-core = { path = "../ez-booth-core" }
+domain = { path = "../domain" }
+ez-booth-storage = { path = "../storage" }
 
 # Leptos framework
 leptos = { workspace = true }
 leptos_router = { workspace = true }
 leptos_meta = { workspace = true }
+leptos_i18n = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
+serde_json = { workspace = true }
 
 # WASM
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }

@@ -278,6 +278,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "const_format"
 version = "0.2.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -425,7 +435,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 name = "ez-booth-app"
 version = "0.1.0"
 dependencies = [
- "ez-booth-core",
+ "console_error_panic_hook",
  "ez-booth-ui",
  "leptos",
  "wasm-bindgen",
@@ -472,11 +482,15 @@ dependencies = [
 name = "ez-booth-ui"
 version = "0.1.0"
 dependencies = [
- "ez-booth-core",
+ "domain",
+ "ez-booth-storage",
  "leptos",
+ "leptos_i18n",
  "leptos_meta",
  "leptos_router",
  "serde",
+ "serde_json",
+ "thiserror 1.0.69",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -1034,6 +1048,34 @@ dependencies = [
  "serde",
  "syn 2.0.117",
  "walkdir",
+]
+
+[[package]]
+name = "leptos_i18n"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f74acc148183951986b9564214f34a2bdb2c14ef45f6db20898839e195a891d"
+dependencies = [
+ "cfg-if",
+ "leptos",
+ "leptos_i18n_macro",
+ "leptos_meta",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "leptos_i18n_macro"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf1c733bc79fccdd31c585535ad1d41586a4e7a22b17a5015405542acd828f3c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.117",
+ "toml",
 ]
 
 [[package]]
