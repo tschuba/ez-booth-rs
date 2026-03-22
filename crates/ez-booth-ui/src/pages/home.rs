@@ -4,6 +4,13 @@ use leptos::*;
 
 #[component]
 pub fn HomePage() -> impl IntoView {
+    // Modal state
+    let (show_modal, set_show_modal) = create_signal(false);
+    let (show_confirm, set_show_confirm) = create_signal(false);
+    
+    // Get toast context
+    let toast = use_toast();
+    
     view! {
         <Container>
             <div class="py-12">
@@ -26,7 +33,72 @@ pub fn HomePage() -> impl IntoView {
                         </a>
                     </div>
                 </Card>
+                
+                // Component Demo Section
+                <div class="mt-8">
+                    <Card title="Component Demo">
+                        <div class="space-y-4">
+                            // Toast Demo
+                            <div>
+                                <h3 class="text-md font-semibold mb-2">"Toast Notifications"</h3>
+                                <div class="flex gap-2 flex-wrap">
+                                    <Button on_click=Box::new(move || toast.success("Success! Operation completed."))>
+                                        "Show Success"
+                                    </Button>
+                                    <Button on_click=Box::new(move || toast.error("Error! Something went wrong."))>
+                                        "Show Error"
+                                    </Button>
+                                    <Button on_click=Box::new(move || toast.warning("Warning! Please check your input."))>
+                                        "Show Warning"
+                                    </Button>
+                                    <Button on_click=Box::new(move || toast.info("Info: Here's some information."))>
+                                        "Show Info"
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            // Modal Demo
+                            <div>
+                                <h3 class="text-md font-semibold mb-2">"Modals"</h3>
+                                <div class="flex gap-2">
+                                    <Button on_click=Box::new(move || set_show_modal.set(true))>
+                                        "Open Modal"
+                                    </Button>
+                                    <Button on_click=Box::new(move || set_show_confirm.set(true))>
+                                        "Open Confirm Dialog"
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
             </div>
+            
+            // Modal Components
+            <Modal
+                show=show_modal
+                on_close=move || set_show_modal.set(false)
+                title="Example Modal".to_string()
+            >
+                <div class="space-y-4">
+                    <p>"This is an example modal with custom content."</p>
+                    <p class="text-sm text-gray-600">"You can press Escape or click the overlay to close it."</p>
+                    <Button on_click=Box::new(move || set_show_modal.set(false))>
+                        "Close Modal"
+                    </Button>
+                </div>
+            </Modal>
+            
+            <ConfirmModal
+                show=show_confirm
+                on_close=move || set_show_confirm.set(false)
+                on_confirm=move || {
+                    toast.success("Action confirmed!");
+                }
+                title="Confirm Action".to_string()
+                message="Are you sure you want to proceed with this action?".to_string()
+                is_destructive=false
+            />
         </Container>
     }
 }

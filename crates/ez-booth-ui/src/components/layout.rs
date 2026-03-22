@@ -11,17 +11,20 @@ pub fn Card(
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
+    /// ARIA label for accessibility
+    #[prop(optional)]
+    aria_label: Option<String>,
 ) -> impl IntoView {
     let additional_classes = class.unwrap_or("");
     let card_classes = format!("bg-white rounded-lg shadow-md p-6 {}", additional_classes);
 
     view! {
-        <div class=card_classes>
+        <article class=card_classes aria-label=aria_label role="region">
             {title.map(|t| view! {
                 <h2 class="text-xl font-semibold mb-4">{t}</h2>
             })}
             {children()}
-        </div>
+        </article>
     }
 }
 
@@ -36,6 +39,12 @@ pub fn Container(
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
+    /// Use as a landmark region
+    #[prop(optional)]
+    as_landmark: Option<bool>,
+    /// ARIA label for accessibility (when used as landmark)
+    #[prop(optional)]
+    aria_label: Option<String>,
 ) -> impl IntoView {
     let max_width = max_width.unwrap_or("max-w-7xl");
     let additional_classes = class.unwrap_or("");
@@ -43,9 +52,15 @@ pub fn Container(
         "mx-auto px-4 sm:px-6 lg:px-8 {} {}",
         max_width, additional_classes
     );
+    
+    let as_landmark = as_landmark.unwrap_or(false);
 
     view! {
-        <div class=container_classes>
+        <div 
+            class=container_classes
+            role=if as_landmark { Some("region") } else { None }
+            aria-label=aria_label
+        >
             {children()}
         </div>
     }

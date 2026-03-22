@@ -61,6 +61,12 @@ pub fn Button(
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
+    /// ARIA label for accessibility
+    #[prop(optional)]
+    aria_label: Option<String>,
+    /// Whether button is pressed (for toggle buttons)
+    #[prop(optional)]
+    aria_pressed: Option<bool>,
 ) -> impl IntoView {
     let variant = variant.unwrap_or(ButtonVariant::Primary);
     let size = size.unwrap_or(ButtonSize::Medium);
@@ -84,6 +90,9 @@ pub fn Button(
         <button
             class=class_list
             disabled=disabled
+            aria-label=aria_label
+            aria-pressed=aria_pressed.map(|p| if p { "true" } else { "false" })
+            aria-disabled=if disabled { Some("true") } else { None }
             on:click=move |_| {
                 if let Some(handler) = &on_click {
                     handler();
