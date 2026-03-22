@@ -74,16 +74,26 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 - ⚠️  Export/import functionality deferred to later phase
 - ⚠️  Integration tests deferred (require WASM test environment setup)
 
-### 1.4 Business Logic Services (P0)
-- [ ] Implement `BoothService`
-- [ ] Implement `VendorService` with smart sorting
-- [ ] Implement `TransactionService` with calculations
-- [ ] Implement `SettingsService`
-- [ ] Add service-level validation
-- [ ] Write comprehensive tests
+### 1.4 Business Logic Services (P0) ✅ COMPLETE
+- [x] Implement `BoothService`
+- [x] Implement `VendorService` with smart sorting
+- [x] Implement `TransactionService` with calculations
+- [x] Add service-level validation
+- [x] Write comprehensive unit tests
+- [ ] Implement `SettingsService` (deferred - not critical for MVP)
 
-**Status:** Not Started  
-**Target:** TBD
+**Status:** Complete (Core Services)  
+**Completed:** 2026-03-22  
+**Notes:**
+- ✅ BoothService: create, get, list, update, close/reopen, delete operations
+- ✅ VendorService: get_or_create (auto-creation during checkout), list with smart sorting, get, delete
+- ✅ TransactionService: checkout, get, list purchases (all/by vendor), calculate vendor sales, calculate fees, delete
+- ✅ All services use repository pattern with async_trait(?Send) for WASM compatibility
+- ✅ VendorId now derives Hash to support HashMap usage in tests
+- ✅ Comprehensive unit tests with mock repositories (18 tests total, all passing)
+- ✅ Services layer aligns with ARCHITECTURE.md specifications
+- ✅ Domain crate compiles cleanly with 0 errors, 0 warnings
+- ⚠️  SettingsService intentionally deferred (not critical for initial prototype)
 
 ## Phase 2: Internationalization & UI Foundation
 
@@ -271,14 +281,25 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 | Phase | Total Tasks | Completed | In Progress | Not Started | % Complete |
 |-------|-------------|-----------|-------------|-------------|------------|
-| Phase 1 | 25 | 17 | 0 | 8 | 68% |
+| Phase 1 | 25 | 22 | 0 | 3 | 88% |
 | Phase 2 | 18 | 0 | 0 | 18 | 0% |
 | Phase 3 | 29 | 0 | 0 | 29 | 0% |
 | Phase 4 | 12 | 0 | 0 | 12 | 0% |
 | Phase 5 | 20 | 0 | 0 | 20 | 0% |
-| **TOTAL** | **104** | **17** | **0** | **87** | **16%** |
+| **TOTAL** | **104** | **22** | **0** | **82** | **21%** |
 
 ## Recent Updates
+
+### 2026-03-22 (Late Evening)
+- ✅ Completed Phase 1.4: Business Logic Services
+- Implemented BoothService with create, get, list (all/filtered), update, close/reopen, delete operations
+- Implemented VendorService with get_or_create (auto-creation), list with smart sorting, get, delete
+- Implemented TransactionService with checkout, get, list purchases (all/by vendor), calculate sales/fees, delete
+- Added Hash derive to VendorId to support HashMap usage
+- Reorganized services module from single file to directory structure (dto.rs, booth_service.rs, vendor_service.rs, transaction_service.rs)
+- Comprehensive unit tests with mock repositories (18 tests total, all passing)
+- Domain crate compiles cleanly with 0 errors, 0 warnings
+- **Phase 1 Foundation now 88% complete** - ready for UI implementation
 
 ### 2026-03-22 (Evening)
 - ✅ Completed Phase 1.3: Storage Layer (Core Implementation)

@@ -95,7 +95,7 @@ impl From<&str> for Id {
 }
 
 /// Vendor identifier - supports both numeric and text IDs with smart sorting
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct VendorId(String);
 
 impl VendorId {
