@@ -1,0 +1,21 @@
+[package]
+name = "ez-booth-app"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace crates
+ez-booth-ui = { path = "../ez-booth-ui" }
+
+# Leptos framework
+leptos = { workspace = true }
+
+# WASM
+wasm-bindgen = { workspace = true }
+console_error_panic_hook = "0.1"
+
+[lib]
+crate-type = ["cdylib"]

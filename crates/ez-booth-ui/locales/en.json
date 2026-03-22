@@ -1,0 +1,88 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "error": "Error",
+    "success": "Success",
+    "loading": "Loading..."
+  },
+  "app": {
+    "title": "EZ Booth",
+    "welcome": "Welcome to EZ Booth"
+  },
+  "booth": {
+    "title": "Booth",
+    "list_title": "Booths",
+    "create": "Create Booth",
+    "edit": "Edit Booth",
+    "delete_confirm": "Are you sure you want to delete this booth?",
+    "name_label": "Name",
+    "description_label": "Description",
+    "date_label": "Date",
+    "status_open": "Open",
+    "status_closed": "Closed",
+    "participation_fee": "Participation Fee",
+    "sales_fee_percent": "Sales Commission (%)",
+    "rounding_step": "Rounding Step"
+  },
+  "vendor": {
+    "title": "Vendor",
+    "list_title": "Vendors",
+    "id_label": "Vendor ID",
+    "create": "Create Vendor",
+    "total_sales": "Total Sales"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "vendor_id": "Vendor ID",
+    "amount": "Amount",
+    "total": "Total",
+    "confirm": "Confirm",
+    "add_item": "Add Item",
+    "success": "Sale recorded successfully"
+  },
+  "report": {
+    "title": "Reports",
+    "vendor_receipt": "Vendor Receipt",
+    "booth_summary": "Booth Summary",
+    "total": "Total",
+    "period": "Period",
+    "date": "Date",
+    "item": "Item",
+    "amount": "Amount",
+    "quantity": "Quantity",
+    "export": "Export",
+    "print": "Print",
+    "sales_total": "Sales Total",
+    "fees_total": "Total Fees",
+    "net_revenue": "Net Revenue"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "language_de": "Deutsch",
+    "language_en": "English"
+  },
+  "data": {
+    "export_title": "Export Data",
+    "import_title": "Import Data",
+    "export_button": "Export",
+    "import_button": "Import",
+    "select_file": "Select File",
+    "download": "Download"
+  },
+  "error": {
+    "generic": "An error occurred",
+    "not_found": "Not found",
+    "validation": "Validation error",
+    "storage": "Storage error"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "yes": "Ja",
+    "no": "Nein",
+    "back": "Zurück",
+    "next": "Weiter",
+    "confirm": "Bestätigen",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "loading": "Laden..."
+  },
+  "app": {
+    "title": "EZ Booth",
+    "welcome": "Willkommen bei EZ Booth"
+  },
+  "booth": {
+    "title": "Stand",
+    "list_title": "Stände",
+    "create": "Stand erstellen",
+    "edit": "Stand bearbeiten",
+    "delete_confirm": "Möchten Sie diesen Stand wirklich löschen?",
+    "name_label": "Name",
+    "description_label": "Beschreibung",
+    "date_label": "Datum",
+    "status_open": "Offen",
+    "status_closed": "Geschlossen",
+    "participation_fee": "Standgebühr",
+    "sales_fee_percent": "Verkaufsprovision (%)",
+    "rounding_step": "Rundungsschritt"
+  },
+  "vendor": {
+    "title": "Verkäufer",
+    "list_title": "Verkäufer",
+    "id_label": "Verkäufer-ID",
+    "create": "Verkäufer erstellen",
+    "total_sales": "Gesamtverkäufe"
+  },
+  "checkout": {
+    "title": "Kasse",
+    "vendor_id": "Verkäufer-ID",
+    "amount": "Betrag",
+    "total": "Gesamt",
+    "confirm": "Bestätigen",
+    "add_item": "Artikel hinzufügen",
+    "success": "Verkauf erfolgreich erfasst"
+  },
+  "report": {
+    "title": "Berichte",
+    "vendor_receipt": "Verkäufer-Quittung",
+    "booth_summary": "Stand-Zusammenfassung",
+    "total": "Gesamtsumme",
+    "period": "Zeitraum",
+    "date": "Datum",
+    "item": "Artikel",
+    "amount": "Betrag",
+    "quantity": "Anzahl",
+    "export": "Exportieren",
+    "print": "Drucken",
+    "sales_total": "Verkaufssumme",
+    "fees_total": "Gebühren gesamt",
+    "net_revenue": "Netto-Einnahmen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "language_de": "Deutsch",
+    "language_en": "English"
+  },
+  "data": {
+    "export_title": "Daten exportieren",
+    "import_title": "Daten importieren",
+    "export_button": "Exportieren",
+    "import_button": "Importieren",
+    "select_file": "Datei auswählen",
+    "download": "Herunterladen"
+  },
+  "error": {
+    "generic": "Ein Fehler ist aufgetreten",
+    "not_found": "Nicht gefunden",
+    "validation": "Validierungsfehler",
+    "storage": "Speicherfehler"
+  }
+}
