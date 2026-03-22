@@ -48,6 +48,9 @@ pub fn Input(
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
+    /// ARIA label for accessibility
+    #[prop(optional)]
+    aria_label: Option<String>,
 ) -> impl IntoView {
     let input_type = input_type.unwrap_or(InputType::Text);
     let disabled = disabled.unwrap_or(false);
@@ -61,6 +64,9 @@ pub fn Input(
 
     let additional_classes = class.unwrap_or("");
     let combined_classes = format!("{} {}", input_classes, additional_classes);
+    
+    // Generate unique ID for error message association
+    let error_id = error.as_ref().map(|_| format!("input-error-{}", value.get_untracked().len()));
 
     view! {
         <div class="w-full">
@@ -76,13 +82,17 @@ pub fn Input(
                 placeholder=placeholder.unwrap_or("")
                 disabled=disabled
                 required=required
+                aria-label=aria_label
+                aria-invalid=if error.is_some() { Some("true") } else { None }
+                aria-describedby=error_id.clone()
+                aria-required=if required { Some("true") } else { None }
                 prop:value=move || value.get()
                 on:input=move |ev| {
                     value.set(event_target_value(&ev));
                 }
             />
             {error.map(|err| view! {
-                <p class="mt-1 text-sm text-red-600">{err}</p>
+                <p class="mt-1 text-sm text-red-600" id=error_id role="alert">{err}</p>
             })}
         </div>
     }
@@ -117,6 +127,9 @@ pub fn NumberInput(
     /// Error message to display
     #[prop(optional)]
     error: Option<String>,
+    /// ARIA label for accessibility
+    #[prop(optional)]
+    aria_label: Option<String>,
 ) -> impl IntoView {
     let disabled = disabled.unwrap_or(false);
     let required = required.unwrap_or(false);
@@ -126,6 +139,9 @@ pub fn NumberInput(
     } else {
         "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
     };
+    
+    // Generate unique ID for error message association
+    let error_id = error.as_ref().map(|_| format!("number-input-error-{}", value.get_untracked().len()));
 
     view! {
         <div class="w-full">
@@ -144,13 +160,17 @@ pub fn NumberInput(
                 min=min.map(|m| m.to_string()).unwrap_or_default()
                 max=max.map(|m| m.to_string()).unwrap_or_default()
                 step=step.map(|s| s.to_string()).unwrap_or_else(|| "0.01".to_string())
+                aria-label=aria_label
+                aria-invalid=if error.is_some() { Some("true") } else { None }
+                aria-describedby=error_id.clone()
+                aria-required=if required { Some("true") } else { None }
                 prop:value=move || value.get()
                 on:input=move |ev| {
                     value.set(event_target_value(&ev));
                 }
             />
             {error.map(|err| view! {
-                <p class="mt-1 text-sm text-red-600">{err}</p>
+                <p class="mt-1 text-sm text-red-600" id=error_id role="alert">{err}</p>
             })}
         </div>
     }

@@ -84,5 +84,19 @@
     "not_found": "Nicht gefunden",
     "validation": "Validierungsfehler",
     "storage": "Speicherfehler"
+  },
+  "components": {
+    "modal": {
+      "close": "Modal schließen",
+      "confirm_action": "Aktion bestätigen",
+      "are_you_sure": "Sind Sie sicher?"
+    },
+    "toast": {
+      "success": "Erfolg",
+      "error": "Fehler",
+      "warning": "Warnung",
+      "info": "Information",
+      "dismiss": "Benachrichtigung schließen"
+    }
   }
 }

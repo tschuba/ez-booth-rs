@@ -84,5 +84,19 @@
     "not_found": "Not found",
     "validation": "Validation error",
     "storage": "Storage error"
+  },
+  "components": {
+    "modal": {
+      "close": "Close modal",
+      "confirm_action": "Confirm Action",
+      "are_you_sure": "Are you sure?"
+    },
+    "toast": {
+      "success": "Success",
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Information",
+      "dismiss": "Dismiss notification"
+    }
   }
 }
