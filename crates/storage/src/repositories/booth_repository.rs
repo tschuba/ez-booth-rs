@@ -1,14 +1,12 @@
 use async_trait::async_trait;
-use ez_booth_core::entities::booth::Booth;
-use ez_booth_core::entities::ids::BoothId;
-use ez_booth_core::error::CoreError;
-use ez_booth_core::services::booth_service::BoothRepository;
+use domain::{Booth, BoothId, BoothRepository, DomainResult};
 use rexie::TransactionMode;
-use serde_json::Value;
+use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
+use wasm_bindgen::JsValue;
 
-use crate::indexeddb::Database;
 use crate::error::StorageError;
+use crate::indexeddb::Database;
 
 pub struct IndexedDbBoothRepository {
     db: Arc<Database>,
@@ -22,105 +20,103 @@ impl IndexedDbBoothRepository {
 
 #[async_trait(?Send)]
 impl BoothRepository for IndexedDbBoothRepository {
-    async fn save(&self, booth: &Booth) -> Result<(), CoreError> {
+    async fn save(&self, booth: &Booth) -> DomainResult<()> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadWrite)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         let store = transaction
             .store("booths")
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
-        let value = serde_json::to_value(booth)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+        let value = to_value(booth)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
         
         store
             .put(&value, None)
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
         transaction
             .done()
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         Ok(())
     }
     
-    async fn find_by_id(&self, id: BoothId) -> Result<Option<Booth>, CoreError> {
+    async fn find_by_id(&self, id: &BoothId) -> DomainResult<Option<Booth>> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadOnly)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         let store = transaction
             .store("booths")
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
-        let key = serde_json::to_value(id.as_str())
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+        let key = JsValue::from_str(&id.as_str());
         
         let result = store
-            .get(&key)
+            .get(key)
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
         match result {
             Some(value) => {
-                let booth: Booth = serde_json::from_value(value)
-                    .map_err(|e| CoreError::StorageError(e.to_string()))?;
+                let booth: Booth = from_value(value)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some(booth))
             }
             None => Ok(None),
         }
     }
     
-    async fn find_all(&self) -> Result<Vec<Booth>, CoreError> {
+    async fn find_all(&self) -> DomainResult<Vec<Booth>> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadOnly)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         let store = transaction
             .store("booths")
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
         let values = store
-            .get_all(None, None, None, None)
+            .get_all(None, None)
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
         let booths: Vec<Booth> = values
             .into_iter()
-            .filter_map(|(_, value)| serde_json::from_value(value).ok())
+            .filter_map(|value| from_value(value).ok())
             .collect();
         
         Ok(booths)
     }
     
-    async fn delete(&self, id: BoothId) -> Result<(), CoreError> {
+    async fn delete(&self, id: &BoothId) -> DomainResult<()> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadWrite)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         let store = transaction
             .store("booths")
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
-        let key = serde_json::to_value(id.as_str())
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+        let key = JsValue::from_str(&id.as_str());
         
         store
-            .delete(&key)
+            .delete(key)
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         
         transaction
             .done()
             .await
-            .map_err(|e| CoreError::StorageError(format!("{:?}", e)))?;
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
         
         Ok(())
     }

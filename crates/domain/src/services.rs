@@ -7,14 +7,14 @@ use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CheckoutItem {
-    pub vendor: VendorKey,
+    pub vendor: VendorId,
     pub price: Decimal,
     pub purchased_on: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Checkout {
-    pub booth: BoothKey,
+    pub booth: BoothId,
     pub items: Vec<CheckoutItem>,
     pub print_receipt: bool,
 }
@@ -41,16 +41,16 @@ pub struct ChargingConfig {
 impl ChargingConfig {
     pub fn from_booth(booth: &Booth) -> Self {
         Self {
-            participation_fee: booth.participation_fee,
-            sales_fee: booth.sales_fee,
-            rounding_step: booth.fees_rounding_step,
+            participation_fee: booth.fees.participation_fee,
+            sales_fee: booth.fees.sales_fee_percent,
+            rounding_step: booth.fees.rounding_step,
         }
     }
 
     pub fn calculate_fees(&self, value: Decimal) -> ChargedFees {
         let sales_fee = (self.sales_fee * value / dec!(100))
             .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
-        
+
         ChargedFees {
             participation_fee: self.participation_fee,
             sales_fee,
@@ -72,7 +72,7 @@ pub struct BalanceOutput {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VendorReportInput {
-    pub vendors: Vec<VendorKey>,
+    pub vendors: Vec<VendorId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -96,20 +96,8 @@ impl Eq for VendorReportData {}
 
 impl Ord for VendorReportData {
     fn cmp(&self, other: &Self) -> Ordering {
-        let key = &self.vendor.key;
-        let other_key = &other.vendor.key;
-
-        // Try to parse vendor IDs as numbers for natural sorting
-        let vendor_num = key.vendor_id.parse::<i64>().ok();
-        let other_vendor_num = other_key.vendor_id.parse::<i64>().ok();
-
-        match (vendor_num, other_vendor_num) {
-            (Some(a), Some(b)) => a.cmp(&b),
-            _ => key
-                .booth
-                .cmp(&other_key.booth)
-                .then_with(|| key.vendor_id.cmp(&other_key.vendor_id)),
-        }
+        // Use VendorId's built-in smart sorting (handles numeric vs alphanumeric)
+        self.vendor.vendor_id.cmp(&other.vendor.vendor_id)
     }
 }
 
@@ -129,5 +117,5 @@ pub struct ExchangeReceiver {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExchangeSubscription {
     pub id: String,
-    pub booth: BoothKey,
+    pub booth: BoothId,
 }

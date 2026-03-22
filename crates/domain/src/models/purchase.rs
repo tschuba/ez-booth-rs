@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::shared::{BoothId, ItemId, PurchaseId, VendorId};
 
 /// Represents a purchase transaction with multiple items
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Purchase {
     pub id: PurchaseId,
     pub booth_id: BoothId,
@@ -16,7 +16,7 @@ pub struct Purchase {
 }
 
 /// Individual item within a purchase
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PurchaseItem {
     pub id: ItemId,
     pub amount: Decimal,

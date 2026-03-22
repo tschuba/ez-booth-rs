@@ -5,16 +5,16 @@ use wasm_bindgen::JsValue;
 pub enum StorageError {
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(String),
-    
+
     #[error("Not found: {0}")]
     NotFound(String),
-    
+
     #[error("Transaction error: {0}")]
     TransactionError(String),
-    
+
     #[error("JS error: {0}")]
     JsError(String),
 }
@@ -31,11 +31,24 @@ impl From<serde_json::Error> for StorageError {
     }
 }
 
-impl From<StorageError> for ez_booth_core::error::CoreError {
+impl From<rexie::Error> for StorageError {
+    fn from(err: rexie::Error) -> Self {
+        StorageError::DatabaseError(format!("{:?}", err))
+    }
+}
+
+impl From<idb::Error> for StorageError {
+    fn from(err: idb::Error) -> Self {
+        StorageError::DatabaseError(format!("{:?}", err))
+    }
+}
+
+/// Convert StorageError to DomainError
+impl From<StorageError> for domain::DomainError {
     fn from(err: StorageError) -> Self {
         match err {
-            StorageError::NotFound(msg) => ez_booth_core::error::CoreError::NotFound(msg),
-            other => ez_booth_core::error::CoreError::StorageError(other.to_string()),
+            StorageError::NotFound(msg) => domain::DomainError::NotFound(msg),
+            other => domain::DomainError::Storage(other.to_string()),
         }
     }
 }

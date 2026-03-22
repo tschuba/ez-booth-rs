@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::shared::{BoothId, VendorId};
 
 /// Represents a vendor at the booth
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vendor {
     pub vendor_id: VendorId,
     pub booth_id: BoothId,

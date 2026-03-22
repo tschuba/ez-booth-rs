@@ -4,36 +4,78 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use super::shared::{BoothId, VendorId};
+use crate::error::DomainError;
 
 /// Represents a bazaar booth/event
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
 pub struct Booth {
     pub id: BoothId,
-    
+
     #[validate(length(min = 1, max = 200))]
     pub description: String,
-    
+
     pub date: NaiveDate,
-    
-    #[validate]
+
+    #[validate(nested)]
     pub fees: FeeConfig,
-    
+
     pub status: BoothStatus,
-    
+
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+/// Fee configuration for booth charges
+///
+/// Note: The validator crate doesn't support range validation for rust_decimal::Decimal.
+/// Range validation is performed via the `validate_ranges()` method.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
 pub struct FeeConfig {
-    #[validate(range(min = 0.0))]
+    /// Fixed participation fee per vendor
     pub participation_fee: Decimal,
-    
-    #[validate(range(min = 0.0, max = 100.0))]
+
+    /// Sales commission percentage (0-100)
     pub sales_fee_percent: Decimal,
-    
-    #[validate(range(min = 0.0))]
+
+    /// Rounding step for fee calculations (e.g., 0.50 for half-dollar rounding)
     pub rounding_step: Decimal,
+}
+
+impl FeeConfig {
+    /// Validate that all fee values are within acceptable ranges
+    ///
+    /// # Errors
+    ///
+    /// Returns `DomainError::Validation` if:
+    /// - Any fee value is negative
+    /// - Sales fee percent is greater than 100
+    pub fn validate_ranges(&self) -> Result<(), DomainError> {
+        if self.participation_fee.is_sign_negative() {
+            return Err(DomainError::Validation(
+                "Participation fee cannot be negative".to_string(),
+            ));
+        }
+
+        if self.sales_fee_percent.is_sign_negative() {
+            return Err(DomainError::Validation(
+                "Sales fee percent cannot be negative".to_string(),
+            ));
+        }
+
+        if self.sales_fee_percent > Decimal::new(100, 0) {
+            return Err(DomainError::Validation(
+                "Sales fee percent cannot exceed 100%".to_string(),
+            ));
+        }
+
+        if self.rounding_step.is_sign_negative() {
+            return Err(DomainError::Validation(
+                "Rounding step cannot be negative".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -44,9 +86,17 @@ pub enum BoothStatus {
 }
 
 impl Booth {
-    pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Self {
+    /// Create a new booth with the given configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns `DomainError::Validation` if the fee configuration is invalid
+    pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Result<Self, DomainError> {
+        // Validate fee configuration
+        fees.validate_ranges()?;
+
         let now = Utc::now();
-        Self {
+        Ok(Self {
             id: BoothId::new(),
             description,
             date,
@@ -54,7 +104,7 @@ impl Booth {
             status: BoothStatus::Open,
             created_at: now,
             updated_at: now,
-        }
+        })
     }
 
     pub fn close(&mut self) {

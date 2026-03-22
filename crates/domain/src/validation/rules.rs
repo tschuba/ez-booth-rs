@@ -1,5 +1,6 @@
 use crate::error::{DomainError, DomainResult};
 use crate::models::*;
+use rust_decimal::Decimal;
 
 /// Validation rules for booth entities
 pub struct BoothValidator;
@@ -7,10 +8,14 @@ pub struct BoothValidator;
 impl BoothValidator {
     pub fn validate_name(name: &str) -> DomainResult<()> {
         if name.trim().is_empty() {
-            return Err(DomainError::Validation("Booth name cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Booth name cannot be empty".to_string(),
+            ));
         }
         if name.len() > 200 {
-            return Err(DomainError::Validation("Booth name too long (max 200 characters)".to_string()));
+            return Err(DomainError::Validation(
+                "Booth name too long (max 200 characters)".to_string(),
+            ));
         }
         Ok(())
     }
@@ -22,10 +27,14 @@ pub struct VendorValidator;
 impl VendorValidator {
     pub fn validate_vendor_id(vendor_id: &VendorId) -> DomainResult<()> {
         if vendor_id.as_str().trim().is_empty() {
-            return Err(DomainError::Validation("Vendor ID cannot be empty".to_string()));
+            return Err(DomainError::Validation(
+                "Vendor ID cannot be empty".to_string(),
+            ));
         }
         if vendor_id.as_str().len() > 50 {
-            return Err(DomainError::Validation("Vendor ID too long (max 50 characters)".to_string()));
+            return Err(DomainError::Validation(
+                "Vendor ID too long (max 50 characters)".to_string(),
+            ));
         }
         Ok(())
     }
@@ -35,13 +44,26 @@ impl VendorValidator {
 pub struct PurchaseValidator;
 
 impl PurchaseValidator {
-    pub fn validate_amount(amount: &Money) -> DomainResult<()> {
-        if amount.cents() < 0 {
-            return Err(DomainError::Validation("Purchase amount cannot be negative".to_string()));
+    /// Validate that a purchase amount is within acceptable bounds
+    ///
+    /// # Errors
+    ///
+    /// Returns error if amount is negative or exceeds €1,000,000
+    pub fn validate_amount(amount: &Decimal) -> DomainResult<()> {
+        if amount.is_sign_negative() {
+            return Err(DomainError::Validation(
+                "Purchase amount cannot be negative".to_string(),
+            ));
         }
-        if amount.cents() > 1_000_000_00 {
-            return Err(DomainError::Validation("Purchase amount too large (max €1,000,000)".to_string()));
+
+        // Maximum €1,000,000
+        let max_amount = Decimal::new(1_000_000, 0);
+        if *amount > max_amount {
+            return Err(DomainError::Validation(
+                "Purchase amount too large (max €1,000,000)".to_string(),
+            ));
         }
+
         Ok(())
     }
 }
@@ -66,7 +88,16 @@ mod tests {
 
     #[test]
     fn test_purchase_amount_validation() {
-        assert!(PurchaseValidator::validate_amount(&Money::from_euros(10.0)).is_ok());
-        assert!(PurchaseValidator::validate_amount(&Money::from_cents(-1)).is_err());
+        use rust_decimal_macros::dec;
+
+        // Valid amounts
+        assert!(PurchaseValidator::validate_amount(&dec!(10.0)).is_ok());
+        assert!(PurchaseValidator::validate_amount(&Decimal::ZERO).is_ok());
+        assert!(PurchaseValidator::validate_amount(&dec!(999999.99)).is_ok());
+
+        // Invalid amounts
+        assert!(PurchaseValidator::validate_amount(&dec!(-1.0)).is_err());
+        assert!(PurchaseValidator::validate_amount(&dec!(-0.01)).is_err());
+        assert!(PurchaseValidator::validate_amount(&Decimal::new(1_000_001, 0)).is_err());
     }
 }

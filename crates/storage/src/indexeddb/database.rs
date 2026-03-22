@@ -20,12 +20,12 @@ impl Database {
             )
             .add_object_store(
                 ObjectStore::new("vendors")
-                    .key_path_array(&["booth_id", "id"])
+                    .key_path_array(["booth_id", "id"])
                     .add_index(Index::new("booth_id", "booth_id"))
             )
             .add_object_store(
                 ObjectStore::new("purchases")
-                    .key_path_array(&["booth_id", "id"])
+                    .key_path_array(["booth_id", "id"])
                     .add_index(Index::new("booth_id", "booth_id"))
                     .add_index(Index::new("vendor_id", "vendor_id"))
                     .add_index(Index::new("purchased_at", "purchased_at"))

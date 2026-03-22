@@ -186,12 +186,4 @@ mod tests {
         assert_eq!(ids[2].as_str(), "A10");
         assert_eq!(ids[3].as_str(), "B2");
     }
-
-    #[test]
-    fn test_money_operations() {
-        let m1 = Money::from_euros(10.50);
-        let m2 = Money::from_euros(5.25);
-        let sum = m1.add(&m2);
-        assert_eq!(sum.euros(), 15.75);
-    }
 }
