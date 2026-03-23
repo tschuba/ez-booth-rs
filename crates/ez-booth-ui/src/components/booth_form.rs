@@ -1,5 +1,10 @@
 use leptos::*;
 use crate::components::*;
+use domain::models::booth::{Booth, FeeConfig};
+use domain::error::DomainError;
+use rust_decimal::Decimal;
+use chrono::NaiveDate;
+use std::str::FromStr;
 
 /// Form data for creating/editing a booth
 #[derive(Clone, Debug)]
@@ -20,6 +25,42 @@ impl Default for BoothFormData {
             sales_fee_percent: "0.00".to_string(),
             rounding_step: "0.50".to_string(),
         }
+    }
+}
+
+impl BoothFormData {
+    /// Convert form data to domain Booth model
+    ///
+    /// # Errors
+    ///
+    /// Returns DomainError if:
+    /// - Date string cannot be parsed
+    /// - Fee values cannot be parsed to Decimal
+    /// - Fee configuration validation fails
+    pub fn to_booth(&self) -> Result<Booth, DomainError> {
+        // Parse date
+        let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
+            .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
+        
+        // Parse fee values to Decimal
+        let participation_fee = Decimal::from_str(&self.participation_fee)
+            .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
+        
+        let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
+            .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
+        
+        let rounding_step = Decimal::from_str(&self.rounding_step)
+            .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
+        
+        // Create FeeConfig
+        let fees = FeeConfig {
+            participation_fee,
+            sales_fee_percent,
+            rounding_step,
+        };
+        
+        // Create and return Booth (this validates the fee ranges)
+        Booth::new(self.description.clone(), date, fees)
     }
 }
 
