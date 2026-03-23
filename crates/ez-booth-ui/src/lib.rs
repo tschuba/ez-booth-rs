@@ -67,7 +67,7 @@ pub fn App() -> impl IntoView {
                     <main class="py-8">
                         <Routes>
                             <Route path="/" view=HomePage/>
-                            <Route path="/booths" view=BoothListPlaceholder/>
+                            <Route path="/booths" view=BoothListPage/>
                             <Route path="/checkout" view=CheckoutPlaceholder/>
                             <Route path="/reports" view=ReportsPlaceholder/>
                         </Routes>
@@ -88,17 +88,6 @@ pub fn App() -> impl IntoView {
 }
 
 // Placeholder components for routes not yet implemented
-#[component]
-fn BoothListPlaceholder() -> impl IntoView {
-    view! {
-        <Container>
-            <Card title="Booths">
-                <p class="text-gray-600">"Booth management coming soon..."</p>
-            </Card>
-        </Container>
-    }
-}
-
 #[component]
 fn CheckoutPlaceholder() -> impl IntoView {
     view! {
