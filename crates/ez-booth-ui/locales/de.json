@@ -15,11 +15,16 @@
     "loading": "Laden..."
   },
   "app": {
+    "copyright": "Copyright © 2024 EZ Booth",
     "title": "EZ Booth",
     "welcome": "Willkommen bei EZ Booth"
   },
   "booth": {
     "title": "Stand",
+    "created": "Stand erstellt.",
+    "deleted": "Stand gelöscht.",
+    "saved": "Stand gespeichert.",
+    "updated": "Stand aktualisiert.",
     "list_title": "Stände",
     "create": "Stand erstellen",
     "edit": "Stand bearbeiten",
@@ -38,7 +43,14 @@
     "list_title": "Verkäufer",
     "id_label": "Verkäufer-ID",
     "create": "Verkäufer erstellen",
-    "total_sales": "Gesamtverkäufe"
+    "total_sales": "Gesamtverkäufe",
+    "purchase_count": "Transaktionen",
+    "select_booth": "Stand auswählen",
+    "no_booth_selected": "-- Stand auswählen --",
+    "select_booth_prompt": "Bitte wählen Sie einen Stand aus, um Verkäufer anzuzeigen",
+    "no_vendors": "Keine Verkäufer für diesen Stand gefunden",
+    "detail_title": "Verkäufer-Details",
+    "created_at": "Erstellt"
   },
   "checkout": {
     "title": "Kasse",
@@ -104,6 +116,7 @@
     }
   },
   "report": {
+    "interface_coming_soon": "Berichtsschnittstelle kommt bald.",
     "title": "Berichte",
     "vendor_receipt": "Verkäufer-Quittung",
     "booth_summary": "Stand-Zusammenfassung",
@@ -139,7 +152,37 @@
     "validation": "Validierungsfehler",
     "storage": "Speicherfehler"
   },
+  "home": {
+    "are_you_sure": "Sind Sie sicher?",
+    "manage_booths": "Stände und Verkäufer verwalten",
+    "process_sales": "Standverkäufe abwickeln",
+    "component_demo": "Komponenten-Demo",
+    "toast_notifications": "Toast-Benachrichtigungen",
+    "toast_success_msg": "Dies ist eine Erfolgsnachricht!",
+    "toast_error_short_full": "Ein Fehler ist aufgetreten (kurz)",
+    "toast_error_long_full": "Ein Fehler ist aufgetreten: Die Gründe sind ausführlicher und können sehr lang sein, eventuell sogar mehrzeilig – das sollte auch passen.",
+    "toast_warning_msg": "Warnung: Seien Sie vorsichtig!",
+    "toast_info_msg": "Dies ist eine Info-Nachricht.",
+    "show_success": "Erfolg anzeigen",
+    "show_error_short": "Fehler anzeigen (Kurz)",
+    "show_error_long": "Fehler anzeigen (Lang)",
+    "show_warning": "Warnung anzeigen",
+    "show_info": "Info anzeigen",
+    "modals": "Modale Dialoge",
+    "open_modal": "Modal öffnen",
+    "open_confirm": "Bestätigungsdialog öffnen",
+    "example_modal_title": "Beispiel-Modal-Titel",
+    "example_modal_content": "Dies ist der Inhalt eines modalen Dialogs (Beispiel).",
+    "example_modal_hint": "Hinweis frei eintragbar.",
+    "close_modal": "Modal schließen",
+    "action_confirmed": "Aktion bestätigt!",
+    "confirm_action": "Aktion bestätigen"
+  },
   "components": {
+    "toast": {
+      "copied": "Kopiert!",
+      "copy": "Kopieren"
+    },
     "modal": {
       "close": "Modal schließen",
       "confirm_action": "Aktion bestätigen",

@@ -43,6 +43,9 @@ pub fn App() -> impl IntoView {
                                     <a href="/booths" class="text-gray-700 hover:text-blue-600">
                                         {t!("booth.list_title")}
                                     </a>
+                                    <a href="/vendors" class="text-gray-700 hover:text-blue-600">
+                                        {t!("vendor.list_title")}
+                                    </a>
                                     <a href="/checkout" class="text-gray-700 hover:text-blue-600">
                                         {t!("checkout.title")}
                                     </a>
@@ -74,6 +77,7 @@ pub fn App() -> impl IntoView {
                         <Routes>
                             <Route path="/" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
+                            <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
                             <Route path="/reports" view=ReportsPlaceholder/>
                         </Routes>
@@ -83,7 +87,7 @@ pub fn App() -> impl IntoView {
                     <footer class="bg-white border-t mt-auto">
                         <Container>
                             <div class="py-4 text-center text-sm text-gray-600">
-                                "EZ Booth © 2026"
+                                {t!("app.copyright")}
                             </div>
                         </Container>
                     </footer>
@@ -98,8 +102,8 @@ pub fn App() -> impl IntoView {
 fn CheckoutPlaceholder() -> impl IntoView {
     view! {
         <Container>
-            <Card title="Checkout">
-                <p class="text-gray-600">"Checkout interface coming soon..."</p>
+            <Card title_view={t!("checkout.title").into_view()}>
+                <p class="text-gray-600">{t!("checkout.interface_coming_soon")}</p>
             </Card>
         </Container>
     }
@@ -109,8 +113,8 @@ fn CheckoutPlaceholder() -> impl IntoView {
 fn ReportsPlaceholder() -> impl IntoView {
     view! {
         <Container>
-            <Card title="Reports">
-                <p class="text-gray-600">"Reports interface coming soon..."</p>
+            <Card title_view={t!("report.title").into_view()}>
+                <p class="text-gray-600">{t!("report.interface_coming_soon")}</p>
             </Card>
         </Container>
     }
