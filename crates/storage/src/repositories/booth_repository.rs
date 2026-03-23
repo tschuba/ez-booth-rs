@@ -8,6 +8,7 @@ use wasm_bindgen::JsValue;
 use crate::error::StorageError;
 use crate::indexeddb::Database;
 
+#[derive(Clone)]
 pub struct IndexedDbBoothRepository {
     db: Arc<Database>,
 }

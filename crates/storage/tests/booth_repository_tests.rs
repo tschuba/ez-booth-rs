@@ -1,0 +1,178 @@
+// Integration tests for BoothRepository
+// These tests run in a real browser environment using wasm-bindgen-test
+
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+use wasm_bindgen_test::*;
+use ez_booth_storage::indexeddb::Database;
+use ez_booth_storage::repositories::IndexedDbBoothRepository;
+use domain::repositories::BoothRepository;
+use domain::models::booth::{Booth, FeeConfig};
+use chrono::NaiveDate;
+use rust_decimal::Decimal;
+use std::str::FromStr;
+use std::sync::Arc;
+
+/// Helper to create a test database with a unique name
+async fn create_test_db() -> Database {
+    // Use a unique database name for each test to avoid conflicts
+    let db_name = format!("test_db_{}", js_sys::Math::random());
+    Database::new_with_name(&db_name)
+        .await
+        .expect("Failed to create test database")
+}
+
+/// Helper to create a test booth
+fn create_test_booth(description: &str) -> Booth {
+    let fees = FeeConfig {
+        participation_fee: Decimal::from_str("10.00").unwrap(),
+        sales_fee_percent: Decimal::from_str("15.00").unwrap(),
+        rounding_step: Decimal::from_str("0.50").unwrap(),
+    };
+    
+    Booth::new(
+        description.to_string(),
+        NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+        fees,
+    ).unwrap()
+}
+
+#[wasm_bindgen_test]
+async fn test_save_and_find_booth() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    let booth = create_test_booth("Test Booth 1");
+    let booth_id = booth.id.clone();
+    
+    // Save the booth
+    let save_result = repo.save(&booth).await;
+    assert!(save_result.is_ok(), "Failed to save booth: {:?}", save_result.err());
+    
+    // Find the booth by ID
+    let found = repo.find_by_id(&booth_id).await;
+    assert!(found.is_ok(), "Failed to find booth: {:?}", found.err());
+    
+    let found_booth = found.unwrap();
+    assert!(found_booth.is_some(), "Booth not found after save");
+    
+    let found_booth = found_booth.unwrap();
+    assert_eq!(found_booth.id, booth_id);
+    assert_eq!(found_booth.description, "Test Booth 1");
+}
+
+#[wasm_bindgen_test]
+async fn test_find_all_booths() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    // Initially empty
+    let all_booths = repo.find_all().await.unwrap();
+    assert_eq!(all_booths.len(), 0);
+    
+    // Save multiple booths
+    let booth1 = create_test_booth("Booth 1");
+    let booth2 = create_test_booth("Booth 2");
+    let booth3 = create_test_booth("Booth 3");
+    
+    repo.save(&booth1).await.unwrap();
+    repo.save(&booth2).await.unwrap();
+    repo.save(&booth3).await.unwrap();
+    
+    // Find all should return 3 booths
+    let all_booths = repo.find_all().await.unwrap();
+    assert_eq!(all_booths.len(), 3);
+    
+    let descriptions: Vec<String> = all_booths.iter().map(|b| b.description.clone()).collect();
+    assert!(descriptions.contains(&"Booth 1".to_string()));
+    assert!(descriptions.contains(&"Booth 2".to_string()));
+    assert!(descriptions.contains(&"Booth 3".to_string()));
+}
+
+#[wasm_bindgen_test]
+async fn test_update_booth() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    let mut booth = create_test_booth("Original Description");
+    let booth_id = booth.id.clone();
+    
+    // Save initial booth
+    repo.save(&booth).await.unwrap();
+    
+    // Update the booth
+    booth.description = "Updated Description".to_string();
+    let update_result = repo.save(&booth).await;
+    assert!(update_result.is_ok(), "Failed to update booth: {:?}", update_result.err());
+    
+    // Verify the update
+    let found = repo.find_by_id(&booth_id).await.unwrap().unwrap();
+    assert_eq!(found.description, "Updated Description");
+}
+
+#[wasm_bindgen_test]
+async fn test_delete_booth() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    let booth = create_test_booth("To Be Deleted");
+    let booth_id = booth.id.clone();
+    
+    // Save the booth
+    repo.save(&booth).await.unwrap();
+    
+    // Verify it exists
+    let found = repo.find_by_id(&booth_id).await.unwrap();
+    assert!(found.is_some());
+    
+    // Delete the booth
+    let delete_result = repo.delete(&booth_id).await;
+    assert!(delete_result.is_ok(), "Failed to delete booth: {:?}", delete_result.err());
+    
+    // Verify it's gone
+    let found = repo.find_by_id(&booth_id).await.unwrap();
+    assert!(found.is_none(), "Booth still exists after deletion");
+}
+
+#[wasm_bindgen_test]
+async fn test_delete_nonexistent_booth() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    let booth_id = domain::models::shared::BoothId::new();
+    
+    // Deleting a non-existent booth should succeed (idempotent)
+    let delete_result = repo.delete(&booth_id).await;
+    assert!(delete_result.is_ok());
+}
+
+#[wasm_bindgen_test]
+async fn test_concurrent_saves() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+    
+    // Create multiple booths
+    let booth1 = create_test_booth("Concurrent 1");
+    let booth2 = create_test_booth("Concurrent 2");
+    let booth3 = create_test_booth("Concurrent 3");
+    
+    // Save concurrently
+    let repo1 = repo.clone();
+    let repo2 = repo.clone();
+    let repo3 = repo.clone();
+    
+    let f1 = repo1.save(&booth1);
+    let f2 = repo2.save(&booth2);
+    let f3 = repo3.save(&booth3);
+    
+    // Wait for all to complete
+    let (r1, r2, r3) = futures::join!(f1, f2, f3);
+    
+    assert!(r1.is_ok());
+    assert!(r2.is_ok());
+    assert!(r3.is_ok());
+    
+    // Verify all were saved
+    let all_booths = repo.find_all().await.unwrap();
+    assert_eq!(all_booths.len(), 3);
+}
