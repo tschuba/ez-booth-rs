@@ -21,6 +21,7 @@
   },
   "booth": {
     "title": "Stand",
+    "selected_label": "Ausgewählter Stand:",
     "created": "Stand erstellt.",
     "deleted": "Stand gelöscht.",
     "saved": "Stand gespeichert.",

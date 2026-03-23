@@ -21,6 +21,7 @@
   },
   "booth": {
     "title": "Booth",
+    "selected_label": "Selected booth:",
     "created": "Booth created.",
     "deleted": "Booth deleted.",
     "saved": "Booth saved.",

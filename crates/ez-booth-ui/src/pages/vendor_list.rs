@@ -1,7 +1,7 @@
 use crate::components::*;
 use crate::state::*;
 use crate::t;
-use domain::models::booth::Booth;
+use crate::selected_booth_context;
 use domain::models::vendor::Vendor;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -17,7 +17,8 @@ struct VendorSummary {
 pub fn VendorListPage() -> impl IntoView {
     let app_state = use_app_state();
     let (vendor_summaries, set_vendor_summaries) = create_signal(Vec::<VendorSummary>::new());
-    let (selected_booth, set_selected_booth) = create_signal(None::<Booth>);
+    // Use global selected booth context
+    let selected_booth = selected_booth_context::use_selected_booth();
     let (is_loading, set_is_loading) = create_signal(true);
     let (show_vendor_detail, set_show_vendor_detail) = create_signal(false);
     let (selected_vendor, set_selected_vendor) = create_signal(None::<VendorSummary>);
@@ -83,24 +84,6 @@ pub fn VendorListPage() -> impl IntoView {
         }
     });
 
-    // Load available booths for selection
-    let (booths, set_booths) = create_signal(Vec::new());
-    create_effect(move |_| {
-        let state_result = app_state.get();
-        if let Some(Ok(state)) = state_result {
-            spawn_local(async move {
-                match state.booth_repository.find_all().await {
-                    Ok(loaded_booths) => {
-                        set_booths.set(loaded_booths);
-                    }
-                    Err(e) => {
-                        toast.error(&format!("Failed to load booths: {:?}", e));
-                    }
-                }
-            });
-        }
-    });
-
     let handle_vendor_click = move |summary: VendorSummary| {
         set_selected_vendor.set(Some(summary));
         set_show_vendor_detail.set(true);
@@ -117,35 +100,7 @@ pub fn VendorListPage() -> impl IntoView {
         <Container>
             <div class="py-8">
                 <Card title_view={t!("vendor.list_title").into_view()}>
-                    // Booth selector
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            {t!("vendor.select_booth")}
-                        </label>
-                        <select
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                let value = event_target_value(&ev);
-                                if value.is_empty() {
-                                    set_selected_booth.set(None);
-                                } else {
-                                    // Find the booth by ID
-                                    let booth = booths.get().into_iter().find(|b| b.id.as_str() == value);
-                                    set_selected_booth.set(booth);
-                                }
-                            }
-                        >
-                            <option value="">{t!("vendor.no_booth_selected")}</option>
-                            {move || booths.get().into_iter().map(|booth| {
-                                let booth_id = booth.id.as_str().to_string();
-                                view! {
-                                    <option value={booth_id}>
-                                        {booth.description.clone()}
-                                    </option>
-                                }
-                            }).collect_view()}
-                        </select>
-                    </div>
+
 
                     // Vendor list
                     <Show

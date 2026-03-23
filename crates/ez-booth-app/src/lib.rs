@@ -8,5 +8,9 @@ pub fn main() {
     console_error_panic_hook::set_once();
 
     // Mount the application
-    leptos::mount_to_body(|| view! { <ez_booth_ui::App /> });
+    leptos::mount_to_body(|| {
+        view! { <ez_booth_ui::SelectedBoothProvider>
+            <ez_booth_ui::App />
+        </ez_booth_ui::SelectedBoothProvider> }
+    });
 }
