@@ -47,7 +47,29 @@
     "total": "Total",
     "confirm": "Confirm",
     "add_item": "Add Item",
-    "success": "Sale recorded successfully"
+    "success": "Sale recorded successfully",
+    "confirm_cancel": "Cancel checkout? All current items will be cleared.",
+    "confirm_cancel_title": "Cancel Checkout",
+    "confirm_cancel_confirm": "Clear Items",
+    "errors": {
+      "amount_required": "Amount is required",
+      "amount_positive": "Amount must be greater than zero",
+      "amount_invalid": "Invalid amount format",
+      "vendor_required": "Vendor ID is required",
+      "items_required": "Please add at least one item",
+      "booth_required": "Please create a booth first"
+    },
+    "info": {
+      "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID"
+    },
+    "time": {
+      "seconds": "{count} seconds",
+      "seconds_one": "{count} second",
+      "minutes": "{count} mins",
+      "minutes_one": "{count} min",
+      "time_of_day": "{time}",
+      "tooltip": "Added at {datetime}"
+    }
   },
   "report": {
     "title": "Reports",
