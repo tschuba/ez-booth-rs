@@ -143,6 +143,13 @@ pub fn BoothListPage() -> impl IntoView {
     let create_booth_title = move || translations.with(|t| t.get("booth.create"));
     let edit_booth_title = move || translations.with(|t| t.get("booth.edit"));
     
+    // Reactive delete message
+    let delete_message = move || {
+        deleting_booth.get()
+            .map(|b| format!("Are you sure you want to delete '{}'? This action cannot be undone.", b.description))
+            .unwrap_or_else(|| "Are you sure you want to delete this booth?".to_string())
+    };
+    
     view! {
         <Container>
             <div class="py-8">
@@ -270,27 +277,19 @@ pub fn BoothListPage() -> impl IntoView {
             </Modal>
             
             // Delete confirmation modal
-            {move || {
-                let delete_message = deleting_booth.get()
-                    .map(|b| format!("Are you sure you want to delete '{}'? This action cannot be undone.", b.description))
-                    .unwrap_or_else(|| "Are you sure you want to delete this booth?".to_string());
-                
-                view! {
-                    <ConfirmModal
-                        show=show_delete_confirm
-                        on_close=move || {
-                            set_show_delete_confirm.set(false);
-                            set_deleting_booth.set(None);
-                        }
-                        on_confirm=handle_delete_booth
-                        title="Delete Booth".to_string()
-                        message=delete_message
-                        confirm_text="Delete".to_string()
-                        cancel_text="Cancel".to_string()
-                        is_destructive=true
-                    />
+            <ConfirmModal
+                show=show_delete_confirm
+                on_close=move || {
+                    set_show_delete_confirm.set(false);
+                    set_deleting_booth.set(None);
                 }
-            }}
+                on_confirm=handle_delete_booth
+                title="Delete Booth".to_string()
+                message=Signal::derive(delete_message)
+                confirm_text="Delete".to_string()
+                cancel_text="Cancel".to_string()
+                is_destructive=true
+            />
         </Container>
     }
 }
