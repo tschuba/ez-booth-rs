@@ -3,7 +3,7 @@ use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
-use domain::models::booth::Booth;
+use crate::selected_booth_context;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
 use domain::models::vendor::Vendor;
@@ -218,14 +218,14 @@ pub fn CheckoutPage() -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
 
-    // Selected booth (per booth dropdown)
-    let (selected_booth, set_selected_booth) = create_signal(None::<Booth>);
+    // Use global selected booth context
+    let selected_booth = selected_booth_context::use_selected_booth();
 
     // Purchases for current booth
     let (purchases, set_purchases) = create_signal(Vec::<Purchase>::new());
 
     // Checkout form data
-    let (initial_booth_id, initial_form_data) =
+    let (_, initial_form_data) =
         load_saved_form_data().unwrap_or((None, CheckoutFormData::default()));
     let (form_data, set_form_data) = create_signal(initial_form_data);
 
@@ -282,64 +282,30 @@ pub fn CheckoutPage() -> impl IntoView {
         });
     }
 
-    // Load initial data
-    let initial_booth_id_ref = initial_booth_id.clone();
+    // Load purchases for selected booth
     create_effect(move |_| {
         let state_result = app_state.get();
-
-        if let Some(Ok(state)) = state_result {
+        let booth = selected_booth.get();
+        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
-            let set_selected_booth = set_selected_booth.clone();
             let set_purchases = set_purchases.clone();
             let toast = toast.clone();
-            let initial_booth_id = initial_booth_id_ref.clone();
+            let booth_id = booth.id.clone();
             spawn_local(async move {
-                match state.booth_repository.find_all().await {
-                    Ok(booths) => {
-                        if booths.is_empty() {
-                            set_is_loading.set(false);
-                            return;
-                        }
-
-                        let next_booth = initial_booth_id
-                            .as_ref()
-                            .and_then(|saved_id| {
-                                booths
-                                    .iter()
-                                    .find(|booth| booth.id.as_str() == *saved_id)
-                                    .cloned()
-                            })
-                            .or_else(|| booths.first().cloned());
-
-                        if let Some(booth) = next_booth.clone() {
-                            let booth_id = booth.id.clone();
-                            set_selected_booth.set(Some(booth));
-
-                            match state.purchase_repository.find_by_booth(&booth_id).await {
-                                Ok(existing_purchases) => {
-                                    let mut sorted = existing_purchases;
-                                    sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-                                    set_purchases.set(sorted);
-                                }
-                                Err(e) => {
-                                    let error_msg = translate_with_params(
-                                        "checkout.errors.load_purchases_failed",
-                                        HashMap::from([("error", format_error_message(&e))]),
-                                    );
-                                    toast.error(&error_msg);
-                                }
-                            }
-                        }
+                match state.purchase_repository.find_by_booth(&booth_id).await {
+                    Ok(existing_purchases) => {
+                        let mut sorted = existing_purchases;
+                        sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                        set_purchases.set(sorted);
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
-                            "checkout.errors.load_booths_failed",
+                            "checkout.errors.load_purchases_failed",
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
                     }
                 }
-
                 set_is_loading.set(false);
             });
         }
@@ -667,229 +633,236 @@ pub fn CheckoutPage() -> impl IntoView {
                     <div class="flex-1 space-y-4">
                         <Card title_view={t!("checkout.title").into_view()}>
                             <Show
-                                when=move || is_loading.get()
+                                when=move || selected_booth.get().is_none()
                                 fallback=move || view! {
                                     <Show
-                                        when=move || selected_booth.get().is_none()
+                                        when=move || is_loading.get()
                                         fallback=move || view! {
-                                            <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem]">
-                                                <div class="space-y-4 lg:pr-4">
-                                                    <div class="space-y-6">
-                                                        <div>
-                                                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                                {t!("checkout.vendor_id")}
-                                                            </label>
-                                                            <input
-                                                                class={move || format!(
-                                                                    "w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {}",
-                                                                    if form_data.get().vendor_error.is_some() {
-                                                                        "border-red-500 focus:ring-red-500"
-                                                                    } else {
-                                                                        "border-gray-300"
-                                                                    }
-                                                                )}
-                                                                placeholder={t!("checkout.vendor_placeholder")}
-                                                                value=move || form_data.get().vendor_id
-                                                                node_ref=vendor_input_ref
-                                                                on:input=move |ev| {
-                                                                    let value = event_target_value(&ev);
-                                                                    set_form_data.update(|data| {
-                                                                        data.vendor_id = value;
-                                                                        data.vendor_error = None;
-                                                                    });
-                                                                }
-                                                                on:keydown=move |ev: web_sys::KeyboardEvent| {
-                                                                    if ev.key() == "Enter" {
-                                                                        ev.prevent_default();
-
-                                                                        let current_value = form_data.get().vendor_id;
-                                                                        let trimmed = current_value.trim().to_string();
-
-                                                                        if trimmed != current_value {
-                                                                            let message = t!("checkout.info.vendor_trimmed")();
-                                                                            toast.info(&message);
-                                                                            set_form_data.update(|data| data.vendor_id = trimmed.clone());
-                                                                            if let Some(input) = vendor_input_ref.get() {
-                                                                                input.set_value(&trimmed);
+                                            <Show
+                                                when=move || selected_booth.get().is_none()
+                                                fallback=move || view! {
+                                                    <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+                                                        <div class="space-y-4 lg:pr-4">
+                                                            <div class="space-y-6">
+                                                                <div>
+                                                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                                        {t!("checkout.vendor_id")}
+                                                                    </label>
+                                                                    <input
+                                                                        class={move || format!(
+                                                                            "w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {}",
+                                                                            if form_data.get().vendor_error.is_some() {
+                                                                                "border-red-500 focus:ring-red-500"
+                                                                            } else {
+                                                                                "border-gray-300"
                                                                             }
+                                                                        )}
+                                                                        placeholder={t!("checkout.vendor_placeholder")}
+                                                                        value=move || form_data.get().vendor_id
+                                                                        node_ref=vendor_input_ref
+                                                                        on:input=move |ev| {
+                                                                            let value = event_target_value(&ev);
+                                                                            set_form_data.update(|data| {
+                                                                                data.vendor_id = value;
+                                                                                data.vendor_error = None;
+                                                                            });
                                                                         }
+                                                                        on:keydown=move |ev: web_sys::KeyboardEvent| {
+                                                                            if ev.key() == "Enter" {
+                                                                                ev.prevent_default();
 
-                                                                        if trimmed.is_empty() {
-                                                                            let message = t!("checkout.errors.vendor_required")();
-                                                                            toast.warning(&message);
-                                                                            set_form_data.update(|data| data.vendor_error = Some(message));
-                                                                            if let Some(input) = vendor_input_ref.get() {
-                                                                                let _ = input.focus();
-                                                                                let _ = input.select();
-                                                                            }
-                                                                        } else {
-                                                                            set_form_data.update(|data| data.vendor_error = None);
-                                                                            if let Some(amount_input) = amount_input_ref.get() {
-                                                                                let _ = amount_input.focus();
-                                                                                let _ = amount_input.select();
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            />
-                                                            <Show when=move || form_data.get().vendor_error.is_some()>
-                                                                <p class="mt-1 text-sm text-red-600">{move || form_data.get().vendor_error.clone().unwrap_or_default()}</p>
-                                                            </Show>
-                                                        </div>
+                                                                                let current_value = form_data.get().vendor_id;
+                                                                                let trimmed = current_value.trim().to_string();
 
-                                                        <div>
-                                                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                                {t!("checkout.amount")}
-                                                            </label>
-                                                            <div class="flex flex-col gap-2">
-                                                                <input
-                                                                    class={move || format!(
-                                                                        "flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {}",
-                                                                        if form_data.get().amount_error.is_some() {
-                                                                            "border-red-500 focus:ring-red-500"
-                                                                        } else {
-                                                                            "border-gray-300"
-                                                                        }
-                                                                    )}
-                                                                    placeholder={t!("checkout.amount_placeholder")}
-                                                                    inputmode="decimal"
-                                                                    value=move || form_data.get().current_amount
-                                                                    node_ref=amount_input_ref
-                                                                    on:input=move |ev| {
-                                                                        let value = event_target_value(&ev);
-                                                                        set_form_data.update(|data| {
-                                                                            data.current_amount = value;
-                                                                            data.amount_error = None;
-                                                                        });
-                                                                    }
-                                                                    on:keydown=move |ev: web_sys::KeyboardEvent| {
-                                                                        if ev.key() == "Enter" {
-                                                                            ev.prevent_default();
-                                                                            add_item();
-                                                                        }
-                                                                    }
-                                                                />
-                                                                <Button on_click=Box::new(add_item)>
-                                                                    {t!("checkout.add_item")}
-                                                                </Button>
-                                                                <Show when=move || form_data.get().amount_error.is_some()>
-                                                                    <p class="text-sm text-red-600">{move || form_data.get().amount_error.clone().unwrap_or_default()}</p>
-                                                                </Show>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                                                if trimmed != current_value {
+                                                                                    let message = t!("checkout.info.vendor_trimmed")();
+                                                                                    toast.info(&message);
+                                                                                    set_form_data.update(|data| data.vendor_id = trimmed.clone());
+                                                                                    if let Some(input) = vendor_input_ref.get() {
+                                                                                        input.set_value(&trimmed);
+                                                                                    }
+                                                                                }
 
-                                                <div class="space-y-4">
-                                                    <div>
-                                                        <h3 class="text-sm font-semibold text-gray-700 mb-2">{t!("checkout.current_items")}</h3>
-                                                        <div class="space-y-2 border rounded-lg p-3 bg-gray-50">
-                                                            <Show
-                                                                when=move || form_data.get().items.is_empty()
-                                                                fallback=move || {
-                                                                    let data = form_data.get();
-                                                                    let items = data.items;
-                                                                    let total_items = items.len();
-                                                                    view! {
-                                                                        <ul class="space-y-2">
-                                                                            {items.into_iter().enumerate().map(move |(index, item)| {
-                                                                                let display_number = total_items - index;
-                                                                                let vendor_label = if item.vendor_id.trim().is_empty() {
-                                                                                    "—".to_string()
+                                                                                if trimmed.is_empty() {
+                                                                                    let message = t!("checkout.errors.vendor_required")();
+                                                                                    toast.warning(&message);
+                                                                                    set_form_data.update(|data| data.vendor_error = Some(message));
+                                                                                    if let Some(input) = vendor_input_ref.get() {
+                                                                                        let _ = input.focus();
+                                                                                        let _ = input.select();
+                                                                                    }
                                                                                 } else {
-                                                                                    item.vendor_id.clone()
-                                                                                };
-                                                                                view! {
-                                                                                    <li class="flex items-start justify-between text-sm">
-                                                                                        <div>
-                                                                                            <p class="font-medium">{format!("Item {}", display_number)}</p>
-                                                                                            <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
-                                                                                        </div>
-                                                                                        <div class="text-right">
-                                                                                            <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
-                                                                    <p class="text-xs text-gray-400" title={
-                                                                        let locale = use_locale().get();
-                                                                        format_item_tooltip(item.added_at, locale)
-                                                                    }>{
-                                                                        let locale = use_locale().get();
-                                                                        format!("{}", format_item_timestamp(item.added_at, locale))
-                                                                    }</p>
+                                                                                    set_form_data.update(|data| data.vendor_error = None);
+                                                                                    if let Some(amount_input) = amount_input_ref.get() {
+                                                                                        let _ = amount_input.focus();
+                                                                                        let _ = amount_input.select();
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    />
+                                                                    <Show when=move || form_data.get().vendor_error.is_some()>
+                                                                        <p class="mt-1 text-sm text-red-600">{move || form_data.get().vendor_error.clone().unwrap_or_default()}</p>
+                                                                    </Show>
+                                                                </div>
+
+                                                                <div>
+                                                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                                        {t!("checkout.amount")}
+                                                                    </label>
+                                                                    <div class="flex flex-col gap-2">
+                                                                        <input
+                                                                            class={move || format!(
+                                                                                "flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {}",
+                                                                                if form_data.get().amount_error.is_some() {
+                                                                                    "border-red-500 focus:ring-red-500"
+                                                                                } else {
+                                                                                    "border-gray-300"
+                                                                                }
+                                                                            )}
+                                                                            placeholder={t!("checkout.amount_placeholder")}
+                                                                            inputmode="decimal"
+                                                                            value=move || form_data.get().current_amount
+                                                                            node_ref=amount_input_ref
+                                                                            on:input=move |ev| {
+                                                                                let value = event_target_value(&ev);
+                                                                                set_form_data.update(|data| {
+                                                                                    data.current_amount = value;
+                                                                                    data.amount_error = None;
+                                                                                });
+                                                                            }
+                                                                            on:keydown=move |ev: web_sys::KeyboardEvent| {
+                                                                                if ev.key() == "Enter" {
+                                                                                    ev.prevent_default();
+                                                                                    add_item();
+                                                                                }
+                                                                            }
+                                                                        />
+                                                                        <Button on_click=Box::new(add_item)>
+                                                                            {t!("checkout.add_item")}
+                                                                        </Button>
+                                                                        <Show when=move || form_data.get().amount_error.is_some()>
+                                                                            <p class="text-sm text-red-600">{move || form_data.get().amount_error.clone().unwrap_or_default()}</p>
+                                                                        </Show>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        </li>
-                                                    }
-                                                                            }).collect_view()}
-                                                                        </ul>
-                                                                    }
-                                                                }
-                                                            >
-                                                                 <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
-                                                            </Show>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="space-y-4 rounded-lg border bg-gray-50 p-4 shadow-sm">
-                                                        <div class="flex justify-between text-lg font-semibold">
-                                                            <span>{t!("checkout.total")}</span>
-                                                            <span>{move || format!("{:.2}", form_data.get().total())}</span>
                                                         </div>
 
-                                                        <div class="flex flex-col gap-2 sm:flex-row">
-                                                            <Button class="flex-1".to_string() on_click=Box::new(submit_purchase)>
-                                                                <span class="inline-flex items-center justify-center gap-4">
-                                                                    <svg
-                                                                        class="w-8 h-8"
-                                                                        viewBox="0 0 24 24"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        stroke-width="2"
-                                                                        stroke-linecap="round"
-                                                                        stroke-linejoin="round"
-                                                                        aria-hidden="true"
+                                                        <div class="space-y-4">
+                                                            <div>
+                                                                <h3 class="text-sm font-semibold text-gray-700 mb-2">{t!("checkout.current_items")}</h3>
+                                                                <div class="space-y-2 border rounded-lg p-3 bg-gray-50">
+                                                                    <Show
+                                                                        when=move || form_data.get().items.is_empty()
+                                                                        fallback=move || {
+                                                                            let data = form_data.get();
+                                                                            let items = data.items;
+                                                                            let total_items = items.len();
+                                                                            view! {
+                                                                                <ul class="space-y-2">
+                                                                                    {items.into_iter().enumerate().map(move |(index, item)| {
+                                                                                        let display_number = total_items - index;
+                                                                                        let vendor_label = if item.vendor_id.trim().is_empty() {
+                                                                                            "—".to_string()
+                                                                                        } else {
+                                                                                            item.vendor_id.clone()
+                                                                                        };
+                                                                                        view! {
+                                                                                            <li class="flex items-start justify-between text-sm">
+                                                                                                <div>
+                                                                                                    <p class="font-medium">{format!("Item {}", display_number)}</p>
+                                                                                                    <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
+                                                                                                </div>
+                                                                                                <div class="text-right">
+                                                                                                    <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
+                                                                            <p class="text-xs text-gray-400" title={
+                                                                                let locale = use_locale().get();
+                                                                                format_item_tooltip(item.added_at, locale)
+                                                                            }>{
+                                                                                let locale = use_locale().get();
+                                                                                format!("{}", format_item_timestamp(item.added_at, locale))
+                                                                            }</p>
+                                                                    </div>
+                                                                </li>
+                                                            }
+                                                                                    }).collect_view()}
+                                                                                </ul>
+                                                                            }
+                                                                        }
                                                                     >
-                                                                        <polyline points="20 6 9 17 4 12" />
-                                                                    </svg>
-                                                                    <span>{t!("checkout.confirm")}</span>
-                                                                </span>
-                                                            </Button>
-                                                            <Button
-                                                                class="flex-1".to_string()
-                                                                variant=ButtonVariant::Secondary
-                                                                on_click=Box::new(move || confirm_clear_form())
-                                                                aria_label=t!("checkout.confirm_cancel_confirm")()
-                                                            >
-                                                                <span
-                                                                    class="inline-flex items-center justify-center"
-                                                                    title={t!("checkout.confirm_cancel_confirm")()}
-                                                                >
-                                                                    <svg
-                                                                        class="w-8 h-8"
-                                                                        viewBox="0 0 24 24"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        stroke-width="2"
-                                                                        stroke-linecap="round"
-                                                                        stroke-linejoin="round"
-                                                                        aria-hidden="true"
+                                                                        <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
+                                                                    </Show>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="space-y-4 rounded-lg border bg-gray-50 p-4 shadow-sm">
+                                                                <div class="flex justify-between text-lg font-semibold">
+                                                                    <span>{t!("checkout.total")}</span>
+                                                                    <span>{move || format!("{:.2}", form_data.get().total())}</span>
+                                                                </div>
+
+                                                                <div class="flex flex-col gap-2 sm:flex-row">
+                                                                    <Button class="flex-1".to_string() on_click=Box::new(submit_purchase)>
+                                                                        <span class="inline-flex items-center justify-center gap-4">
+                                                                            <svg
+                                                                                class="w-8 h-8"
+                                                                                viewBox="0 0 24 24"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                stroke-width="2"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round"
+                                                                                aria-hidden="true"
+                                                                            >
+                                                                                <polyline points="20 6 9 17 4 12" />
+                                                                            </svg>
+                                                                            <span>{t!("checkout.confirm")}</span>
+                                                                        </span>
+                                                                    </Button>
+                                                                    <Button
+                                                                        class="flex-1".to_string()
+                                                                        variant=ButtonVariant::Secondary
+                                                                        on_click=Box::new(move || confirm_clear_form())
+                                                                        aria_label=t!("checkout.confirm_cancel_confirm")()
                                                                     >
-                                                                        <polyline points="3 6 5 6 21 6" />
-                                                                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                                                        <path d="M10 11v6" />
-                                                                        <path d="M14 11v6" />
-                                                                        <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
-                                                                    </svg>
-                                                                </span>
-                                                            </Button>
+                                                                        <span
+                                                                            class="inline-flex items-center justify-center"
+                                                                            title={t!("checkout.confirm_cancel_confirm")()}
+                                                                        >
+                                                                            <svg
+                                                                                class="w-8 h-8"
+                                                                                viewBox="0 0 24 24"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                stroke-width="2"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round"
+                                                                                aria-hidden="true"
+                                                                            >
+                                                                                <polyline points="3 6 5 6 21 6" />
+                                                                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                                                                <path d="M10 11v6" />
+                                                                                <path d="M14 11v6" />
+                                                                                <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
+                                                                            </svg>
+                                                                        </span>
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                }
+                                            >
+                                                <p class="text-gray-600">{t!("checkout.no_booth_message")}</p>
+                                            </Show>
                                         }
                                     >
-                                        <p class="text-gray-600">{t!("checkout.no_booth_message")}</p>
+                                        <p class="text-gray-600">{t!("checkout.loading_message")}</p>
                                     </Show>
                                 }
                             >
-                                <p class="text-gray-600">{t!("checkout.loading_message")}</p>
+                                <p class="text-gray-600">{t!("checkout.prompt_select_booth")}</p>
                             </Show>
                         </Card>
 

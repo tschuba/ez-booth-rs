@@ -21,6 +21,7 @@
   },
   "booth": {
     "title": "Booth",
+    "selected_label": "Selected booth:",
     "created": "Booth created.",
     "deleted": "Booth deleted.",
     "saved": "Booth saved.",
@@ -52,7 +53,8 @@
     "detail_title": "Vendor Details",
     "created_at": "Created"
   },
-  "checkout": {
+    "checkout": {
+      "prompt_select_booth": "Please select a booth above to start checkout.",
     "title": "Checkout",
     "vendor_id": "Vendor ID",
     "vendor_placeholder": "Vendor ID (e.g., 101)",

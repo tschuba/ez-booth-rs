@@ -21,6 +21,7 @@
   },
   "booth": {
     "title": "Stand",
+    "selected_label": "Ausgewählter Stand:",
     "created": "Stand erstellt.",
     "deleted": "Stand gelöscht.",
     "saved": "Stand gespeichert.",
@@ -52,7 +53,8 @@
     "detail_title": "Verkäufer-Details",
     "created_at": "Erstellt"
   },
-  "checkout": {
+    "checkout": {
+      "prompt_select_booth": "Bitte wähle oben einen Stand aus, um mit der Kasse zu starten.",
     "title": "Kasse",
     "vendor_id": "Verkäufer-ID",
     "vendor_placeholder": "Verkäufer-ID (z. B. 101)",
