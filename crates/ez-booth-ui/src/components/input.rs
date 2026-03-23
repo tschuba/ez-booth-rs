@@ -44,7 +44,7 @@ pub fn Input(
     required: Option<bool>,
     /// Error message to display
     #[prop(optional)]
-    error: Option<String>,
+    error: Option<ReadSignal<Option<String>>>,
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
@@ -56,17 +56,18 @@ pub fn Input(
     let disabled = disabled.unwrap_or(false);
     let required = required.unwrap_or(false);
 
-    let input_classes = if error.is_some() {
+    let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
+    let input_classes = move || if has_error() {
         "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
     } else {
         "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
     };
 
     let additional_classes = class.unwrap_or("");
-    let combined_classes = format!("{} {}", input_classes, additional_classes);
+    let combined_classes = move || format!("{} {}", input_classes(), additional_classes);
     
     // Generate unique ID for error message association
-    let error_id = error.as_ref().map(|_| format!("input-error-{}", value.get_untracked().len()));
+    let error_id = move || error.and_then(|e| e.get().as_ref().map(|_| format!("input-error-{}", value.get_untracked().len())));
 
     view! {
         <div class="w-full">
@@ -83,17 +84,17 @@ pub fn Input(
                 disabled=disabled
                 required=required
                 aria-label=aria_label
-                aria-invalid=if error.is_some() { Some("true") } else { None }
-                aria-describedby=error_id.clone()
+                aria-invalid=move || if has_error() { Some("true") } else { None }
+                aria-describedby=move || error_id()
                 aria-required=if required { Some("true") } else { None }
                 prop:value=move || value.get()
                 on:input=move |ev| {
                     value.set(event_target_value(&ev));
                 }
             />
-            {error.map(|err| view! {
-                <p class="mt-1 text-sm text-red-600" id=error_id role="alert">{err}</p>
-            })}
+            {move || error.and_then(|e| e.get().map(|err| view! {
+                <p class="mt-1 text-sm text-red-600" id=error_id() role="alert">{err}</p>
+            }))}
         </div>
     }
 }
@@ -126,7 +127,7 @@ pub fn NumberInput(
     required: Option<bool>,
     /// Error message to display
     #[prop(optional)]
-    error: Option<String>,
+    error: Option<ReadSignal<Option<String>>>,
     /// ARIA label for accessibility
     #[prop(optional)]
     aria_label: Option<String>,
@@ -134,14 +135,15 @@ pub fn NumberInput(
     let disabled = disabled.unwrap_or(false);
     let required = required.unwrap_or(false);
 
-    let input_classes = if error.is_some() {
+    let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
+    let input_classes = move || if has_error() {
         "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
     } else {
         "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
     };
     
     // Generate unique ID for error message association
-    let error_id = error.as_ref().map(|_| format!("number-input-error-{}", value.get_untracked().len()));
+    let error_id = move || error.and_then(|e| e.get().as_ref().map(|_| format!("number-input-error-{}", value.get_untracked().len())));
 
     view! {
         <div class="w-full">
@@ -161,17 +163,17 @@ pub fn NumberInput(
                 max=max.map(|m| m.to_string()).unwrap_or_default()
                 step=step.map(|s| s.to_string()).unwrap_or_else(|| "0.01".to_string())
                 aria-label=aria_label
-                aria-invalid=if error.is_some() { Some("true") } else { None }
-                aria-describedby=error_id.clone()
+                aria-invalid=move || if has_error() { Some("true") } else { None }
+                aria-describedby=move || error_id()
                 aria-required=if required { Some("true") } else { None }
                 prop:value=move || value.get()
                 on:input=move |ev| {
                     value.set(event_target_value(&ev));
                 }
             />
-            {error.map(|err| view! {
-                <p class="mt-1 text-sm text-red-600" id=error_id role="alert">{err}</p>
-            })}
+            {move || error.and_then(|e| e.get().map(|err| view! {
+                <p class="mt-1 text-sm text-red-600" id=error_id() role="alert">{err}</p>
+            }))}
         </div>
     }
 }

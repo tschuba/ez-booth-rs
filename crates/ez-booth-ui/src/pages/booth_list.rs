@@ -75,17 +75,16 @@ pub fn BoothListPage() -> impl IntoView {
                 title=create_booth_title()
                 size=ModalSize::Large
             >
-                <p class="text-gray-600">"Booth creation form coming soon..."</p>
-                <div class="mt-4 flex justify-end">
-                    <Button 
-                        on_click=Box::new(move || {
-                            set_show_create_modal.set(false);
-                            toast.info("Booth creation not yet implemented");
-                        })
-                    >
-                        "Close"
-                    </Button>
-                </div>
+                <BoothForm
+                    on_submit=move |data| {
+                        // TODO: Save booth using BoothService
+                        toast.success(&format!("Booth created: {}", data.description));
+                        set_show_create_modal.set(false);
+                    }
+                    on_cancel=move || {
+                        set_show_create_modal.set(false);
+                    }
+                />
             </Modal>
         </Container>
     }
