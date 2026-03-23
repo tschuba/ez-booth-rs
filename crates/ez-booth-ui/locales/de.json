@@ -38,7 +38,14 @@
     "list_title": "Verkäufer",
     "id_label": "Verkäufer-ID",
     "create": "Verkäufer erstellen",
-    "total_sales": "Gesamtverkäufe"
+    "total_sales": "Gesamtverkäufe",
+    "purchase_count": "Transaktionen",
+    "select_booth": "Stand auswählen",
+    "no_booth_selected": "-- Stand auswählen --",
+    "select_booth_prompt": "Bitte wählen Sie einen Stand aus, um Verkäufer anzuzeigen",
+    "no_vendors": "Keine Verkäufer für diesen Stand gefunden",
+    "detail_title": "Verkäufer-Details",
+    "created_at": "Erstellt"
   },
   "checkout": {
     "title": "Kasse",

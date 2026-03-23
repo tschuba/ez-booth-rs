@@ -43,6 +43,9 @@ pub fn App() -> impl IntoView {
                                     <a href="/booths" class="text-gray-700 hover:text-blue-600">
                                         {t!("booth.list_title")}
                                     </a>
+                                    <a href="/vendors" class="text-gray-700 hover:text-blue-600">
+                                        {t!("vendor.list_title")}
+                                    </a>
                                     <a href="/checkout" class="text-gray-700 hover:text-blue-600">
                                         {t!("checkout.title")}
                                     </a>
@@ -74,6 +77,7 @@ pub fn App() -> impl IntoView {
                         <Routes>
                             <Route path="/" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
+                            <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
                             <Route path="/reports" view=ReportsPlaceholder/>
                         </Routes>

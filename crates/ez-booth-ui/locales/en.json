@@ -38,7 +38,14 @@
     "list_title": "Vendors",
     "id_label": "Vendor ID",
     "create": "Create Vendor",
-    "total_sales": "Total Sales"
+    "total_sales": "Total Sales",
+    "purchase_count": "Transactions",
+    "select_booth": "Select Booth",
+    "no_booth_selected": "-- Select a booth --",
+    "select_booth_prompt": "Please select a booth to view vendors",
+    "no_vendors": "No vendors found for this booth",
+    "detail_title": "Vendor Details",
+    "created_at": "Created"
   },
   "checkout": {
     "title": "Checkout",
