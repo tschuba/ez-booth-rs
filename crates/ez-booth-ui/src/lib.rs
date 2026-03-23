@@ -6,10 +6,12 @@ mod components;
 mod error;
 mod i18n;
 mod pages;
+mod state;
 
 use components::*;
 use i18n::*;
 use pages::*;
+use state::*;
 
 /// Main application component
 #[component]
@@ -19,6 +21,10 @@ pub fn App() -> impl IntoView {
 
     // Provide metadata context
     provide_meta_context();
+    
+    // Provide app state (repositories, services)
+    let app_state = provide_app_state();
+    provide_context(app_state);
 
     let locale = use_locale();
 
@@ -67,7 +73,7 @@ pub fn App() -> impl IntoView {
                     <main class="py-8">
                         <Routes>
                             <Route path="/" view=HomePage/>
-                            <Route path="/booths" view=BoothListPlaceholder/>
+                            <Route path="/booths" view=BoothListPage/>
                             <Route path="/checkout" view=CheckoutPlaceholder/>
                             <Route path="/reports" view=ReportsPlaceholder/>
                         </Routes>
@@ -88,17 +94,6 @@ pub fn App() -> impl IntoView {
 }
 
 // Placeholder components for routes not yet implemented
-#[component]
-fn BoothListPlaceholder() -> impl IntoView {
-    view! {
-        <Container>
-            <Card title="Booths">
-                <p class="text-gray-600">"Booth management coming soon..."</p>
-            </Card>
-        </Container>
-    }
-}
-
 #[component]
 fn CheckoutPlaceholder() -> impl IntoView {
     view! {
