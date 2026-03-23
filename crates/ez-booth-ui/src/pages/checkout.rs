@@ -1,5 +1,5 @@
 use crate::components::*;
-use crate::i18n::translate_with_params;
+use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
@@ -59,7 +59,7 @@ impl CheckoutFormData {
     }
 }
 
-fn format_item_timestamp(added_at: DateTime<Utc>) -> String {
+fn format_item_timestamp(added_at: DateTime<Utc>, locale: Locale) -> String {
     let now = Utc::now();
     let duration = now.signed_duration_since(added_at);
 
@@ -80,7 +80,11 @@ fn format_item_timestamp(added_at: DateTime<Utc>) -> String {
         };
         translate_with_params(key, HashMap::from([("count", mins.to_string())]))
     } else {
-        let local_time = added_at.with_timezone(&Local).format("%H:%M").to_string();
+        let format_str = match locale {
+            Locale::De => "%H:%M",
+            Locale::En => "%I:%M %p",
+        };
+        let local_time = added_at.with_timezone(&Local).format(format_str).to_string();
         translate_with_params(
             "checkout.time.time_of_day",
             HashMap::from([("time", local_time)]),
@@ -88,15 +92,27 @@ fn format_item_timestamp(added_at: DateTime<Utc>) -> String {
     }
 }
 
-fn format_item_tooltip(added_at: DateTime<Utc>) -> String {
-    let local_time = added_at
-        .with_timezone(&Local)
-        .format("%Y-%m-%d %H:%M")
-        .to_string();
+fn format_item_tooltip(added_at: DateTime<Utc>, locale: Locale) -> String {
+    let format_str = match locale {
+        Locale::De => "%d.%m.%Y %H:%M",
+        Locale::En => "%Y-%m-%d %I:%M %p",
+    };
+    let local_time = added_at.with_timezone(&Local).format(format_str).to_string();
     translate_with_params(
         "checkout.time.tooltip",
         HashMap::from([("datetime", local_time)]),
     )
+}
+
+fn format_purchase_timestamp(timestamp: DateTime<Utc>, locale: Locale) -> String {
+    let format_str = match locale {
+        Locale::De => "%d.%m.%Y %H:%M",
+        Locale::En => "%Y-%m-%d %I:%M %p",
+    };
+    timestamp
+        .with_timezone(&Local)
+        .format(format_str)
+        .to_string()
 }
 
 fn confirmation_token_from_purchase(purchase_id: &PurchaseId) -> String {
@@ -293,13 +309,21 @@ pub fn CheckoutPage() -> impl IntoView {
                                     set_purchases.set(sorted);
                                 }
                                 Err(e) => {
-                                    toast.error(&format!("Failed to load purchases: {:?}", e));
+                                    let error_msg = translate_with_params(
+                                        "checkout.errors.load_purchases_failed",
+                                        HashMap::from([("error", format!("{:?}", e))]),
+                                    );
+                                    toast.error(&error_msg);
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        toast.error(&format!("Failed to load booths: {:?}", e));
+                        let error_msg = translate_with_params(
+                            "checkout.errors.load_booths_failed",
+                            HashMap::from([("error", format!("{:?}", e))]),
+                        );
+                        toast.error(&error_msg);
                     }
                 }
 
@@ -502,7 +526,11 @@ pub fn CheckoutPage() -> impl IntoView {
                         persist_form_data(booth_id, &CheckoutFormData::default());
                     }
                     Err(e) => {
-                        toast.error(&format!("Failed to save purchase: {:?}", e));
+                        let error_msg = translate_with_params(
+                            "checkout.errors.save_purchase_failed",
+                            HashMap::from([("error", format!("{:?}", e))]),
+                        );
+                        toast.error(&error_msg);
                     }
                 }
             });
@@ -541,7 +569,11 @@ pub fn CheckoutPage() -> impl IntoView {
             if let Some(Ok(state)) = state_result {
                 spawn_local(async move {
                     if let Err(e) = state.purchase_repository.delete(&purchase_id).await {
-                        toast.error(&format!("Failed to delete purchase: {:?}", e));
+                        let error_msg = translate_with_params(
+                            "checkout.errors.delete_purchase_failed",
+                            HashMap::from([("error", format!("{:?}", e))]),
+                        );
+                        toast.error(&error_msg);
                     }
                 });
 
@@ -570,7 +602,7 @@ pub fn CheckoutPage() -> impl IntoView {
             <div class="space-y-6">
                 <div class="flex flex-col gap-4 lg:flex-row">
                     <div class="flex-1 space-y-4">
-                        <Card title="Checkout">
+                        <Card title_view={t!("checkout.title").into_view()}>
                             <Show
                                 when=move || is_loading.get()
                                 fallback=move || view! {
@@ -593,7 +625,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         "border-gray-300"
                                                                     }
                                                                 )}
-                                                                placeholder="Vendor ID (e.g., 101)"
+                                                                placeholder={t!("checkout.vendor_placeholder")}
                                                                 value=move || form_data.get().vendor_id
                                                                 node_ref=vendor_input_ref
                                                                 on:input=move |ev| {
@@ -656,7 +688,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                             "border-gray-300"
                                                                         }
                                                                     )}
-                                                                    placeholder="0.00"
+                                                                    placeholder={t!("checkout.amount_placeholder")}
                                                                     inputmode="decimal"
                                                                     value=move || form_data.get().current_amount
                                                                     node_ref=amount_input_ref
@@ -687,7 +719,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
                                                 <div class="space-y-4">
                                                     <div>
-                                                        <h3 class="text-sm font-semibold text-gray-700 mb-2">"Current Items"</h3>
+                                                        <h3 class="text-sm font-semibold text-gray-700 mb-2">{t!("checkout.current_items")}</h3>
                                                         <div class="space-y-2 border rounded-lg p-3 bg-gray-50">
                                                             <Show
                                                                 when=move || form_data.get().items.is_empty()
@@ -712,16 +744,22 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                                         </div>
                                                                                         <div class="text-right">
                                                                                             <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
-                                                                                            <p class="text-xs text-gray-400" title={format_item_tooltip(item.added_at)}>{format!("{}", format_item_timestamp(item.added_at))}</p>
-                                                                                        </div>
-                                                                                    </li>
-                                                                                }
+                                                                    <p class="text-xs text-gray-400" title={
+                                                                        let locale = use_locale().get();
+                                                                        format_item_tooltip(item.added_at, locale)
+                                                                    }>{
+                                                                        let locale = use_locale().get();
+                                                                        format!("{}", format_item_timestamp(item.added_at, locale))
+                                                                    }</p>
+                                                            </div>
+                                                        </li>
+                                                    }
                                                                             }).collect_view()}
                                                                         </ul>
                                                                     }
                                                                 }
                                                             >
-                                                                <p class="text-gray-500 text-sm">"No items added yet"</p>
+                                                                 <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
                                                             </Show>
                                                         </div>
                                                     </div>
@@ -784,15 +822,15 @@ pub fn CheckoutPage() -> impl IntoView {
                                             </div>
                                         }
                                     >
-                                        <p class="text-gray-600">"Please create a booth to start checkout."</p>
+                                        <p class="text-gray-600">{t!("checkout.no_booth_message")}</p>
                                     </Show>
                                 }
                             >
-                                <p class="text-gray-600">"Loading checkout data..."</p>
+                                <p class="text-gray-600">{t!("checkout.loading_message")}</p>
                             </Show>
                         </Card>
 
-                        <Card title="Recent Transactions">
+                        <Card title_view={t!("checkout.recent_transactions_title").into_view()}>
                             <Show
                                 when=move || filtered_purchases.get().is_empty()
                                 fallback=move || {
@@ -819,10 +857,26 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     <div class="flex items-center justify-between p-3 border rounded-lg">
                                                         <div class="space-y-1">
                                                             <p class="text-sm font-semibold">{items_label.clone()}</p>
-                                                            <p class="text-xs text-gray-500">
-                                                                {purchase.timestamp.format("%Y-%m-%d %H:%M").to_string()}
+                                                             <p class="text-xs text-gray-500">
+                                                                {let locale = use_locale().get();
+                                                                translate_with_params(
+                                                                    "checkout.recent.timestamp",
+                                                                    HashMap::from([(
+                                                                        "datetime",
+                                                                        format_purchase_timestamp(purchase.timestamp, locale)
+                                                                    )])
+                                                                )
+                                                                }
+                                                             </p>
+                                                            <p class="text-xs text-gray-500 font-mono break-all">
+                                                                {translate_with_params(
+                                                                    "checkout.recent.purchase_id",
+                                                                    HashMap::from([(
+                                                                        "id",
+                                                                        purchase_id_label.clone()
+                                                                    )])
+                                                                )}
                                                             </p>
-                                                            <p class="text-xs text-gray-500 font-mono break-all">{purchase_id_label.clone()}</p>
                                                         </div>
                                                         <div class="flex items-center gap-2">
                                                             <span class="text-lg font-bold">{format!("{:.2}", amount)}</span>
@@ -840,13 +894,13 @@ pub fn CheckoutPage() -> impl IntoView {
                                     }
                                 }
                             >
-                                <p class="text-gray-500">"No transactions recorded yet."</p>
+                                <p class="text-gray-500">{t!("checkout.no_transactions_message")}</p>
                             </Show>
                         </Card>
                     </div>
 
                     <div class="w-full lg:w-96">
-                        <Card title="Running Totals">
+                        <Card title_view={t!("checkout.running_totals_title").into_view()}>
                             <div class="space-y-4">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">{t!("checkout.running_totals.sales")}</span>
