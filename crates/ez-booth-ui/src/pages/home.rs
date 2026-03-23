@@ -2,6 +2,18 @@ use crate::components::*;
 use crate::t;
 use leptos::*;
 
+fn format_error_message(message: &str) -> String {
+    const MAX_LEN: usize = 140;
+    let mut formatted = message.replace(['\n', '\r'], " ");
+
+    if formatted.len() > MAX_LEN {
+        formatted.truncate(MAX_LEN - 3);
+        formatted.push_str("...");
+    }
+
+    formatted
+}
+
 #[component]
 pub fn HomePage() -> impl IntoView {
     // Modal state
@@ -49,8 +61,19 @@ pub fn HomePage() -> impl IntoView {
                                     <Button on_click=Box::new(move || toast.success("Success! Operation completed."))>
                                         "Show Success"
                                     </Button>
-                                    <Button on_click=Box::new(move || toast.error("Error! Something went wrong."))>
-                                        "Show Error"
+                                    <Button on_click=Box::new(move || {
+                                        let full_message = "Error! Database connection failed: Unable to establish connection to the database server. Please check your network connection and try again. Error code: DB_CONNECTION_TIMEOUT";
+                                        let short_message = format_error_message(full_message);
+                                        toast.error_with_full(&short_message, full_message)
+                                    })>
+                                        "Show Error (Short)"
+                                    </Button>
+                                    <Button on_click=Box::new(move || {
+                                        let full_message = "Error! Database connection failed: Unable to establish connection to the database server. Please check your network connection and try again. Error code: DB_CONNECTION_TIMEOUT. Additional details: The connection timed out after 30 seconds. This might be caused by network issues, firewall settings, or the database server being down.";
+                                        let short_message = format_error_message(full_message);
+                                        toast.error_with_full(&short_message, full_message)
+                                    })>
+                                        "Show Error (Long)"
                                     </Button>
                                     <Button on_click=Box::new(move || toast.warning("Warning! Please check your input."))>
                                         "Show Warning"

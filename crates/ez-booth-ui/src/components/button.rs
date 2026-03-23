@@ -60,7 +60,7 @@ pub fn Button(
     full_width: Option<bool>,
     /// Additional CSS classes
     #[prop(optional)]
-    class: Option<&'static str>,
+    class: Option<String>,
     /// ARIA label for accessibility
     #[prop(optional)]
     aria_label: Option<String>,
@@ -75,7 +75,7 @@ pub fn Button(
 
     let base_classes = "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed";
     let width_class = if full_width { "w-full" } else { "" };
-    let additional_classes = class.unwrap_or("");
+    let additional_classes = class.unwrap_or_default();
 
     let class_list = format!(
         "{} {} {} {} {}",

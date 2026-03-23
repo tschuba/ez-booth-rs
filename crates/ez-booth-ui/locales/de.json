@@ -67,6 +67,8 @@
       "vendor_required": "Verkäufer-ID ist erforderlich",
       "items_required": "Bitte mindestens einen Artikel hinzufügen",
       "booth_required": "Bitte zuerst einen Stand erstellen",
+      "vendor_lookup_failed": "Fehler beim Suchen des Verkäufers: {error}",
+      "vendor_create_failed": "Fehler beim Erstellen des Verkäufers: {error}",
       "load_purchases_failed": "Fehler beim Laden der Käufe: {error}",
       "load_booths_failed": "Fehler beim Laden der Stände: {error}",
       "save_purchase_failed": "Fehler beim Speichern des Kaufs: {error}",
@@ -148,7 +150,9 @@
       "error": "Fehler",
       "warning": "Warnung",
       "info": "Information",
-      "dismiss": "Benachrichtigung schließen"
+      "dismiss": "Benachrichtigung schließen",
+      "copy": "Kopieren",
+      "copied": "Kopiert!"
     }
   }
 }

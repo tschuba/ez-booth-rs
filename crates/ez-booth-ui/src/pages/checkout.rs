@@ -6,6 +6,7 @@ use chrono::{DateTime, Local, Utc};
 use domain::models::booth::Booth;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
+use domain::models::vendor::Vendor;
 use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -200,6 +201,18 @@ fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) {
     }
 }
 
+fn format_error_message<E: std::fmt::Debug>(error: &E) -> String {
+    const MAX_LEN: usize = 140;
+    let mut formatted = format!("{:?}", error).replace(['\n', '\r'], " ");
+
+    if formatted.len() > MAX_LEN {
+        formatted.truncate(MAX_LEN - 3);
+        formatted.push_str("...");
+    }
+
+    formatted
+}
+
 #[component]
 pub fn CheckoutPage() -> impl IntoView {
     let app_state = use_app_state();
@@ -311,7 +324,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                 Err(e) => {
                                     let error_msg = translate_with_params(
                                         "checkout.errors.load_purchases_failed",
-                                        HashMap::from([("error", format!("{:?}", e))]),
+                                        HashMap::from([("error", format_error_message(&e))]),
                                     );
                                     toast.error(&error_msg);
                                 }
@@ -321,7 +334,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     Err(e) => {
                         let error_msg = translate_with_params(
                             "checkout.errors.load_booths_failed",
-                            HashMap::from([("error", format!("{:?}", e))]),
+                            HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
                     }
@@ -460,10 +473,31 @@ pub fn CheckoutPage() -> impl IntoView {
 
     let handle_cancel_confirm = {
         let set_form_data = set_form_data.clone();
+        let vendor_input_ref = vendor_input_ref.clone();
+        let amount_input_ref = amount_input_ref.clone();
         move || {
-            set_form_data.set(CheckoutFormData::default());
+            // Read current vendor_id from input field before clearing
+            let current_vendor_id = if let Some(input) = vendor_input_ref.get() {
+                input.value()
+            } else {
+                String::new()
+            };
+            
+            let mut new_form = CheckoutFormData::default();
+            new_form.vendor_id = current_vendor_id.clone();
+            set_form_data.set(new_form);
             let booth_id = selected_booth.get().map(|b| b.id.as_str());
-            persist_form_data(booth_id, &CheckoutFormData::default());
+            persist_form_data(booth_id, &CheckoutFormData {
+                vendor_id: current_vendor_id.clone(),
+                ..Default::default()
+            });
+            
+            // Set focus appropriately
+            if current_vendor_id.trim().is_empty() {
+                focus_and_select_input(&vendor_input_ref);
+            } else {
+                focus_and_select_input(&amount_input_ref);
+            }
         }
     };
 
@@ -512,8 +546,37 @@ pub fn CheckoutPage() -> impl IntoView {
         let purchase = Purchase::new(booth.id.clone(), vendor_id.clone(), purchase_items);
 
         if let Some(Ok(state)) = state_result {
+            let booth_id_clone = booth.id.clone();
+            let vendor_id_clone = vendor_id.clone();
             let purchase_clone = purchase.clone();
             spawn_local(async move {
+                match state
+                    .vendor_repository
+                    .find_by_id(&booth_id_clone, &vendor_id_clone)
+                    .await
+                {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        let new_vendor = Vendor::new(vendor_id_clone.clone(), booth_id_clone.clone());
+                        if let Err(e) = state.vendor_repository.save(&new_vendor).await {
+                            let error_msg = translate_with_params(
+                                "checkout.errors.vendor_create_failed",
+                                HashMap::from([("error", format_error_message(&e))]),
+                            );
+                            toast.error(&error_msg);
+                            return;
+                        }
+                    }
+                    Err(e) => {
+                        let error_msg = translate_with_params(
+                            "checkout.errors.vendor_lookup_failed",
+                            HashMap::from([("error", format_error_message(&e))]),
+                        );
+                        toast.error(&error_msg);
+                        return;
+                    }
+                }
+
                 match state.purchase_repository.save(&purchase_clone).await {
                     Ok(_) => {
                         set_purchases.update(|list| {
@@ -528,7 +591,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     Err(e) => {
                         let error_msg = translate_with_params(
                             "checkout.errors.save_purchase_failed",
-                            HashMap::from([("error", format!("{:?}", e))]),
+                            HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
                     }
@@ -571,7 +634,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     if let Err(e) = state.purchase_repository.delete(&purchase_id).await {
                         let error_msg = translate_with_params(
                             "checkout.errors.delete_purchase_failed",
-                            HashMap::from([("error", format!("{:?}", e))]),
+                            HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
                     }
@@ -771,7 +834,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         </div>
 
                                                         <div class="flex flex-col gap-2 sm:flex-row">
-                                                            <Button class="flex-1" on_click=Box::new(submit_purchase)>
+                                                            <Button class="flex-1".to_string() on_click=Box::new(submit_purchase)>
                                                                 <span class="inline-flex items-center justify-center gap-4">
                                                                     <svg
                                                                         class="w-8 h-8"
@@ -789,7 +852,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 </span>
                                                             </Button>
                                                             <Button
-                                                                class="flex-1"
+                                                                class="flex-1".to_string()
                                                                 variant=ButtonVariant::Secondary
                                                                 on_click=Box::new(move || confirm_clear_form())
                                                                 aria_label=t!("checkout.confirm_cancel_confirm")()
