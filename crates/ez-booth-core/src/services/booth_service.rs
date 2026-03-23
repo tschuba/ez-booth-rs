@@ -31,7 +31,11 @@ impl BoothService {
         self.storage.load_all_booths()
     }
 
-    pub fn add_transaction(&self, booth_id: &Uuid, transaction: Transaction) -> StorageResult<Booth> {
+    pub fn add_transaction(
+        &self,
+        booth_id: &Uuid,
+        transaction: Transaction,
+    ) -> StorageResult<Booth> {
         let mut booth = self.storage.load_booth(booth_id)?;
         booth.add_transaction(transaction);
         self.storage.save_booth(&booth)?;

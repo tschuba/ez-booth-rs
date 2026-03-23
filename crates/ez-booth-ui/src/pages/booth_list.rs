@@ -1,8 +1,8 @@
 use crate::components::*;
 use crate::state::*;
 use crate::t;
-use leptos::*;
 use domain::models::booth::Booth;
+use leptos::*;
 
 #[component]
 pub fn BoothListPage() -> impl IntoView {
@@ -14,22 +14,26 @@ pub fn BoothListPage() -> impl IntoView {
     let (editing_booth, set_editing_booth) = create_signal(None::<Booth>);
     let (deleting_booth, set_deleting_booth) = create_signal(None::<Booth>);
     let (is_loading, set_is_loading) = create_signal(true);
-    
+
     let toast = use_toast();
-    
+
     // Load booths from storage - track app_state resource
     create_effect(move |_| {
         // Read app_state inside the effect so it's tracked
         let state_result = app_state.get();
-        
-        web_sys::console::log_1(&format!("Effect running, state_result: {:?}", state_result.is_some()).into());
-        
+
+        web_sys::console::log_1(
+            &format!("Effect running, state_result: {:?}", state_result.is_some()).into(),
+        );
+
         if let Some(Ok(state)) = state_result {
             web_sys::console::log_1(&"App state ready, loading booths...".into());
             spawn_local(async move {
                 match state.booth_repository.find_all().await {
                     Ok(loaded_booths) => {
-                        web_sys::console::log_1(&format!("Loaded {} booths", loaded_booths.len()).into());
+                        web_sys::console::log_1(
+                            &format!("Loaded {} booths", loaded_booths.len()).into(),
+                        );
                         set_booths.set(loaded_booths.clone());
                         set_is_loading.set(false);
                         web_sys::console::log_1(&format!("Set booths signal, is_loading now false. Booths count in signal: {}", loaded_booths.len()).into());
@@ -50,12 +54,12 @@ pub fn BoothListPage() -> impl IntoView {
         }
         // If None, still loading - keep is_loading true
     });
-    
+
     // Handle booth creation
     let handle_create_booth = move |data: BoothFormData| {
         // Read app_state BEFORE spawn_local to avoid reactive tracking issues
         let state_result = app_state.get();
-        
+
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 // Convert form data to domain model
@@ -64,18 +68,29 @@ pub fn BoothListPage() -> impl IntoView {
                         // Save to storage
                         match state.booth_repository.save(&booth).await {
                             Ok(_) => {
-                                web_sys::console::log_1(&format!("Booth saved: {}", booth.description).into());
+                                web_sys::console::log_1(
+                                    &format!("Booth saved: {}", booth.description).into(),
+                                );
                                 toast.success(&format!("Booth created: {}", booth.description));
                                 set_show_create_modal.set(false);
-                                
+
                                 // Reload booths
                                 match state.booth_repository.find_all().await {
                                     Ok(loaded_booths) => {
-                                        web_sys::console::log_1(&format!("After create: reloaded {} booths", loaded_booths.len()).into());
+                                        web_sys::console::log_1(
+                                            &format!(
+                                                "After create: reloaded {} booths",
+                                                loaded_booths.len()
+                                            )
+                                            .into(),
+                                        );
                                         set_booths.set(loaded_booths);
                                     }
                                     Err(e) => {
-                                        web_sys::console::log_1(&format!("Failed to reload after create: {:?}", e).into());
+                                        web_sys::console::log_1(
+                                            &format!("Failed to reload after create: {:?}", e)
+                                                .into(),
+                                        );
                                     }
                                 }
                             }
@@ -91,13 +106,13 @@ pub fn BoothListPage() -> impl IntoView {
             }
         });
     };
-    
+
     // Handle booth editing
     let handle_edit_booth = move |data: BoothFormData| {
         // Read signals BEFORE spawn_local
         let state_result = app_state.get();
         let booth_to_edit = editing_booth.get();
-        
+
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 if let Some(mut booth) = booth_to_edit {
@@ -107,19 +122,30 @@ pub fn BoothListPage() -> impl IntoView {
                             // Save updated booth to storage
                             match state.booth_repository.save(&booth).await {
                                 Ok(_) => {
-                                    web_sys::console::log_1(&format!("Booth updated: {}", booth.description).into());
+                                    web_sys::console::log_1(
+                                        &format!("Booth updated: {}", booth.description).into(),
+                                    );
                                     toast.success(&format!("Booth updated: {}", booth.description));
                                     set_show_edit_modal.set(false);
                                     set_editing_booth.set(None);
-                                    
+
                                     // Reload booths
                                     match state.booth_repository.find_all().await {
                                         Ok(loaded_booths) => {
-                                            web_sys::console::log_1(&format!("After edit: reloaded {} booths", loaded_booths.len()).into());
+                                            web_sys::console::log_1(
+                                                &format!(
+                                                    "After edit: reloaded {} booths",
+                                                    loaded_booths.len()
+                                                )
+                                                .into(),
+                                            );
                                             set_booths.set(loaded_booths);
                                         }
                                         Err(e) => {
-                                            web_sys::console::log_1(&format!("Failed to reload after edit: {:?}", e).into());
+                                            web_sys::console::log_1(
+                                                &format!("Failed to reload after edit: {:?}", e)
+                                                    .into(),
+                                            );
                                         }
                                     }
                                 }
@@ -136,31 +162,41 @@ pub fn BoothListPage() -> impl IntoView {
             }
         });
     };
-    
+
     // Handle booth deletion
     let handle_delete_booth = move || {
         // Read signals BEFORE spawn_local
         let state_result = app_state.get();
         let booth_to_delete = deleting_booth.get();
-        
+
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 if let Some(booth) = booth_to_delete {
                     match state.booth_repository.delete(&booth.id).await {
                         Ok(_) => {
-                            web_sys::console::log_1(&format!("Booth deleted: {}", booth.description).into());
+                            web_sys::console::log_1(
+                                &format!("Booth deleted: {}", booth.description).into(),
+                            );
                             toast.success(&format!("Booth deleted: {}", booth.description));
                             set_show_delete_confirm.set(false);
                             set_deleting_booth.set(None);
-                            
+
                             // Reload booths
                             match state.booth_repository.find_all().await {
                                 Ok(loaded_booths) => {
-                                    web_sys::console::log_1(&format!("After delete: reloaded {} booths", loaded_booths.len()).into());
+                                    web_sys::console::log_1(
+                                        &format!(
+                                            "After delete: reloaded {} booths",
+                                            loaded_booths.len()
+                                        )
+                                        .into(),
+                                    );
                                     set_booths.set(loaded_booths);
                                 }
                                 Err(e) => {
-                                    web_sys::console::log_1(&format!("Failed to reload after delete: {:?}", e).into());
+                                    web_sys::console::log_1(
+                                        &format!("Failed to reload after delete: {:?}", e).into(),
+                                    );
                                 }
                             }
                         }
@@ -172,32 +208,38 @@ pub fn BoothListPage() -> impl IntoView {
             }
         });
     };
-    
+
     // Get translated strings
     let translations = crate::i18n::use_translations();
     let create_booth_title = move || translations.with(|t| t.get("booth.create"));
     let edit_booth_title = move || translations.with(|t| t.get("booth.edit"));
-    
+
     // Reactive delete message
     let delete_message = move || {
-        deleting_booth.get()
-            .map(|b| format!("Are you sure you want to delete '{}'? This action cannot be undone.", b.description))
+        deleting_booth
+            .get()
+            .map(|b| {
+                format!(
+                    "Are you sure you want to delete '{}'? This action cannot be undone.",
+                    b.description
+                )
+            })
             .unwrap_or_else(|| "Are you sure you want to delete this booth?".to_string())
     };
-    
+
     view! {
         <Container>
             <div class="py-8">
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
-                    <Button 
+                    <Button
                         on_click=Box::new(move || set_show_create_modal.set(true))
                         aria_label="Create new booth".to_string()
                     >
                         {t!("booth.create")}
                     </Button>
                 </div>
-                
+
                 // Loading state
                 <Show
                     when=move || {
@@ -220,7 +262,7 @@ pub fn BoothListPage() -> impl IntoView {
                                         children=move |booth| {
                                             let booth_for_edit = booth.clone();
                                             let booth_for_delete = booth.clone();
-                                            
+
                                             view! {
                                                 <Card>
                                                     <h3 class="text-lg font-semibold mb-2">{booth.description.clone()}</h3>
@@ -260,7 +302,7 @@ pub fn BoothListPage() -> impl IntoView {
                             <Card>
                                 <div class="text-center py-12">
                                     <p class="text-gray-600 mb-4">"No booths yet"</p>
-                                    <Button 
+                                    <Button
                                         on_click=Box::new(move || set_show_create_modal.set(true))
                                     >
                                         {t!("booth.create")}
@@ -278,7 +320,7 @@ pub fn BoothListPage() -> impl IntoView {
                     </Card>
                 </Show>
             </div>
-            
+
             // Create booth modal
             <Modal
                 show=show_create_modal
@@ -293,7 +335,7 @@ pub fn BoothListPage() -> impl IntoView {
                     }
                 />
             </Modal>
-            
+
             // Edit booth modal
             <Modal
                 show=show_edit_modal
@@ -318,7 +360,7 @@ pub fn BoothListPage() -> impl IntoView {
                     }
                 })}
             </Modal>
-            
+
             // Delete confirmation modal
             <ConfirmModal
                 show=show_delete_confirm

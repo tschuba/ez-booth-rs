@@ -107,11 +107,12 @@ impl Booth {
             created_at: now,
             updated_at: now,
         };
-        
+
         // Validate the booth (includes description length validation)
-        booth.validate()
+        booth
+            .validate()
             .map_err(|e| DomainError::Validation(format!("Invalid booth: {}", e)))?;
-        
+
         Ok(booth)
     }
 

@@ -59,6 +59,44 @@ impl Translations {
             _ => format!("[invalid: {}]", key),
         }
     }
+
+    pub fn format(&self, key: &str, params: &HashMap<&str, String>) -> String {
+        let template = self.get(key);
+        let mut result = String::with_capacity(template.len());
+        let mut chars = template.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                if let Some('}') = chars.peek().cloned() {
+                    chars.next();
+                    result.push_str("{}");
+                    continue;
+                }
+
+                let mut key_buf = String::new();
+                while let Some(next_ch) = chars.next() {
+                    if next_ch == '}' {
+                        break;
+                    }
+                    key_buf.push(next_ch);
+                }
+
+                if key_buf.is_empty() {
+                    result.push_str("{}");
+                } else if let Some(value) = params.get(key_buf.as_str()) {
+                    result.push_str(value);
+                } else {
+                    result.push('{');
+                    result.push_str(&key_buf);
+                    result.push('}');
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
+    }
 }
 
 /// Detect browser locale
@@ -81,6 +119,17 @@ pub fn load_translations(locale: Locale) -> Translations {
     };
 
     serde_json::from_str(json_str).expect("Failed to parse translations")
+}
+
+/// Translate helper
+pub fn translate(key: &str) -> String {
+    let translations = use_translations();
+    translations.with(|t| t.get(key))
+}
+
+pub fn translate_with_params(key: &str, params: HashMap<&str, String>) -> String {
+    let translations = use_translations();
+    translations.with(|t| t.format(key, &params))
 }
 
 /// Initialize i18n context

@@ -52,11 +52,11 @@ pub fn Container(
         "mx-auto px-4 sm:px-6 lg:px-8 {} {}",
         max_width, additional_classes
     );
-    
+
     let as_landmark = as_landmark.unwrap_or(false);
 
     view! {
-        <div 
+        <div
             class=container_classes
             role=if as_landmark { Some("region") } else { None }
             aria-label=aria_label

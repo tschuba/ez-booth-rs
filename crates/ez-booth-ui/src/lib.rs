@@ -21,7 +21,7 @@ pub fn App() -> impl IntoView {
 
     // Provide metadata context
     provide_meta_context();
-    
+
     // Provide app state (repositories, services)
     let app_state = provide_app_state();
     provide_context(app_state);
@@ -74,7 +74,7 @@ pub fn App() -> impl IntoView {
                         <Routes>
                             <Route path="/" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
-                            <Route path="/checkout" view=CheckoutPlaceholder/>
+                            <Route path="/checkout" view=CheckoutPage/>
                             <Route path="/reports" view=ReportsPlaceholder/>
                         </Routes>
                     </main>

@@ -1,9 +1,9 @@
-use leptos::*;
 use crate::components::*;
-use domain::models::booth::{Booth, FeeConfig};
-use domain::error::DomainError;
-use rust_decimal::Decimal;
 use chrono::NaiveDate;
+use domain::error::DomainError;
+use domain::models::booth::{Booth, FeeConfig};
+use leptos::*;
+use rust_decimal::Decimal;
 use std::str::FromStr;
 
 /// Form data for creating/editing a booth
@@ -39,7 +39,7 @@ impl BoothFormData {
             rounding_step: booth.fees.rounding_step.to_string(),
         }
     }
-    
+
     /// Convert form data to domain Booth model
     ///
     /// # Errors
@@ -52,28 +52,28 @@ impl BoothFormData {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
-        
+
         // Parse fee values to Decimal
         let participation_fee = Decimal::from_str(&self.participation_fee)
             .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
-        
+
         let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
             .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
-        
+
         let rounding_step = Decimal::from_str(&self.rounding_step)
             .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
-        
+
         // Create FeeConfig
         let fees = FeeConfig {
             participation_fee,
             sales_fee_percent,
             rounding_step,
         };
-        
+
         // Create and return Booth (this validates the fee ranges)
         Booth::new(self.description.clone(), date, fees)
     }
-    
+
     /// Update an existing booth with form data
     ///
     /// # Errors
@@ -83,17 +83,17 @@ impl BoothFormData {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
-        
+
         // Parse fee values
         let participation_fee = Decimal::from_str(&self.participation_fee)
             .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
-        
+
         let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
             .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
-        
+
         let rounding_step = Decimal::from_str(&self.rounding_step)
             .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
-        
+
         // Create and validate FeeConfig
         let fees = FeeConfig {
             participation_fee,
@@ -101,12 +101,12 @@ impl BoothFormData {
             rounding_step,
         };
         fees.validate_ranges()?;
-        
+
         // Update booth fields
         booth.update_description(self.description.clone());
         booth.date = date;
         booth.update_fees(fees);
-        
+
         Ok(())
     }
 }
@@ -123,21 +123,21 @@ pub fn BoothForm(
     on_cancel: impl Fn() + 'static,
 ) -> impl IntoView {
     let form_data = create_rw_signal(initial_data.unwrap_or_default());
-    
+
     // Individual field signals for Input components
     let description = create_rw_signal(form_data.get_untracked().description);
     let date = create_rw_signal(form_data.get_untracked().date);
     let participation_fee = create_rw_signal(form_data.get_untracked().participation_fee);
     let sales_fee_percent = create_rw_signal(form_data.get_untracked().sales_fee_percent);
     let rounding_step = create_rw_signal(form_data.get_untracked().rounding_step);
-    
+
     // Validation errors
     let (description_error, set_description_error) = create_signal(None::<String>);
     let (date_error, set_date_error) = create_signal(None::<String>);
     let (participation_fee_error, set_participation_fee_error) = create_signal(None::<String>);
     let (sales_fee_percent_error, set_sales_fee_percent_error) = create_signal(None::<String>);
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
-    
+
     let validate_and_submit = move || {
         // Clear previous errors
         set_description_error.set(None);
@@ -145,26 +145,28 @@ pub fn BoothForm(
         set_participation_fee_error.set(None);
         set_sales_fee_percent_error.set(None);
         set_rounding_step_error.set(None);
-        
+
         let mut has_errors = false;
-        
+
         // Validate description
         let desc = description.get();
         if desc.trim().is_empty() {
             set_description_error.set(Some("Description is required".to_string()));
             has_errors = true;
         } else if desc.len() > 200 {
-            set_description_error.set(Some("Description must be 200 characters or less".to_string()));
+            set_description_error.set(Some(
+                "Description must be 200 characters or less".to_string(),
+            ));
             has_errors = true;
         }
-        
+
         // Validate date
         let date_str = date.get();
         if date_str.trim().is_empty() {
             set_date_error.set(Some("Date is required".to_string()));
             has_errors = true;
         }
-        
+
         // Validate participation fee
         let part_fee = participation_fee.get();
         if part_fee.trim().is_empty() {
@@ -177,7 +179,7 @@ pub fn BoothForm(
             set_participation_fee_error.set(Some("Cannot be negative".to_string()));
             has_errors = true;
         }
-        
+
         // Validate sales fee percent
         let sales_pct = sales_fee_percent.get();
         if sales_pct.trim().is_empty() {
@@ -196,7 +198,7 @@ pub fn BoothForm(
                 has_errors = true;
             }
         }
-        
+
         // Validate rounding step
         let rounding = rounding_step.get();
         if rounding.trim().is_empty() {
@@ -209,7 +211,7 @@ pub fn BoothForm(
             set_rounding_step_error.set(Some("Cannot be negative".to_string()));
             has_errors = true;
         }
-        
+
         if !has_errors {
             let data = BoothFormData {
                 description: description.get(),
@@ -221,7 +223,7 @@ pub fn BoothForm(
             on_submit(data);
         }
     };
-    
+
     view! {
         <form class="space-y-6" on:submit=|e| e.prevent_default()>
             // Description
@@ -234,7 +236,7 @@ pub fn BoothForm(
                     error=description_error
                 />
             </div>
-            
+
             // Date
             <div>
                 <Input
@@ -245,11 +247,11 @@ pub fn BoothForm(
                     error=date_error
                 />
             </div>
-            
+
             // Fee Configuration Section
             <div class="border-t pt-6">
                 <h3 class="text-lg font-semibold mb-4">"Fee Configuration"</h3>
-                
+
                 <div class="space-y-4">
                     // Participation Fee
                     <NumberInput
@@ -261,7 +263,7 @@ pub fn BoothForm(
                         required=true
                         error=participation_fee_error
                     />
-                    
+
                     // Sales Fee Percent
                     <NumberInput
                         value=sales_fee_percent
@@ -273,7 +275,7 @@ pub fn BoothForm(
                         required=true
                         error=sales_fee_percent_error
                     />
-                    
+
                     // Rounding Step
                     <NumberInput
                         value=rounding_step
@@ -289,7 +291,7 @@ pub fn BoothForm(
                     </p>
                 </div>
             </div>
-            
+
             // Form Actions
             <div class="flex justify-end gap-3 pt-4 border-t">
                 <Button

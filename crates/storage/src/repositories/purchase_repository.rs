@@ -30,8 +30,8 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .store("purchases")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        let value = to_value(purchase)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        let value =
+            to_value(purchase).map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         store
             .put(&value, None)
@@ -90,7 +90,10 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
         let key = JsValue::from_str(&booth_id.as_str());
 
         let values = index
-            .get_all(Some(rexie::KeyRange::only(&key).map_err(StorageError::from)?), None)
+            .get_all(
+                Some(rexie::KeyRange::only(&key).map_err(StorageError::from)?),
+                None,
+            )
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
