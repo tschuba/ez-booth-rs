@@ -67,6 +67,8 @@
       "vendor_required": "Vendor ID is required",
       "items_required": "Please add at least one item",
       "booth_required": "Please create a booth first",
+      "vendor_lookup_failed": "Failed to check vendor: {error}",
+      "vendor_create_failed": "Failed to create vendor: {error}",
       "load_purchases_failed": "Failed to load purchases: {error}",
       "load_booths_failed": "Failed to load booths: {error}",
       "save_purchase_failed": "Failed to save purchase: {error}",
@@ -148,7 +150,9 @@
       "error": "Error",
       "warning": "Warning",
       "info": "Information",
-      "dismiss": "Dismiss notification"
+      "dismiss": "Dismiss notification",
+      "copy": "Copy",
+      "copied": "Copied!"
     }
   }
 }

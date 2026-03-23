@@ -7,6 +7,7 @@ use super::shared::{BoothId, VendorId};
 /// Represents a vendor at the booth
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vendor {
+    #[serde(rename = "id")]
     pub vendor_id: VendorId,
     pub booth_id: BoothId,
     pub name: Option<String>,
