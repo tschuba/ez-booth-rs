@@ -9,7 +9,7 @@
     "no": "Nein",
     "back": "Zurück",
     "next": "Weiter",
-    "confirm": "Bestätigen",
+    "confirm": "Abschließen",
     "error": "Fehler",
     "success": "Erfolg",
     "loading": "Laden..."
@@ -45,7 +45,7 @@
     "vendor_id": "Verkäufer-ID",
     "amount": "Betrag",
     "total": "Gesamt",
-    "confirm": "Bestätigen",
+    "confirm": "Abschließen",
     "add_item": "Artikel hinzufügen",
     "success": "Verkauf erfolgreich erfasst",
     "confirm_cancel": "Kassiervorgang abbrechen? Alle aktuellen Artikel werden gelöscht.",
@@ -58,6 +58,20 @@
       "vendor_required": "Verkäufer-ID ist erforderlich",
       "items_required": "Bitte mindestens einen Artikel hinzufügen",
       "booth_required": "Bitte zuerst einen Stand erstellen"
+    },
+    "info": {
+      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt"
+    },
+    "recent": {
+      "items_label": "{count} Position(en)",
+      "items_label_one": "1 Position",
+      "multi_vendor_badge": "Gemischt"
+    },
+    "delete_modal": {
+      "title": "Transaktion löschen",
+      "instructions": "Geben Sie {token} ein, um diese Transaktion dauerhaft zu löschen.",
+      "placeholder": "Bestätigungscode eingeben",
+      "confirm": "Transaktion löschen"
     },
     "time": {
       "seconds": "{count} Sekunden",

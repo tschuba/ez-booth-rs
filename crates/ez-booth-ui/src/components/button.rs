@@ -94,8 +94,10 @@ pub fn Button(
             aria-pressed=aria_pressed.map(|p| if p { "true" } else { "false" })
             aria-disabled=if disabled { Some("true") } else { None }
             on:click=move |_| {
-                if let Some(handler) = &on_click {
-                    handler();
+                if !disabled {
+                    if let Some(handler) = &on_click {
+                        handler();
+                    }
                 }
             }
         >

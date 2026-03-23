@@ -5,13 +5,12 @@ use crate::t;
 use chrono::{DateTime, Local, Utc};
 use domain::models::booth::Booth;
 use domain::models::purchase::{Purchase, PurchaseItem};
-use domain::models::shared::VendorId;
+use domain::models::shared::{PurchaseId, VendorId};
 use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::str::FromStr;
-use web_sys::window;
 
 #[derive(Clone, Debug)]
 struct CheckoutItem {
@@ -27,6 +26,12 @@ struct CheckoutFormData {
     items: Vec<CheckoutItem>,
     vendor_error: Option<String>,
     amount_error: Option<String>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct PendingDeletion {
+    purchase_id: Option<PurchaseId>,
+    token: String,
 }
 
 impl CheckoutFormData {
@@ -75,6 +80,19 @@ fn format_item_tooltip(added_at: DateTime<Utc>) -> String {
     )
 }
 
+fn confirmation_token_from_purchase(purchase_id: &PurchaseId) -> String {
+    let id = purchase_id.as_str();
+    let sanitized: String = id.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+
+    if sanitized.is_empty() {
+        return String::new();
+    }
+
+    let len = sanitized.len();
+    let start = len.saturating_sub(4);
+    sanitized[start..].to_uppercase()
+}
+
 fn focus_and_select_input(input_ref: &NodeRef<html::Input>) {
     if let Some(input) = input_ref.get() {
         let _ = input.focus();
@@ -98,6 +116,22 @@ pub fn CheckoutPage() -> impl IntoView {
 
     // Cancel confirmation modal
     let (show_cancel_modal, set_show_cancel_modal) = create_signal(false);
+
+    // Delete confirmation modal state
+    let (pending_deletion, set_pending_deletion) = create_signal(PendingDeletion::default());
+    let (delete_confirmation_input, set_delete_confirmation_input) = create_signal(String::new());
+    let delete_confirmation_ref = create_node_ref::<html::Input>();
+
+    let deletion_token_matches = create_memo(move |_| {
+        let required = pending_deletion.get().token.trim().to_uppercase();
+
+        if required.is_empty() {
+            return false;
+        }
+
+        let entered = delete_confirmation_input.get().trim().to_uppercase();
+        !entered.is_empty() && entered == required
+    });
 
     // Input references for focus management
     let vendor_input_ref = create_node_ref::<html::Input>();
@@ -344,18 +378,58 @@ pub fn CheckoutPage() -> impl IntoView {
     };
 
     let delete_purchase = move |purchase_id| {
-        let state_result = app_state.get();
-        if let Some(Ok(state)) = state_result {
-            spawn_local(async move {
-                if let Err(e) = state.purchase_repository.delete(&purchase_id).await {
-                    toast.error(&format!("Failed to delete purchase: {:?}", e));
-                }
-            });
+        let token = confirmation_token_from_purchase(&purchase_id);
+        set_pending_deletion.set(PendingDeletion {
+            purchase_id: Some(purchase_id),
+            token,
+        });
+        set_delete_confirmation_input.set(String::new());
+        spawn_local(async move {
+            if let Some(input) = delete_confirmation_ref.get() {
+                let _ = input.set_value("");
+                let _ = input.focus();
+                let _ = input.select();
+            }
+        });
+    };
 
-            set_purchases.update(|list| {
-                list.retain(|p| p.id != purchase_id);
-                list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-            });
+    let perform_delete_purchase = {
+        let app_state = app_state.clone();
+        let set_purchases = set_purchases.clone();
+        let toast = toast.clone();
+        move || {
+            let pending = pending_deletion.get();
+            if pending.purchase_id.is_none() {
+                return;
+            }
+
+            let purchase_id = pending.purchase_id.unwrap();
+            let state_result = app_state.get();
+
+            if let Some(Ok(state)) = state_result {
+                spawn_local(async move {
+                    if let Err(e) = state.purchase_repository.delete(&purchase_id).await {
+                        toast.error(&format!("Failed to delete purchase: {:?}", e));
+                    }
+                });
+
+                set_purchases.update(|list| {
+                    list.retain(|p| p.id != purchase_id);
+                    list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                });
+            }
+
+            set_pending_deletion.set(PendingDeletion::default());
+            set_delete_confirmation_input.set(String::new());
+        }
+    };
+
+    let cancel_delete_purchase = {
+        let set_pending_deletion = set_pending_deletion.clone();
+        let set_delete_confirmation_input = set_delete_confirmation_input.clone();
+        move || {
+            set_pending_deletion.set(PendingDeletion::default());
+            set_delete_confirmation_input.set(String::new());
         }
     };
 
@@ -596,13 +670,35 @@ pub fn CheckoutPage() -> impl IntoView {
                                             {list.into_iter().map(|purchase| {
                                                 let amount = purchase.total_amount();
                                                 let purchase_id = purchase.id;
+                                                let purchase_id_label = purchase_id.as_str().to_string();
+                                                let item_count = purchase.items.len();
+                                                let items_label = if item_count == 1 {
+                                                    t!("checkout.recent.items_label_one")()
+                                                } else {
+                                                    translate_with_params(
+                                                        "checkout.recent.items_label",
+                                                        HashMap::from([(
+                                                            "count",
+                                                            item_count.to_string(),
+                                                        )]),
+                                                    )
+                                                };
+                                                let is_multi_vendor = item_count > 1;
                                                 view! {
                                                     <div class="flex items-center justify-between p-3 border rounded-lg">
-                                                        <div>
-                                                            <p class="text-sm font-semibold">{format!("Vendor {}", purchase.vendor_id.as_str())}</p>
+                                                        <div class="space-y-1">
+                                                            <div class="flex items-center gap-2">
+                                                                <p class="text-sm font-semibold">{items_label.clone()}</p>
+                                                                <Show when=move || is_multi_vendor>
+                                                                    <span class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                                                        {t!("checkout.recent.multi_vendor_badge")}
+                                                                    </span>
+                                                                </Show>
+                                                            </div>
                                                             <p class="text-xs text-gray-500">
                                                                 {purchase.timestamp.format("%Y-%m-%d %H:%M").to_string()}
                                                             </p>
+                                                            <p class="text-xs text-gray-500 font-mono break-all">{purchase_id_label.clone()}</p>
                                                         </div>
                                                         <div class="flex items-center gap-2">
                                                             <span class="text-lg font-bold">{format!("{:.2}", amount)}</span>
@@ -658,5 +754,56 @@ pub fn CheckoutPage() -> impl IntoView {
             cancel_text=t!("common.cancel")()
             is_destructive=true
         />
+
+        <Modal
+            show=Signal::derive(move || pending_deletion.get().purchase_id.is_some())
+            on_close=cancel_delete_purchase.clone()
+            title=t!("checkout.delete_modal.title")()
+            size=ModalSize::Medium
+        >
+            <Show when=move || pending_deletion.get().purchase_id.is_some()>
+                <div class="space-y-4">
+                    <p class="text-gray-700">
+                        {move || {
+                            let token = pending_deletion.get().token;
+                            translate_with_params(
+                                "checkout.delete_modal.instructions",
+                                HashMap::from([("token", token)]),
+                            )
+                        }}
+                    </p>
+                    <input
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 border-gray-300"
+                        placeholder=t!("checkout.delete_modal.placeholder")()
+                        value=move || delete_confirmation_input.get()
+                        node_ref=delete_confirmation_ref
+                        on:input=move |ev| {
+                            set_delete_confirmation_input.set(event_target_value(&ev));
+                        }
+                        on:keydown=move |ev: web_sys::KeyboardEvent| {
+                            if ev.key() == "Enter" && deletion_token_matches.get() {
+                                ev.prevent_default();
+                                perform_delete_purchase();
+                            }
+                        }
+                    />
+                    <div class="flex justify-end gap-2">
+                    <Button
+                        variant=ButtonVariant::Secondary
+                        on_click=Box::new(cancel_delete_purchase.clone())
+                    >
+                        {t!("common.cancel")}
+                    </Button>
+                    <Button
+                        variant=ButtonVariant::Danger
+                        disabled=!deletion_token_matches.get()
+                        on_click=Box::new(perform_delete_purchase.clone())
+                    >
+                        {t!("checkout.delete_modal.confirm")}
+                    </Button>
+                </div>
+            </div>
+        </Show>
+        </Modal>
     }
 }

@@ -9,7 +9,7 @@
     "no": "No",
     "back": "Back",
     "next": "Next",
-    "confirm": "Confirm",
+    "confirm": "Finalize",
     "error": "Error",
     "success": "Success",
     "loading": "Loading..."
@@ -45,7 +45,7 @@
     "vendor_id": "Vendor ID",
     "amount": "Amount",
     "total": "Total",
-    "confirm": "Confirm",
+    "confirm": "Complete",
     "add_item": "Add Item",
     "success": "Sale recorded successfully",
     "confirm_cancel": "Cancel checkout? All current items will be cleared.",
@@ -61,6 +61,17 @@
     },
     "info": {
       "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID"
+    },
+    "recent": {
+      "items_label": "{count} item(s)",
+      "items_label_one": "1 item",
+      "multi_vendor_badge": "Mixed"
+    },
+    "delete_modal": {
+      "title": "Delete Transaction",
+      "instructions": "Type {token} to permanently delete this transaction.",
+      "placeholder": "Enter confirmation token",
+      "confirm": "Delete Transaction"
     },
     "time": {
       "seconds": "{count} seconds",
