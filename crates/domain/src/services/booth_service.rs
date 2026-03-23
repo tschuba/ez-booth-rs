@@ -22,7 +22,7 @@ impl<R: BoothRepository> BoothService<R> {
     ) -> DomainResult<Booth> {
         // Booth::new performs validation and returns Result
         let booth = Booth::new(description, date, fees)?;
-        
+
         self.repository.save(&booth).await?;
         Ok(booth)
     }
@@ -53,7 +53,7 @@ impl<R: BoothRepository> BoothService<R> {
     pub async fn update_booth(&self, booth: Booth) -> DomainResult<()> {
         // Validate fees configuration
         booth.fees.validate_ranges()?;
-        
+
         self.repository.save(&booth).await
     }
 
@@ -213,7 +213,10 @@ mod tests {
         service.close_booth(booth1.id).await.unwrap();
 
         // List open booths
-        let open_booths = service.list_booths_by_status(BoothStatus::Open).await.unwrap();
+        let open_booths = service
+            .list_booths_by_status(BoothStatus::Open)
+            .await
+            .unwrap();
         assert_eq!(open_booths.len(), 1);
         assert_eq!(open_booths[0].id, booth2.id);
     }

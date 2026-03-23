@@ -7,15 +7,14 @@ pub fn HomePage() -> impl IntoView {
     // Modal state
     let (show_modal, set_show_modal) = create_signal(false);
     let (show_confirm, set_show_confirm) = create_signal(false);
-    
+
     // Static message for demo confirm modal
-    let confirm_message = Signal::derive(move || 
-        "Are you sure you want to proceed with this action?".to_string()
-    );
-    
+    let confirm_message =
+        Signal::derive(move || "Are you sure you want to proceed with this action?".to_string());
+
     // Get toast context
     let toast = use_toast();
-    
+
     view! {
         <Container>
             <div class="py-12">
@@ -38,7 +37,7 @@ pub fn HomePage() -> impl IntoView {
                         </a>
                     </div>
                 </Card>
-                
+
                 // Component Demo Section
                 <div class="mt-8">
                     <Card title="Component Demo">
@@ -61,7 +60,7 @@ pub fn HomePage() -> impl IntoView {
                                     </Button>
                                 </div>
                             </div>
-                            
+
                             // Modal Demo
                             <div>
                                 <h3 class="text-md font-semibold mb-2">"Modals"</h3>
@@ -78,7 +77,7 @@ pub fn HomePage() -> impl IntoView {
                     </Card>
                 </div>
             </div>
-            
+
             // Modal Components
             <Modal
                 show=show_modal
@@ -93,7 +92,7 @@ pub fn HomePage() -> impl IntoView {
                     </Button>
                 </div>
             </Modal>
-            
+
             <ConfirmModal
                 show=show_confirm
                 on_close=move || set_show_confirm.set(false)

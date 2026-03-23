@@ -5,9 +5,12 @@ use leptos::*;
 pub fn Card(
     /// Card content
     children: Children,
-    /// Card title
+    /// Card title (static string)
     #[prop(optional)]
     title: Option<&'static str>,
+    /// Card title (dynamic view) - takes precedence over static title
+    #[prop(optional)]
+    title_view: Option<View>,
     /// Additional CSS classes
     #[prop(optional)]
     class: Option<&'static str>,
@@ -20,9 +23,17 @@ pub fn Card(
 
     view! {
         <article class=card_classes aria-label=aria_label role="region">
-            {title.map(|t| view! {
-                <h2 class="text-xl font-semibold mb-4">{t}</h2>
-            })}
+            {if let Some(tv) = title_view {
+                view! {
+                    <h2 class="text-xl font-semibold mb-4">{tv}</h2>
+                }.into_view()
+            } else if let Some(t) = title {
+                view! {
+                    <h2 class="text-xl font-semibold mb-4">{t}</h2>
+                }.into_view()
+            } else {
+                view! {}.into_view()
+            }}
             {children()}
         </article>
     }
@@ -52,11 +63,11 @@ pub fn Container(
         "mx-auto px-4 sm:px-6 lg:px-8 {} {}",
         max_width, additional_classes
     );
-    
+
     let as_landmark = as_landmark.unwrap_or(false);
 
     view! {
-        <div 
+        <div
             class=container_classes
             role=if as_landmark { Some("region") } else { None }
             aria-label=aria_label

@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last Updated:** 2026-03-22
+**Last Updated:** 2026-03-23
 
 ## Overview
 
@@ -215,15 +215,18 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 ### 3.2 Checkout/Transaction Flow (P0)
 - [ ] Vendor ID input with auto-creation
-- [ ] Price input with validation
-- [ ] Transaction confirmation
-- [ ] Running total display
-- [ ] Fee calculation display
-- [ ] Transaction history view
-- [ ] Undo/correction functionality
+- [x] Price input with validation
+- [x] Transaction confirmation
+- [x] Running total display
+- [x] Fee calculation display
+- [x] Transaction history view
+- [x] Undo/correction functionality
 
-**Status:** Not Started  
-**Target:** TBD
+**Status:** In Progress  
+**Notes:**
+- Built keyboard-first checkout UI with localized validation and inline toasts.
+- Added IndexedDB-powered recent transaction list with destructive delete flow requiring typed confirmation tokens (last 4 chars of Purchase ID) per compliance guidance.
+- Remaining work: automatically create/find vendors during checkout before marking feature complete.
 
 ### 3.3 Vendor Management (P0)
 - [ ] Dynamic vendor creation during checkout
@@ -352,12 +355,20 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 |-------|-------------|-----------|-------------|-------------|------------|
 | Phase 1 | 25 | 22 | 0 | 3 | 88% |
 | Phase 2 | 18 | 18 | 0 | 0 | 100% |
-| Phase 3 | 29 | 12 | 0 | 17 | 41% |
+| Phase 3 | 29 | 18 | 1 | 10 | 62% |
 | Phase 4 | 12 | 0 | 0 | 12 | 0% |
 | Phase 5 | 20 | 0 | 0 | 20 | 0% |
-| **TOTAL** | **104** | **52** | **0** | **52** | **50%** |
+| **TOTAL** | **104** | **58** | **1** | **45** | **57%** |
 
 ## Recent Updates
+
+- ### 2026-03-23 (Afternoon)
+- ✅ Checkout running total, fee summary, and transaction history now live (Phase 3.2)
+- Implemented keyboard-first checkout UI with inline validation: vendor ID trim/normalize, decimal parsing w/ comma support, immediate focus management
+- Added IndexedDB-backed persistence for purchases; history view displays localized timestamps with tooltips
+- Replaced destructive delete with confirmation modal requiring typed token (last 4 alphanumeric chars of PurchaseId) to avoid accidental removal
+- Localized all new strings (EN/DE) including destructive flow instructions; documented progress in STATUS
+- Remaining Phase 3.2 work: vendor auto-creation during checkout + polishing reports integration
 
 ### 2026-03-23 (Morning)
 - ✅ Completed Phase 3.1: Booth Management

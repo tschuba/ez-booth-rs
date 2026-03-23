@@ -12,13 +12,13 @@ use async_trait::async_trait;
 pub trait BoothRepository {
     /// Save a booth (insert or update)
     async fn save(&self, booth: &Booth) -> DomainResult<()>;
-    
+
     /// Find a booth by its ID
     async fn find_by_id(&self, id: &BoothId) -> DomainResult<Option<Booth>>;
-    
+
     /// Find all booths
     async fn find_all(&self) -> DomainResult<Vec<Booth>>;
-    
+
     /// Delete a booth by ID
     async fn delete(&self, id: &BoothId) -> DomainResult<()>;
 }
@@ -28,16 +28,20 @@ pub trait BoothRepository {
 pub trait VendorRepository {
     /// Save a vendor (insert or update)
     async fn save(&self, vendor: &Vendor) -> DomainResult<()>;
-    
+
     /// Find a vendor by booth ID and vendor ID
-    async fn find_by_id(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<Option<Vendor>>;
-    
+    async fn find_by_id(
+        &self,
+        booth_id: &BoothId,
+        vendor_id: &VendorId,
+    ) -> DomainResult<Option<Vendor>>;
+
     /// Find all vendors for a specific booth
     async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Vendor>>;
-    
+
     /// Find all vendors across all booths
     async fn find_all(&self) -> DomainResult<Vec<Vendor>>;
-    
+
     /// Delete a vendor
     async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()>;
 }
@@ -47,19 +51,23 @@ pub trait VendorRepository {
 pub trait PurchaseRepository {
     /// Save a purchase (insert or update)
     async fn save(&self, purchase: &Purchase) -> DomainResult<()>;
-    
+
     /// Find a purchase by its ID
     async fn find_by_id(&self, id: &PurchaseId) -> DomainResult<Option<Purchase>>;
-    
+
     /// Find all purchases for a specific booth
     async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>>;
-    
+
     /// Find all purchases for a specific vendor in a booth
-    async fn find_by_vendor(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<Vec<Purchase>>;
-    
+    async fn find_by_vendor(
+        &self,
+        booth_id: &BoothId,
+        vendor_id: &VendorId,
+    ) -> DomainResult<Vec<Purchase>>;
+
     /// Find all purchases
     async fn find_all(&self) -> DomainResult<Vec<Purchase>>;
-    
+
     /// Delete a purchase by ID
     async fn delete(&self, id: &PurchaseId) -> DomainResult<()>;
 }

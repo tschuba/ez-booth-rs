@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod tests {
     use super::super::booth_form::BoothFormData;
-    use domain::models::booth::{Booth, FeeConfig};
+    use chrono::NaiveDate;
     use domain::error::DomainError;
+    use domain::models::booth::{Booth, FeeConfig};
     use rust_decimal::Decimal;
     use std::str::FromStr;
-    use chrono::NaiveDate;
 
     #[test]
     fn test_default_form_data() {
         let form = BoothFormData::default();
-        
+
         assert_eq!(form.description, "");
         assert_eq!(form.date, "");
         assert_eq!(form.participation_fee, "0.00");
@@ -30,12 +30,18 @@ mod tests {
 
         let booth = form.to_booth();
         assert!(booth.is_ok());
-        
+
         let booth = booth.unwrap();
         assert_eq!(booth.description, "Test Booth");
         assert_eq!(booth.date, NaiveDate::from_ymd_opt(2026, 3, 25).unwrap());
-        assert_eq!(booth.fees.participation_fee, Decimal::from_str("10.00").unwrap());
-        assert_eq!(booth.fees.sales_fee_percent, Decimal::from_str("15.00").unwrap());
+        assert_eq!(
+            booth.fees.participation_fee,
+            Decimal::from_str("10.00").unwrap()
+        );
+        assert_eq!(
+            booth.fees.sales_fee_percent,
+            Decimal::from_str("15.00").unwrap()
+        );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("0.50").unwrap());
     }
 
@@ -151,12 +157,13 @@ mod tests {
             sales_fee_percent: Decimal::from_str("12.50").unwrap(),
             rounding_step: Decimal::from_str("0.10").unwrap(),
         };
-        
+
         let booth = Booth::new(
             "Original Booth".to_string(),
             NaiveDate::from_ymd_opt(2026, 4, 15).unwrap(),
             fees,
-        ).unwrap();
+        )
+        .unwrap();
 
         let form = BoothFormData::from_booth(&booth);
 
@@ -174,12 +181,13 @@ mod tests {
             sales_fee_percent: Decimal::from_str("10.00").unwrap(),
             rounding_step: Decimal::from_str("0.50").unwrap(),
         };
-        
+
         let mut booth = Booth::new(
             "Original".to_string(),
             NaiveDate::from_ymd_opt(2026, 3, 20).unwrap(),
             fees,
-        ).unwrap();
+        )
+        .unwrap();
 
         let form = BoothFormData {
             description: "Updated Booth".to_string(),
@@ -194,8 +202,14 @@ mod tests {
 
         assert_eq!(booth.description, "Updated Booth");
         assert_eq!(booth.date, NaiveDate::from_ymd_opt(2026, 3, 25).unwrap());
-        assert_eq!(booth.fees.participation_fee, Decimal::from_str("20.00").unwrap());
-        assert_eq!(booth.fees.sales_fee_percent, Decimal::from_str("15.00").unwrap());
+        assert_eq!(
+            booth.fees.participation_fee,
+            Decimal::from_str("20.00").unwrap()
+        );
+        assert_eq!(
+            booth.fees.sales_fee_percent,
+            Decimal::from_str("15.00").unwrap()
+        );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("1.00").unwrap());
     }
 
@@ -206,12 +220,13 @@ mod tests {
             sales_fee_percent: Decimal::from_str("10.00").unwrap(),
             rounding_step: Decimal::from_str("0.50").unwrap(),
         };
-        
+
         let mut booth = Booth::new(
             "Original".to_string(),
             NaiveDate::from_ymd_opt(2026, 3, 20).unwrap(),
             fees,
-        ).unwrap();
+        )
+        .unwrap();
 
         let form = BoothFormData {
             description: "Updated".to_string(),

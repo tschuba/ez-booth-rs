@@ -27,10 +27,8 @@ impl<R: PurchaseRepository> TransactionService<R> {
             ));
         }
 
-        let purchase_items: Vec<PurchaseItem> = item_amounts
-            .into_iter()
-            .map(PurchaseItem::new)
-            .collect();
+        let purchase_items: Vec<PurchaseItem> =
+            item_amounts.into_iter().map(PurchaseItem::new).collect();
 
         let purchase = Purchase::new(booth_id, vendor_id, purchase_items);
 
@@ -177,7 +175,10 @@ mod tests {
 
         let items = vec![dec!(10.50), dec!(25.00)];
 
-        let purchase = service.checkout(booth_id, vendor_id.clone(), items).await.unwrap();
+        let purchase = service
+            .checkout(booth_id, vendor_id.clone(), items)
+            .await
+            .unwrap();
 
         assert_eq!(purchase.booth_id, booth_id);
         assert_eq!(purchase.vendor_id, vendor_id);
@@ -222,11 +223,17 @@ mod tests {
             .unwrap();
 
         // List purchases for vendor1
-        let vendor1_purchases = service.list_vendor_purchases(booth_id, &vendor1).await.unwrap();
+        let vendor1_purchases = service
+            .list_vendor_purchases(booth_id, &vendor1)
+            .await
+            .unwrap();
         assert_eq!(vendor1_purchases.len(), 2);
 
         // List purchases for vendor2
-        let vendor2_purchases = service.list_vendor_purchases(booth_id, &vendor2).await.unwrap();
+        let vendor2_purchases = service
+            .list_vendor_purchases(booth_id, &vendor2)
+            .await
+            .unwrap();
         assert_eq!(vendor2_purchases.len(), 1);
     }
 

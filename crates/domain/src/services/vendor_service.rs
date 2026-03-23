@@ -35,10 +35,10 @@ impl<R: VendorRepository> VendorService<R> {
     /// Critical for correct print order in vendor reports.
     pub async fn list_vendors(&self, booth_id: BoothId) -> DomainResult<Vec<Vendor>> {
         let mut vendors = self.repository.find_by_booth(&booth_id).await?;
-        
+
         // VendorId already implements Ord with smart sorting
         vendors.sort_by_key(|v| v.vendor_id.clone());
-        
+
         Ok(vendors)
     }
 
@@ -188,12 +188,30 @@ mod tests {
         let booth_id = create_test_booth_id();
 
         // Create vendors in random order
-        service.get_or_create(booth_id, "10".to_string()).await.unwrap();
-        service.get_or_create(booth_id, "2".to_string()).await.unwrap();
-        service.get_or_create(booth_id, "1".to_string()).await.unwrap();
-        service.get_or_create(booth_id, "V5".to_string()).await.unwrap();
-        service.get_or_create(booth_id, "25".to_string()).await.unwrap();
-        service.get_or_create(booth_id, "A3".to_string()).await.unwrap();
+        service
+            .get_or_create(booth_id, "10".to_string())
+            .await
+            .unwrap();
+        service
+            .get_or_create(booth_id, "2".to_string())
+            .await
+            .unwrap();
+        service
+            .get_or_create(booth_id, "1".to_string())
+            .await
+            .unwrap();
+        service
+            .get_or_create(booth_id, "V5".to_string())
+            .await
+            .unwrap();
+        service
+            .get_or_create(booth_id, "25".to_string())
+            .await
+            .unwrap();
+        service
+            .get_or_create(booth_id, "A3".to_string())
+            .await
+            .unwrap();
 
         // List vendors (should be sorted: 1, 2, 10, 25, A3, V5)
         let vendors = service.list_vendors(booth_id).await.unwrap();
@@ -214,10 +232,16 @@ mod tests {
         let booth_id = create_test_booth_id();
 
         // Create vendor
-        service.get_or_create(booth_id, "V123".to_string()).await.unwrap();
+        service
+            .get_or_create(booth_id, "V123".to_string())
+            .await
+            .unwrap();
 
         // Delete vendor
-        service.delete_vendor(booth_id, "V123".to_string()).await.unwrap();
+        service
+            .delete_vendor(booth_id, "V123".to_string())
+            .await
+            .unwrap();
 
         // Verify deletion
         let result = service.get_vendor(booth_id, "V123".to_string()).await;

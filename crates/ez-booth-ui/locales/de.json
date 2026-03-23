@@ -9,7 +9,7 @@
     "no": "Nein",
     "back": "Zurück",
     "next": "Weiter",
-    "confirm": "Bestätigen",
+    "confirm": "Abschließen",
     "error": "Fehler",
     "success": "Erfolg",
     "loading": "Laden..."
@@ -43,11 +43,63 @@
   "checkout": {
     "title": "Kasse",
     "vendor_id": "Verkäufer-ID",
+    "vendor_placeholder": "Verkäufer-ID (z. B. 101)",
     "amount": "Betrag",
+    "amount_placeholder": "0,00",
     "total": "Gesamt",
-    "confirm": "Bestätigen",
+    "confirm": "Abschließen",
     "add_item": "Artikel hinzufügen",
-    "success": "Verkauf erfolgreich erfasst"
+    "current_items": "Aktuelle Positionen",
+    "no_items": "Noch keine Artikel hinzugefügt",
+    "success": "Verkauf erfolgreich erfasst",
+    "confirm_cancel": "Kassiervorgang abbrechen? Alle aktuellen Artikel werden gelöscht.",
+    "confirm_cancel_title": "Kassiervorgang abbrechen",
+    "confirm_cancel_confirm": "Artikel löschen",
+    "no_booth_message": "Bitte erstellen Sie zuerst einen Stand, um mit dem Kassieren zu beginnen.",
+    "loading_message": "Lade Kassendaten...",
+    "no_transactions_message": "Noch keine Transaktionen erfasst.",
+    "recent_transactions_title": "Letzte Transaktionen",
+    "running_totals_title": "Laufende Summen",
+    "errors": {
+      "amount_required": "Betrag ist erforderlich",
+      "amount_positive": "Betrag muss größer als Null sein",
+      "amount_invalid": "Ungültiges Betragsformat",
+      "vendor_required": "Verkäufer-ID ist erforderlich",
+      "items_required": "Bitte mindestens einen Artikel hinzufügen",
+      "booth_required": "Bitte zuerst einen Stand erstellen",
+      "load_purchases_failed": "Fehler beim Laden der Käufe: {error}",
+      "load_booths_failed": "Fehler beim Laden der Stände: {error}",
+      "save_purchase_failed": "Fehler beim Speichern des Kaufs: {error}",
+      "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}"
+    },
+    "info": {
+      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt"
+    },
+    "recent": {
+      "items_label": "{count} Position(en)",
+      "items_label_one": "1 Position",
+      "timestamp": "{datetime}",
+      "purchase_id": "ID: {id}"
+    },
+    "delete_modal": {
+      "title": "Transaktion löschen",
+      "instructions": "Geben Sie {token} ein, um diese Transaktion dauerhaft zu löschen.",
+      "placeholder": "Bestätigungscode eingeben",
+      "confirm": "Transaktion löschen"
+    },
+    "time": {
+      "seconds": "{count} Sekunden",
+      "seconds_one": "{count} Sekunde",
+      "minutes": "{count} Minuten",
+      "minutes_one": "{count} Minute",
+      "time_of_day": "{time}",
+      "tooltip": "Hinzugefügt um {datetime}"
+    },
+    "running_totals": {
+      "sales": "Gesamtumsatz",
+      "items": "Artikel verarbeitet",
+      "vendors": "Verkäufer bedient"
+    }
   },
   "report": {
     "title": "Berichte",

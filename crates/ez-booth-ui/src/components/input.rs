@@ -57,17 +57,25 @@ pub fn Input(
     let required = required.unwrap_or(false);
 
     let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
-    let input_classes = move || if has_error() {
-        "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-    } else {
-        "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    let input_classes = move || {
+        if has_error() {
+            "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+        } else {
+            "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        }
     };
 
     let additional_classes = class.unwrap_or("");
     let combined_classes = move || format!("{} {}", input_classes(), additional_classes);
-    
+
     // Generate unique ID for error message association
-    let error_id = move || error.and_then(|e| e.get().as_ref().map(|_| format!("input-error-{}", value.get_untracked().len())));
+    let error_id = move || {
+        error.and_then(|e| {
+            e.get()
+                .as_ref()
+                .map(|_| format!("input-error-{}", value.get_untracked().len()))
+        })
+    };
 
     view! {
         <div class="w-full">
@@ -136,14 +144,22 @@ pub fn NumberInput(
     let required = required.unwrap_or(false);
 
     let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
-    let input_classes = move || if has_error() {
-        "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-    } else {
-        "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    let input_classes = move || {
+        if has_error() {
+            "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+        } else {
+            "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        }
     };
-    
+
     // Generate unique ID for error message association
-    let error_id = move || error.and_then(|e| e.get().as_ref().map(|_| format!("number-input-error-{}", value.get_untracked().len())));
+    let error_id = move || {
+        error.and_then(|e| {
+            e.get()
+                .as_ref()
+                .map(|_| format!("number-input-error-{}", value.get_untracked().len()))
+        })
+    };
 
     view! {
         <div class="w-full">

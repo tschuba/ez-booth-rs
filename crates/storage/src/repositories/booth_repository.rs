@@ -26,44 +26,43 @@ impl BoothRepository for IndexedDbBoothRepository {
             .db
             .transaction(&["booths"], TransactionMode::ReadWrite)
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         let store = transaction
             .store("booths")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
-        let value = to_value(booth)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        
+
+        let value = to_value(booth).map_err(|e| StorageError::SerializationError(e.to_string()))?;
+
         store
             .put(&value, None)
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         transaction
             .done()
             .await
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         Ok(())
     }
-    
+
     async fn find_by_id(&self, id: &BoothId) -> DomainResult<Option<Booth>> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadOnly)
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         let store = transaction
             .store("booths")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         let key = JsValue::from_str(&id.as_str());
-        
+
         let result = store
             .get(key)
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         match result {
             Some(value) => {
                 let booth: Booth = from_value(value)
@@ -73,52 +72,52 @@ impl BoothRepository for IndexedDbBoothRepository {
             None => Ok(None),
         }
     }
-    
+
     async fn find_all(&self) -> DomainResult<Vec<Booth>> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadOnly)
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         let store = transaction
             .store("booths")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         let values = store
             .get_all(None, None)
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         let booths: Vec<Booth> = values
             .into_iter()
             .filter_map(|value| from_value(value).ok())
             .collect();
-        
+
         Ok(booths)
     }
-    
+
     async fn delete(&self, id: &BoothId) -> DomainResult<()> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadWrite)
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         let store = transaction
             .store("booths")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         let key = JsValue::from_str(&id.as_str());
-        
+
         store
             .delete(key)
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-        
+
         transaction
             .done()
             .await
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-        
+
         Ok(())
     }
 }

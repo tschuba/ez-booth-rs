@@ -145,7 +145,7 @@ fn ToastContainer() -> impl IntoView {
                 children=move |toast: Toast| {
                     let toast_context = use_toast();
                     let toast_id = toast.id;
-                    
+
                     view! {
                         <ToastItem
                             toast=toast
@@ -160,13 +160,10 @@ fn ToastContainer() -> impl IntoView {
 
 /// Individual toast item component
 #[component]
-fn ToastItem(
-    toast: Toast,
-    on_dismiss: impl Fn() + 'static,
-) -> impl IntoView {
+fn ToastItem(toast: Toast, on_dismiss: impl Fn() + 'static) -> impl IntoView {
     let bg_color = toast.toast_type.bg_color();
     let icon = toast.toast_type.icon();
-    
+
     view! {
         <div
             class=format!(

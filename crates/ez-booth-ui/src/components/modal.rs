@@ -47,10 +47,10 @@ pub fn Modal(
     // Store callback and title in non-reactive storage to avoid FnOnce issues
     let on_close_stored = store_value(on_close.clone());
     let title_stored = store_value(title.clone());
-    
+
     // Store children view - call it once and store the result
     let children_stored = store_value(children());
-    
+
     // Close on Escape key
     let on_close_clone = on_close.clone();
     create_effect(move |_| {
@@ -61,10 +61,10 @@ pub fn Modal(
                     on_close_esc();
                 }
             }) as Box<dyn Fn(_)>);
-            
+
             let _ = window()
                 .add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
-            
+
             closure.forget();
         }
     });
@@ -78,7 +78,7 @@ pub fn Modal(
     let content_click = move |e: web_sys::MouseEvent| {
         e.stop_propagation();
     };
-    
+
     let close_button_click = move |_| {
         on_close_stored.with_value(|f| f());
     };
@@ -182,7 +182,7 @@ pub fn ConfirmModal(
     let on_close_for_confirm = on_close.clone();
     let on_close_for_cancel = on_close.clone();
     let on_close_for_modal = on_close.clone();
-    
+
     let on_confirm_click = move |_| {
         on_confirm();
         on_close_for_confirm();

@@ -33,3 +33,4 @@ web-sys = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
+regex = "1.12.3"
