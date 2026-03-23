@@ -6,10 +6,12 @@ mod components;
 mod error;
 mod i18n;
 mod pages;
+mod state;
 
 use components::*;
 use i18n::*;
 use pages::*;
+use state::*;
 
 /// Main application component
 #[component]
@@ -19,6 +21,10 @@ pub fn App() -> impl IntoView {
 
     // Provide metadata context
     provide_meta_context();
+    
+    // Provide app state (repositories, services)
+    let app_state = provide_app_state();
+    provide_context(app_state);
 
     let locale = use_locale();
 
