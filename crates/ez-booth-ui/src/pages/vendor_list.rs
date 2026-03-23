@@ -29,7 +29,11 @@ pub fn VendorListPage() -> impl IntoView {
         let state_result = app_state.get();
         let booth = selected_booth.get();
 
-        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
+        if booth.is_none() {
+            // No booth selected, clear vendors
+            set_vendor_summaries.set(Vec::new());
+            set_is_loading.set(false);
+        } else if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
             let booth_id = booth.id;
             spawn_local(async move {
@@ -76,10 +80,6 @@ pub fn VendorListPage() -> impl IntoView {
                     }
                 }
             });
-        } else if booth.is_none() {
-            // No booth selected, clear vendors
-            set_vendor_summaries.set(Vec::new());
-            set_is_loading.set(false);
         }
     });
 
@@ -163,6 +163,7 @@ pub fn VendorListPage() -> impl IntoView {
                                 <div class="space-y-4">
                                     {move || vendor_summaries.get().into_iter().map(|summary| {
                                         let summary_clone = summary.clone();
+                                        let vendor_id = summary.vendor.vendor_id.as_str().to_string();
                                         view! {
                                             <div
                                                 class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
@@ -171,7 +172,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                 <div class="flex justify-between items-start">
                                                     <div>
                                                         <h3 class="text-lg font-semibold text-gray-900">
-                                                            {t!("vendor.id_label")} {summary.vendor.vendor_id.as_str()}
+                                                            {t!("vendor.id_label")} {vendor_id}
                                                         </h3>
                                                         <p class="text-sm text-gray-600 mt-1">
                                                             {t!("vendor.purchase_count")} {summary.purchase_count}
@@ -204,12 +205,14 @@ pub fn VendorListPage() -> impl IntoView {
             >
                 {move || {
                     selected_vendor.get().map(|summary| {
+                        let vendor_id = summary.vendor.vendor_id.as_str().to_string();
+                        let created_at = summary.vendor.created_at.format("%Y-%m-%d %H:%M").to_string();
                         view! {
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <p class="text-sm text-gray-600">{t!("vendor.id_label")}</p>
-                                        <p class="text-lg font-semibold">{summary.vendor.vendor_id.as_str()}</p>
+                                        <p class="text-lg font-semibold">{vendor_id}</p>
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-600">{t!("vendor.purchase_count")}</p>
@@ -222,7 +225,7 @@ pub fn VendorListPage() -> impl IntoView {
                                     <div>
                                         <p class="text-sm text-gray-600">{t!("vendor.created_at")}</p>
                                         <p class="text-lg font-semibold">
-                                            {summary.vendor.created_at.format("%Y-%m-%d %H:%M").to_string()}
+                                            {created_at}
                                         </p>
                                     </div>
                                 </div>
