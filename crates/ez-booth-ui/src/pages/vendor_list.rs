@@ -200,7 +200,7 @@ pub fn VendorListPage() -> impl IntoView {
             <Modal
                 show=show_vendor_detail
                 on_close=move || set_show_vendor_detail.set(false)
-                title=Some(vendor_detail_title())
+                title=vendor_detail_title()
             >
                 {move || {
                     selected_vendor.get().map(|summary| {
