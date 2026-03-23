@@ -3,7 +3,7 @@ use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
-use domain::models::booth::Booth;
+use crate::selected_booth_context;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
 use domain::models::vendor::Vendor;
@@ -218,14 +218,14 @@ pub fn CheckoutPage() -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
 
-    // Selected booth (per booth dropdown)
-    let (selected_booth, set_selected_booth) = create_signal(None::<Booth>);
+    // Use global selected booth context
+    let selected_booth = selected_booth_context::use_selected_booth();
 
     // Purchases for current booth
     let (purchases, set_purchases) = create_signal(Vec::<Purchase>::new());
 
     // Checkout form data
-    let (initial_booth_id, initial_form_data) =
+    let (_, initial_form_data) =
         load_saved_form_data().unwrap_or((None, CheckoutFormData::default()));
     let (form_data, set_form_data) = create_signal(initial_form_data);
 
@@ -282,64 +282,30 @@ pub fn CheckoutPage() -> impl IntoView {
         });
     }
 
-    // Load initial data
-    let initial_booth_id_ref = initial_booth_id.clone();
+    // Load purchases for selected booth
     create_effect(move |_| {
         let state_result = app_state.get();
-
-        if let Some(Ok(state)) = state_result {
+        let booth = selected_booth.get();
+        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
-            let set_selected_booth = set_selected_booth.clone();
             let set_purchases = set_purchases.clone();
             let toast = toast.clone();
-            let initial_booth_id = initial_booth_id_ref.clone();
+            let booth_id = booth.id.clone();
             spawn_local(async move {
-                match state.booth_repository.find_all().await {
-                    Ok(booths) => {
-                        if booths.is_empty() {
-                            set_is_loading.set(false);
-                            return;
-                        }
-
-                        let next_booth = initial_booth_id
-                            .as_ref()
-                            .and_then(|saved_id| {
-                                booths
-                                    .iter()
-                                    .find(|booth| booth.id.as_str() == *saved_id)
-                                    .cloned()
-                            })
-                            .or_else(|| booths.first().cloned());
-
-                        if let Some(booth) = next_booth.clone() {
-                            let booth_id = booth.id.clone();
-                            set_selected_booth.set(Some(booth));
-
-                            match state.purchase_repository.find_by_booth(&booth_id).await {
-                                Ok(existing_purchases) => {
-                                    let mut sorted = existing_purchases;
-                                    sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-                                    set_purchases.set(sorted);
-                                }
-                                Err(e) => {
-                                    let error_msg = translate_with_params(
-                                        "checkout.errors.load_purchases_failed",
-                                        HashMap::from([("error", format_error_message(&e))]),
-                                    );
-                                    toast.error(&error_msg);
-                                }
-                            }
-                        }
+                match state.purchase_repository.find_by_booth(&booth_id).await {
+                    Ok(existing_purchases) => {
+                        let mut sorted = existing_purchases;
+                        sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                        set_purchases.set(sorted);
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
-                            "checkout.errors.load_booths_failed",
+                            "checkout.errors.load_purchases_failed",
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
                     }
                 }
-
                 set_is_loading.set(false);
             });
         }
