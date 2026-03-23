@@ -110,6 +110,7 @@ pub fn VendorListPage() -> impl IntoView {
     let vendor_detail_title = move || {
         selected_vendor.get()
             .map(|s| format!("{} {}", t!("vendor.detail_title")(), s.vendor.vendor_id.as_str()))
+            .unwrap_or_else(|| t!("vendor.detail_title")())
     };
 
     view! {
@@ -199,7 +200,7 @@ pub fn VendorListPage() -> impl IntoView {
             <Modal
                 show=show_vendor_detail
                 on_close=move || set_show_vendor_detail.set(false)
-                title=vendor_detail_title()
+                title=Some(vendor_detail_title())
             >
                 {move || {
                     selected_vendor.get().map(|summary| {
