@@ -21,111 +21,110 @@ pub fn HomePage() -> impl IntoView {
     let (show_confirm, set_show_confirm) = create_signal(false);
 
     // Static message for demo confirm modal
-    let confirm_message =
-        Signal::derive(move || "Are you sure you want to proceed with this action?".to_string());
+    let confirm_message = Signal::derive(move || t!("home.are_you_sure")());
 
     // Get toast context
     let toast = use_toast();
 
     view! {
-        <Container>
-            <div class="py-12">
-                <Card title="EZ Booth">
-                    <p class="text-gray-600 mb-4">
-                        {t!("app.welcome")}
-                    </p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <a href="/booths" class="block">
-                            <div class="p-6 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                                <h3 class="text-lg font-semibold mb-2">{t!("booth.list_title")}</h3>
-                                <p class="text-gray-600 text-sm">"Manage your booths"</p>
-                            </div>
-                        </a>
-                        <a href="/checkout" class="block">
-                            <div class="p-6 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                                <h3 class="text-lg font-semibold mb-2">{t!("checkout.title")}</h3>
-                                <p class="text-gray-600 text-sm">"Process sales"</p>
-                            </div>
-                        </a>
-                    </div>
-                </Card>
+                                        <Container>
+                                            <div class="py-12">
+                                                <Card title="EZ Booth">
+                                                    <p class="text-gray-600 mb-4">
+                                                        {t!("app.welcome")}
+                                                    </p>
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                                                        <a href="/booths" class="block">
+                                                            <div class="p-6 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                                                                <h3 class="text-lg font-semibold mb-2">{t!("booth.list_title")}</h3>
+                                                                <p class="text-gray-600 text-sm">{t!("home.manage_booths")}</p>
+                                                            </div>
+                                                        </a>
+                                                        <a href="/checkout" class="block">
+                                                            <div class="p-6 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                                                                <h3 class="text-lg font-semibold mb-2">{t!("checkout.title")}</h3>
+                                                                <p class="text-gray-600 text-sm">{t!("home.process_sales")}</p>
+                                                            </div>
+                                                        </a>
+                                                    </div>
+                                                </Card>
 
-                // Component Demo Section
-                <div class="mt-8">
-                    <Card title="Component Demo">
-                        <div class="space-y-4">
-                            // Toast Demo
-                            <div>
-                                <h3 class="text-md font-semibold mb-2">"Toast Notifications"</h3>
-                                <div class="flex gap-2 flex-wrap">
-                                    <Button on_click=Box::new(move || toast.success("Success! Operation completed."))>
-                                        "Show Success"
-                                    </Button>
-                                    <Button on_click=Box::new(move || {
-                                        let full_message = "Error! Database connection failed: Unable to establish connection to the database server. Please check your network connection and try again. Error code: DB_CONNECTION_TIMEOUT";
-                                        let short_message = format_error_message(full_message);
-                                        toast.error_with_full(&short_message, full_message)
-                                    })>
-                                        "Show Error (Short)"
-                                    </Button>
-                                    <Button on_click=Box::new(move || {
-                                        let full_message = "Error! Database connection failed: Unable to establish connection to the database server. Please check your network connection and try again. Error code: DB_CONNECTION_TIMEOUT. Additional details: The connection timed out after 30 seconds. This might be caused by network issues, firewall settings, or the database server being down.";
-                                        let short_message = format_error_message(full_message);
-                                        toast.error_with_full(&short_message, full_message)
-                                    })>
-                                        "Show Error (Long)"
-                                    </Button>
-                                    <Button on_click=Box::new(move || toast.warning("Warning! Please check your input."))>
-                                        "Show Warning"
-                                    </Button>
-                                    <Button on_click=Box::new(move || toast.info("Info: Here's some information."))>
-                                        "Show Info"
-                                    </Button>
-                                </div>
-                            </div>
+                                                // Component Demo Section
+                                                <div class="mt-8">
+                                                    <Card title_view={t!("home.component_demo").into_view()}>
+                                                        <div class="space-y-4">
+                                                            // Toast Demo
+                                                            <div>
+                                                                <h3 class="text-md font-semibold mb-2">{t!("home.toast_notifications")}</h3>
+                                                                <div class="flex gap-2 flex-wrap">
+                                <Button on_click=Box::new(move || toast.success(t!("home.toast_success_msg")()))>
+                                                                    {t!("home.show_success")}
+                                                                </Button>
+                            <Button on_click=Box::new(move || {
+                                                                    let full_message = t!("home.toast_error_short_full")();
+                                                                    let short_message = format_error_message(&full_message);
+                                                                    toast.error_with_full(&short_message, &full_message)
+                                                                })>
+                                                                    {t!("home.show_error_short")}
+                                                                </Button>
+                        <Button on_click=Box::new(move || {
+                                                                let full_message = t!("home.toast_error_long_full")();
+                                                                let short_message = format_error_message(&full_message);
+                                                                toast.error_with_full(&short_message, &full_message)
+                                                            })>
+                                                                {t!("home.show_error_long")}
+                                                            </Button>
+                    <Button on_click=Box::new(move || toast.warning(t!("home.toast_warning_msg")()))>
+                                                        {t!("home.show_warning")}
+                                                    </Button>
+                <Button on_click=Box::new(move || toast.info(t!("home.toast_info_msg")()))>
+                                                    {t!("home.show_info")}
+                                                </Button>
+                                                                </div>
+                                                            </div>
 
-                            // Modal Demo
-                            <div>
-                                <h3 class="text-md font-semibold mb-2">"Modals"</h3>
-                                <div class="flex gap-2">
-                                    <Button on_click=Box::new(move || set_show_modal.set(true))>
-                                        "Open Modal"
-                                    </Button>
-                                    <Button on_click=Box::new(move || set_show_confirm.set(true))>
-                                        "Open Confirm Dialog"
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            </div>
+                                                            // Modal Demo
+                                                            <div>
+                                                                <h3 class="text-md font-semibold mb-2">{t!("home.modals")}</h3>
+                                                                <div class="flex gap-2">
+            <Button on_click=Box::new(move || set_show_modal.set(true))>
+                                                    {t!("home.open_modal")}
+                                                </Button>
+        <Button on_click=Box::new(move || set_show_confirm.set(true))>
+                                                {t!("home.open_confirm")}
+                                            </Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </Card>
+                                                </div>
+                                            </div>
 
-            // Modal Components
-            <Modal
-                show=show_modal
-                on_close=move || set_show_modal.set(false)
-                title="Example Modal".to_string()
-            >
-                <div class="space-y-4">
-                    <p>"This is an example modal with custom content."</p>
-                    <p class="text-sm text-gray-600">"You can press Escape or click the overlay to close it."</p>
-                    <Button on_click=Box::new(move || set_show_modal.set(false))>
-                        "Close Modal"
-                    </Button>
-                </div>
-            </Modal>
+                                            // Modal Components
+                                            <Modal
+                                                show=show_modal
+                                                on_close=move || set_show_modal.set(false)
+                                                title=t!("home.example_modal_title")()
+                                            >
+                                                <div class="space-y-4">
+    <p>{t!("home.example_modal_content")}</p>
+                        <p class="text-sm text-gray-600">{t!("home.example_modal_hint")}</p>
+                        <Button on_click=Box::new(move || set_show_modal.set(false))>
+                            {t!("home.close_modal")}
+                        </Button>
+                                                </div>
+                                            </Modal>
 
-            <ConfirmModal
-                show=show_confirm
-                on_close=move || set_show_confirm.set(false)
-                on_confirm=move || {
-                    toast.success("Action confirmed!");
-                }
-                title="Confirm Action".to_string()
-                message=confirm_message
-                is_destructive=false
-            />
-        </Container>
-    }
+                                            <ConfirmModal
+                                                show=show_confirm
+                                                on_close=move || set_show_confirm.set(false)
+                                                on_confirm=move || {
+                                                    toast.success(t!("home.action_confirmed")());
+                                                }
+                                                title=t!("home.confirm_action")()
+                                                message=confirm_message
+                                                is_destructive=false
+                                            />
+                                        </Container>
+                                    }
 }

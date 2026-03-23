@@ -41,7 +41,7 @@ pub fn VendorListPage() -> impl IntoView {
                 match state.vendor_repository.find_by_booth(&booth_id).await {
                     Ok(mut vendors) => {
                         // Sort vendors using smart sorting (already implemented in VendorId)
-                        vendors.sort_by_key(|v| v.vendor_id.clone());
+                        vendors.sort_by(|a, b| a.vendor_id.cmp(&b.vendor_id));
 
                         // Calculate summary for each vendor
                         let mut summaries = Vec::new();
@@ -171,9 +171,10 @@ pub fn VendorListPage() -> impl IntoView {
                                             >
                                                 <div class="flex justify-between items-start">
                                                     <div>
-                                                        <h3 class="text-lg font-semibold text-gray-900">
-                                                            {t!("vendor.id_label")} {vendor_id}
-                                                        </h3>
+<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+    <span>{t!("vendor.id_label")}</span>
+    <span class="ml-2">{vendor_id}</span>
+</h3>
                                                         <p class="text-sm text-gray-600 mt-1">
                                                             {t!("vendor.purchase_count")} {summary.purchase_count}
                                                         </p>
