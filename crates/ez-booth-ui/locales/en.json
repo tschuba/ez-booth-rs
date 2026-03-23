@@ -80,6 +80,11 @@
       "minutes_one": "{count} min",
       "time_of_day": "{time}",
       "tooltip": "Added at {datetime}"
+    },
+    "running_totals": {
+      "sales": "Total Sales",
+      "items": "Items Processed",
+      "vendors": "Vendors Served"
     }
   },
   "report": {

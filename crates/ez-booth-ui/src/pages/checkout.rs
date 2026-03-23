@@ -9,8 +9,10 @@ use domain::models::shared::{PurchaseId, VendorId};
 use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
+use web_sys::window;
 
 #[derive(Clone, Debug)]
 struct CheckoutItem {
@@ -33,6 +35,23 @@ struct PendingDeletion {
     purchase_id: Option<PurchaseId>,
     token: String,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct StoredCheckoutItem {
+    amount: String,
+    vendor_id: String,
+    added_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct StoredCheckoutForm {
+    booth_id: Option<String>,
+    vendor_id: String,
+    current_amount: String,
+    items: Vec<StoredCheckoutItem>,
+}
+
+const CHECKOUT_DRAFT_STORAGE_KEY: &str = "ez-booth-checkout-draft";
 
 impl CheckoutFormData {
     fn total(&self) -> Decimal {
@@ -100,19 +119,86 @@ fn focus_and_select_input(input_ref: &NodeRef<html::Input>) {
     }
 }
 
+fn get_local_storage() -> Option<web_sys::Storage> {
+    let window = window()?;
+    window.local_storage().ok().flatten()
+}
+
+fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
+    let storage = get_local_storage()?;
+    let raw = storage.get_item(CHECKOUT_DRAFT_STORAGE_KEY).ok()??;
+    let parsed: StoredCheckoutForm = serde_json::from_str(&raw).ok()?;
+
+    let mut items = Vec::with_capacity(parsed.items.len());
+    for stored in parsed.items {
+        let amount = Decimal::from_str(&stored.amount).ok()?;
+        let added_at = DateTime::<Utc>::from_timestamp_millis(stored.added_at_ms)
+            .unwrap_or_else(|| Utc::now());
+        items.push(CheckoutItem {
+            amount,
+            vendor_id: stored.vendor_id,
+            added_at,
+        });
+    }
+
+    Some((
+        parsed.booth_id,
+        CheckoutFormData {
+            vendor_id: parsed.vendor_id,
+            current_amount: parsed.current_amount,
+            items,
+            ..Default::default()
+        },
+    ))
+}
+
+fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) {
+    let is_empty = data.vendor_id.trim().is_empty()
+        && data.current_amount.trim().is_empty()
+        && data.items.is_empty();
+
+    if let Some(storage) = get_local_storage() {
+        if is_empty {
+            let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
+            return;
+        }
+
+        let stored = StoredCheckoutForm {
+            booth_id,
+            vendor_id: data.vendor_id.clone(),
+            current_amount: data.current_amount.clone(),
+            items: data
+                .items
+                .iter()
+                .map(|item| StoredCheckoutItem {
+                    amount: item.amount.to_string(),
+                    vendor_id: item.vendor_id.clone(),
+                    added_at_ms: item.added_at.timestamp_millis(),
+                })
+                .collect(),
+        };
+
+        if let Ok(serialized) = serde_json::to_string(&stored) {
+            let _ = storage.set_item(CHECKOUT_DRAFT_STORAGE_KEY, &serialized);
+        }
+    }
+}
+
 #[component]
 pub fn CheckoutPage() -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
 
-    // Selected booth (for now, use the first booth)
+    // Selected booth (per booth dropdown)
     let (selected_booth, set_selected_booth) = create_signal(None::<Booth>);
 
     // Purchases for current booth
     let (purchases, set_purchases) = create_signal(Vec::<Purchase>::new());
 
     // Checkout form data
-    let (form_data, set_form_data) = create_signal(CheckoutFormData::default());
+    let (initial_booth_id, initial_form_data) =
+        load_saved_form_data().unwrap_or((None, CheckoutFormData::default()));
+    let (form_data, set_form_data) = create_signal(initial_form_data);
 
     // Cancel confirmation modal
     let (show_cancel_modal, set_show_cancel_modal) = create_signal(false);
@@ -132,6 +218,17 @@ pub fn CheckoutPage() -> impl IntoView {
         let entered = delete_confirmation_input.get().trim().to_uppercase();
         !entered.is_empty() && entered == required
     });
+
+    // Persist form data anytime it changes
+    {
+        let form_data = form_data.clone();
+        let selected_booth = selected_booth.clone();
+        create_effect(move |_| {
+            let data = form_data.get();
+            let booth_id = selected_booth.get().map(|b| b.id.as_str());
+            persist_form_data(booth_id, &data);
+        });
+    }
 
     // Input references for focus management
     let vendor_input_ref = create_node_ref::<html::Input>();
@@ -157,18 +254,39 @@ pub fn CheckoutPage() -> impl IntoView {
     }
 
     // Load initial data
+    let initial_booth_id_ref = initial_booth_id.clone();
     create_effect(move |_| {
         let state_result = app_state.get();
 
         if let Some(Ok(state)) = state_result {
             set_is_loading.set(true);
+            let set_selected_booth = set_selected_booth.clone();
+            let set_purchases = set_purchases.clone();
+            let toast = toast.clone();
+            let initial_booth_id = initial_booth_id_ref.clone();
             spawn_local(async move {
                 match state.booth_repository.find_all().await {
                     Ok(booths) => {
-                        if let Some(booth) = booths.first().cloned() {
-                            set_selected_booth.set(Some(booth.clone()));
+                        if booths.is_empty() {
+                            set_is_loading.set(false);
+                            return;
+                        }
 
-                            match state.purchase_repository.find_by_booth(&booth.id).await {
+                        let next_booth = initial_booth_id
+                            .as_ref()
+                            .and_then(|saved_id| {
+                                booths
+                                    .iter()
+                                    .find(|booth| booth.id.as_str() == *saved_id)
+                                    .cloned()
+                            })
+                            .or_else(|| booths.first().cloned());
+
+                        if let Some(booth) = next_booth.clone() {
+                            let booth_id = booth.id.clone();
+                            set_selected_booth.set(Some(booth));
+
+                            match state.purchase_repository.find_by_booth(&booth_id).await {
                                 Ok(existing_purchases) => {
                                     let mut sorted = existing_purchases;
                                     sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -190,27 +308,35 @@ pub fn CheckoutPage() -> impl IntoView {
         }
     });
 
-    // Derived signals
-    let total_sales = Memo::new(move |_| {
-        purchases
-            .get()
-            .iter()
-            .map(|p| p.total_amount())
-            .sum::<Decimal>()
-    });
-
-    let fee_summary = Memo::new(move |_| {
+    let filtered_purchases = Memo::new(move |_| {
         selected_booth
             .get()
             .map(|booth| {
-                let total = total_sales.get();
-                let fee_percent = booth.fees.sales_fee_percent;
-                let fee_amount = total * fee_percent / Decimal::from(100);
-                let net_amount = total - fee_amount;
-
-                (total, fee_amount, net_amount)
+                let mut list: Vec<Purchase> = purchases
+                    .get()
+                    .into_iter()
+                    .filter(|purchase| purchase.booth_id == booth.id)
+                    .collect();
+                list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                list
             })
-            .unwrap_or((Decimal::ZERO, Decimal::ZERO, Decimal::ZERO))
+            .unwrap_or_default()
+    });
+
+    let running_totals = Memo::new(move |_| {
+        let purchases_list = filtered_purchases.get();
+        let total = purchases_list
+            .iter()
+            .map(|p| p.total_amount())
+            .sum::<Decimal>();
+        let item_count = purchases_list.iter().map(|p| p.items.len()).sum::<usize>();
+        let vendor_count = purchases_list
+            .iter()
+            .map(|p| p.vendor_id.clone())
+            .collect::<HashSet<_>>()
+            .len();
+
+        (total, item_count, vendor_count)
     });
 
     // Form actions
@@ -302,7 +428,9 @@ pub fn CheckoutPage() -> impl IntoView {
         if items_present {
             set_show_cancel_modal.set(true);
         } else {
-            set_form_data.set(CheckoutFormData::default());
+                set_form_data.set(CheckoutFormData::default());
+                let booth_id = selected_booth.get().map(|b| b.id.as_str());
+                persist_form_data(booth_id, &CheckoutFormData::default());
         }
     };
 
@@ -310,6 +438,8 @@ pub fn CheckoutPage() -> impl IntoView {
         let set_form_data = set_form_data.clone();
         move || {
             set_form_data.set(CheckoutFormData::default());
+            let booth_id = selected_booth.get().map(|b| b.id.as_str());
+            persist_form_data(booth_id, &CheckoutFormData::default());
         }
     };
 
@@ -368,6 +498,8 @@ pub fn CheckoutPage() -> impl IntoView {
                         });
                         toast.success(&t!("checkout.success")());
                         set_form_data.set(CheckoutFormData::default());
+                        let booth_id = selected_booth.get().map(|b| b.id.as_str());
+                        persist_form_data(booth_id, &CheckoutFormData::default());
                     }
                     Err(e) => {
                         toast.error(&format!("Failed to save purchase: {:?}", e));
@@ -662,9 +794,9 @@ pub fn CheckoutPage() -> impl IntoView {
 
                         <Card title="Recent Transactions">
                             <Show
-                                when=move || purchases.get().is_empty()
+                                when=move || filtered_purchases.get().is_empty()
                                 fallback=move || {
-                                    let list = purchases.get();
+                                    let list = filtered_purchases.get();
                                     view! {
                                         <div class="space-y-2">
                                             {list.into_iter().map(|purchase| {
@@ -683,18 +815,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         )]),
                                                     )
                                                 };
-                                                let is_multi_vendor = item_count > 1;
                                                 view! {
                                                     <div class="flex items-center justify-between p-3 border rounded-lg">
                                                         <div class="space-y-1">
-                                                            <div class="flex items-center gap-2">
-                                                                <p class="text-sm font-semibold">{items_label.clone()}</p>
-                                                                <Show when=move || is_multi_vendor>
-                                                                    <span class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                                                        {t!("checkout.recent.multi_vendor_badge")}
-                                                                    </span>
-                                                                </Show>
-                                                            </div>
+                                                            <p class="text-sm font-semibold">{items_label.clone()}</p>
                                                             <p class="text-xs text-gray-500">
                                                                 {purchase.timestamp.format("%Y-%m-%d %H:%M").to_string()}
                                                             </p>
@@ -725,16 +849,16 @@ pub fn CheckoutPage() -> impl IntoView {
                         <Card title="Running Totals">
                             <div class="space-y-4">
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600">"Total Sales"</span>
-                                    <span class="text-lg font-semibold">{move || format!("{:.2}", fee_summary.get().0)}</span>
+                                    <span class="text-gray-600">{t!("checkout.running_totals.sales")}</span>
+                                    <span class="text-lg font-semibold">{move || format!("{:.2}", running_totals.get().0)}</span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600">"Commission"</span>
-                                    <span class="text-lg font-semibold">{move || format!("{:.2}", fee_summary.get().1)}</span>
+                                    <span class="text-gray-600">{t!("checkout.running_totals.items")}</span>
+                                    <span class="text-lg font-semibold">{move || running_totals.get().1.to_string()}</span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600">"Net Revenue"</span>
-                                    <span class="text-lg font-semibold">{move || format!("{:.2}", fee_summary.get().2)}</span>
+                                    <span class="text-gray-600">{t!("checkout.running_totals.vendors")}</span>
+                                    <span class="text-lg font-semibold">{move || running_totals.get().2.to_string()}</span>
                                 </div>
                             </div>
                         </Card>

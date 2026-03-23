@@ -80,6 +80,11 @@
       "minutes_one": "{count} Minute",
       "time_of_day": "{time}",
       "tooltip": "Hinzugefügt um {datetime}"
+    },
+    "running_totals": {
+      "sales": "Gesamtumsatz",
+      "items": "Artikel verarbeitet",
+      "vendors": "Verkäufer bedient"
     }
   },
   "report": {
