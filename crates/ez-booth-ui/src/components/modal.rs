@@ -166,8 +166,9 @@ pub fn ConfirmModal(
     on_confirm: impl Fn() + 'static + Clone,
     /// Modal title
     title: String,
-    /// Confirmation message
-    message: String,
+    /// Confirmation message (can be a signal or string)
+    #[prop(into)]
+    message: Signal<String>,
     /// Confirm button text
     #[prop(default = "Confirm".to_string())]
     confirm_text: String,
@@ -205,7 +206,7 @@ pub fn ConfirmModal(
             size=ModalSize::Small
         >
             <div class="space-y-4">
-                <p class="text-gray-700">{message}</p>
+                <p class="text-gray-700">{move || message.get()}</p>
                 <div class="flex justify-end gap-2">
                     <button
                         type="button"

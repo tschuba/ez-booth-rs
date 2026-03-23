@@ -90,13 +90,15 @@ impl Booth {
     ///
     /// # Errors
     ///
-    /// Returns `DomainError::Validation` if the fee configuration is invalid
+    /// Returns `DomainError::Validation` if:
+    /// - Description is empty or longer than 200 characters
+    /// - Fee configuration is invalid
     pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Result<Self, DomainError> {
         // Validate fee configuration
         fees.validate_ranges()?;
 
         let now = Utc::now();
-        Ok(Self {
+        let booth = Self {
             id: BoothId::new(),
             description,
             date,
@@ -104,7 +106,13 @@ impl Booth {
             status: BoothStatus::Open,
             created_at: now,
             updated_at: now,
-        })
+        };
+        
+        // Validate the booth (includes description length validation)
+        booth.validate()
+            .map_err(|e| DomainError::Validation(format!("Invalid booth: {}", e)))?;
+        
+        Ok(booth)
     }
 
     pub fn close(&mut self) {

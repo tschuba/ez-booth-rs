@@ -8,6 +8,11 @@ pub fn HomePage() -> impl IntoView {
     let (show_modal, set_show_modal) = create_signal(false);
     let (show_confirm, set_show_confirm) = create_signal(false);
     
+    // Static message for demo confirm modal
+    let confirm_message = Signal::derive(move || 
+        "Are you sure you want to proceed with this action?".to_string()
+    );
+    
     // Get toast context
     let toast = use_toast();
     
@@ -96,7 +101,7 @@ pub fn HomePage() -> impl IntoView {
                     toast.success("Action confirmed!");
                 }
                 title="Confirm Action".to_string()
-                message="Are you sure you want to proceed with this action?".to_string()
+                message=confirm_message
                 is_destructive=false
             />
         </Container>

@@ -1,4 +1,6 @@
-use crate::models::{Booth, BoothReport, Transaction};
+use crate::models::{Booth, Transaction};
+// TODO: Re-enable BoothReport once report module is fixed
+// use crate::models::BoothReport;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -40,10 +42,11 @@ impl BoothService {
         self.storage.delete_booth(id)
     }
 
-    pub fn generate_report(&self, booth_id: &Uuid, commission_rate: Decimal) -> StorageResult<BoothReport> {
-        let booth = self.storage.load_booth(booth_id)?;
-        Ok(BoothReport::from_booth(&booth, commission_rate))
-    }
+    // TODO: Re-enable once BoothReport is fixed
+    // pub fn generate_report(&self, booth_id: &Uuid, commission_rate: Decimal) -> StorageResult<BoothReport> {
+    //     let booth = self.storage.load_booth(booth_id)?;
+    //     Ok(BoothReport::from_booth(&booth, commission_rate))
+    // }
 
     pub fn export_data(&self) -> StorageResult<String> {
         self.storage.export_data()

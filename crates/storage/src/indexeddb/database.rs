@@ -10,7 +10,12 @@ pub struct Database {
 
 impl Database {
     pub async fn new() -> Result<Self, StorageError> {
-        let rexie = Rexie::builder(DB_NAME)
+        Self::new_with_name(DB_NAME).await
+    }
+    
+    /// Create a new database with a custom name (useful for testing)
+    pub async fn new_with_name(db_name: &str) -> Result<Self, StorageError> {
+        let rexie = Rexie::builder(db_name)
             .version(DB_VERSION)
             .add_object_store(
                 ObjectStore::new("booths")

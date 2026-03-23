@@ -29,6 +29,17 @@ impl Default for BoothFormData {
 }
 
 impl BoothFormData {
+    /// Create form data from an existing Booth
+    pub fn from_booth(booth: &Booth) -> Self {
+        Self {
+            description: booth.description.clone(),
+            date: booth.date.format("%Y-%m-%d").to_string(),
+            participation_fee: booth.fees.participation_fee.to_string(),
+            sales_fee_percent: booth.fees.sales_fee_percent.to_string(),
+            rounding_step: booth.fees.rounding_step.to_string(),
+        }
+    }
+    
     /// Convert form data to domain Booth model
     ///
     /// # Errors
@@ -61,6 +72,42 @@ impl BoothFormData {
         
         // Create and return Booth (this validates the fee ranges)
         Booth::new(self.description.clone(), date, fees)
+    }
+    
+    /// Update an existing booth with form data
+    ///
+    /// # Errors
+    ///
+    /// Returns DomainError if fee configuration validation fails
+    pub fn update_booth(&self, booth: &mut Booth) -> Result<(), DomainError> {
+        // Parse date
+        let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
+            .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
+        
+        // Parse fee values
+        let participation_fee = Decimal::from_str(&self.participation_fee)
+            .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
+        
+        let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
+            .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
+        
+        let rounding_step = Decimal::from_str(&self.rounding_step)
+            .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
+        
+        // Create and validate FeeConfig
+        let fees = FeeConfig {
+            participation_fee,
+            sales_fee_percent,
+            rounding_step,
+        };
+        fees.validate_ranges()?;
+        
+        // Update booth fields
+        booth.update_description(self.description.clone());
+        booth.date = date;
+        booth.update_fees(fees);
+        
+        Ok(())
     }
 }
 
