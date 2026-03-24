@@ -374,12 +374,22 @@ pub fn BoothListPage() -> impl IntoView {
                 title=create_booth_title()
                 size=ModalSize::Large
             >
-                <BoothForm
-                    on_submit=handle_create_booth
-                    on_cancel=move || {
-                        set_show_create_modal.set(false);
+                {move || {
+                    // Recreate form whenever modal opens by wrapping in a closure
+                    // This ensures fields are reset each time
+                    if show_create_modal.get() {
+                        Some(view! {
+                            <BoothForm
+                                on_submit=handle_create_booth
+                                on_cancel=move || {
+                                    set_show_create_modal.set(false);
+                                }
+                            />
+                        })
+                    } else {
+                        None
                     }
-                />
+                }}
             </Modal>
 
             // Edit booth modal
