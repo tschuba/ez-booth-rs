@@ -726,156 +726,98 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 }
 
 // Print-only component for Vendor Reports
+// Matches the working Thymeleaf template structure from ez-booth
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
+    let total_reports = reports.len();
+    
     view! {
-        <div class="p-8">
-            {reports
-                .into_iter()
-                .enumerate()
-                .map(|(vendor_idx, report)| {
-                    let vendor_id = report.vendor.vendor_id.as_str().to_string();
-                    let vendor_name = report.vendor.name.clone();
-                    let sales_sum = report.sales_sum;
-                    let participation_fee = report.participation_fee;
-                    let sales_fee = report.sales_fee;
-                    let total_revenue = report.total_revenue;
-                    let items = report.items.clone();
-                    let booth_description = report.booth.description.clone();
-                    let booth_date = report.booth.date;
-                    
-                    // Group and sort transactions
-                    let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
-                    for item in items.iter() {
-                        grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
-                    }
-                    
-                    let mut transactions: Vec<_> = grouped.into_iter().collect();
-                    transactions.sort_by(|a, b| {
-                        items.iter().position(|i| i.transaction_id == a.0)
-                            .cmp(&items.iter().position(|i| i.transaction_id == b.0))
-                    });
-                    
-                    // Add page break between vendors (but not before first vendor)
-                    let page_break_class = if vendor_idx > 0 { "page-break-before" } else { "" };
-                    
-                    view! {
-                        <div class=page_break_class>
-                            // Header with vendor info and financial summary
-                            <div class="mb-6">
-                                <div class="mb-4 pb-4 border-b-2 border-gray-800">
-                                    <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
-                                    <div class="text-lg">
-                                        <p class="font-semibold">
-                                            {t!("report.vendor_id")}": "{vendor_id.clone()}
-                                            {vendor_name.as_ref().map(|name| format!(" - {}", name))}
-                                        </p>
-                                        <p class="text-sm text-gray-700">{booth_description.clone()}</p>
-                                        <p class="text-sm text-gray-600">{booth_date.format("%d.%m.%Y").to_string()}</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-6">
-                                    <h2 class="text-xl font-bold mb-4">{t!("report.financial_summary")}</h2>
-                                    <div class="border-2 border-gray-300 p-4 rounded space-y-3">
-                                        <div class="flex justify-between py-2">
-                                            <span class="font-medium">{t!("report.gross_sales")}"："</span>
-                                            <span class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</span>
-                                        </div>
-                                        <div class="flex justify-between py-2 border-t">
-                                            <span class="text-gray-600">{t!("report.participation_fee")}"："</span>
-                                            <span>{format!("-€ {:.2}", participation_fee)}</span>
-                                        </div>
-                                        <div class="flex justify-between py-2">
-                                            <span class="text-gray-600">{t!("report.sales_fee")}"："</span>
-                                            <span>{format!("-€ {:.2}", sales_fee)}</span>
-                                        </div>
-                                        <div class="flex justify-between py-3 border-t-2 border-gray-800">
-                                            <span class="text-xl font-bold">{t!("report.net_payout")}"："</span>
-                                            <span class="text-2xl font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</span>
-                                        </div>
-                                    </div>
-                                </div>
+        {reports
+            .into_iter()
+            .enumerate()
+            .map(|(vendor_idx, report)| {
+                let vendor_id = report.vendor.vendor_id.as_str().to_string();
+                let vendor_name = report.vendor.name.clone();
+                let sales_sum = report.sales_sum;
+                let participation_fee = report.participation_fee;
+                let sales_fee = report.sales_fee;
+                let total_revenue = report.total_revenue;
+                let items = report.items.clone();
+                let booth_description = report.booth.description.clone();
+                let booth_date = report.booth.date;
+                
+                // Determine if this should have a page break after it (all but the last one)
+                let is_last = vendor_idx == total_reports - 1;
+                let page_break_class = if !is_last { "print-page-break-after" } else { "" };
+                
+                view! {
+                    <main class=format!("print-vendor-report {}", page_break_class)>
+                        // PAGE HEADER
+                        <h2 class="print-report-title">
+                            <span>{t!("report.vendor_report")}</span>
+                            <br/>
+                            <span class="print-report-subtitle">
+                                {booth_description}" ("{booth_date.format("%d.%m.%Y").to_string()}")"
+                            </span>
+                        </h2>
+
+                        // REPORT HEADER (Vendor ID and Financial Summary)
+                        <div class="print-report-header">
+                            <div>
+                                <span class="print-label">{t!("report.vendor_id")}"："</span>
+                                <span>"#"{vendor_id}</span>
+                                {vendor_name.map(|name| view! { <span>" - "{name}</span> }.into_view())}
                             </div>
-                            
-                            // Sales details table
-                            <div class="mb-6">
-                                <h2 class="text-xl font-bold mb-4">{t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"</h2>
-                                
-                                <table class="w-full border-collapse">
-                                    <thead>
-                                        <tr class="border-b-2 border-gray-800">
-                                            <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
-                                            <th class="px-4 py-2 text-left font-bold">{t!("report.time")}</th>
-                                            <th class="px-4 py-2 text-right font-bold">{t!("report.amount")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {transactions
-                                            .into_iter()
-                                            .flat_map(|(transaction_id, transaction_items)| {
-                                                let is_multi_item = transaction_items.len() > 1;
-                                                let transaction_total: rust_decimal::Decimal = transaction_items.iter()
-                                                    .map(|item| item.item.amount)
-                                                    .sum();
-                                                
-                                                if is_multi_item {
-                                                    let mut rows = vec![];
-                                                    for (idx, report_item) in transaction_items.iter().enumerate() {
-                                                        let time_str = report_item.timestamp
-                                                            .with_timezone(&chrono::Local)
-                                                            .format("%H:%M")
-                                                            .to_string();
-                                                        
-                                                        let txn_id_cell = if idx == 0 {
-                                                            view! {
-                                                                <td class="px-4 py-2 text-gray-600 font-mono text-sm">{transaction_id.to_string()}</td>
-                                                            }.into_view()
-                                                        } else {
-                                                            view! { <td class="px-4 py-2"></td> }.into_view()
-                                                        };
-                                                        
-                                                        rows.push(view! {
-                                                            <tr class="border-b border-gray-200 avoid-page-break">
-                                                                {txn_id_cell}
-                                                                <td class="px-4 py-2 text-gray-600 text-sm">{time_str}</td>
-                                                                <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
-                                                            </tr>
-                                                        }.into_view());
-                                                    }
-                                                    
-                                                    rows.push(view! {
-                                                        <tr class="border-b-2 border-gray-400 bg-gray-50 avoid-page-break">
-                                                            <td class="px-4 py-2"></td>
-                                                            <td class="px-4 py-2 font-semibold text-right">{t!("report.subtotal")}</td>
-                                                            <td class="px-4 py-2 text-right font-semibold">{format!("€ {:.2}", transaction_total)}</td>
-                                                        </tr>
-                                                    }.into_view());
-                                                    
-                                                    rows
-                                                } else {
-                                                    let report_item = &transaction_items[0];
-                                                    let time_str = report_item.timestamp
-                                                        .with_timezone(&chrono::Local)
-                                                        .format("%H:%M")
-                                                        .to_string();
-                                                    vec![view! {
-                                                        <tr class="border-b border-gray-300 avoid-page-break">
-                                                            <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
-                                                            <td class="px-4 py-2 text-gray-600 text-sm">{time_str}</td>
-                                                            <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
-                                                        </tr>
-                                                    }.into_view()]
-                                                }
-                                            })
-                                            .collect_view()}
-                                    </tbody>
-                                </table>
+                            <div class="print-financial-summary">
+                                <div class="print-summary-row">
+                                    <span class="print-label">{t!("report.gross_sales")}"："</span>
+                                    <span>{format!("€ {:.2}", sales_sum)}</span>
+                                </div>
+                                <div class="print-summary-row">
+                                    <span class="print-label">{t!("report.participation_fee")}"："</span>
+                                    <span>{format!("-€ {:.2}", participation_fee)}</span>
+                                </div>
+                                <div class="print-summary-row">
+                                    <span class="print-label">{t!("report.sales_fee")}"："</span>
+                                    <span>{format!("-€ {:.2}", sales_fee)}</span>
+                                </div>
+                                <div class="print-summary-row print-summary-total">
+                                    <span class="print-label">{t!("report.net_payout")}"："</span>
+                                    <span class="print-total-amount">{format!("€ {:.2}", total_revenue)}</span>
+                                </div>
                             </div>
                         </div>
-                    }
-                })
-                .collect_view()}
-        </div>
+
+                        // LIST OF REPORT ITEMS
+                        <div class="print-items-section">
+                            <div class="print-items-header">
+                                <span>{t!("report.sales_details")}</span>
+                                <div class="print-items-count">
+                                    <span>{t!("report.items")}"："</span>
+                                    <span>{items.len()}</span>
+                                </div>
+                            </div>
+                            <div class="print-items-grid">
+                                {items
+                                    .into_iter()
+                                    .map(|item| {
+                                        let time_str = item.timestamp
+                                            .with_timezone(&chrono::Local)
+                                            .format("%H:%M")
+                                            .to_string();
+                                        view! {
+                                            <div class="print-item">
+                                                <span class="print-item-time">{time_str}</span>
+                                                <span class="print-item-amount">{format!("€ {:.2}", item.item.amount)}</span>
+                                            </div>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        </div>
+                    </main>
+                }
+            })
+            .collect_view()}
     }
 }

@@ -19,45 +19,24 @@
             -moz-osx-font-smoothing: grayscale;
         }
         
-        /* Print styles for vendor reports */
+        /* Print styles for vendor reports - based on working ez-booth Thymeleaf template */
+        
+        /* Print-specific page breaks */
         @media print {
+            .print-page-break-after {
+                page-break-after: always;
+                break-after: always;
+            }
+
+            .print-page-break-before {
+                page-break-before: always;
+                break-before: always;
+            }
+            
             /* Page setup */
             @page {
                 margin: 1.5cm 1cm 1cm 1cm;
                 size: A4;
-            }
-            
-            /* Remove all padding/margins in print */
-            body, html {
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            
-            /* Table styling */
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            
-            /* Attempt to repeat thead (may not work in Safari, but doesn't hurt) */
-            thead {
-                display: table-header-group;
-            }
-            
-            tbody {
-                display: table-row-group;
-            }
-            
-            /* Avoid breaking rows in the middle */
-            tr.avoid-page-break {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
-            /* Page breaks between vendors */
-            .page-break-before {
-                page-break-before: always;
-                break-before: page;
             }
             
             /* Hide screen-only elements */
@@ -69,6 +48,106 @@
             .hidden.print\\:block {
                 display: block !important;
             }
+        }
+
+        /* Screen-specific: Border between reports for preview */
+        @media not print {
+            main.print-vendor-report {
+                border-bottom: 1px dashed #ccc;
+                margin-top: 2rem;
+                margin-bottom: 2rem;
+            }
+        }
+
+        /* Styles for both print and screen */
+        main.print-vendor-report {
+            font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            color: rgb(35, 72, 128);
+            line-height: 1.5;
+            padding: 1.125rem;
+        }
+
+        /* Report title */
+        .print-report-title {
+            margin: 0;
+            font-size: 1.75rem;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+
+        .print-report-subtitle {
+            color: hsla(216, 57%, 32%, 0.7);
+            font-size: 0.875rem;
+        }
+
+        /* Report header (vendor info and financial summary) */
+        .print-report-header {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1.125rem;
+            padding: 1.125rem;
+        }
+
+        .print-financial-summary {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .print-summary-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        .print-summary-total {
+            padding-top: 0.75rem;
+        }
+
+        .print-label {
+            padding-right: 0.75rem;
+        }
+
+        .print-total-amount {
+            font-weight: 600;
+        }
+
+        /* Items section */
+        .print-items-section {
+            margin-bottom: 1.75rem;
+            color: hsla(216, 57%, 32%, 0.7);
+        }
+
+        .print-items-header {
+            border-bottom: 1px solid hsla(216, 57%, 32%, 0.5);
+            padding: 1.125rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .print-items-count {
+            font-size: 0.875rem;
+            padding-left: 0.75rem;
+        }
+
+        /* Items grid - displays items in a grid layout */
+        .print-items-grid {
+            display: grid;
+            grid-template-columns: repeat(9, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .print-item {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: flex-end;
+        }
+
+        .print-item-time {
+            font-size: 0.75rem;
+        }
+
+        .print-item-amount {
+            font-size: 0.875rem;
+            font-weight: 500;
         }
     </style>
 </head>
