@@ -71,12 +71,18 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             let fees_due = fees.total();
             let net_payout = gross_sales - fees_due;
 
+            // Count total items across all purchases for this vendor
+            let item_count: usize = vendor_purchases_list
+                .iter()
+                .map(|p| p.items.len())
+                .sum();
+
             vendor_summaries.push(VendorBoothSummary {
                 vendor_id: vendor_id.clone(),
                 gross_sales,
                 fees_due,
                 net_payout,
-                purchase_count: vendor_purchases_list.len(),
+                item_count,
             });
         }
 
@@ -511,7 +517,7 @@ mod tests {
             .find(|v| v.vendor_id == vendor1.vendor_id)
             .unwrap();
         assert_eq!(v1_summary.gross_sales, dec!(15.00));
-        assert_eq!(v1_summary.purchase_count, 1);
+        assert_eq!(v1_summary.item_count, 2); // 2 items in the purchase
         // Fees: 5.00 participation + 1.50 sales (10% of 15.00) = 6.50
         assert_eq!(v1_summary.fees_due, dec!(6.50));
         assert_eq!(v1_summary.net_payout, dec!(8.50)); // 15.00 - 6.50

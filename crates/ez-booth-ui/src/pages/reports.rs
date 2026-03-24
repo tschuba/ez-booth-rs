@@ -477,7 +477,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                             {format!("€ {:.2}", vs.net_payout)}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {vs.purchase_count}
+                                            {vs.item_count}
                                         </td>
                                     </tr>
                                 }
@@ -647,7 +647,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                                         <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.gross_sales)}</td>
                                         <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.fees_due)}</td>
                                         <td class="px-4 py-3 text-right font-semibold">{format!("€ {:.2}", vs.net_payout)}</td>
-                                        <td class="px-4 py-3 text-right">{vs.purchase_count}</td>
+                                        <td class="px-4 py-3 text-right">{vs.item_count}</td>
                                     </tr>
                                 }
                             })
