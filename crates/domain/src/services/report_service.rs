@@ -552,8 +552,8 @@ mod tests {
 
         assert_eq!(report.sales_sum, dec!(23.00)); // 10 + 5 + 8
         assert_eq!(report.participation_fee, dec!(5.00));
-        assert_eq!(report.sales_fee, dec!(2.30)); // 10% of 23.00
-        assert_eq!(report.total_revenue, dec!(15.70)); // 23.00 - 5.00 - 2.30
+        assert_eq!(report.sales_fee, dec!(2.50)); // 10% of 23.00 = 2.30, rounded to nearest 0.50 = 2.50
+        assert_eq!(report.total_revenue, dec!(15.50)); // 23.00 - 5.00 - 2.50
         assert_eq!(report.items.len(), 3);
     }
 
