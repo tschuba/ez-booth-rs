@@ -22,6 +22,10 @@
   "booth": {
     "title": "Booth",
     "selected_label": "Selected booth:",
+    "selector_aria_label": "Select a booth",
+    "select_booth_cta": "Select Booth",
+    "no_booths_found": "No booths yet",
+    "create_first_booth": "Create your first booth to get started",
     "created": "Booth created.",
     "deleted": "Booth deleted.",
     "saved": "Booth saved.",

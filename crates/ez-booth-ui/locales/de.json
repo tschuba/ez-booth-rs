@@ -22,6 +22,10 @@
   "booth": {
     "title": "Stand",
     "selected_label": "Ausgewählter Stand:",
+    "selector_aria_label": "Stand auswählen",
+    "select_booth_cta": "Stand auswählen",
+    "no_booths_found": "Noch keine Stände",
+    "create_first_booth": "Erstelle deinen ersten Stand um zu starten",
     "created": "Stand erstellt.",
     "deleted": "Stand gelöscht.",
     "saved": "Stand gespeichert.",
