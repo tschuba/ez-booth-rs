@@ -754,52 +754,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         </div>
 
                                                         <div class="space-y-4">
-                                                            <div>
-                                                                <h3 class="text-sm font-semibold text-gray-700 mb-2">{t!("checkout.current_items")}</h3>
-                                                                <div class="space-y-2 border rounded-lg p-3 bg-gray-50">
-                                                                    <Show
-                                                                        when=move || form_data.get().items.is_empty()
-                                                                        fallback=move || {
-                                                                            let data = form_data.get();
-                                                                            let items = data.items;
-                                                                            let total_items = items.len();
-                                                                            view! {
-                                                                                <ul class="space-y-2">
-                                                                                    {items.into_iter().enumerate().map(move |(index, item)| {
-                                                                                        let display_number = total_items - index;
-                                                                                        let vendor_label = if item.vendor_id.trim().is_empty() {
-                                                                                            "—".to_string()
-                                                                                        } else {
-                                                                                            item.vendor_id.clone()
-                                                                                        };
-                                                                                        view! {
-                                                                                            <li class="flex items-start justify-between text-sm">
-                                                                                                <div>
-                                                                                                    <p class="font-medium">{format!("Item {}", display_number)}</p>
-                                                                                                    <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
-                                                                                                </div>
-                                                                                                <div class="text-right">
-                                                                                                    <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
-                                                                            <p class="text-xs text-gray-400" title={
-                                                                                let locale = use_locale().get();
-                                                                                format_item_tooltip(item.added_at, locale)
-                                                                            }>{
-                                                                                let locale = use_locale().get();
-                                                                                format!("{}", format_item_timestamp(item.added_at, locale))
-                                                                            }</p>
-                                                                    </div>
-                                                                </li>
-                                                            }
-                                                                                    }).collect_view()}
-                                                                                </ul>
-                                                                            }
-                                                                        }
-                                                                    >
-                                                                        <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
-                                                                    </Show>
-                                                                </div>
-                                                            </div>
-
                                                             <div class="space-y-4 rounded-lg border bg-gray-50 p-4 shadow-sm">
                                                                 <div class="flex justify-between text-lg font-semibold">
                                                                     <span>{t!("checkout.total")}</span>
@@ -950,6 +904,51 @@ pub fn CheckoutPage() -> impl IntoView {
                                     <span class="text-gray-600">{t!("checkout.running_totals.vendors")}</span>
                                     <span class="text-lg font-semibold">{move || running_totals.get().2.to_string()}</span>
                                 </div>
+                            </div>
+                        </Card>
+
+                        <Card title_view={t!("checkout.current_items").into_view()}>
+                            <div class="space-y-2">
+                                <Show
+                                    when=move || form_data.get().items.is_empty()
+                                    fallback=move || {
+                                        let data = form_data.get();
+                                        let items = data.items;
+                                        let total_items = items.len();
+                                        view! {
+                                            <ul class="space-y-2">
+                                                {items.into_iter().enumerate().map(move |(index, item)| {
+                                                    let display_number = total_items - index;
+                                                    let vendor_label = if item.vendor_id.trim().is_empty() {
+                                                        "—".to_string()
+                                                    } else {
+                                                        item.vendor_id.clone()
+                                                    };
+                                                    view! {
+                                                        <li class="flex items-start justify-between text-sm p-2 border rounded-lg bg-gray-50">
+                                                            <div>
+                                                                <p class="font-medium">{format!("Item {}", display_number)}</p>
+                                                                <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
+                                                            </div>
+                                                            <div class="text-right">
+                                                                <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
+                                                                <p class="text-xs text-gray-400" title={
+                                                                    let locale = use_locale().get();
+                                                                    format_item_tooltip(item.added_at, locale)
+                                                                }>{
+                                                                    let locale = use_locale().get();
+                                                                    format!("{}", format_item_timestamp(item.added_at, locale))
+                                                                }</p>
+                                                            </div>
+                                                        </li>
+                                                    }
+                                                }).collect_view()}
+                                            </ul>
+                                        }
+                                    }
+                                >
+                                    <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
+                                </Show>
                             </div>
                         </Card>
                     </div>
