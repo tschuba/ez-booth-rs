@@ -16,3 +16,6 @@ Thumbs.db
 *.wasm
 dist/
 pkg/
+
+# OpenCode session data
+.opencode/

@@ -638,10 +638,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                     <Show
                                         when=move || is_loading.get()
                                         fallback=move || view! {
-                                            <Show
-                                                when=move || selected_booth.get().is_none()
-                                                fallback=move || view! {
-                                                    <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+                                            <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem]">
                                                         <div class="space-y-4 lg:pr-4">
                                                             <div class="space-y-6">
                                                                 <div>
@@ -849,13 +846,9 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         </span>
                                                                     </Button>
                                                                 </div>
-                                                            </div>
-                                                        </div>
                                                     </div>
-                                                }
-                                            >
-                                                <p class="text-gray-600">{t!("checkout.no_booth_message")}</p>
-                                            </Show>
+                                                </div>
+                                            </div>
                                         }
                                     >
                                         <p class="text-gray-600">{t!("checkout.loading_message")}</p>

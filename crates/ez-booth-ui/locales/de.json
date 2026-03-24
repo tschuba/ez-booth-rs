@@ -22,6 +22,10 @@
   "booth": {
     "title": "Stand",
     "selected_label": "Ausgewählter Stand:",
+    "selector_aria_label": "Stand auswählen",
+    "select_booth_cta": "Stand auswählen",
+    "no_booths_found": "Noch keine Stände",
+    "create_first_booth": "Erstelle deinen ersten Stand um zu starten",
     "created": "Stand erstellt.",
     "deleted": "Stand gelöscht.",
     "saved": "Stand gespeichert.",
@@ -37,7 +41,10 @@
     "status_closed": "Geschlossen",
     "participation_fee": "Standgebühr",
     "sales_fee_percent": "Verkaufsprovision (%)",
-    "rounding_step": "Rundungsschritt"
+    "rounding_step": "Rundungsschritt",
+    "errors": {
+      "load_failed": "Fehler beim Laden der Stände"
+    }
   },
   "vendor": {
     "title": "Verkäufer",
@@ -53,8 +60,8 @@
     "detail_title": "Verkäufer-Details",
     "created_at": "Erstellt"
   },
-    "checkout": {
-      "prompt_select_booth": "Bitte wähle oben einen Stand aus, um mit der Kasse zu starten.",
+  "checkout": {
+    "prompt_select_booth": "Bitte wähle oben einen Stand aus, um mit der Kasse zu starten.",
     "title": "Kasse",
     "vendor_id": "Verkäufer-ID",
     "vendor_placeholder": "Verkäufer-ID (z. B. 101)",

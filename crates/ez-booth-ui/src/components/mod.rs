@@ -1,4 +1,5 @@
 mod booth_form;
+mod booth_selector;
 mod button;
 mod input;
 mod layout;
@@ -10,6 +11,7 @@ mod booth_form_tests;
 
 // Re-export components
 pub use booth_form::*;
+pub use booth_selector::*;
 pub use button::*;
 pub use input::*;
 pub use layout::*;

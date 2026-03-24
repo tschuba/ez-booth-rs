@@ -30,8 +30,6 @@ pub fn App() -> impl IntoView {
 
     let locale = use_locale();
 
-    
-
     view! {
         <ToastProvider>
             <Router>
@@ -43,64 +41,7 @@ pub fn App() -> impl IntoView {
                                 <a href="/" class="text-2xl font-bold text-blue-600">
                                     {t!("app.title")}
                                 </a>
-                                {
-    let selected_booth = selected_booth_context::use_selected_booth();
-    let (booths, set_booths) = create_signal(Vec::new());
-    let app_state = use_app_state();
-    let toast = use_toast();
-    // Load available booths once at header level
-    create_effect(move |_| {
-        let state_result = app_state.get();
-        if let Some(Ok(state)) = state_result {
-            spawn_local(async move {
-                match state.booth_repository.find_all().await {
-                    Ok(loaded_booths) => {
-                        set_booths.set(loaded_booths);
-                    }
-                    Err(e) => {
-                        toast.error(&format!("Failed to load booths: {:?}", e));
-                    }
-                }
-            });
-        }
-    });
-    view! {
-        <div class="ml-6 flex items-center text-blue-800">
-            <label class="font-medium mr-2" for="header-booth-select">{t!("booth.selected_label")}</label>
-            <select
-                id="header-booth-select"
-                class="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
-                on:change=move |ev| {
-                    let value = event_target_value(&ev);
-                    if value.is_empty() {
-                        selected_booth.set(None);
-                    } else {
-                        let booth = booths.get().into_iter().find(|b| b.id.as_str() == value);
-                        selected_booth.set(booth);
-                    }
-                }
-                value={move || selected_booth.get().as_ref().map(|b| b.id.as_str().to_string()).unwrap_or_default()}
-                style="min-width: 180px"
-            >
-                <option value="">{t!("vendor.no_booth_selected")}</option>
-                {move || booths.get().into_iter().map(|booth| {
-                    let booth_id = booth.id.as_str().to_string();
-                    view! {
-                        <option value={booth_id.clone()} selected={
-                            match selected_booth.get().as_ref() {
-                                Some(sel) => sel.id.as_str() == booth_id,
-                                None => false
-                            }
-                        }>
-                            {booth.description.clone()}
-                        </option>
-                    }
-                }).collect_view()}
-            </select>
-        </div>
-    }
-}
-
+                                <BoothSelector />
                                 <nav class="flex items-center space-x-4">
                                     <a href="/booths" class="text-gray-700 hover:text-blue-600">
                                         {t!("booth.list_title")}
