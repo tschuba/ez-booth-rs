@@ -67,9 +67,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
                 .map(|p| p.total_amount())
                 .sum();
 
-            let fees = charging_config.calculate_fees(gross_sales);
-            let fees_due = fees.total();
-            let net_payout = gross_sales - fees_due;
+            let payout = charging_config.calculate_payout(gross_sales);
 
             // Count total items across all purchases for this vendor
             let item_count: usize = vendor_purchases_list
@@ -79,9 +77,9 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
 
             vendor_summaries.push(VendorBoothSummary {
                 vendor_id: vendor_id.clone(),
-                gross_sales,
-                fees_due,
-                net_payout,
+                gross_sales: payout.gross_sales,
+                fees_due: payout.fees_due,
+                net_payout: payout.net_payout,
                 item_count,
             });
         }
@@ -172,20 +170,18 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
         // Calculate totals
         let sales_sum: Decimal = items.iter().map(|report_item| report_item.item.amount).sum();
 
-        // Calculate fees
+        // Calculate payout with rounding applied to net payout
         let charging_config = ChargingConfig::from_booth(&booth);
-        let charged_fees = charging_config.calculate_fees(sales_sum);
-
-        let total_revenue = sales_sum - charged_fees.total();
+        let payout = charging_config.calculate_payout(sales_sum);
 
         Ok(VendorReportData {
             vendor,
             booth,
             items,
-            sales_sum,
-            participation_fee: charged_fees.participation_fee,
-            sales_fee: charged_fees.sales_fee,
-            total_revenue,
+            sales_sum: payout.gross_sales,
+            participation_fee: charging_config.participation_fee,
+            sales_fee: payout.fees_due - charging_config.participation_fee,
+            total_revenue: payout.net_payout,
         })
     }
 
