@@ -1,4 +1,5 @@
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
+use domain::services::VendorService;
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
     IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
@@ -12,6 +13,7 @@ pub struct AppState {
     pub booth_repository: Arc<dyn BoothRepository>,
     pub vendor_repository: Arc<dyn VendorRepository>,
     pub purchase_repository: Arc<dyn PurchaseRepository>,
+    pub vendor_service: Arc<VendorService<IndexedDbVendorRepository>>,
 }
 
 impl AppState {
@@ -32,10 +34,14 @@ impl AppState {
         let purchase_repository: Arc<dyn PurchaseRepository> =
             Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
 
+        // Create services (use separate instance for service layer)
+        let vendor_service = Arc::new(VendorService::new(IndexedDbVendorRepository::new(db.clone())));
+
         Ok(Self {
             booth_repository,
             vendor_repository,
             purchase_repository,
+            vendor_service,
         })
     }
 }
