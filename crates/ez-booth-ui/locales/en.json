@@ -204,11 +204,22 @@
     "financial_summary": "Financial Summary",
     "sales_details": "Sales Details",
     "time": "Time",
+    "print_all_vendors": "Print All Vendor Reports",
+    "print_reports_for": "Print reports for",
+    "active_vendors": "active vendors",
+    "print_all": "Print All",
+    "custom_vendor_selection": "Custom Vendor Selection",
+    "select_all": "Select All",
+    "clear_selection": "Clear",
+    "print_selected": "Print Selected",
+    "vendors": "vendors",
+    "view_items": "View Items",
     "errors": {
       "load_booth_failed": "Failed to load booth data",
       "generate_failed": "Failed to generate report",
       "export_failed": "Failed to export report",
-      "no_vendors_found": "No vendors found for this booth"
+      "no_vendors_found": "No vendors found for this booth",
+      "no_vendors_selected": "Please select at least one vendor"
     }
   },
   "settings": {

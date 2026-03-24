@@ -204,11 +204,22 @@
     "financial_summary": "Finanzübersicht",
     "sales_details": "Verkaufsdetails",
     "time": "Uhrzeit",
+    "print_all_vendors": "Alle Verkäufer-Berichte drucken",
+    "print_reports_for": "Berichte drucken für",
+    "active_vendors": "aktive Verkäufer",
+    "print_all": "Alle drucken",
+    "custom_vendor_selection": "Benutzerdefinierte Verkäuferauswahl",
+    "select_all": "Alle auswählen",
+    "clear_selection": "Zurücksetzen",
+    "print_selected": "Auswahl drucken",
+    "vendors": "Verkäufer",
+    "view_items": "Artikel anzeigen",
     "errors": {
       "load_booth_failed": "Laden der Stand-Daten fehlgeschlagen",
       "generate_failed": "Bericht konnte nicht erstellt werden",
       "export_failed": "Export fehlgeschlagen",
-      "no_vendors_found": "Keine Verkäufer für diesen Stand gefunden"
+      "no_vendors_found": "Keine Verkäufer für diesen Stand gefunden",
+      "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus"
     }
   },
   "settings": {

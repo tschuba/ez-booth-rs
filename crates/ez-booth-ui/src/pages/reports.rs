@@ -7,7 +7,7 @@ use domain::services::VendorReportData;
 use leptos::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ReportType {
+enum ReportTab {
     BoothSummary,
     VendorReports,
 }
@@ -18,15 +18,16 @@ pub fn ReportsPage() -> impl IntoView {
     let selected_booth = selected_booth_context::use_selected_booth();
     let toast = use_toast();
 
-    // Report configuration state
-    let (report_type, set_report_type) = create_signal(ReportType::BoothSummary);
+    // Tab and selection state
+    let (active_tab, set_active_tab) = create_signal(ReportTab::BoothSummary);
     let (selected_vendors, set_selected_vendors) = create_signal(Vec::<VendorId>::new());
     let (active_vendors, set_active_vendors) = create_signal(Vec::<VendorId>::new());
+    let (show_custom_selection, set_show_custom_selection) = create_signal(false);
     
     // Report data state
     let (booth_summary, set_booth_summary) = create_signal(Option::<BoothSummary>::None);
     let (vendor_reports, set_vendor_reports) = create_signal(Vec::<VendorReportData>::new());
-    let (is_generating, set_is_generating) = create_signal(false);
+    let (is_loading, set_is_loading) = create_signal(false);
 
     // Load active vendors when booth is selected
     create_effect(move |_| {
@@ -50,12 +51,82 @@ pub fn ReportsPage() -> impl IntoView {
         }
     });
 
-    // Handle report type change
-    let on_report_type_change = move |new_type: ReportType| {
-        set_report_type.set(new_type);
-        // Clear previous reports when switching types
-        set_booth_summary.set(None);
-        set_vendor_reports.set(Vec::new());
+    // Auto-generate report when tab changes or booth changes
+    create_effect(move |_| {
+        let state_result = app_state.get();
+        let booth = selected_booth.get();
+        let current_tab = active_tab.get();
+        
+        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
+            let booth_id = booth.id.clone();
+            set_is_loading.set(true);
+            
+            spawn_local(async move {
+                match current_tab {
+                    ReportTab::BoothSummary => {
+                        match state.report_service.generate_booth_summary(&booth_id, None).await {
+                            Ok(summary) => {
+                                set_booth_summary.set(Some(summary));
+                                set_vendor_reports.set(Vec::new());
+                            }
+                            Err(e) => {
+                                toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
+                            }
+                        }
+                    }
+                    ReportTab::VendorReports => {
+                        // For vendor reports tab, only load when we have "Print All" action
+                        // This will be triggered separately
+                        set_booth_summary.set(None);
+                    }
+                }
+                set_is_loading.set(false);
+            });
+        }
+    });
+
+    // Generate vendor reports (for Print All or custom selection)
+    let generate_vendor_reports = move |vendor_ids: Vec<VendorId>| {
+        let state_result = app_state.get();
+        let booth = selected_booth.get();
+
+        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
+            set_is_loading.set(true);
+            let booth_id = booth.id.clone();
+
+            spawn_local(async move {
+                if vendor_ids.is_empty() {
+                    toast.error(&t!("report.errors.no_vendors_found")());
+                    set_is_loading.set(false);
+                } else {
+                    match state.report_service.generate_vendor_reports(&booth_id, vendor_ids, None).await {
+                        Ok(reports) => {
+                            set_vendor_reports.set(reports);
+                        }
+                        Err(e) => {
+                            toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
+                        }
+                    }
+                    set_is_loading.set(false);
+                }
+            });
+        }
+    };
+
+    // Print All Vendors action
+    let print_all_vendors = move |_| {
+        let all_vendors = active_vendors.get();
+        generate_vendor_reports(all_vendors);
+    };
+
+    // Print Custom Selection action
+    let print_custom_selection = move |_| {
+        let selected = selected_vendors.get();
+        if selected.is_empty() {
+            toast.error(&t!("report.errors.no_vendors_selected")());
+        } else {
+            generate_vendor_reports(selected);
+        }
     };
 
     // Handle vendor selection toggle
@@ -70,68 +141,10 @@ pub fn ReportsPage() -> impl IntoView {
         set_selected_vendors.set(current);
     };
 
-    // Select all vendors
-    let select_all_vendors = move |_| {
-        set_selected_vendors.set(active_vendors.get());
-    };
-
-    // Clear vendor selection
-    let clear_vendor_selection = move |_| {
-        set_selected_vendors.set(Vec::new());
-    };
-
-    // Generate report
-    let generate_report = move |_| {
-        let state_result = app_state.get();
-        let booth = selected_booth.get();
-
-        if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
-            set_is_generating.set(true);
-            let booth_id = booth.id.clone();
-            let current_report_type = report_type.get();
-            let vendors_to_report = selected_vendors.get();
-
-            spawn_local(async move {
-                match current_report_type {
-                    ReportType::BoothSummary => {
-                        match state.report_service.generate_booth_summary(&booth_id, None).await {
-                            Ok(summary) => {
-                                set_booth_summary.set(Some(summary));
-                                set_vendor_reports.set(Vec::new());
-                            }
-                            Err(e) => {
-                                toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
-                            }
-                        }
-                    }
-                    ReportType::VendorReports => {
-                        let vendor_ids = if vendors_to_report.is_empty() {
-                            // Get all active vendors if none selected
-                            match state.report_service.get_active_vendors(&booth_id, None).await {
-                                Ok(vendors) => vendors,
-                                Err(_) => Vec::new(),
-                            }
-                        } else {
-                            vendors_to_report
-                        };
-
-                        if vendor_ids.is_empty() {
-                            toast.error(&t!("report.errors.no_vendors_found")());
-                        } else {
-                            match state.report_service.generate_vendor_reports(&booth_id, vendor_ids, None).await {
-                                Ok(reports) => {
-                                    set_vendor_reports.set(reports);
-                                    set_booth_summary.set(None);
-                                }
-                                Err(e) => {
-                                    toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
-                                }
-                            }
-                        }
-                    }
-                }
-                set_is_generating.set(false);
-            });
+    // Handle print for booth summary
+    let handle_print = move |_| {
+        if let Some(window) = web_sys::window() {
+            let _ = window.print();
         }
     };
 
@@ -141,136 +154,219 @@ pub fn ReportsPage() -> impl IntoView {
             <div class="print:hidden">
                 <Container>
                     <Card title_view={t!("report.title").into_view()}>
-                        <div class="space-y-6">
-                            // Show prompt if no booth selected
-                            <Show
-                                when=move || selected_booth.get().is_none()
-                                fallback=move || view! {
-                                    <div class="space-y-6">
-                                // Report Type Selection
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        {t!("report.select_report_type")}
-                                    </label>
-                                    <div class="flex gap-4">
-                                        <button
-                                            on:click=move |_| on_report_type_change(ReportType::BoothSummary)
-                                            class=move || {
-                                                if report_type.get() == ReportType::BoothSummary {
-                                                    "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                } else {
-                                                    "px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        <Show
+                            when=move || selected_booth.get().is_none()
+                            fallback=move || view! {
+                                <div class="space-y-6">
+                                    // Tab Navigation
+                                    <div class="border-b border-gray-200">
+                                        <nav class="-mb-px flex space-x-8">
+                                            <button
+                                                on:click=move |_| set_active_tab.set(ReportTab::BoothSummary)
+                                                class=move || {
+                                                    if active_tab.get() == ReportTab::BoothSummary {
+                                                        "border-blue-600 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                                    } else {
+                                                        "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                                    }
                                                 }
-                                            }
-                                        >
-                                            {t!("report.booth_summary_report")}
-                                        </button>
-                                        <button
-                                            on:click=move |_| on_report_type_change(ReportType::VendorReports)
-                                            class=move || {
-                                                if report_type.get() == ReportType::VendorReports {
-                                                    "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                } else {
-                                                    "px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                                            >
+                                                {t!("report.booth_summary_report")}
+                                            </button>
+                                            <button
+                                                on:click=move |_| set_active_tab.set(ReportTab::VendorReports)
+                                                class=move || {
+                                                    if active_tab.get() == ReportTab::VendorReports {
+                                                        "border-blue-600 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                                    } else {
+                                                        "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                                    }
                                                 }
-                                            }
-                                        >
-                                            {t!("report.vendor_report")}
-                                        </button>
+                                            >
+                                                {t!("report.vendor_report")}
+                                            </button>
+                                        </nav>
                                     </div>
-                                </div>
 
-                                // Vendor Selection (only for vendor reports)
-                                <Show when=move || report_type.get() == ReportType::VendorReports>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            {t!("report.select_vendors")}
-                                        </label>
-                                        <div class="flex gap-2 mb-2">
-                                            <button
-                                                on:click=select_all_vendors
-                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-                                            >
-                                                {t!("report.all_vendors")}
-                                            </button>
-                                            <button
-                                                on:click=clear_vendor_selection
-                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-                                            >
-                                                {t!("common.clear")}
-                                            </button>
-                                        </div>
+                                    // Tab Content
+                                    <div class="min-h-[400px]">
                                         <Show
-                                            when=move || !active_vendors.get().is_empty()
-                                            fallback=|| view! {
-                                                <p class="text-gray-500 text-sm">{t!("report.errors.no_vendors_found")}</p>
+                                            when=move || active_tab.get() == ReportTab::BoothSummary
+                                            fallback=move || view! {
+                                                // Vendor Reports Tab
+                                                <div class="space-y-4">
+                                                    // Quick Action: Print All
+                                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                                        <div class="flex items-center justify-between">
+                                                            <div>
+                                                                <h3 class="text-lg font-semibold text-gray-900">
+                                                                    {t!("report.print_all_vendors")}
+                                                                </h3>
+                                                                <p class="text-sm text-gray-600 mt-1">
+                                                                    {move || format!("{} {} {}", 
+                                                                        t!("report.print_reports_for")(),
+                                                                        active_vendors.get().len(),
+                                                                        t!("report.active_vendors")()
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                on:click=print_all_vendors
+                                                                disabled=move || is_loading.get() || active_vendors.get().is_empty()
+                                                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium shadow-sm"
+                                                            >
+                                                                {move || if is_loading.get() {
+                                                                    t!("report.loading")()
+                                                                } else {
+                                                                    t!("report.print_all")()
+                                                                }}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    // Custom Selection (Optional)
+                                                    <div class="border border-gray-200 rounded-lg p-4">
+                                                        <button
+                                                            on:click=move |_| set_show_custom_selection.update(|v| *v = !*v)
+                                                            class="flex items-center justify-between w-full text-left"
+                                                        >
+                                                            <span class="font-medium text-gray-900">
+                                                                {t!("report.custom_vendor_selection")}
+                                                            </span>
+                                                            <svg
+                                                                class=move || if show_custom_selection.get() { "transform rotate-180 w-5 h-5" } else { "w-5 h-5" }
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                            </svg>
+                                                        </button>
+
+                                                        <Show when=move || show_custom_selection.get()>
+                                                            <div class="mt-4 space-y-3">
+                                                                <div class="max-h-64 overflow-y-auto border rounded p-3 space-y-2 bg-gray-50">
+                                                                    {move || {
+                                                                        active_vendors.get()
+                                                                            .into_iter()
+                                                                            .map(|vendor_id| {
+                                                                                let vid = vendor_id.clone();
+                                                                                let vid_for_toggle = vendor_id.clone();
+                                                                                let vendor_id_str = vendor_id.to_string();
+                                                                                view! {
+                                                                                    <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-2 rounded">
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked=move || selected_vendors.get().contains(&vid)
+                                                                                            on:change=move |_| toggle_vendor(vid_for_toggle.clone())
+                                                                                            class="rounded text-blue-600 focus:ring-blue-500"
+                                                                                        />
+                                                                                        <span class="text-sm font-medium">{vendor_id_str}</span>
+                                                                                    </label>
+                                                                                }
+                                                                            })
+                                                                            .collect_view()
+                                                                    }}
+                                                                </div>
+                                                                <div class="flex gap-2">
+                                                                    <button
+                                                                        on:click=move |_| set_selected_vendors.set(active_vendors.get())
+                                                                        class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                                                                    >
+                                                                        {t!("report.select_all")}
+                                                                    </button>
+                                                                    <button
+                                                                        on:click=move |_| set_selected_vendors.set(Vec::new())
+                                                                        class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                                                                    >
+                                                                        {t!("report.clear_selection")}
+                                                                    </button>
+                                                                </div>
+                                                                <button
+                                                                    on:click=print_custom_selection
+                                                                    disabled=move || is_loading.get() || selected_vendors.get().is_empty()
+                                                                    class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                                                                >
+                                                                    {move || if is_loading.get() {
+                                                                        t!("report.loading")()
+                                                                    } else {
+                                                                        format!("{} ({} {})", 
+                                                                            t!("report.print_selected")(),
+                                                                            selected_vendors.get().len(),
+                                                                            t!("report.vendors")()
+                                                                        )
+                                                                    }}
+                                                                </button>
+                                                            </div>
+                                                        </Show>
+                                                    </div>
+
+                                                    // Vendor Reports Preview
+                                                    <Show when=move || !vendor_reports.get().is_empty()>
+                                                        <div class="border-t pt-6">
+                                                            <VendorReportsDisplay reports=vendor_reports.get() />
+                                                        </div>
+                                                    </Show>
+                                                </div>
                                             }
                                         >
-                                            <div class="border rounded p-3 max-h-48 overflow-y-auto space-y-1">
-                                                {move || {
-                                                    active_vendors.get()
-                                                        .into_iter()
-                                                        .map(|vendor_id| {
-                                                            let vid = vendor_id.clone();
-                                                            let vid_for_toggle = vendor_id.clone();
-                                                            let vendor_id_str = vendor_id.to_string();
-                                                            view! {
-                                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked=move || selected_vendors.get().contains(&vid)
-                                                                        on:change=move |_| toggle_vendor(vid_for_toggle.clone())
-                                                                        class="rounded text-blue-600 focus:ring-blue-500"
-                                                                    />
-                                                                    <span class="text-sm">{vendor_id_str}</span>
-                                                                </label>
-                                                            }
-                                                        })
-                                                        .collect_view()
-                                                }}
+                                            // Booth Summary Tab
+                                            <div>
+                                                <Show
+                                                    when=move || is_loading.get()
+                                                    fallback=move || view! {
+                                                        <Show when=move || booth_summary.get().is_some()>
+                                                            {move || booth_summary.get().map(|summary| {
+                                                                view! { <BoothSummaryDisplay summary=summary /> }
+                                                            })}
+                                                        </Show>
+                                                    }
+                                                >
+                                                    <div class="flex items-center justify-center py-12">
+                                                        <div class="text-center">
+                                                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                                            <p class="mt-4 text-gray-600">{t!("report.loading")}</p>
+                                                        </div>
+                                                    </div>
+                                                </Show>
                                             </div>
                                         </Show>
                                     </div>
-                                </Show>
-
-                                // Generate Button
-                                <div>
-                                    <button
-                                        on:click=generate_report
-                                        disabled=move || is_generating.get()
-                                        class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        {move || {
-                                            if is_generating.get() {
-                                                t!("report.loading")()
-                                            } else {
-                                                t!("report.generate_report")()
-                                            }
-                                        }}
-                                    </button>
                                 </div>
-
-                                // Report Display
-                                <Show when=move || booth_summary.get().is_some()>
-                                    {move || booth_summary.get().map(|summary| view! { <BoothSummaryDisplay summary=summary /> })}
-                                </Show>
-
-                                <Show when=move || !vendor_reports.get().is_empty()>
-                                    {move || {
-                                        let reports = vendor_reports.get();
-                                        view! { <VendorReportsDisplay reports=reports /> }
-                                    }}
-                                </Show>
+                            }
+                        >
+                            <div class="p-4 bg-blue-50 rounded">
+                                <p class="text-gray-700">{t!("report.no_booth_selected")}</p>
                             </div>
-                        }
+                        </Show>
+                    </Card>
+                </Container>
+
+                // Floating Print Button (only for Booth Summary with data)
+                <Show when=move || active_tab.get() == ReportTab::BoothSummary && booth_summary.get().is_some()>
+                    <button
+                        on:click=handle_print
+                        class="fixed bottom-8 right-8 px-6 py-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all font-medium flex items-center gap-2"
                     >
-                        <div class="p-4 bg-blue-50 rounded">
-                            <p class="text-gray-700">{t!("report.no_booth_selected")}</p>
-                        </div>
-                    </Show>
-                </div>
-            </Card>
-        </Container>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        {t!("report.print_report")}
+                    </button>
+                </Show>
+
+                // Floating Print Button for Vendor Reports (when reports are loaded)
+                <Show when=move || active_tab.get() == ReportTab::VendorReports && !vendor_reports.get().is_empty()>
+                    <button
+                        on:click=handle_print
+                        class="fixed bottom-8 right-8 px-6 py-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all font-medium flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        {t!("report.print_report")}
+                    </button>
+                </Show>
             </div>
 
             // Print-only layout (hidden on screen, visible during print)
@@ -296,44 +392,28 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     let total_purchases = summary.total_purchases;
     let unique_vendors = summary.unique_vendors;
 
-    let handle_print = move |_| {
-        if let Some(window) = web_sys::window() {
-            let _ = window.print();
-        }
-    };
-
     view! {
-        <div class="space-y-4 print:space-y-6 border-t pt-6">
-            <div class="flex justify-between items-center print:mb-4">
-                <h3 class="text-lg font-semibold">{t!("report.booth_summary")}</h3>
-                <button
-                    on:click=handle_print
-                    class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded print:hidden text-sm"
-                >
-                    {t!("report.print_report")}
-                </button>
-            </div>
-
+        <div class="space-y-6">
             // Summary Statistics
             <div class="grid grid-cols-3 gap-4">
-                <div class="p-4 bg-blue-50 rounded">
+                <div class="p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
                     <p class="text-2xl font-bold text-blue-600">
                         {format!("€ {:.2}", total_revenue)}
                     </p>
                 </div>
-                <div class="p-4 bg-green-50 rounded">
+                <div class="p-4 bg-green-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.purchase_count")}</p>
                     <p class="text-2xl font-bold text-green-600">{total_purchases}</p>
                 </div>
-                <div class="p-4 bg-purple-50 rounded">
-                    <p class="text-sm text-gray-600">{t!("report.vendor_count")}</p>
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <p class="text-sm text-gray-600">{t!("report.vendors_count")}</p>
                     <p class="text-2xl font-bold text-purple-600">{unique_vendors}</p>
                 </div>
             </div>
 
-            // Vendor Summaries Table
-            <div class="overflow-x-auto">
+            // Vendor Breakdown Table
+            <div class="border rounded-lg overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -350,17 +430,18 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                 {t!("report.net_payout")}
                             </th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {t!("report.purchase_count")}
+                                {t!("report.item_count")}
                             </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        {summary.vendor_summaries
+                        {summary
+                            .vendor_summaries
                             .into_iter()
                             .map(|vs| {
                                 let vendor_id_str = vs.vendor_id.to_string();
                                 view! {
-                                    <tr>
+                                    <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm font-medium text-gray-900">
                                             {vendor_id_str}
                                         </td>
@@ -389,24 +470,8 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
 
 #[component]
 fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
-    let handle_print = move |_| {
-        if let Some(window) = web_sys::window() {
-            let _ = window.print();
-        }
-    };
-
     view! {
-        <div class="space-y-6 border-t pt-6">
-            <div class="flex justify-between items-center print:mb-4">
-                <h3 class="text-lg font-semibold">{t!("report.vendor_report")}</h3>
-                <button
-                    on:click=handle_print
-                    class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded print:hidden text-sm"
-                >
-                    {t!("report.print_report")}
-                </button>
-            </div>
-
+        <div class="space-y-4">
             {reports
                 .into_iter()
                 .map(|report| {
@@ -420,59 +485,53 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                     let items = report.items;
 
                     view! {
-                        <div class="border rounded p-4 print:break-inside-avoid bg-white">
-                            <h4 class="text-md font-semibold mb-3">
-                                {t!("report.vendor_id")} ": " {vendor_id}
-                                {vendor_name.map(|name| format!(" ({})", name))}
-                            </h4>
+                        <div class="border rounded-lg p-4 bg-white shadow-sm">
+                            <div class="mb-4">
+                                <h4 class="text-lg font-semibold text-gray-900">
+                                    {t!("report.vendor_id")} ": " {vendor_id}
+                                    {vendor_name.map(|name| format!(" ({})", name))}
+                                </h4>
+                            </div>
 
-                            <div class="grid grid-cols-2 gap-3 mb-4">
-                                <div>
-                                    <p class="text-sm text-gray-600">{t!("report.gross_sales")}</p>
-                                    <p class="text-lg font-semibold">
-                                        {format!("€ {:.2}", sales_sum)}
-                                    </p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <div class="bg-gray-50 p-3 rounded">
+                                    <p class="text-xs text-gray-600">{t!("report.gross_sales")}</p>
+                                    <p class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</p>
                                 </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">{t!("report.item_count")}</p>
+                                <div class="bg-gray-50 p-3 rounded">
+                                    <p class="text-xs text-gray-600">{t!("report.item_count")}</p>
                                     <p class="text-lg font-semibold">{item_count}</p>
                                 </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">{t!("report.participation_fee")}</p>
-                                    <p class="text-lg">{format!("€ {:.2}", participation_fee)}</p>
+                                <div class="bg-gray-50 p-3 rounded">
+                                    <p class="text-xs text-gray-600">{t!("report.fees_due")}</p>
+                                    <p class="text-lg">{format!("€ {:.2}", participation_fee + sales_fee)}</p>
                                 </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">{t!("report.sales_fee")}</p>
-                                    <p class="text-lg">{format!("€ {:.2}", sales_fee)}</p>
-                                </div>
-                                <div class="col-span-2 pt-2 border-t">
-                                    <p class="text-sm text-gray-600">{t!("report.net_payout")}</p>
-                                    <p class="text-xl font-bold text-green-600">
-                                        {format!("€ {:.2}", total_revenue)}
-                                    </p>
+                                <div class="bg-green-50 p-3 rounded">
+                                    <p class="text-xs text-gray-600">{t!("report.net_payout")}</p>
+                                    <p class="text-lg font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</p>
                                 </div>
                             </div>
 
-                            // Items List
-                            <div class="mt-3">
-                                <p class="text-sm font-medium text-gray-700 mb-2">
-                                    {t!("checkout.current_items")} ": " {item_count}
-                                </p>
-                                <div class="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded">
+                            // Items preview (collapsible)
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                                    {t!("report.view_items")} " (" {item_count} ")"
+                                </summary>
+                                <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded">
                                     {items
                                         .into_iter()
                                         .enumerate()
                                         .map(|(idx, item)| {
                                             view! {
-                                                <div class="flex justify-between">
+                                                <div class="flex justify-between py-1 border-b border-gray-200 last:border-0">
                                                     <span>{"#"}{idx + 1}</span>
-                                                    <span>{format!("€ {:.2}", item.amount)}</span>
+                                                    <span class="font-medium">{format!("€ {:.2}", item.amount)}</span>
                                                 </div>
                                             }
                                         })
                                         .collect_view()}
                                 </div>
-                            </div>
+                            </details>
                         </div>
                     }
                 })
@@ -501,7 +560,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                 <div class="grid grid-cols-3 gap-6 mb-6">
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.sales_total")}</p>
-                        <p class="text-3xl font-bold">{format!("€{:.2}", total_revenue)}</p>
+                        <p class="text-3xl font-bold">{format!("€ {:.2}", total_revenue)}</p>
                     </div>
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.purchase_count")}</p>
@@ -536,9 +595,9 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                                 view! {
                                     <tr class="border-b border-gray-300">
                                         <td class="px-4 py-3 font-medium">{vendor_id_str}</td>
-                                        <td class="px-4 py-3 text-right">{format!("€{:.2}", vs.gross_sales)}</td>
-                                        <td class="px-4 py-3 text-right">{format!("€{:.2}", vs.fees_due)}</td>
-                                        <td class="px-4 py-3 text-right font-semibold">{format!("€{:.2}", vs.net_payout)}</td>
+                                        <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.gross_sales)}</td>
+                                        <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.fees_due)}</td>
+                                        <td class="px-4 py-3 text-right font-semibold">{format!("€ {:.2}", vs.net_payout)}</td>
                                         <td class="px-4 py-3 text-right">{vs.purchase_count}</td>
                                     </tr>
                                 }
@@ -601,7 +660,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <div class="border-2 border-gray-300 p-4 rounded space-y-3">
                                     <div class="flex justify-between py-2">
                                         <span class="font-medium">{t!("report.gross_sales")}"："</span>
-                                        <span class="text-lg font-semibold">{format!("€{:.2}", sales_sum)}</span>
+                                        <span class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</span>
                                     </div>
                                     <div class="flex justify-between py-2 border-t">
                                         <span class="text-gray-600">{t!("report.participation_fee")}"："</span>
@@ -613,7 +672,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     </div>
                                     <div class="flex justify-between py-3 border-t-2 border-gray-800">
                                         <span class="text-xl font-bold">{t!("report.net_payout")}"："</span>
-                                        <span class="text-2xl font-bold text-green-700">{format!("€{:.2}", total_revenue)}</span>
+                                        <span class="text-2xl font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -638,7 +697,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                 view! {
                                                     <tr class="border-b border-gray-300">
                                                         <td class="px-4 py-2">{item_idx + 1}</td>
-                                                        <td class="px-4 py-2 text-right font-medium">{format!("€{:.2}", item.amount)}</td>
+                                                        <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", item.amount)}</td>
                                                     </tr>
                                                 }
                                             })
@@ -647,7 +706,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     <tfoot>
                                         <tr class="border-t-2 border-gray-800 font-bold">
                                             <td class="px-4 py-3">{t!("report.total")}</td>
-                                            <td class="px-4 py-3 text-right text-lg">{format!("€{:.2}", sales_sum)}</td>
+                                            <td class="px-4 py-3 text-right text-lg">{format!("€ {:.2}", sales_sum)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
