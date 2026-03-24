@@ -214,6 +214,7 @@
     "print_selected": "Print Selected",
     "vendors": "vendors",
     "view_items": "View Items",
+    "transaction_id": "Transaction ID",
     "errors": {
       "load_booth_failed": "Failed to load booth data",
       "generate_failed": "Failed to generate report",

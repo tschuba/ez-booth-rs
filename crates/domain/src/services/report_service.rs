@@ -3,7 +3,7 @@ use crate::models::{
     BoothId, BoothSummary, Purchase, VendorBoothSummary, VendorId,
 };
 use crate::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
-use crate::services::dto::{ChargingConfig, VendorReportData};
+use crate::services::dto::{ChargingConfig, VendorReportData, VendorReportItem};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use std::collections::{HashMap, HashSet};
@@ -134,14 +134,19 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             purchases = Self::filter_by_date_range(purchases, range);
         }
 
-        // Collect all items from purchases
-        let items: Vec<_> = purchases
+        // Collect all items from purchases with their transaction IDs
+        let items: Vec<VendorReportItem> = purchases
             .iter()
-            .flat_map(|p| p.items.clone())
+            .flat_map(|p| {
+                p.items.iter().map(|item| VendorReportItem {
+                    transaction_id: p.id.clone(),
+                    item: item.clone(),
+                })
+            })
             .collect();
 
         // Calculate totals
-        let sales_sum: Decimal = items.iter().map(|item| item.amount).sum();
+        let sales_sum: Decimal = items.iter().map(|report_item| report_item.item.amount).sum();
 
         // Calculate fees
         let charging_config = ChargingConfig::from_booth(&booth);

@@ -5,6 +5,13 @@ use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+/// An item in a vendor report with its associated transaction ID
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VendorReportItem {
+    pub transaction_id: PurchaseId,
+    pub item: PurchaseItem,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CheckoutItem {
     pub vendor: VendorId,
@@ -79,7 +86,7 @@ pub struct VendorReportInput {
 pub struct VendorReportData {
     pub vendor: Vendor,
     pub booth: Booth,
-    pub items: Vec<PurchaseItem>,
+    pub items: Vec<VendorReportItem>,
     pub sales_sum: Decimal,
     pub participation_fee: Decimal,
     pub sales_fee: Decimal,

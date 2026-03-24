@@ -521,11 +521,16 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                     {items
                                         .into_iter()
                                         .enumerate()
-                                        .map(|(idx, item)| {
+                                        .map(|(idx, report_item)| {
                                             view! {
-                                                <div class="flex justify-between py-1 border-b border-gray-200 last:border-0">
-                                                    <span>{"#"}{idx + 1}</span>
-                                                    <span class="font-medium">{format!("€ {:.2}", item.amount)}</span>
+                                                <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+                                                    <div class="flex items-center gap-2">
+                                                        <span>{"#"}{idx + 1}</span>
+                                                        <span class="text-gray-500 text-xs">
+                                                            {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
+                                                        </span>
+                                                    </div>
+                                                    <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                 </div>
                                             }
                                         })
@@ -686,6 +691,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     <thead>
                                         <tr class="border-b-2 border-gray-800">
                                             <th class="px-4 py-2 text-left font-bold">"#"</th>
+                                            <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
                                             <th class="px-4 py-2 text-right font-bold">{t!("report.amount")}</th>
                                         </tr>
                                     </thead>
@@ -693,11 +699,12 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                         {items
                                             .into_iter()
                                             .enumerate()
-                                            .map(|(item_idx, item)| {
+                                            .map(|(item_idx, report_item)| {
                                                 view! {
                                                     <tr class="border-b border-gray-300">
                                                         <td class="px-4 py-2">{item_idx + 1}</td>
-                                                        <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", item.amount)}</td>
+                                                        <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
+                                                        <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
                                                     </tr>
                                                 }
                                             })
@@ -705,7 +712,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     </tbody>
                                     <tfoot>
                                         <tr class="border-t-2 border-gray-800 font-bold">
-                                            <td class="px-4 py-3">{t!("report.total")}</td>
+                                            <td class="px-4 py-3" colspan="2">{t!("report.total")}</td>
                                             <td class="px-4 py-3 text-right text-lg">{format!("€ {:.2}", sales_sum)}</td>
                                         </tr>
                                     </tfoot>
