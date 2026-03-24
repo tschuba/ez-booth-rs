@@ -729,6 +729,38 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
     view! {
+        <style>
+            r#"
+            @media print {
+                /* Page setup */
+                @page {
+                    margin: 1.5cm 1cm 1cm 1cm;
+                }
+                
+                /* Thead will repeat on every page */
+                thead {
+                    display: table-header-group;
+                }
+                
+                /* Avoid page breaks inside transaction groups */
+                .transaction-group {
+                    page-break-inside: avoid;
+                }
+                
+                /* Hide running header on first page */
+                .print-first-page .print-running-header {
+                    display: none !important;
+                }
+            }
+            
+            @media screen {
+                /* Hide running header on screen */
+                .print-running-header {
+                    display: none;
+                }
+            }
+            "#
+        </style>
         <div class="p-8 max-w-4xl mx-auto">
             {reports
                 .into_iter()
@@ -746,16 +778,17 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                     
                     // Use CSS page-break-before property
                     let page_break_style = if idx > 0 { "page-break-before: always;" } else { "" };
+                    let first_page_class = if idx == 0 { "print-first-page" } else { "" };
 
                     view! {
-                        <div class="mb-8" style=page_break_style>
-                            // Report Header
+                        <div class={format!("mb-8 {}", first_page_class)} style=page_break_style>
+                            // Report Header (only on first page)
                             <div class="mb-6 pb-4 border-b-2 border-gray-800">
                                 <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
                                 <div class="text-lg">
                                     <p class="font-semibold">
                                         {t!("report.vendor_id")}": "{vendor_id.clone()}
-                                        {vendor_name.map(|name| format!(" - {}", name))}
+                                        {vendor_name.as_ref().map(|name| format!(" - {}", name))}
                                     </p>
                                     <p class="text-sm text-gray-700">{booth_description}</p>
                                     <p class="text-sm text-gray-600">{booth_date.format("%d.%m.%Y").to_string()}</p>
@@ -792,6 +825,17 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 </h2>
                                  <table class="w-full border-collapse">
                                     <thead>
+                                        // Header row with vendor info (repeats on every page when printing)
+                                        <tr class="print-running-header bg-gray-100">
+                                            <th colspan="3" class="px-4 py-2 text-left border-b border-gray-400">
+                                                <div class="flex justify-between items-center text-sm">
+                                                    <span class="font-semibold">
+                                                        {t!("report.vendor_id")}": "{vendor_id.clone()}
+                                                        {vendor_name.clone().map(|name| format!(" - {}", name))}
+                                                    </span>
+                                                </div>
+                                            </th>
+                                        </tr>
                                         <tr class="border-b-2 border-gray-800">
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.time")}</th>
