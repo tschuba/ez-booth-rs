@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::t;
 use chrono::NaiveDate;
 use domain::error::DomainError;
 use domain::models::booth::{Booth, FeeConfig};
@@ -18,12 +19,16 @@ pub struct BoothFormData {
 
 impl Default for BoothFormData {
     fn default() -> Self {
+        // Default date to today
+        let today = chrono::Local::now().date_naive();
+        let date_str = today.format("%Y-%m-%d").to_string();
+
         Self {
             description: String::new(),
-            date: String::new(),
-            participation_fee: "0.00".to_string(),
-            sales_fee_percent: "0.00".to_string(),
-            rounding_step: "0.50".to_string(),
+            date: date_str,
+            participation_fee: "1.00".to_string(), // Default: 1,00€ Standgebühr
+            sales_fee_percent: "15.00".to_string(), // Default: 15% Verkaufsprovision
+            rounding_step: "0.50".to_string(),     // Default: 0,50€ Rundungsschritt
         }
     }
 }
@@ -230,8 +235,8 @@ pub fn BoothForm(
             <div>
                 <Input
                     value=description
-                    label="Description"
-                    placeholder="e.g., Spring Market 2026"
+                    label=t!("booth.description_label")()
+                    placeholder=t!("booth.description_placeholder")()
                     required=true
                     error=description_error
                 />
@@ -242,7 +247,7 @@ pub fn BoothForm(
                 <Input
                     value=date
                     input_type=crate::components::InputType::Date
-                    label="Date"
+                    label=t!("booth.date_label")()
                     required=true
                     error=date_error
                 />
@@ -250,14 +255,14 @@ pub fn BoothForm(
 
             // Fee Configuration Section
             <div class="border-t pt-6">
-                <h3 class="text-lg font-semibold mb-4">"Fee Configuration"</h3>
+                <h3 class="text-lg font-semibold mb-4">{t!("booth.fee_configuration_title")()}</h3>
 
                 <div class="space-y-4">
                     // Participation Fee
                     <NumberInput
                         value=participation_fee
-                        label="Participation Fee"
-                        placeholder="0.00"
+                        label=t!("booth.participation_fee")()
+                        placeholder="0.00".to_string()
                         min=0.0
                         step=0.01
                         required=true
@@ -267,8 +272,8 @@ pub fn BoothForm(
                     // Sales Fee Percent
                     <NumberInput
                         value=sales_fee_percent
-                        label="Sales Commission (%)"
-                        placeholder="0.00"
+                        label=t!("booth.sales_fee_percent")()
+                        placeholder="0.00".to_string()
                         min=0.0
                         max=100.0
                         step=0.01
@@ -279,15 +284,15 @@ pub fn BoothForm(
                     // Rounding Step
                     <NumberInput
                         value=rounding_step
-                        label="Rounding Step"
-                        placeholder="0.50"
+                        label=t!("booth.rounding_step")()
+                        placeholder="0.50".to_string()
                         min=0.0
                         step=0.01
                         required=true
                         error=rounding_step_error
                     />
                     <p class="text-sm text-gray-600 mt-1">
-                        "Fee calculations will be rounded to this step (e.g., 0.50 for half-dollar rounding)"
+                        {t!("booth.rounding_step_help")()}
                     </p>
                 </div>
             </div>
@@ -298,13 +303,13 @@ pub fn BoothForm(
                     on_click=Box::new(move || on_cancel())
                     variant=crate::components::ButtonVariant::Secondary
                 >
-                    "Cancel"
+                    {t!("common.cancel")()}
                 </Button>
                 <Button
                     on_click=Box::new(validate_and_submit)
                     variant=crate::components::ButtonVariant::Primary
                 >
-                    "Save Booth"
+                    {t!("booth.save_button")()}
                 </Button>
             </div>
         </form>
