@@ -566,6 +566,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                 
                                                 if is_multi_item {
                                                     // Multi-item transaction: show grouped with subtotal
+                                                    let txn_label = t!("report.transaction_id");
                                                     view! {
                                                         <div class="mb-2 border-l-2 border-blue-400 pl-2">
                                                             {transaction_items
@@ -574,30 +575,21 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                 .map(|(idx, report_item)| {
                                                                     item_counter += 1;
                                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
-                                                                    if idx == 0 {
-                                                                        // First item: show transaction ID on left
-                                                                        view! {
-                                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1">
-                                                                                <span class="text-gray-500 text-xs">
-                                                                                    {t!("report.transaction_id")}{": "}{transaction_id.to_string()}
-                                                                                </span>
-                                                                                <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                                <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                            </div>
-                                                                        }.into_view()
+                                                                    let txn_id_str = if idx == 0 {
+                                                                        format!("{}: {}", txn_label(), transaction_id.to_string())
                                                                     } else {
-                                                                        // Subsequent items: just time and amount
-                                                                        view! {
-                                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1">
-                                                                                <span></span>
-                                                                                <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                                <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                            </div>
-                                                                        }.into_view()
-                                                                    }
+                                                                        String::new()
+                                                                    };
+                                                                    view! {
+                                                                        <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center py-1">
+                                                                            <span class="text-gray-500 text-xs">{txn_id_str}</span>
+                                                                            <span class="text-gray-500 text-xs">{time_str}</span>
+                                                                            <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                        </div>
+                                                                    }.into_view()
                                                                 })
                                                                 .collect_view()}
-                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
+                                                            <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
                                                                 <span></span>
                                                                 <span>{t!("report.subtotal")}</span>
                                                                 <span class="text-right">{format!("€ {:.2}", transaction_total)}</span>
@@ -605,13 +597,13 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         </div>
                                                     }.into_view()
                                                 } else {
-                                                    // Single-item transaction: show transaction ID on left
+                                                    // Single-item transaction: show transaction ID in first column
                                                     item_counter += 1;
                                                     let report_item = &transaction_items[0];
                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
                                                     view! {
                                                         <div class="mb-2 border-l-2 border-blue-400 pl-2 py-1">
-                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center">
+                                                            <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center">
                                                                 <span class="text-gray-500 text-xs">
                                                                     {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
                                                                 </span>
