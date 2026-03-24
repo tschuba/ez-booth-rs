@@ -219,6 +219,7 @@
     "vendors": "vendors",
     "view_items": "View Items",
     "transaction_id": "Transaction ID",
+    "subtotal": "Subtotal",
     "total_participation_fees": "Total Participation Fees",
     "total_sales_fees": "Total Sales Fees",
     "total_booth_revenue": "Total Booth Revenue",

@@ -2,9 +2,10 @@ use crate::components::{Card, Container, use_toast};
 use crate::state::use_app_state;
 use crate::t;
 use crate::selected_booth_context;
-use domain::models::{BoothSummary, VendorId};
+use domain::models::{BoothSummary, VendorId, PurchaseId};
 use domain::services::VendorReportData;
 use leptos::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReportTab {
@@ -540,23 +541,73 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                     {t!("report.view_items")} " (" {item_count} ")"
                                 </summary>
                                 <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-96 overflow-y-auto bg-gray-50 p-2 rounded border border-gray-300">
-                                    {items
-                                        .into_iter()
-                                        .enumerate()
-                                        .map(|(idx, report_item)| {
-                                            view! {
-                                                <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
-                                                    <div class="flex items-center gap-2">
-                                                        <span>{"#"}{idx + 1}</span>
-                                                        <span class="text-gray-500 text-xs">
-                                                            {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
-                                                        </span>
-                                                    </div>
-                                                    <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()}
+                                    {
+                                        // Group items by transaction_id
+                                        let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
+                                        for item in items.iter() {
+                                            grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
+                                        }
+                                        
+                                        let mut transactions: Vec<_> = grouped.into_iter().collect();
+                                        transactions.sort_by(|a, b| {
+                                            // Sort by the first item's position in the original list
+                                            items.iter().position(|i| i.transaction_id == a.0)
+                                                .cmp(&items.iter().position(|i| i.transaction_id == b.0))
+                                        });
+                                        
+                                        let mut item_counter = 0;
+                                        transactions
+                                            .into_iter()
+                                            .map(|(transaction_id, transaction_items)| {
+                                                let is_multi_item = transaction_items.len() > 1;
+                                                let transaction_total: rust_decimal::Decimal = transaction_items.iter()
+                                                    .map(|item| item.item.amount)
+                                                    .sum();
+                                                
+                                                if is_multi_item {
+                                                    // Multi-item transaction: show grouped with subtotal
+                                                    view! {
+                                                        <div class="border-l-2 border-blue-400 pl-2 mb-2">
+                                                            <div class="text-gray-500 text-xs mb-1">
+                                                                {t!("report.transaction_id")}{": "}{transaction_id.to_string()}
+                                                            </div>
+                                                            {transaction_items
+                                                                .into_iter()
+                                                                .map(|report_item| {
+                                                                    item_counter += 1;
+                                                                    view! {
+                                                                        <div class="flex justify-between items-center py-1 pl-2">
+                                                                            <span class="text-gray-600">{"#"}{item_counter}</span>
+                                                                            <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                        </div>
+                                                                    }
+                                                                })
+                                                                .collect_view()}
+                                                            <div class="flex justify-between items-center py-1 pl-2 border-t border-gray-300 font-semibold">
+                                                                <span>{t!("report.subtotal")}</span>
+                                                                <span>{format!("€ {:.2}", transaction_total)}</span>
+                                                            </div>
+                                                        </div>
+                                                    }.into_view()
+                                                } else {
+                                                    // Single-item transaction: show as before
+                                                    item_counter += 1;
+                                                    let report_item = &transaction_items[0];
+                                                    view! {
+                                                        <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+                                                            <div class="flex items-center gap-2">
+                                                                <span>{"#"}{item_counter}</span>
+                                                                <span class="text-gray-500 text-xs">
+                                                                    {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
+                                                                </span>
+                                                            </div>
+                                                            <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                        </div>
+                                                    }.into_view()
+                                                }
+                                            })
+                                            .collect_view()
+                                    }
                                 </div>
                             </details>
                         </div>
@@ -740,19 +791,68 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {items
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(item_idx, report_item)| {
-                                                view! {
-                                                    <tr class="border-b border-gray-300">
-                                                        <td class="px-4 py-2">{item_idx + 1}</td>
-                                                        <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
-                                                        <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
-                                                    </tr>
-                                                }
-                                            })
-                                            .collect_view()}
+                                        {
+                                            // Group items by transaction_id
+                                            let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
+                                            for item in items.iter() {
+                                                grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
+                                            }
+                                            
+                                            let mut transactions: Vec<_> = grouped.into_iter().collect();
+                                            transactions.sort_by(|a, b| {
+                                                items.iter().position(|i| i.transaction_id == a.0)
+                                                    .cmp(&items.iter().position(|i| i.transaction_id == b.0))
+                                            });
+                                            
+                                            let mut item_counter = 0;
+                                            transactions
+                                                .into_iter()
+                                                .flat_map(|(transaction_id, transaction_items)| {
+                                                    let is_multi_item = transaction_items.len() > 1;
+                                                    let transaction_total: rust_decimal::Decimal = transaction_items.iter()
+                                                        .map(|item| item.item.amount)
+                                                        .sum();
+                                                    
+                                                    if is_multi_item {
+                                                        // Multi-item transaction: show items with subtotal
+                                                        let mut rows = vec![];
+                                                        
+                                                        for report_item in transaction_items {
+                                                            item_counter += 1;
+                                                            rows.push(view! {
+                                                                <tr class="border-b border-gray-200">
+                                                                    <td class="px-4 py-2">{item_counter}</td>
+                                                                    <td class="px-4 py-2 text-gray-600 font-mono text-sm">{transaction_id.to_string()}</td>
+                                                                    <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
+                                                                </tr>
+                                                            }.into_view());
+                                                        }
+                                                        
+                                                        // Add subtotal row
+                                                        rows.push(view! {
+                                                            <tr class="border-b-2 border-gray-400 bg-gray-50">
+                                                                <td class="px-4 py-2"></td>
+                                                                <td class="px-4 py-2 font-semibold text-right">{t!("report.subtotal")}</td>
+                                                                <td class="px-4 py-2 text-right font-semibold">{format!("€ {:.2}", transaction_total)}</td>
+                                                            </tr>
+                                                        }.into_view());
+                                                        
+                                                        rows
+                                                    } else {
+                                                        // Single-item transaction: show as before
+                                                        item_counter += 1;
+                                                        let report_item = &transaction_items[0];
+                                                        vec![view! {
+                                                            <tr class="border-b border-gray-300">
+                                                                <td class="px-4 py-2">{item_counter}</td>
+                                                                <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
+                                                                <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
+                                                            </tr>
+                                                        }.into_view()]
+                                                    }
+                                                })
+                                                .collect_view()
+                                        }
                                     </tbody>
                                     <tfoot>
                                         <tr class="border-t-2 border-gray-800 font-bold">
