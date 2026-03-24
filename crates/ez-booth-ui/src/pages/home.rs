@@ -123,6 +123,8 @@ pub fn HomePage() -> impl IntoView {
                                                 }
                                                 title=t!("home.confirm_action")()
                                                 message=confirm_message
+                                                confirm_text=t!("common.confirm")()
+                                                cancel_text=t!("common.cancel")()
                                                 is_destructive=false
                                             />
                                         </Container>
