@@ -11,8 +11,12 @@ mod tests {
     fn test_default_form_data() {
         let form = BoothFormData::default();
 
+        // Get today's date to compare
+        let today = chrono::Local::now().date_naive();
+        let expected_date = today.format("%Y-%m-%d").to_string();
+
         assert_eq!(form.description, "");
-        assert_eq!(form.date, "");
+        assert_eq!(form.date, expected_date);
         assert_eq!(form.participation_fee, "0.00");
         assert_eq!(form.sales_fee_percent, "0.00");
         assert_eq!(form.rounding_step, "0.50");

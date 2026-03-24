@@ -53,6 +53,10 @@
     "participation_fee": "Standgebühr",
     "sales_fee_percent": "Verkaufsprovision (%)",
     "rounding_step": "Rundungsschritt",
+    "description_placeholder": "z.B. Frühlingsmarkt 2026",
+    "fee_configuration_title": "Gebührenkonfiguration",
+    "rounding_step_help": "Gebührenberechnungen werden auf diesen Schritt gerundet (z.B. 0,50 rundet auf die nächsten 50 Cent)",
+    "save_button": "Stand speichern",
     "errors": {
       "load_failed": "Fehler beim Laden der Stände"
     },

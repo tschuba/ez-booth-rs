@@ -32,10 +32,10 @@ pub fn Input(
     input_type: Option<InputType>,
     /// Placeholder text
     #[prop(optional)]
-    placeholder: Option<&'static str>,
+    placeholder: Option<String>,
     /// Label text
     #[prop(optional)]
-    label: Option<&'static str>,
+    label: Option<String>,
     /// Whether the input is disabled
     #[prop(optional)]
     disabled: Option<bool>,
@@ -88,7 +88,7 @@ pub fn Input(
             <input
                 type=input_type.as_str()
                 class=combined_classes
-                placeholder=placeholder.unwrap_or("")
+                placeholder=placeholder.unwrap_or_default()
                 disabled=disabled
                 required=required
                 aria-label=aria_label
@@ -114,10 +114,10 @@ pub fn NumberInput(
     value: RwSignal<String>,
     /// Label text
     #[prop(optional)]
-    label: Option<&'static str>,
+    label: Option<String>,
     /// Placeholder text
     #[prop(optional)]
-    placeholder: Option<&'static str>,
+    placeholder: Option<String>,
     /// Minimum value
     #[prop(optional)]
     min: Option<f64>,
@@ -172,7 +172,7 @@ pub fn NumberInput(
             <input
                 type="number"
                 class=input_classes
-                placeholder=placeholder.unwrap_or("")
+                placeholder=placeholder.unwrap_or_default()
                 disabled=disabled
                 required=required
                 min=min.map(|m| m.to_string()).unwrap_or_default()

@@ -53,6 +53,10 @@
     "participation_fee": "Participation Fee",
     "sales_fee_percent": "Sales Commission (%)",
     "rounding_step": "Rounding Step",
+    "description_placeholder": "e.g., Spring Market 2026",
+    "fee_configuration_title": "Fee Configuration",
+    "rounding_step_help": "Fee calculations will be rounded to this step (e.g., 0.50 rounds to nearest 50 cents)",
+    "save_button": "Save Booth",
     "errors": {
       "load_failed": "Failed to load booths"
     },
