@@ -53,30 +53,33 @@ pub fn use_selected_booth() -> RwSignal<Option<Booth>> {
 #[component]
 pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
     let booth_signal = provide_selected_booth_context();
-    let app_state = use_app_state();
 
     // Restore selected booth from localStorage on mount
+    // Only try to restore once we have access to AppState
     create_effect(move |_| {
         if let Some(stored_booth_id) = load_selected_booth_id() {
-            // Wait for app_state to be ready
-            if let Some(Ok(state)) = app_state.get() {
-                let booth_repository = state.booth_repository.clone();
-                spawn_local(async move {
-                    // Validate that the booth still exists
-                    match booth_repository.find_by_id(&stored_booth_id).await {
-                        Ok(Some(booth)) => {
-                            booth_signal.set(Some(booth));
+            // Try to get app_state from context - it might not be available yet
+            if let Some(app_state) = use_context::<Resource<(), Result<crate::state::AppState, String>>>() {
+                // Wait for app_state to be ready
+                if let Some(Ok(state)) = app_state.get() {
+                    let booth_repository = state.booth_repository.clone();
+                    spawn_local(async move {
+                        // Validate that the booth still exists
+                        match booth_repository.find_by_id(&stored_booth_id).await {
+                            Ok(Some(booth)) => {
+                                booth_signal.set(Some(booth));
+                            }
+                            Ok(None) => {
+                                // Booth was deleted, clear the stored selection
+                                save_selected_booth_id(None);
+                            }
+                            Err(_) => {
+                                // Error loading booth, clear the stored selection
+                                save_selected_booth_id(None);
+                            }
                         }
-                        Ok(None) => {
-                            // Booth was deleted, clear the stored selection
-                            save_selected_booth_id(None);
-                        }
-                        Err(_) => {
-                            // Error loading booth, clear the stored selection
-                            save_selected_booth_id(None);
-                        }
-                    }
-                });
+                    });
+                }
             }
         }
     });
