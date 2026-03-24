@@ -757,10 +757,10 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                     
                     view! {
                         <div class="print-vendor-report">
-                            // Vendor header
-                            <div class="mb-4 pb-4 border-b-2 border-gray-800">
-                                <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
-                                <div class="text-lg">
+                            // Vendor header - compact for efficiency
+                            <div class="mb-3 pb-2 border-b border-gray-800">
+                                <h1 class="text-2xl font-bold mb-1">{t!("report.vendor_report")}</h1>
+                                <div class="text-base">
                                     <p class="font-semibold">
                                         {t!("report.vendor_id")}": "{vendor_id.clone()}
                                         {vendor_name.as_ref().map(|name| format!(" - {}", name))}
@@ -770,32 +770,32 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 </div>
                             </div>
                             
-                            // Financial summary
-                            <div class="mb-4">
-                                <h2 class="text-xl font-bold mb-3">{t!("report.financial_summary")}</h2>
-                                <div class="border-2 border-gray-300 p-4 rounded space-y-3">
-                                    <div class="flex justify-between py-2">
+                            // Financial summary - reduced spacing
+                            <div class="mb-3">
+                                <h2 class="text-lg font-bold mb-2">{t!("report.financial_summary")}</h2>
+                                <div class="border border-gray-400 p-2">
+                                    <div class="flex justify-between py-1">
                                         <span class="font-medium">{t!("report.gross_sales")}"："</span>
-                                        <span class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</span>
+                                        <span class="text-base font-semibold">{format!("€ {:.2}", sales_sum)}</span>
                                     </div>
-                                    <div class="flex justify-between py-2 border-t">
-                                        <span class="text-gray-600">{t!("report.participation_fee")}"："</span>
+                                    <div class="flex justify-between py-1 border-t border-gray-300">
+                                        <span>{t!("report.participation_fee")}"："</span>
                                         <span>{format!("-€ {:.2}", participation_fee)}</span>
                                     </div>
-                                    <div class="flex justify-between py-2">
-                                        <span class="text-gray-600">{t!("report.sales_fee")}"："</span>
+                                    <div class="flex justify-between py-1 border-t border-gray-300">
+                                        <span>{t!("report.sales_fee")}"："</span>
                                         <span>{format!("-€ {:.2}", sales_fee)}</span>
                                     </div>
-                                    <div class="flex justify-between py-3 border-t-2 border-gray-800">
-                                        <span class="text-xl font-bold">{t!("report.net_payout")}"："</span>
-                                        <span class="text-2xl font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</span>
+                                    <div class="flex justify-between py-1 border-t-2 border-gray-800">
+                                        <span class="text-base font-bold">{t!("report.net_payout")}"："</span>
+                                        <span class="text-lg font-bold">{format!("€ {:.2}", total_revenue)}</span>
                                     </div>
                                 </div>
                             </div>
                             
                             // Sales details - compact grid layout
                             <div class="print-sales-section">
-                                <h2 class="text-xl font-bold mb-0">{t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"</h2>
+                                <h2 class="text-lg font-bold mb-0">{t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"</h2>
                                 <div class="print-transactions-container">
                                     {transactions
                                         .into_iter()
