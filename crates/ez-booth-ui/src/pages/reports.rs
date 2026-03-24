@@ -2,9 +2,10 @@ use crate::components::{Card, Container, use_toast};
 use crate::state::use_app_state;
 use crate::t;
 use crate::selected_booth_context;
-use domain::models::{BoothSummary, VendorId};
+use domain::models::{BoothSummary, VendorId, PurchaseId};
 use domain::services::VendorReportData;
 use leptos::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReportTab {
@@ -141,7 +142,7 @@ pub fn ReportsPage() -> impl IntoView {
         set_selected_vendors.set(current);
     };
 
-    // Handle print for booth summary
+    // Handle print for booth summary and vendor reports
     let handle_print = move |_| {
         if let Some(window) = web_sys::window() {
             let _ = window.print();
@@ -390,6 +391,7 @@ pub fn ReportsPage() -> impl IntoView {
 fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
+    let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
@@ -398,7 +400,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     view! {
         <div class="space-y-6">
             // Summary Statistics
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-4 gap-4">
                 <div class="p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
                     <p class="text-2xl font-bold text-blue-600">
@@ -409,6 +411,10 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                     <p class="text-sm text-gray-600">{t!("report.purchase_count")}</p>
                     <p class="text-2xl font-bold text-green-600">{total_purchases}</p>
                 </div>
+                <div class="p-4 bg-orange-50 rounded-lg">
+                    <p class="text-sm text-gray-600">{t!("report.items")}</p>
+                    <p class="text-2xl font-bold text-orange-600">{total_items}</p>
+                </div>
                 <div class="p-4 bg-purple-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.vendors_count")}</p>
                     <p class="text-2xl font-bold text-purple-600">{unique_vendors}</p>
@@ -416,7 +422,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
             </div>
 
             // Booth Revenue Section
-            <div class="border rounded-lg p-6 bg-gradient-to-br from-amber-50 to-yellow-50">
+            <div class="border rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
                 <h3 class="text-lg font-bold text-gray-800 mb-4">{t!("report.booth_revenue")}</h3>
                 <div class="space-y-3">
                     <div class="flex justify-between items-center">
@@ -427,9 +433,9 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                         <span class="text-gray-700">{t!("report.total_sales_fees")}</span>
                         <span class="font-semibold text-gray-900">{format!("€ {:.2}", total_sales_fees)}</span>
                     </div>
-                    <div class="flex justify-between items-center pt-3 border-t-2 border-amber-200">
+                    <div class="flex justify-between items-center pt-3 border-t-2 border-blue-200">
                         <span class="text-lg font-bold text-gray-900">{t!("report.total_booth_revenue")}</span>
-                        <span class="text-2xl font-bold text-amber-700">{format!("€ {:.2}", total_booth_revenue)}</span>
+                        <span class="text-2xl font-bold text-blue-700">{format!("€ {:.2}", total_booth_revenue)}</span>
                     </div>
                 </div>
             </div>
@@ -477,7 +483,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                             {format!("€ {:.2}", vs.net_payout)}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {vs.purchase_count}
+                                            {vs.item_count}
                                         </td>
                                     </tr>
                                 }
@@ -539,24 +545,82 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
                                     {t!("report.view_items")} " (" {item_count} ")"
                                 </summary>
-                                <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded">
-                                    {items
-                                        .into_iter()
-                                        .enumerate()
-                                        .map(|(idx, report_item)| {
-                                            view! {
-                                                <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
-                                                    <div class="flex items-center gap-2">
-                                                        <span>{"#"}{idx + 1}</span>
-                                                        <span class="text-gray-500 text-xs">
-                                                            {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
-                                                        </span>
-                                                    </div>
-                                                    <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                </div>
-                                            }
-                                        })
-                                        .collect_view()}
+                                <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-96 overflow-y-auto bg-gray-50 p-2 rounded border border-gray-300">
+                                    {
+                                        // Group items by transaction_id
+                                        let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
+                                        for item in items.iter() {
+                                            grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
+                                        }
+                                        
+                                        let mut transactions: Vec<_> = grouped.into_iter().collect();
+                                        transactions.sort_by(|a, b| {
+                                            // Sort by the first item's position in the original list
+                                            items.iter().position(|i| i.transaction_id == a.0)
+                                                .cmp(&items.iter().position(|i| i.transaction_id == b.0))
+                                        });
+                                        
+                                        let mut item_counter = 0;
+                                        transactions
+                                            .into_iter()
+                                            .map(|(transaction_id, transaction_items)| {
+                                                let is_multi_item = transaction_items.len() > 1;
+                                                let transaction_total: rust_decimal::Decimal = transaction_items.iter()
+                                                    .map(|item| item.item.amount)
+                                                    .sum();
+                                                
+                                                if is_multi_item {
+                                                    // Multi-item transaction: show grouped with subtotal
+                                                    let txn_label = t!("report.transaction_id");
+                                                    view! {
+                                                        <div class="mb-2 border-l-2 border-blue-400 pl-2">
+                                                            {transaction_items
+                                                                .into_iter()
+                                                                .enumerate()
+                                                                .map(|(idx, report_item)| {
+                                                                    item_counter += 1;
+                                                                    let time_str = report_item.timestamp.format("%H:%M").to_string();
+                                                                    let txn_id_str = if idx == 0 {
+                                                                        format!("{}: {}", txn_label(), transaction_id.to_string())
+                                                                    } else {
+                                                                        String::new()
+                                                                    };
+                                                                    view! {
+                                                                        <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1">
+                                                                            <span class="text-gray-500 text-xs">{txn_id_str}</span>
+                                                                            <span class="text-gray-500 text-xs text-right w-12">{time_str}</span>
+                                                                            <span class="font-medium text-right w-20">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                        </div>
+                                                                    }.into_view()
+                                                                })
+                                                                .collect_view()}
+                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
+                                                                <span class="text-right">{t!("report.subtotal")}</span>
+                                                                <span class="w-12"></span>
+                                                                <span class="text-right w-20">{format!("€ {:.2}", transaction_total)}</span>
+                                                            </div>
+                                                        </div>
+                                                    }.into_view()
+                                                } else {
+                                                    // Single-item transaction: show transaction ID in first column
+                                                    item_counter += 1;
+                                                    let report_item = &transaction_items[0];
+                                                    let time_str = report_item.timestamp.format("%H:%M").to_string();
+                                                    view! {
+                                                        <div class="mb-2 border-l-2 border-blue-400 pl-2 py-1">
+                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center">
+                                                                <span class="text-gray-500 text-xs">
+                                                                    {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
+                                                                </span>
+                                                                <span class="text-gray-500 text-xs text-right w-12">{time_str}</span>
+                                                                <span class="font-medium text-right w-20">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                            </div>
+                                                        </div>
+                                                    }.into_view()
+                                                }
+                                            })
+                                            .collect_view()
+                                    }
                                 </div>
                             </details>
                         </div>
@@ -572,6 +636,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
 fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
+    let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
@@ -587,7 +652,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
             // Summary Statistics
             <div class="mb-8">
                 <h2 class="text-xl font-bold mb-4">{t!("report.summary_statistics")}</h2>
-                <div class="grid grid-cols-3 gap-6 mb-6">
+                <div class="grid grid-cols-4 gap-6 mb-6">
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.sales_total")}</p>
                         <p class="text-3xl font-bold">{format!("€ {:.2}", total_revenue)}</p>
@@ -595,6 +660,10 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.purchase_count")}</p>
                         <p class="text-3xl font-bold">{total_purchases}</p>
+                    </div>
+                    <div class="border-2 border-gray-300 p-4 rounded">
+                        <p class="text-sm text-gray-600 mb-1">{t!("report.items")}</p>
+                        <p class="text-3xl font-bold">{total_items}</p>
                     </div>
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.vendors_count")}</p>
@@ -647,7 +716,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                                         <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.gross_sales)}</td>
                                         <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.fees_due)}</td>
                                         <td class="px-4 py-3 text-right font-semibold">{format!("€ {:.2}", vs.net_payout)}</td>
-                                        <td class="px-4 py-3 text-right">{vs.purchase_count}</td>
+                                        <td class="px-4 py-3 text-right">{vs.item_count}</td>
                                     </tr>
                                 }
                             })
@@ -670,11 +739,10 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
     view! {
-        <div class="p-8 max-w-4xl mx-auto">
+        <div class="print-reports-container">
             {reports
                 .into_iter()
-                .enumerate()
-                .map(|(idx, report)| {
+                .map(|report| {
                     let vendor_id = report.vendor.vendor_id.as_str().to_string();
                     let vendor_name = report.vendor.name.clone();
                     let sales_sum = report.sales_sum;
@@ -685,89 +753,122 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                     let booth_description = report.booth.description.clone();
                     let booth_date = report.booth.date;
                     
-                    // Use CSS page-break-before property
-                    let page_break_style = if idx > 0 { "page-break-before: always;" } else { "" };
-
+                    // Group items by transaction_id
+                    let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
+                    for item in items.iter() {
+                        grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
+                    }
+                    
+                    let mut transactions: Vec<_> = grouped.into_iter().collect();
+                    transactions.sort_by(|a, b| {
+                        items.iter().position(|i| i.transaction_id == a.0)
+                            .cmp(&items.iter().position(|i| i.transaction_id == b.0))
+                    });
+                    
                     view! {
-                        <div class="mb-8" style=page_break_style>
-                            // Report Header
-                            <div class="mb-6 pb-4 border-b-2 border-gray-800">
-                                <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
-                                <div class="text-lg">
+                        <div class="print-vendor-report">
+                            // Vendor header - compact for efficiency
+                            <div class="mb-3 pb-2 border-b border-gray-800">
+                                <h1 class="text-2xl font-bold mb-1">{t!("report.vendor_report")}</h1>
+                                <div class="text-base">
                                     <p class="font-semibold">
                                         {t!("report.vendor_id")}": "{vendor_id.clone()}
-                                        {vendor_name.map(|name| format!(" - {}", name))}
+                                        {vendor_name.as_ref().map(|name| format!(" - {}", name))}
                                     </p>
-                                    <p class="text-sm text-gray-700">{booth_description}</p>
+                                    <p class="text-sm text-gray-700">{booth_description.clone()}</p>
                                     <p class="text-sm text-gray-600">{booth_date.format("%d.%m.%Y").to_string()}</p>
                                 </div>
                             </div>
-
-                            // Financial Summary
-                            <div class="mb-6">
-                                <h2 class="text-xl font-bold mb-4">{t!("report.financial_summary")}</h2>
-                                <div class="border-2 border-gray-300 p-4 rounded space-y-3">
-                                    <div class="flex justify-between py-2">
+                            
+                            // Financial summary - reduced spacing
+                            <div class="mb-3">
+                                <h2 class="text-lg font-bold mb-2">{t!("report.financial_summary")}</h2>
+                                <div class="border border-gray-400 p-2">
+                                    <div class="flex justify-between py-1">
                                         <span class="font-medium">{t!("report.gross_sales")}"："</span>
-                                        <span class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</span>
+                                        <span class="text-base font-semibold">{format!("€ {:.2}", sales_sum)}</span>
                                     </div>
-                                    <div class="flex justify-between py-2 border-t">
-                                        <span class="text-gray-600">{t!("report.participation_fee")}"："</span>
+                                    <div class="flex justify-between py-1 border-t border-gray-300">
+                                        <span>{t!("report.participation_fee")}"："</span>
                                         <span>{format!("-€ {:.2}", participation_fee)}</span>
                                     </div>
-                                    <div class="flex justify-between py-2">
-                                        <span class="text-gray-600">{t!("report.sales_fee")}"："</span>
+                                    <div class="flex justify-between py-1 border-t border-gray-300">
+                                        <span>{t!("report.sales_fee")}"："</span>
                                         <span>{format!("-€ {:.2}", sales_fee)}</span>
                                     </div>
-                                    <div class="flex justify-between py-3 border-t-2 border-gray-800">
-                                        <span class="text-xl font-bold">{t!("report.net_payout")}"："</span>
-                                        <span class="text-2xl font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</span>
+                                    <div class="flex justify-between py-1 border-t-2 border-gray-800">
+                                        <span class="text-base font-bold">{t!("report.net_payout")}"："</span>
+                                        <span class="text-lg font-bold">{format!("€ {:.2}", total_revenue)}</span>
                                     </div>
                                 </div>
                             </div>
-
-                            // Items List
-                            <div>
-                                <h2 class="text-xl font-bold mb-4">
-                                    {t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"
-                                </h2>
-                                <table class="w-full border-collapse">
-                                    <thead>
-                                        <tr class="border-b-2 border-gray-800">
-                                            <th class="px-4 py-2 text-left font-bold">"#"</th>
-                                            <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
-                                            <th class="px-4 py-2 text-right font-bold">{t!("report.amount")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {items
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(item_idx, report_item)| {
-                                                view! {
-                                                    <tr class="border-b border-gray-300">
-                                                        <td class="px-4 py-2">{item_idx + 1}</td>
-                                                        <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
-                                                        <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
-                                                    </tr>
-                                                }
-                                            })
-                                            .collect_view()}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="border-t-2 border-gray-800 font-bold">
-                                            <td class="px-4 py-3" colspan="2">{t!("report.total")}</td>
-                                            <td class="px-4 py-3 text-right text-lg">{format!("€ {:.2}", sales_sum)}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-
-                            // Footer
-                            <div class="mt-8 pt-4 border-t border-gray-400 text-sm text-gray-600">
-                                <p>{t!("report.generated_at")}" "
-                                    {chrono::Local::now().format("%d.%m.%Y %H:%M").to_string()}
-                                </p>
+                            
+                            // Sales details - compact grid layout
+                            <div class="print-sales-section">
+                                <h2 class="text-lg font-bold mb-0">{t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"</h2>
+                                <div class="print-transactions-container">
+                                    {transactions
+                                        .into_iter()
+                                        .map(|(transaction_id, transaction_items)| {
+                                            let is_multi_item = transaction_items.len() > 1;
+                                            let transaction_total: rust_decimal::Decimal = transaction_items.iter()
+                                                .map(|item| item.item.amount)
+                                                .sum();
+                                            
+                                            view! {
+                                                <div class="print-transaction-group">
+                                                    {if is_multi_item {
+                                                        // Multi-item transaction: show transaction ID and subtotal
+                                                        view! {
+                                                            <div class="print-transaction-header">
+                                                                <span class="text-xs text-gray-600">{t!("report.transaction_id")}": "{transaction_id.to_string()}</span>
+                                                            </div>
+                                                            <div class="print-items-grid">
+                                                                {transaction_items
+                                                                    .into_iter()
+                                                                    .map(|report_item| {
+                                                                        let time_str = report_item.timestamp
+                                                                            .with_timezone(&chrono::Local)
+                                                                            .format("%H:%M")
+                                                                            .to_string();
+                                                                        view! {
+                                                                            <div class="print-item">
+                                                                                <span class="print-item-time">{time_str}</span>
+                                                                                <span class="print-item-amount">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                            </div>
+                                                                        }
+                                                                    })
+                                                                    .collect_view()}
+                                                            </div>
+                                                            <div class="print-subtotal">
+                                                                <span>{t!("report.subtotal")}"："</span>
+                                                                <span class="font-semibold">{format!("€ {:.2}", transaction_total)}</span>
+                                                            </div>
+                                                        }.into_view()
+                                                    } else {
+                                                        // Single-item transaction: show transaction ID and item
+                                                        let report_item = &transaction_items[0];
+                                                        let time_str = report_item.timestamp
+                                                            .with_timezone(&chrono::Local)
+                                                            .format("%H:%M")
+                                                            .to_string();
+                                                        view! {
+                                                            <div class="print-transaction-header">
+                                                                <span class="text-xs text-gray-600">{t!("report.transaction_id")}": "{transaction_id.to_string()}</span>
+                                                            </div>
+                                                            <div class="print-items-grid">
+                                                                <div class="print-item">
+                                                                    <span class="print-item-time">{time_str}</span>
+                                                                    <span class="print-item-amount">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                </div>
+                                                            </div>
+                                                        }.into_view()
+                                                    }}
+                                                </div>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </div>
                             </div>
                         </div>
                     }
