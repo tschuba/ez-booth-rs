@@ -34,7 +34,7 @@
                 margin: 0 !important;
             }
             
-            /* Ensure tables repeat thead on each page */
+            /* Table print styles */
             table {
                 page-break-inside: auto;
                 width: 100%;
@@ -57,20 +57,26 @@
                 page-break-after: auto;
             }
             
-            /* Show vendor header in print */
-            .print-only-vendor-header {
-                display: table-row !important;
-            }
-            
             /* Avoid page breaks inside transaction groups */
             .transaction-group {
                 page-break-inside: avoid;
             }
+            
+            /* Print page header styling */
+            .print-page-header-box {
+                display: block;
+                background: #f3f4f6;
+                border-bottom: 2px solid #1f2937;
+                padding: 0.5rem 1rem;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+                font-size: 11pt;
+            }
         }
         
         @media screen {
-            /* Hide vendor header row on screen */
-            .print-only-vendor-header {
+            /* Hide print headers on screen */
+            .print-page-header-box {
                 display: none;
             }
         }
