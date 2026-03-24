@@ -567,8 +567,8 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                 if is_multi_item {
                                                     // Multi-item transaction: show grouped with subtotal
                                                     view! {
-                                                        <div class="mb-2">
-                                                            <div class="text-gray-500 text-xs mb-1 border-l-2 border-blue-400 pl-2">
+                                                        <div class="mb-2 border-l-2 border-blue-400 pl-2">
+                                                            <div class="text-gray-500 text-xs mb-1">
                                                                 {t!("report.transaction_id")}{": "}{transaction_id.to_string()}
                                                             </div>
                                                             {transaction_items
@@ -577,14 +577,14 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                     item_counter += 1;
                                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
                                                                     view! {
-                                                                        <div class="flex justify-between items-center py-1 pl-2">
+                                                                        <div class="flex justify-end items-center gap-4 py-1">
                                                                             <span class="text-gray-500 text-xs">{time_str}</span>
                                                                             <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                                         </div>
                                                                     }
                                                                 })
                                                                 .collect_view()}
-                                                            <div class="flex justify-between items-center py-1 pl-2 border-t border-gray-300 font-semibold">
+                                                            <div class="flex justify-end items-center gap-4 py-1 border-t border-gray-300 font-semibold">
                                                                 <span>{t!("report.subtotal")}</span>
                                                                 <span>{format!("€ {:.2}", transaction_total)}</span>
                                                             </div>
@@ -596,14 +596,14 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                     let report_item = &transaction_items[0];
                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
                                                     view! {
-                                                        <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                <span class="text-gray-500 text-xs">
-                                                                    {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
-                                                                </span>
+                                                        <div class="mb-2 border-l-2 border-blue-400 pl-2">
+                                                            <div class="text-gray-500 text-xs mb-1">
+                                                                {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
                                                             </div>
-                                                            <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                            <div class="flex justify-end items-center gap-4 py-1">
+                                                                <span class="text-gray-500 text-xs">{time_str}</span>
+                                                                <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                            </div>
                                                         </div>
                                                     }.into_view()
                                                 }
