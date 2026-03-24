@@ -636,8 +636,8 @@ pub fn CheckoutPage() -> impl IntoView {
     view! {
         <Container>
             <div class="space-y-6">
-                <div class="flex flex-col gap-4 lg:flex-row">
-                    <div class="flex-1 space-y-4">
+                <div class="flex flex-col gap-6 lg:flex-row">
+                    <div class="flex-1 space-y-6">
                         <Card title_view={t!("checkout.title").into_view()}>
                             <Show
                                 when=move || selected_booth.get().is_none()
@@ -646,7 +646,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                         when=move || is_loading.get()
                                         fallback=move || view! {
                                             <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem]">
-                                                        <div class="space-y-4 lg:pr-4">
+                                                        <div class="space-y-6 lg:pr-4">
                                                             <div class="space-y-6">
                                                                 <div>
                                                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -753,8 +753,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             </div>
                                                         </div>
 
-                                                        <div class="space-y-4">
-                                                            <div class="space-y-4 rounded-lg border bg-gray-50 p-4 shadow-sm">
+                                                        <div class="space-y-6">
+                                                            <div class="space-y-6 rounded-lg border bg-gray-50 p-4 shadow-sm">
                                                                 <div class="flex justify-between text-lg font-semibold">
                                                                     <span>{t!("checkout.total")}</span>
                                                                     <span>{move || format!("{:.2}", form_data.get().total())}</span>
@@ -889,7 +889,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         </Card>
                     </div>
 
-                    <div class="w-full lg:w-96">
+                    <div class="w-full lg:w-96 space-y-6">
                         <Card title_view={t!("checkout.running_totals_title").into_view()}>
                             <div class="space-y-4">
                                 <div class="flex justify-between">
