@@ -125,6 +125,12 @@ cargo test -p domain
 
 ## Documentation
 
+### User Documentation
+
+- **[Fee Calculation Guide](docs/FEE_CALCULATION.md)** - Detailed explanation of how vendor fees and payouts are calculated (Bilingual: DE/EN)
+
+### Technical Documentation
+
 See the `docs/redesign/` folder for detailed architecture and implementation documentation:
 
 - `00_SPEC.md` - Project specification
