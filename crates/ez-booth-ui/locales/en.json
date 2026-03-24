@@ -32,18 +32,39 @@
     "updated": "Booth updated.",
     "list_title": "Booths",
     "create": "Create Booth",
+    "create_aria_label": "Create new booth",
     "edit": "Edit Booth",
+    "edit_button": "Edit",
+    "delete": "Delete Booth",
+    "delete_button": "Delete",
     "delete_confirm": "Are you sure you want to delete this booth?",
+    "delete_confirm_message": "Are you sure you want to delete '{description}'? This action cannot be undone.",
     "name_label": "Name",
     "description_label": "Description",
     "date_label": "Date",
+    "date_prefix": "Date:",
+    "status_label": "Status:",
     "status_open": "Open",
     "status_closed": "Closed",
+    "no_booths_message": "No booths yet",
+    "loading_message": "Loading booths...",
     "participation_fee": "Participation Fee",
     "sales_fee_percent": "Sales Commission (%)",
     "rounding_step": "Rounding Step",
     "errors": {
       "load_failed": "Failed to load booths"
+    },
+    "success": {
+      "created": "Booth created: {description}",
+      "updated": "Booth updated: {description}",
+      "deleted": "Booth deleted: {description}"
+    },
+    "errors_detail": {
+      "save_failed": "Failed to save booth",
+      "update_failed": "Failed to update booth",
+      "delete_failed": "Failed to delete booth",
+      "invalid_data": "Invalid booth data",
+      "init_failed": "App initialization failed: {error}"
     }
   },
   "vendor": {

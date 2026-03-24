@@ -1,12 +1,15 @@
 use crate::components::*;
+use crate::i18n::{use_locale, Locale};
 use crate::state::*;
 use crate::t;
+use chrono::Datelike;
 use domain::models::booth::Booth;
 use leptos::*;
 
 #[component]
 pub fn BoothListPage() -> impl IntoView {
     let app_state = use_app_state();
+    let locale = use_locale();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
@@ -16,6 +19,29 @@ pub fn BoothListPage() -> impl IntoView {
     let (is_loading, set_is_loading) = create_signal(true);
 
     let toast = use_toast();
+
+    // Format date based on locale
+    // German: "24. Mär" (DD. MMM)
+    // English: "Mar 24" (MMM DD)
+    let format_date = move |date: chrono::NaiveDate| -> String {
+        match locale.get() {
+            Locale::De => {
+                // German format: DD. MMM (e.g., "24. Mär")
+                let day = date.day();
+                let month = match date.month() {
+                    1 => "Jan", 2 => "Feb", 3 => "Mär", 4 => "Apr",
+                    5 => "Mai", 6 => "Jun", 7 => "Jul", 8 => "Aug",
+                    9 => "Sep", 10 => "Okt", 11 => "Nov", 12 => "Dez",
+                    _ => "?",
+                };
+                format!("{}. {}", day, month)
+            }
+            Locale::En => {
+                // English format: MMM DD (e.g., "Mar 24")
+                date.format("%b %d").to_string()
+            }
+        }
+    };
 
     // Load booths from storage - track app_state resource
     create_effect(move |_| {
@@ -40,14 +66,14 @@ pub fn BoothListPage() -> impl IntoView {
                     }
                     Err(e) => {
                         web_sys::console::log_1(&format!("Failed to load booths: {:?}", e).into());
-                        toast.error(&format!("Failed to load booths: {:?}", e));
+                        toast.error(&t!("booth.errors.load_failed")());
                         set_is_loading.set(false);
                     }
                 }
             });
         } else if let Some(Err(e)) = state_result {
             web_sys::console::log_1(&format!("App state error: {}", e).into());
-            toast.error(&format!("App initialization failed: {}", e));
+            toast.error(&t!("booth.errors_detail.init_failed")().replace("{error}", &e));
             set_is_loading.set(false);
         } else {
             web_sys::console::log_1(&"App state still loading...".into());
@@ -71,7 +97,7 @@ pub fn BoothListPage() -> impl IntoView {
                                 web_sys::console::log_1(
                                     &format!("Booth saved: {}", booth.description).into(),
                                 );
-                                toast.success(&format!("Booth created: {}", booth.description));
+                                toast.success(&t!("booth.success.created")().replace("{description}", &booth.description));
                                 set_show_create_modal.set(false);
 
                                 // Reload booths
@@ -95,12 +121,12 @@ pub fn BoothListPage() -> impl IntoView {
                                 }
                             }
                             Err(e) => {
-                                toast.error(&format!("Failed to save booth: {:?}", e));
+                                toast.error(&t!("booth.errors_detail.save_failed")());
                             }
                         }
                     }
                     Err(e) => {
-                        toast.error(&format!("Invalid booth data: {:?}", e));
+                        toast.error(&t!("booth.errors_detail.invalid_data")());
                     }
                 }
             }
@@ -125,7 +151,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     web_sys::console::log_1(
                                         &format!("Booth updated: {}", booth.description).into(),
                                     );
-                                    toast.success(&format!("Booth updated: {}", booth.description));
+                                    toast.success(&t!("booth.success.updated")().replace("{description}", &booth.description));
                                     set_show_edit_modal.set(false);
                                     set_editing_booth.set(None);
 
@@ -150,12 +176,12 @@ pub fn BoothListPage() -> impl IntoView {
                                     }
                                 }
                                 Err(e) => {
-                                    toast.error(&format!("Failed to update booth: {:?}", e));
+                                    toast.error(&t!("booth.errors_detail.update_failed")());
                                 }
                             }
                         }
                         Err(e) => {
-                            toast.error(&format!("Invalid booth data: {:?}", e));
+                            toast.error(&t!("booth.errors_detail.invalid_data")());
                         }
                     }
                 }
@@ -177,7 +203,7 @@ pub fn BoothListPage() -> impl IntoView {
                             web_sys::console::log_1(
                                 &format!("Booth deleted: {}", booth.description).into(),
                             );
-                            toast.success(&format!("Booth deleted: {}", booth.description));
+                            toast.success(&t!("booth.success.deleted")().replace("{description}", &booth.description));
                             set_show_delete_confirm.set(false);
                             set_deleting_booth.set(None);
 
@@ -201,7 +227,7 @@ pub fn BoothListPage() -> impl IntoView {
                             }
                         }
                         Err(e) => {
-                            toast.error(&format!("Failed to delete booth: {:?}", e));
+                            toast.error(&t!("booth.errors_detail.delete_failed")());
                         }
                     }
                 }
@@ -219,12 +245,10 @@ pub fn BoothListPage() -> impl IntoView {
         deleting_booth
             .get()
             .map(|b| {
-                format!(
-                    "Are you sure you want to delete '{}'? This action cannot be undone.",
-                    b.description
-                )
+                t!("booth.delete_confirm_message")()
+                    .replace("{description}", &b.description)
             })
-            .unwrap_or_else(|| "Are you sure you want to delete this booth?".to_string())
+            .unwrap_or_else(|| t!("booth.delete_confirm")())
     };
 
     view! {
@@ -234,7 +258,7 @@ pub fn BoothListPage() -> impl IntoView {
                     <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
                     <Button
                         on_click=Box::new(move || set_show_create_modal.set(true))
-                        aria_label="Create new booth".to_string()
+                        aria_label=t!("booth.create_aria_label")()
                     >
                         {t!("booth.create")}
                     </Button>
@@ -262,15 +286,16 @@ pub fn BoothListPage() -> impl IntoView {
                                         children=move |booth| {
                                             let booth_for_edit = booth.clone();
                                             let booth_for_delete = booth.clone();
+                                            let booth_date = booth.date;
 
                                             view! {
                                                 <Card>
                                                     <h3 class="text-lg font-semibold mb-2">{booth.description.clone()}</h3>
                                                     <p class="text-gray-600 mb-2">
-                                                        "Date: " {booth.date.to_string()}
+                                                        {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
                                                     </p>
                                                     <p class="text-sm text-gray-500 mb-4">
-                                                        "Status: " {if booth.is_open() { "Open" } else { "Closed" }}
+                                                        {t!("booth.status_label")} " " {move || if booth.is_open() { t!("booth.status_open")() } else { t!("booth.status_closed")() }}
                                                     </p>
                                                     <div class="flex gap-2">
                                                         <Button
@@ -280,7 +305,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                             })
                                                             variant=crate::components::ButtonVariant::Secondary
                                                         >
-                                                            "Edit"
+                                                            {t!("booth.edit_button")}
                                                         </Button>
                                                         <Button
                                                             on_click=Box::new(move || {
@@ -289,7 +314,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                             })
                                                             variant=crate::components::ButtonVariant::Danger
                                                         >
-                                                            "Delete"
+                                                            {t!("booth.delete_button")}
                                                         </Button>
                                                     </div>
                                                 </Card>
@@ -301,7 +326,7 @@ pub fn BoothListPage() -> impl IntoView {
                         >
                             <Card>
                                 <div class="text-center py-12">
-                                    <p class="text-gray-600 mb-4">"No booths yet"</p>
+                                    <p class="text-gray-600 mb-4">{t!("booth.no_booths_message")}</p>
                                     <Button
                                         on_click=Box::new(move || set_show_create_modal.set(true))
                                     >
@@ -315,7 +340,7 @@ pub fn BoothListPage() -> impl IntoView {
                 >
                     <Card>
                         <div class="text-center py-12">
-                            <p class="text-gray-600">"Loading booths..."</p>
+                            <p class="text-gray-600">{t!("booth.loading_message")}</p>
                         </div>
                     </Card>
                 </Show>
@@ -369,10 +394,10 @@ pub fn BoothListPage() -> impl IntoView {
                     set_deleting_booth.set(None);
                 }
                 on_confirm=handle_delete_booth
-                title="Delete Booth".to_string()
+                title=t!("booth.delete")()
                 message=Signal::derive(delete_message)
-                confirm_text="Delete".to_string()
-                cancel_text="Cancel".to_string()
+                confirm_text=t!("common.delete")()
+                cancel_text=t!("common.cancel")()
                 is_destructive=true
             />
         </Container>
