@@ -27,6 +27,9 @@ chrono = { workspace = true }
 # Decimal (for currency)
 rust_decimal = { workspace = true }
 
+# UUID
+uuid = { workspace = true }
+
 # WASM
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
