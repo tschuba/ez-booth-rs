@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::state::use_app_state;
 
 const SELECTED_BOOTH_STORAGE_KEY: &str = "ez-booth-selected-booth-id";
+const BOOTH_LIST_VERSION_STORAGE_KEY: &str = "ez-booth-list-version";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectedBoothContext(pub RwSignal<Option<Booth>>);
@@ -48,7 +49,13 @@ pub fn provide_selected_booth_context() -> RwSignal<Option<Booth>> {
     provide_context(SelectedBoothContext(booth_signal));
     
     // Provide booth list version signal for triggering reloads
-    let booth_list_version = create_rw_signal(0u32);
+    // Load initial version from localStorage
+    let initial_version = get_local_storage()
+        .and_then(|storage| storage.get_item(BOOTH_LIST_VERSION_STORAGE_KEY).ok().flatten())
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+    
+    let booth_list_version = create_rw_signal(initial_version);
     provide_context(BoothListVersionContext(booth_list_version));
     
     booth_signal
@@ -216,6 +223,47 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
         };
         
         let closure = Closure::wrap(Box::new(handle_storage) as Box<dyn Fn(web_sys::StorageEvent)>);
+        
+        let _ = window.add_event_listener_with_callback("storage", closure.as_ref().unchecked_ref());
+        
+        // Keep closure alive for the lifetime of the component
+        closure.forget();
+    });
+
+    // Sync booth list version to localStorage when it changes
+    let booth_list_version = use_booth_list_version();
+    create_effect(move |_| {
+        let version = booth_list_version.get();
+        
+        if let Some(storage) = get_local_storage() {
+            let version_str = version.to_string();
+            let _ = storage.set_item(BOOTH_LIST_VERSION_STORAGE_KEY, &version_str);
+            web_sys::console::log_1(&format!("Booth list version saved to localStorage: {}", version).into());
+        }
+    });
+
+    // Listen for booth list version changes from other tabs
+    create_effect(move |_| {
+        use wasm_bindgen::JsCast;
+        use wasm_bindgen::closure::Closure;
+        
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        
+        let handle_version_change = move |event: web_sys::StorageEvent| {
+            // Only handle changes to booth list version key
+            if event.key().as_deref() == Some(BOOTH_LIST_VERSION_STORAGE_KEY) {
+                if let Some(new_version_str) = event.new_value() {
+                    if let Ok(new_version) = new_version_str.parse::<u32>() {
+                        web_sys::console::log_1(&format!("Storage event: booth list version changed to {} in another tab", new_version).into());
+                        booth_list_version.set(new_version);
+                    }
+                }
+            }
+        };
+        
+        let closure = Closure::wrap(Box::new(handle_version_change) as Box<dyn Fn(web_sys::StorageEvent)>);
         
         let _ = window.add_event_listener_with_callback("storage", closure.as_ref().unchecked_ref());
         
