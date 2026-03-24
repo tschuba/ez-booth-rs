@@ -729,38 +729,6 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
     view! {
-        <style>
-            r#"
-            @media print {
-                /* Page setup */
-                @page {
-                    margin: 1.5cm 1cm 1cm 1cm;
-                }
-                
-                /* Thead will repeat on every page */
-                thead {
-                    display: table-header-group;
-                }
-                
-                /* Avoid page breaks inside transaction groups */
-                .transaction-group {
-                    page-break-inside: avoid;
-                }
-                
-                /* Hide running header on first page */
-                .print-first-page .print-running-header {
-                    display: none !important;
-                }
-            }
-            
-            @media screen {
-                /* Hide running header on screen */
-                .print-running-header {
-                    display: none;
-                }
-            }
-            "#
-        </style>
         <div class="p-8 max-w-4xl mx-auto">
             {reports
                 .into_iter()
@@ -782,6 +750,12 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
 
                     view! {
                         <div class={format!("mb-8 {}", first_page_class)} style=page_break_style>
+                            // Fixed header for print (repeats on every page except first)
+                            <div class="print-page-header">
+                                {t!("report.vendor_id")}": "{vendor_id.clone()}
+                                {vendor_name.as_ref().map(|name| format!(" - {}", name))}
+                            </div>
+                            
                             // Report Header (only on first page)
                             <div class="mb-6 pb-4 border-b-2 border-gray-800">
                                 <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
@@ -823,19 +797,8 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <h2 class="text-xl font-bold mb-4">
                                     {t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"
                                 </h2>
-                                 <table class="w-full border-collapse">
+                                 <table class="w-full border-collapse print-vendor-table">
                                     <thead>
-                                        // Header row with vendor info (repeats on every page when printing)
-                                        <tr class="print-running-header bg-gray-100">
-                                            <th colspan="3" class="px-4 py-2 text-left border-b border-gray-400">
-                                                <div class="flex justify-between items-center text-sm">
-                                                    <span class="font-semibold">
-                                                        {t!("report.vendor_id")}": "{vendor_id.clone()}
-                                                        {vendor_name.clone().map(|name| format!(" - {}", name))}
-                                                    </span>
-                                                </div>
-                                            </th>
-                                        </tr>
                                         <tr class="border-b-2 border-gray-800">
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.time")}</th>

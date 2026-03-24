@@ -18,6 +18,59 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
+        
+        /* Print styles for vendor reports */
+        @media print {
+            /* Page setup */
+            @page {
+                margin: 3cm 1cm 1cm 1cm; /* Extra top margin for fixed header */
+            }
+            
+            /* Running header at top of each page */
+            .print-page-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                border-bottom: 2px solid #1f2937;
+                padding: 0.5cm 1cm;
+                font-size: 11pt;
+                font-weight: 600;
+                z-index: 9999;
+            }
+            
+            /* Hide header on first page */
+            .print-first-page .print-page-header {
+                display: none;
+            }
+            
+            /* Add top margin to table to account for fixed header */
+            .print-vendor-table {
+                margin-top: 0.5cm;
+            }
+            
+            /* Avoid page breaks inside transaction groups */
+            .transaction-group {
+                page-break-inside: avoid;
+            }
+            
+            /* Ensure thead stays with table */
+            thead {
+                display: table-header-group;
+            }
+            
+            tbody {
+                display: table-row-group;
+            }
+        }
+        
+        @media screen {
+            /* Hide print header on screen */
+            .print-page-header {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
