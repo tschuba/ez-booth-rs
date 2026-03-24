@@ -157,5 +157,71 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
         save_selected_booth_id(booth_id_str.as_deref());
     });
 
+    // Listen for storage events from other tabs
+    // This allows cross-tab synchronization when booth is deleted elsewhere
+    create_effect(move |_| {
+        use wasm_bindgen::JsCast;
+        use wasm_bindgen::closure::Closure;
+        
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        
+        let Some(app_state) = use_context::<Resource<(), Result<crate::state::AppState, String>>>() else {
+            return;
+        };
+        
+        let handle_storage = move |event: web_sys::StorageEvent| {
+            // Only handle changes to our booth selection key
+            if event.key().as_deref() == Some(SELECTED_BOOTH_STORAGE_KEY) {
+                web_sys::console::log_1(&"Storage event: booth selection changed in another tab".into());
+                
+                // Check the new value
+                match event.new_value() {
+                    None => {
+                        // Booth was cleared in another tab
+                        web_sys::console::log_1(&"Storage event: booth cleared in another tab".into());
+                        booth_signal.set(None);
+                    }
+                    Some(new_id_str) => {
+                        // Booth was changed in another tab - validate and load it
+                        web_sys::console::log_1(&format!("Storage event: booth changed to {} in another tab", new_id_str).into());
+                        
+                        if let Ok(uuid) = Uuid::parse_str(&new_id_str) {
+                            let booth_id = BoothId::from_uuid(uuid);
+                            
+                            // Get app state and load the booth
+                            if let Some(Ok(state)) = app_state.get() {
+                                let booth_repository = state.booth_repository.clone();
+                                spawn_local(async move {
+                                    match booth_repository.find_by_id(&booth_id).await {
+                                        Ok(Some(booth)) => {
+                                            web_sys::console::log_1(&format!("Storage event: loaded booth {}", booth.description).into());
+                                            booth_signal.set(Some(booth));
+                                        }
+                                        Ok(None) => {
+                                            web_sys::console::log_1(&"Storage event: booth not found".into());
+                                            booth_signal.set(None);
+                                        }
+                                        Err(e) => {
+                                            web_sys::console::log_1(&format!("Storage event: error loading booth: {:?}", e).into());
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        
+        let closure = Closure::wrap(Box::new(handle_storage) as Box<dyn Fn(web_sys::StorageEvent)>);
+        
+        let _ = window.add_event_listener_with_callback("storage", closure.as_ref().unchecked_ref());
+        
+        // Keep closure alive for the lifetime of the component
+        closure.forget();
+    });
+
     children()
 }
