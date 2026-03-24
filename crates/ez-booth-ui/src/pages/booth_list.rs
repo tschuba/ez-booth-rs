@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::i18n::{use_locale, Locale};
+use crate::selected_booth_context::use_selected_booth;
 use crate::state::*;
 use crate::t;
 use chrono::Datelike;
@@ -10,6 +11,8 @@ use leptos::*;
 pub fn BoothListPage() -> impl IntoView {
     let app_state = use_app_state();
     let locale = use_locale();
+    let selected_booth = use_selected_booth();
+    let booth_list_version = crate::selected_booth_context::use_booth_list_version();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
@@ -100,6 +103,9 @@ pub fn BoothListPage() -> impl IntoView {
                                 toast.success(&t!("booth.success.created")().replace("{description}", &booth.description));
                                 set_show_create_modal.set(false);
 
+                                // Notify other components that booth list changed
+                                booth_list_version.update(|v| *v += 1);
+
                                 // Reload booths
                                 match state.booth_repository.find_all().await {
                                     Ok(loaded_booths) => {
@@ -155,6 +161,9 @@ pub fn BoothListPage() -> impl IntoView {
                                     set_show_edit_modal.set(false);
                                     set_editing_booth.set(None);
 
+                                    // Notify other components that booth list changed
+                                    booth_list_version.update(|v| *v += 1);
+
                                     // Reload booths
                                     match state.booth_repository.find_all().await {
                                         Ok(loaded_booths) => {
@@ -203,9 +212,21 @@ pub fn BoothListPage() -> impl IntoView {
                             web_sys::console::log_1(
                                 &format!("Booth deleted: {}", booth.description).into(),
                             );
+                            
+                            // Clear selected booth if it was the one deleted
+                            if let Some(current_booth) = selected_booth.get() {
+                                if current_booth.id == booth.id {
+                                    web_sys::console::log_1(&"Clearing selected booth as it was deleted".into());
+                                    selected_booth.set(None);
+                                }
+                            }
+                            
                             toast.success(&t!("booth.success.deleted")().replace("{description}", &booth.description));
                             set_show_delete_confirm.set(false);
                             set_deleting_booth.set(None);
+
+                            // Notify other components that booth list changed
+                            booth_list_version.update(|v| *v += 1);
 
                             // Reload booths
                             match state.booth_repository.find_all().await {

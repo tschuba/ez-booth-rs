@@ -11,19 +11,24 @@ use wasm_bindgen::JsCast;
 #[component]
 pub fn BoothSelector() -> impl IntoView {
     let selected_booth = selected_booth_context::use_selected_booth();
+    let booth_list_version = selected_booth_context::use_booth_list_version();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
     let (is_open, set_is_open) = create_signal(false);
     let app_state = use_app_state();
     let toast = use_toast();
     let locale = use_locale();
 
-    // Load available booths
+    // Load available booths - reloads when booth_list_version changes
     create_effect(move |_| {
+        // Track booth_list_version to make this effect reactive to booth changes
+        let _ = booth_list_version.get();
+        
         let state_result = app_state.get();
         if let Some(Ok(state)) = state_result {
             spawn_local(async move {
                 match state.booth_repository.find_all().await {
                     Ok(loaded_booths) => {
+                        web_sys::console::log_1(&format!("BoothSelector: Loaded {} booths", loaded_booths.len()).into());
                         set_booths.set(loaded_booths);
                     }
                     Err(e) => {
