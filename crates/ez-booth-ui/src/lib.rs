@@ -33,9 +33,9 @@ pub fn App() -> impl IntoView {
     view! {
         <ToastProvider>
             <Router>
-                <div class="min-h-screen bg-gray-50">
-                    // Header
-                    <header class="bg-white shadow">
+                <div class="min-h-screen bg-gray-50 print:bg-white">
+                    // Header (hidden during print)
+                    <header class="bg-white shadow print:hidden">
                         <Container>
                             <div class="flex items-center justify-between py-4">
                                 <a href="/" class="text-2xl font-bold text-blue-600">
@@ -75,8 +75,8 @@ pub fn App() -> impl IntoView {
                         </Container>
                     </header>
 
-                    // Main content
-                    <main class="py-8">
+                    // Main content (remove padding during print)
+                    <main class="py-8 print:py-0">
                         <Routes>
                             <Route path="/" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
@@ -86,8 +86,8 @@ pub fn App() -> impl IntoView {
                         </Routes>
                     </main>
 
-                    // Footer
-                    <footer class="bg-white border-t mt-auto">
+                    // Footer (hidden during print)
+                    <footer class="bg-white border-t mt-auto print:hidden">
                         <Container>
                             <div class="py-4 text-center text-sm text-gray-600">
                                 {t!("app.copyright")}
