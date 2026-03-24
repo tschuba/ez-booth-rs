@@ -164,6 +164,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
                 p.items.iter().map(|item| VendorReportItem {
                     transaction_id: p.id.clone(),
                     item: item.clone(),
+                    timestamp: p.timestamp,
                 })
             })
             .collect();

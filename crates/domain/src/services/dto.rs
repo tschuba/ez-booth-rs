@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 pub struct VendorReportItem {
     pub transaction_id: PurchaseId,
     pub item: PurchaseItem,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
