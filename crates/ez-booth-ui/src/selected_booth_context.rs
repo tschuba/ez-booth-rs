@@ -55,39 +55,76 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
     let booth_signal = provide_selected_booth_context();
 
     // Restore selected booth from localStorage on mount
-    // Only try to restore once we have access to AppState
+    // Track if we've already attempted restoration
+    let restored = create_rw_signal(false);
+    
+    // Get app_state resource - we need to track it reactively
+    // We use a separate effect to wait for AppState context to be available
     create_effect(move |_| {
-        if let Some(stored_booth_id) = load_selected_booth_id() {
-            // Try to get app_state from context - it might not be available yet
-            if let Some(app_state) = use_context::<Resource<(), Result<crate::state::AppState, String>>>() {
-                // Wait for app_state to be ready
-                if let Some(Ok(state)) = app_state.get() {
-                    let booth_repository = state.booth_repository.clone();
-                    spawn_local(async move {
-                        // Validate that the booth still exists
-                        match booth_repository.find_by_id(&stored_booth_id).await {
-                            Ok(Some(booth)) => {
-                                booth_signal.set(Some(booth));
-                            }
-                            Ok(None) => {
-                                // Booth was deleted, clear the stored selection
-                                save_selected_booth_id(None);
-                            }
-                            Err(_) => {
-                                // Error loading booth, clear the stored selection
-                                save_selected_booth_id(None);
-                            }
-                        }
-                    });
+        // Only try to restore once
+        if restored.get() {
+            return;
+        }
+        
+        // Try to get app_state from context
+        let Some(app_state) = use_context::<Resource<(), Result<crate::state::AppState, String>>>() else {
+            web_sys::console::log_1(&"AppState context not available yet...".into());
+            return;
+        };
+        
+        // Track app_state resource to make effect reactive
+        let Some(Ok(state)) = app_state.get() else {
+            web_sys::console::log_1(&"AppState not ready yet...".into());
+            return;
+        };
+        
+        web_sys::console::log_1(&"AppState is ready, checking for saved booth...".into());
+        
+        // Only proceed if we have a stored booth ID
+        let Some(stored_booth_id) = load_selected_booth_id() else {
+            web_sys::console::log_1(&"No booth ID in localStorage".into());
+            restored.set(true); // Mark as done even if no booth to restore
+            return;
+        };
+        
+        web_sys::console::log_1(&format!("Attempting to restore booth ID: {}", stored_booth_id.as_str()).into());
+        
+        // Mark as restored to prevent duplicate attempts
+        restored.set(true);
+        
+        let booth_repository = state.booth_repository.clone();
+        spawn_local(async move {
+            // Validate that the booth still exists
+            match booth_repository.find_by_id(&stored_booth_id).await {
+                Ok(Some(booth)) => {
+                    web_sys::console::log_1(&format!("Booth restored: {}", booth.description).into());
+                    booth_signal.set(Some(booth));
+                }
+                Ok(None) => {
+                    web_sys::console::log_1(&"Booth not found, clearing storage".into());
+                    // Booth was deleted, clear the stored selection
+                    save_selected_booth_id(None);
+                }
+                Err(e) => {
+                    web_sys::console::log_1(&format!("Error loading booth: {:?}, clearing storage", e).into());
+                    // Error loading booth, clear the stored selection
+                    save_selected_booth_id(None);
                 }
             }
-        }
+        });
     });
 
     // Save selected booth to localStorage whenever it changes
     create_effect(move |_| {
         let booth = booth_signal.get();
         let booth_id_str = booth.as_ref().map(|b| b.id.as_str());
+        
+        if let Some(id) = booth_id_str.as_deref() {
+            web_sys::console::log_1(&format!("Saving booth ID to localStorage: {}", id).into());
+        } else {
+            web_sys::console::log_1(&"Clearing booth ID from localStorage".into());
+        }
+        
         save_selected_booth_id(booth_id_str.as_deref());
     });
 
