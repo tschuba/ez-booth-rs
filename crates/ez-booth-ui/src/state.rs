@@ -1,5 +1,5 @@
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
-use domain::services::VendorService;
+use domain::services::{ReportService, TransactionService, VendorService};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
     IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
@@ -14,6 +14,14 @@ pub struct AppState {
     pub vendor_repository: Arc<dyn VendorRepository>,
     pub purchase_repository: Arc<dyn PurchaseRepository>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository>>,
+    pub transaction_service: Arc<TransactionService<IndexedDbPurchaseRepository>>,
+    pub report_service: Arc<
+        ReportService<
+            IndexedDbPurchaseRepository,
+            IndexedDbBoothRepository,
+            IndexedDbVendorRepository,
+        >,
+    >,
 }
 
 impl AppState {
@@ -34,14 +42,26 @@ impl AppState {
         let purchase_repository: Arc<dyn PurchaseRepository> =
             Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
 
-        // Create services (use separate instance for service layer)
-        let vendor_service = Arc::new(VendorService::new(IndexedDbVendorRepository::new(db.clone())));
+        // Create services (use separate instances for service layer)
+        let vendor_service = Arc::new(VendorService::new(IndexedDbVendorRepository::new(
+            db.clone(),
+        )));
+        let transaction_service = Arc::new(TransactionService::new(
+            IndexedDbPurchaseRepository::new(db.clone()),
+        ));
+        let report_service = Arc::new(ReportService::new(
+            IndexedDbPurchaseRepository::new(db.clone()),
+            IndexedDbBoothRepository::new(db.clone()),
+            IndexedDbVendorRepository::new(db.clone()),
+        ));
 
         Ok(Self {
             booth_repository,
             vendor_repository,
             purchase_repository,
             vendor_service,
+            transaction_service,
+            report_service,
         })
     }
 }
