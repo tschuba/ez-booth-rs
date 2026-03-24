@@ -32,18 +32,39 @@
     "updated": "Stand aktualisiert.",
     "list_title": "Stände",
     "create": "Stand erstellen",
+    "create_aria_label": "Neuen Stand erstellen",
     "edit": "Stand bearbeiten",
+    "edit_button": "Bearbeiten",
+    "delete": "Stand löschen",
+    "delete_button": "Löschen",
     "delete_confirm": "Möchten Sie diesen Stand wirklich löschen?",
+    "delete_confirm_message": "Möchten Sie '{description}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
     "name_label": "Name",
     "description_label": "Beschreibung",
     "date_label": "Datum",
+    "date_prefix": "Datum:",
+    "status_label": "Status:",
     "status_open": "Offen",
     "status_closed": "Geschlossen",
+    "no_booths_message": "Noch keine Stände",
+    "loading_message": "Lade Stände...",
     "participation_fee": "Standgebühr",
     "sales_fee_percent": "Verkaufsprovision (%)",
     "rounding_step": "Rundungsschritt",
     "errors": {
       "load_failed": "Fehler beim Laden der Stände"
+    },
+    "success": {
+      "created": "Stand erstellt: {description}",
+      "updated": "Stand aktualisiert: {description}",
+      "deleted": "Stand gelöscht: {description}"
+    },
+    "errors_detail": {
+      "save_failed": "Fehler beim Speichern des Stands",
+      "update_failed": "Fehler beim Aktualisieren des Stands",
+      "delete_failed": "Fehler beim Löschen des Stands",
+      "invalid_data": "Ungültige Stand-Daten",
+      "init_failed": "App-Initialisierung fehlgeschlagen: {error}"
     }
   },
   "vendor": {
