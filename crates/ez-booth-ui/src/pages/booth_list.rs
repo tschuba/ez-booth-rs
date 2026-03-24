@@ -1,12 +1,15 @@
 use crate::components::*;
+use crate::i18n::{use_locale, Locale};
 use crate::state::*;
 use crate::t;
+use chrono::Datelike;
 use domain::models::booth::Booth;
 use leptos::*;
 
 #[component]
 pub fn BoothListPage() -> impl IntoView {
     let app_state = use_app_state();
+    let locale = use_locale();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
@@ -16,6 +19,29 @@ pub fn BoothListPage() -> impl IntoView {
     let (is_loading, set_is_loading) = create_signal(true);
 
     let toast = use_toast();
+
+    // Format date based on locale
+    // German: "24. Mär" (DD. MMM)
+    // English: "Mar 24" (MMM DD)
+    let format_date = move |date: chrono::NaiveDate| -> String {
+        match locale.get() {
+            Locale::De => {
+                // German format: DD. MMM (e.g., "24. Mär")
+                let day = date.day();
+                let month = match date.month() {
+                    1 => "Jan", 2 => "Feb", 3 => "Mär", 4 => "Apr",
+                    5 => "Mai", 6 => "Jun", 7 => "Jul", 8 => "Aug",
+                    9 => "Sep", 10 => "Okt", 11 => "Nov", 12 => "Dez",
+                    _ => "?",
+                };
+                format!("{}. {}", day, month)
+            }
+            Locale::En => {
+                // English format: MMM DD (e.g., "Mar 24")
+                date.format("%b %d").to_string()
+            }
+        }
+    };
 
     // Load booths from storage - track app_state resource
     create_effect(move |_| {
@@ -260,12 +286,13 @@ pub fn BoothListPage() -> impl IntoView {
                                         children=move |booth| {
                                             let booth_for_edit = booth.clone();
                                             let booth_for_delete = booth.clone();
+                                            let booth_date = booth.date;
 
                                             view! {
                                                 <Card>
                                                     <h3 class="text-lg font-semibold mb-2">{booth.description.clone()}</h3>
                                                     <p class="text-gray-600 mb-2">
-                                                        {t!("booth.date_prefix")} " " {booth.date.to_string()}
+                                                        {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
                                                     </p>
                                                     <p class="text-sm text-gray-500 mb-4">
                                                         {t!("booth.status_label")} " " {move || if booth.is_open() { t!("booth.status_open")() } else { t!("booth.status_closed")() }}
