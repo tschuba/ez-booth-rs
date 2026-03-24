@@ -319,7 +319,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 <div class="p-4 bg-blue-50 rounded">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
                     <p class="text-2xl font-bold text-blue-600">
-                        {format!("€{:.2}", total_revenue)}
+                        {format!("€ {:.2}", total_revenue)}
                     </p>
                 </div>
                 <div class="p-4 bg-green-50 rounded">
@@ -365,13 +365,13 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                             {vendor_id_str}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {format!("€{:.2}", vs.gross_sales)}
+                                            {format!("€ {:.2}", vs.gross_sales)}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {format!("€{:.2}", vs.fees_due)}
+                                            {format!("€ {:.2}", vs.fees_due)}
                                         </td>
                                         <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                                            {format!("€{:.2}", vs.net_payout)}
+                                            {format!("€ {:.2}", vs.net_payout)}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
                                             {vs.purchase_count}
@@ -430,7 +430,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <div>
                                     <p class="text-sm text-gray-600">{t!("report.gross_sales")}</p>
                                     <p class="text-lg font-semibold">
-                                        {format!("€{:.2}", sales_sum)}
+                                        {format!("€ {:.2}", sales_sum)}
                                     </p>
                                 </div>
                                 <div>
@@ -439,16 +439,16 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600">{t!("report.participation_fee")}</p>
-                                    <p class="text-lg">{format!("€{:.2}", participation_fee)}</p>
+                                    <p class="text-lg">{format!("€ {:.2}", participation_fee)}</p>
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600">{t!("report.sales_fee")}</p>
-                                    <p class="text-lg">{format!("€{:.2}", sales_fee)}</p>
+                                    <p class="text-lg">{format!("€ {:.2}", sales_fee)}</p>
                                 </div>
                                 <div class="col-span-2 pt-2 border-t">
                                     <p class="text-sm text-gray-600">{t!("report.net_payout")}</p>
                                     <p class="text-xl font-bold text-green-600">
-                                        {format!("€{:.2}", total_revenue)}
+                                        {format!("€ {:.2}", total_revenue)}
                                     </p>
                                 </div>
                             </div>
@@ -466,7 +466,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                             view! {
                                                 <div class="flex justify-between">
                                                     <span>{"#"}{idx + 1}</span>
-                                                    <span>{format!("€{:.2}", item.amount)}</span>
+                                                    <span>{format!("€ {:.2}", item.amount)}</span>
                                                 </div>
                                             }
                                         })
@@ -605,11 +605,11 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     </div>
                                     <div class="flex justify-between py-2 border-t">
                                         <span class="text-gray-600">{t!("report.participation_fee")}"："</span>
-                                        <span>{format!("-€{:.2}", participation_fee)}</span>
+                                        <span>{format!("-€ {:.2}", participation_fee)}</span>
                                     </div>
                                     <div class="flex justify-between py-2">
                                         <span class="text-gray-600">{t!("report.sales_fee")}"："</span>
-                                        <span>{format!("-€{:.2}", sales_fee)}</span>
+                                        <span>{format!("-€ {:.2}", sales_fee)}</span>
                                     </div>
                                     <div class="flex justify-between py-3 border-t-2 border-gray-800">
                                         <span class="text-xl font-bold">{t!("report.net_payout")}"："</span>
