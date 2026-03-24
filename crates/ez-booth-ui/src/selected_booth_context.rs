@@ -115,8 +115,19 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
     });
 
     // Save selected booth to localStorage whenever it changes
+    // Track if this is the first run to avoid clearing localStorage before restoration
+    let is_first_save = create_rw_signal(true);
+    
     create_effect(move |_| {
         let booth = booth_signal.get();
+        
+        // Skip saving on the very first run to allow restoration to happen first
+        if is_first_save.get() {
+            web_sys::console::log_1(&"Save effect: Initial run, skipping...".into());
+            is_first_save.set(false);
+            return;
+        }
+        
         let booth_id_str = booth.as_ref().map(|b| b.id.as_str());
         
         if let Some(id) = booth_id_str.as_deref() {
