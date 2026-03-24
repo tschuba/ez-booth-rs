@@ -565,7 +565,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                     .sum();
                                                 
                                                 if is_multi_item {
-                                                    // Multi-item transaction: show grouped with subtotal
+                                                    // Multi-item transaction: show grouped with subtotal (no item numbers)
                                                     view! {
                                                         <div class="border-l-2 border-blue-400 pl-2 mb-2">
                                                             <div class="text-gray-500 text-xs mb-1">
@@ -577,8 +577,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                     item_counter += 1;
                                                                     view! {
                                                                         <div class="flex justify-between items-center py-1 pl-2">
-                                                                            <span class="text-gray-600">{"#"}{item_counter}</span>
-                                                                            <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                            <span class="text-gray-600">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                                         </div>
                                                                     }
                                                                 })
@@ -590,17 +589,14 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         </div>
                                                     }.into_view()
                                                 } else {
-                                                    // Single-item transaction: show as before
+                                                    // Single-item transaction: show transaction ID and amount
                                                     item_counter += 1;
                                                     let report_item = &transaction_items[0];
                                                     view! {
                                                         <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
-                                                            <div class="flex items-center gap-2">
-                                                                <span>{"#"}{item_counter}</span>
-                                                                <span class="text-gray-500 text-xs">
-                                                                    {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
-                                                                </span>
-                                                            </div>
+                                                            <span class="text-gray-500 text-xs">
+                                                                {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
+                                                            </span>
                                                             <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                         </div>
                                                     }.into_view()
@@ -785,7 +781,6 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <table class="w-full border-collapse">
                                     <thead>
                                         <tr class="border-b-2 border-gray-800">
-                                            <th class="px-4 py-2 text-left font-bold">"#"</th>
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
                                             <th class="px-4 py-2 text-right font-bold">{t!("report.amount")}</th>
                                         </tr>
@@ -814,14 +809,13 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         .sum();
                                                     
                                                     if is_multi_item {
-                                                        // Multi-item transaction: show items with subtotal
+                                                        // Multi-item transaction: show items with subtotal (no item numbers)
                                                         let mut rows = vec![];
                                                         
                                                         for report_item in transaction_items {
                                                             item_counter += 1;
                                                             rows.push(view! {
                                                                 <tr class="border-b border-gray-200">
-                                                                    <td class="px-4 py-2">{item_counter}</td>
                                                                     <td class="px-4 py-2 text-gray-600 font-mono text-sm">{transaction_id.to_string()}</td>
                                                                     <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
                                                                 </tr>
@@ -831,7 +825,6 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         // Add subtotal row
                                                         rows.push(view! {
                                                             <tr class="border-b-2 border-gray-400 bg-gray-50">
-                                                                <td class="px-4 py-2"></td>
                                                                 <td class="px-4 py-2 font-semibold text-right">{t!("report.subtotal")}</td>
                                                                 <td class="px-4 py-2 text-right font-semibold">{format!("€ {:.2}", transaction_total)}</td>
                                                             </tr>
@@ -839,12 +832,11 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         
                                                         rows
                                                     } else {
-                                                        // Single-item transaction: show as before
+                                                        // Single-item transaction: show without item number
                                                         item_counter += 1;
                                                         let report_item = &transaction_items[0];
                                                         vec![view! {
                                                             <tr class="border-b border-gray-300">
-                                                                <td class="px-4 py-2">{item_counter}</td>
                                                                 <td class="px-4 py-2 text-gray-600 font-mono text-sm">{report_item.transaction_id.to_string()}</td>
                                                                 <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
                                                             </tr>
@@ -856,7 +848,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     </tbody>
                                     <tfoot>
                                         <tr class="border-t-2 border-gray-800 font-bold">
-                                            <td class="px-4 py-3" colspan="2">{t!("report.total")}</td>
+                                            <td class="px-4 py-3">{t!("report.total")}</td>
                                             <td class="px-4 py-3 text-right text-lg">{format!("€ {:.2}", sales_sum)}</td>
                                         </tr>
                                     </tfoot>
