@@ -82,7 +82,7 @@ pub fn App() -> impl IntoView {
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
-                            <Route path="/reports" view=ReportsPlaceholder/>
+                            <Route path="/reports" view=ReportsPage/>
                         </Routes>
                     </main>
 
@@ -100,24 +100,13 @@ pub fn App() -> impl IntoView {
     }
 }
 
-// Placeholder components for routes not yet implemented
+// Placeholder component for checkout (legacy - can be removed if not needed)
 #[component]
 fn CheckoutPlaceholder() -> impl IntoView {
     view! {
         <Container>
             <Card title_view={t!("checkout.title").into_view()}>
                 <p class="text-gray-600">{t!("checkout.interface_coming_soon")}</p>
-            </Card>
-        </Container>
-    }
-}
-
-#[component]
-fn ReportsPlaceholder() -> impl IntoView {
-    view! {
-        <Container>
-            <Card title_view={t!("report.title").into_view()}>
-                <p class="text-gray-600">{t!("report.interface_coming_soon")}</p>
             </Card>
         </Container>
     }
