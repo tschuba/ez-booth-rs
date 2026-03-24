@@ -539,7 +539,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
                                     {t!("report.view_items")} " (" {item_count} ")"
                                 </summary>
-                                <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded">
+                                <div class="mt-2 text-xs text-gray-600 space-y-1 max-h-96 overflow-y-auto bg-gray-50 p-2 rounded border border-gray-300">
                                     {items
                                         .into_iter()
                                         .enumerate()
