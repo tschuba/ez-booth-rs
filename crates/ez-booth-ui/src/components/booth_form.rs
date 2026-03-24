@@ -18,9 +18,13 @@ pub struct BoothFormData {
 
 impl Default for BoothFormData {
     fn default() -> Self {
+        // Default date to today
+        let today = chrono::Local::now().date_naive();
+        let date_str = today.format("%Y-%m-%d").to_string();
+
         Self {
             description: String::new(),
-            date: String::new(),
+            date: date_str,
             participation_fee: "0.00".to_string(),
             sales_fee_percent: "0.00".to_string(),
             rounding_step: "0.50".to_string(),
