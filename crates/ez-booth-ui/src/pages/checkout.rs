@@ -1,12 +1,11 @@
 use crate::components::*;
 use crate::i18n::{translate_with_params, use_locale, Locale};
+use crate::selected_booth_context;
 use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
-use crate::selected_booth_context;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
-use domain::models::vendor::Vendor;
 use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -514,28 +513,36 @@ pub fn CheckoutPage() -> impl IntoView {
         if let Some(Ok(state)) = state_result {
             let booth_id_clone = booth.id.clone();
             let vendor_id_clone = vendor_id.clone();
+            let vendor_id_str = vendor_id_clone.as_str().to_string();
             let purchase_clone = purchase.clone();
             spawn_local(async move {
-                match state
+                // Use VendorService to get or create vendor
+                let vendor_existed = state
                     .vendor_repository
                     .find_by_id(&booth_id_clone, &vendor_id_clone)
                     .await
+                    .ok()
+                    .flatten()
+                    .is_some();
+
+                match state
+                    .vendor_service
+                    .get_or_create(booth_id_clone.clone(), vendor_id_str.clone())
+                    .await
                 {
-                    Ok(Some(_)) => {}
-                    Ok(None) => {
-                        let new_vendor = Vendor::new(vendor_id_clone.clone(), booth_id_clone.clone());
-                        if let Err(e) = state.vendor_repository.save(&new_vendor).await {
-                            let error_msg = translate_with_params(
-                                "checkout.errors.vendor_create_failed",
-                                HashMap::from([("error", format_error_message(&e))]),
+                    Ok(_vendor) => {
+                        // Show info toast if vendor was auto-created
+                        if !vendor_existed {
+                            let info_msg = translate_with_params(
+                                "checkout.info.vendor_auto_created",
+                                HashMap::from([("vendor_id", vendor_id_str.clone())]),
                             );
-                            toast.error(&error_msg);
-                            return;
+                            toast.info(&info_msg);
                         }
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
-                            "checkout.errors.vendor_lookup_failed",
+                            "checkout.errors.vendor_create_failed",
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);

@@ -117,7 +117,8 @@
       "delete_purchase_failed": "Failed to delete purchase: {error}"
     },
     "info": {
-      "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID"
+      "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID",
+      "vendor_auto_created": "New vendor '{vendor_id}' created automatically"
     },
     "recent": {
       "items_label": "{count} item(s)",
