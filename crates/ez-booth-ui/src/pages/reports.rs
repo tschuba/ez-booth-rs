@@ -822,18 +822,29 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         .sum();
                                                     
                                                     if is_multi_item {
-                                                        // Multi-item transaction: show items with subtotal (no item numbers)
+                                                        // Multi-item transaction: show transaction ID only on first item
                                                         let mut rows = vec![];
                                                         
-                                                        for report_item in transaction_items {
+                                                        for (idx, report_item) in transaction_items.iter().enumerate() {
                                                             item_counter += 1;
                                                             let time_str = report_item.timestamp
                                                                 .with_timezone(&chrono::Local)
                                                                 .format("%H:%M")
                                                                 .to_string();
+                                                            
+                                                            let txn_id_cell = if idx == 0 {
+                                                                view! {
+                                                                    <td class="px-4 py-2 text-gray-600 font-mono text-sm">{transaction_id.to_string()}</td>
+                                                                }.into_view()
+                                                            } else {
+                                                                view! {
+                                                                    <td class="px-4 py-2"></td>
+                                                                }.into_view()
+                                                            };
+                                                            
                                                             rows.push(view! {
                                                                 <tr class="border-b border-gray-200">
-                                                                    <td class="px-4 py-2 text-gray-600 font-mono text-sm">{transaction_id.to_string()}</td>
+                                                                    {txn_id_cell}
                                                                     <td class="px-4 py-2 text-gray-600 text-sm">{time_str}</td>
                                                                     <td class="px-4 py-2 text-right font-medium">{format!("€ {:.2}", report_item.item.amount)}</td>
                                                                 </tr>
@@ -843,14 +854,15 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         // Add subtotal row
                                                         rows.push(view! {
                                                             <tr class="border-b-2 border-gray-400 bg-gray-50">
-                                                                <td colspan="2" class="px-4 py-2 font-semibold text-right">{t!("report.subtotal")}</td>
+                                                                <td class="px-4 py-2"></td>
+                                                                <td class="px-4 py-2 font-semibold text-right">{t!("report.subtotal")}</td>
                                                                 <td class="px-4 py-2 text-right font-semibold">{format!("€ {:.2}", transaction_total)}</td>
                                                             </tr>
                                                         }.into_view());
                                                         
                                                         rows
                                                     } else {
-                                                        // Single-item transaction: show without item number
+                                                        // Single-item transaction: show transaction ID
                                                         item_counter += 1;
                                                         let report_item = &transaction_items[0];
                                                         let time_str = report_item.timestamp
