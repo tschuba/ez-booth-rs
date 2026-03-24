@@ -729,7 +729,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
     view! {
-        <div class="p-8 max-w-4xl mx-auto">
+        <div class="p-8 max-w-4xl mx-auto print-vendor-reports">
             {reports
                 .into_iter()
                 .enumerate()
@@ -750,12 +750,6 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
 
                     view! {
                         <div class={format!("mb-8 {}", first_page_class)} style=page_break_style>
-                            // Fixed header for print (repeats on every page except first)
-                            <div class="print-page-header">
-                                {t!("report.vendor_id")}": "{vendor_id.clone()}
-                                {vendor_name.as_ref().map(|name| format!(" - {}", name))}
-                            </div>
-                            
                             // Report Header (only on first page)
                             <div class="mb-6 pb-4 border-b-2 border-gray-800">
                                 <h1 class="text-3xl font-bold mb-2">{t!("report.vendor_report")}</h1>
@@ -797,8 +791,16 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <h2 class="text-xl font-bold mb-4">
                                     {t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"
                                 </h2>
-                                 <table class="w-full border-collapse print-vendor-table">
+                                 <table class="w-full border-collapse">
                                     <thead>
+                                        // Vendor info row (will repeat on each page in print)
+                                        <tr class="bg-gray-100 print-only-vendor-header">
+                                            <th colspan="3" class="px-4 py-2 text-left font-semibold border-b border-gray-400">
+                                                {t!("report.vendor_id")}": "{vendor_id.clone()}
+                                                {vendor_name.clone().map(|name| format!(" - {}", name))}
+                                            </th>
+                                        </tr>
+                                        // Column headers
                                         <tr class="border-b-2 border-gray-800">
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.transaction_id")}</th>
                                             <th class="px-4 py-2 text-left font-bold">{t!("report.time")}</th>
