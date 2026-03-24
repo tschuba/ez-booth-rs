@@ -17,8 +17,8 @@ mod tests {
 
         assert_eq!(form.description, "");
         assert_eq!(form.date, expected_date);
-        assert_eq!(form.participation_fee, "0.00");
-        assert_eq!(form.sales_fee_percent, "0.00");
+        assert_eq!(form.participation_fee, "1.00");
+        assert_eq!(form.sales_fee_percent, "15.00");
         assert_eq!(form.rounding_step, "0.50");
     }
 

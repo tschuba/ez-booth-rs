@@ -26,9 +26,9 @@ impl Default for BoothFormData {
         Self {
             description: String::new(),
             date: date_str,
-            participation_fee: "0.00".to_string(),
-            sales_fee_percent: "0.00".to_string(),
-            rounding_step: "0.50".to_string(),
+            participation_fee: "1.00".to_string(), // Default: 1,00€ Standgebühr
+            sales_fee_percent: "15.00".to_string(), // Default: 15% Verkaufsprovision
+            rounding_step: "0.50".to_string(),     // Default: 0,50€ Rundungsschritt
         }
     }
 }
