@@ -5,8 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EZ Booth - Flohmarktstand-Verwaltung</title>
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS with print variant configuration -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
     
     <!-- Custom styles -->
     <style>
@@ -39,14 +46,25 @@
                 size: A4;
             }
             
-            /* Hide screen-only elements */
+            /* CRITICAL: Hide screen view, show print view */
             .print\\:hidden {
                 display: none !important;
             }
             
-            /* Show print-only elements */
             .hidden.print\\:block {
                 display: block !important;
+            }
+            
+            /* Ensure print elements are visible */
+            main.print-vendor-report {
+                display: block !important;
+            }
+        }
+        
+        /* CRITICAL: Hide print view on screen */
+        @media screen {
+            .hidden.print\\:block {
+                display: none !important;
             }
         }
 
@@ -130,15 +148,16 @@
 
         /* Items grid - displays items in a grid layout */
         .print-items-grid {
-            display: grid;
-            grid-template-columns: repeat(9, minmax(0, 1fr));
-            gap: 1rem;
+            display: grid !important;
+            grid-template-columns: repeat(9, minmax(0, 1fr)) !important;
+            gap: 1rem !important;
+            padding: 1.125rem !important;
         }
 
         .print-item {
-            display: flex;
-            flex-direction: column-reverse;
-            align-items: flex-end;
+            display: flex !important;
+            flex-direction: column-reverse !important;
+            align-items: flex-end !important;
         }
 
         .print-item-time {
