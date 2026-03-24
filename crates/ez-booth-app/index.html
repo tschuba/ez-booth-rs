@@ -27,19 +27,19 @@
                 size: A4;
             }
             
-            /* Remove padding in print to simplify structure */
-            .print-vendor-reports {
-                padding: 0 !important;
-                max-width: none !important;
+            /* Remove all padding/margins in print */
+            body, html {
                 margin: 0 !important;
+                padding: 0 !important;
             }
             
-            /* Table print styles */
+            /* Table styling */
             table {
-                page-break-inside: auto;
                 width: 100%;
+                border-collapse: collapse;
             }
             
+            /* Attempt to repeat thead (may not work in Safari, but doesn't hurt) */
             thead {
                 display: table-header-group;
             }
@@ -48,36 +48,26 @@
                 display: table-row-group;
             }
             
-            tfoot {
-                display: table-footer-group;
-            }
-            
-            tr {
+            /* Avoid breaking rows in the middle */
+            tr.avoid-page-break {
                 page-break-inside: avoid;
-                page-break-after: auto;
+                break-inside: avoid;
             }
             
-            /* Avoid page breaks inside transaction groups */
-            .transaction-group {
-                page-break-inside: avoid;
+            /* Page breaks between vendors */
+            .page-break-before {
+                page-break-before: always;
+                break-before: page;
             }
             
-            /* Print page header styling */
-            .print-page-header-box {
-                display: block;
-                background: #f3f4f6;
-                border-bottom: 2px solid #1f2937;
-                padding: 0.5rem 1rem;
-                margin-bottom: 0.5rem;
-                font-weight: 600;
-                font-size: 11pt;
+            /* Hide screen-only elements */
+            .print\\:hidden {
+                display: none !important;
             }
-        }
-        
-        @media screen {
-            /* Hide print headers on screen */
-            .print-page-header-box {
-                display: none;
+            
+            /* Show print-only elements */
+            .hidden.print\\:block {
+                display: block !important;
             }
         }
     </style>
