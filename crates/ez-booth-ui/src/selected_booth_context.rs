@@ -10,6 +10,11 @@ const SELECTED_BOOTH_STORAGE_KEY: &str = "ez-booth-selected-booth-id";
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectedBoothContext(pub RwSignal<Option<Booth>>);
 
+/// Context for triggering booth list reloads
+/// Increment this signal to notify all components that the booth list has changed
+#[derive(Clone, Copy, Debug)]
+pub struct BoothListVersionContext(pub RwSignal<u32>);
+
 /// Get localStorage from the browser window
 fn get_local_storage() -> Option<web_sys::Storage> {
     let window = window()?;
@@ -41,12 +46,25 @@ fn save_selected_booth_id(booth_id: Option<&str>) {
 pub fn provide_selected_booth_context() -> RwSignal<Option<Booth>> {
     let booth_signal = create_rw_signal(None::<Booth>);
     provide_context(SelectedBoothContext(booth_signal));
+    
+    // Provide booth list version signal for triggering reloads
+    let booth_list_version = create_rw_signal(0u32);
+    provide_context(BoothListVersionContext(booth_list_version));
+    
     booth_signal
 }
 
 pub fn use_selected_booth() -> RwSignal<Option<Booth>> {
     use_context::<SelectedBoothContext>()
         .expect("SelectedBoothContext not found. Did you call provide_selected_booth_context() at the root?")
+        .0
+}
+
+/// Get the booth list version signal to trigger or react to booth list changes
+/// Increment this signal when booths are created, updated, or deleted
+pub fn use_booth_list_version() -> RwSignal<u32> {
+    use_context::<BoothListVersionContext>()
+        .expect("BoothListVersionContext not found. Did you call provide_selected_booth_context() at the root?")
         .0
 }
 

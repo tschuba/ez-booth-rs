@@ -12,6 +12,7 @@ pub fn BoothListPage() -> impl IntoView {
     let app_state = use_app_state();
     let locale = use_locale();
     let selected_booth = use_selected_booth();
+    let booth_list_version = crate::selected_booth_context::use_booth_list_version();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
@@ -102,6 +103,9 @@ pub fn BoothListPage() -> impl IntoView {
                                 toast.success(&t!("booth.success.created")().replace("{description}", &booth.description));
                                 set_show_create_modal.set(false);
 
+                                // Notify other components that booth list changed
+                                booth_list_version.update(|v| *v += 1);
+
                                 // Reload booths
                                 match state.booth_repository.find_all().await {
                                     Ok(loaded_booths) => {
@@ -156,6 +160,9 @@ pub fn BoothListPage() -> impl IntoView {
                                     toast.success(&t!("booth.success.updated")().replace("{description}", &booth.description));
                                     set_show_edit_modal.set(false);
                                     set_editing_booth.set(None);
+
+                                    // Notify other components that booth list changed
+                                    booth_list_version.update(|v| *v += 1);
 
                                     // Reload booths
                                     match state.booth_repository.find_all().await {
@@ -217,6 +224,9 @@ pub fn BoothListPage() -> impl IntoView {
                             toast.success(&t!("booth.success.deleted")().replace("{description}", &booth.description));
                             set_show_delete_confirm.set(false);
                             set_deleting_booth.set(None);
+
+                            // Notify other components that booth list changed
+                            booth_list_version.update(|v| *v += 1);
 
                             // Reload booths
                             match state.booth_repository.find_all().await {
