@@ -88,12 +88,29 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
         let total_purchases = purchases.len();
         let unique_vendors = vendor_purchases.len();
 
+        // Calculate booth revenue metrics
+        let total_participation_fees: Decimal = vendor_summaries
+            .iter()
+            .map(|_| charging_config.participation_fee)
+            .sum();
+        let total_sales_fees: Decimal = vendor_summaries
+            .iter()
+            .map(|v| {
+                let fees = charging_config.calculate_fees(v.gross_sales);
+                fees.sales_fee
+            })
+            .sum();
+        let total_booth_revenue = total_participation_fees + total_sales_fees;
+
         Ok(BoothSummary {
             booth_id: booth_id.clone(),
             total_revenue,
             total_purchases,
             unique_vendors,
             vendor_summaries,
+            total_participation_fees,
+            total_sales_fees,
+            total_booth_revenue,
         })
     }
 

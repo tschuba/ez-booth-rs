@@ -391,6 +391,9 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
     let unique_vendors = summary.unique_vendors;
+    let total_participation_fees = summary.total_participation_fees;
+    let total_sales_fees = summary.total_sales_fees;
+    let total_booth_revenue = summary.total_booth_revenue;
 
     view! {
         <div class="space-y-6">
@@ -409,6 +412,25 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 <div class="p-4 bg-purple-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.vendors_count")}</p>
                     <p class="text-2xl font-bold text-purple-600">{unique_vendors}</p>
+                </div>
+            </div>
+
+            // Booth Revenue Section
+            <div class="border rounded-lg p-6 bg-gradient-to-br from-amber-50 to-yellow-50">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">{t!("report.booth_revenue")}</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">{t!("report.total_participation_fees")}</span>
+                        <span class="font-semibold text-gray-900">{format!("€ {:.2}", total_participation_fees)}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">{t!("report.total_sales_fees")}</span>
+                        <span class="font-semibold text-gray-900">{format!("€ {:.2}", total_sales_fees)}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t-2 border-amber-200">
+                        <span class="text-lg font-bold text-gray-900">{t!("report.total_booth_revenue")}</span>
+                        <span class="text-2xl font-bold text-amber-700">{format!("€ {:.2}", total_booth_revenue)}</span>
+                    </div>
                 </div>
             </div>
 
@@ -551,6 +573,9 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
     let unique_vendors = summary.unique_vendors;
+    let total_participation_fees = summary.total_participation_fees;
+    let total_sales_fees = summary.total_sales_fees;
+    let total_booth_revenue = summary.total_booth_revenue;
 
     view! {
         <div class="p-8 max-w-4xl mx-auto">
@@ -574,6 +599,25 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.vendors_count")}</p>
                         <p class="text-3xl font-bold">{unique_vendors}</p>
+                    </div>
+                </div>
+            </div>
+
+            // Booth Revenue Section
+            <div class="mb-8 border-2 border-gray-400 p-6 rounded bg-gray-50">
+                <h2 class="text-xl font-bold mb-4">{t!("report.booth_revenue")}</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-base">
+                        <span class="text-gray-700">{t!("report.total_participation_fees")}"："</span>
+                        <span class="font-semibold">{format!("€ {:.2}", total_participation_fees)}</span>
+                    </div>
+                    <div class="flex justify-between text-base">
+                        <span class="text-gray-700">{t!("report.total_sales_fees")}"："</span>
+                        <span class="font-semibold">{format!("€ {:.2}", total_sales_fees)}</span>
+                    </div>
+                    <div class="flex justify-between pt-3 border-t-2 border-gray-800 text-lg">
+                        <span class="font-bold">{t!("report.total_booth_revenue")}"："</span>
+                        <span class="font-bold text-2xl">{format!("€ {:.2}", total_booth_revenue)}</span>
                     </div>
                 </div>
             </div>
