@@ -37,7 +37,10 @@
     "status_closed": "Closed",
     "participation_fee": "Participation Fee",
     "sales_fee_percent": "Sales Commission (%)",
-    "rounding_step": "Rounding Step"
+    "rounding_step": "Rounding Step",
+    "errors": {
+      "load_failed": "Failed to load booths"
+    }
   },
   "vendor": {
     "title": "Vendor",
@@ -53,8 +56,8 @@
     "detail_title": "Vendor Details",
     "created_at": "Created"
   },
-    "checkout": {
-      "prompt_select_booth": "Please select a booth above to start checkout.",
+  "checkout": {
+    "prompt_select_booth": "Please select a booth above to start checkout.",
     "title": "Checkout",
     "vendor_id": "Vendor ID",
     "vendor_placeholder": "Vendor ID (e.g., 101)",
