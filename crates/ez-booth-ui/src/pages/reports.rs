@@ -577,30 +577,30 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                     if idx == 0 {
                                                                         // First item: show transaction ID inline
                                                                         view! {
-                                                                            <div class="flex justify-between items-center py-1">
+                                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1">
+                                                                                <span class="text-gray-500 text-xs">{time_str}</span>
                                                                                 <span class="text-gray-500 text-xs">
                                                                                     {t!("report.transaction_id")}{": "}{transaction_id.to_string()}
                                                                                 </span>
-                                                                                <div class="flex items-center gap-4">
-                                                                                    <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                                    <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                                </div>
+                                                                                <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                                             </div>
                                                                         }.into_view()
                                                                     } else {
                                                                         // Subsequent items: just time and amount
                                                                         view! {
-                                                                            <div class="flex justify-end items-center gap-4 py-1">
+                                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1">
                                                                                 <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                                <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                                <span></span>
+                                                                                <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                                             </div>
                                                                         }.into_view()
                                                                     }
                                                                 })
                                                                 .collect_view()}
-                                                            <div class="flex justify-end items-center gap-4 py-1 border-t border-gray-300 font-semibold">
+                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
+                                                                <span></span>
                                                                 <span>{t!("report.subtotal")}</span>
-                                                                <span>{format!("€ {:.2}", transaction_total)}</span>
+                                                                <span class="text-right">{format!("€ {:.2}", transaction_total)}</span>
                                                             </div>
                                                         </div>
                                                     }.into_view()
@@ -611,14 +611,12 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
                                                     view! {
                                                         <div class="mb-2 border-l-2 border-blue-400 pl-2 py-1">
-                                                            <div class="flex justify-between items-center">
+                                                            <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center">
+                                                                <span class="text-gray-500 text-xs">{time_str}</span>
                                                                 <span class="text-gray-500 text-xs">
                                                                     {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
                                                                 </span>
-                                                                <div class="flex items-center gap-4">
-                                                                    <span class="text-gray-500 text-xs">{time_str}</span>
-                                                                    <span class="font-medium">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                </div>
+                                                                <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                             </div>
                                                         </div>
                                                     }.into_view()
