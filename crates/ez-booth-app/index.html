@@ -26,6 +26,22 @@
             -moz-osx-font-smoothing: grayscale;
         }
         
+        /* CRITICAL: Print container spacing - applied universally to work in Safari print preview */
+        .print-transactions-container {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .print-sales-section {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .print-sales-section h2 {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
         /* Print styles for vendor reports */
         @media print {
             /* Page setup */
@@ -34,21 +50,16 @@
                 size: A4;
             }
             
-            /* Print-specific page breaks */
-            .page-break-before {
-                page-break-before: always;
-                break-before: always;
+            /* Remove padding from container in print */
+            .print-reports-container {
+                padding: 0 !important;
             }
             
-            .page-break-after {
+            /* Each vendor report gets page break after to ensure next vendor starts on fresh page */
+            .print-vendor-report {
                 page-break-after: always;
                 break-after: always;
-            }
-            
-            /* Avoid breaking inside transaction groups */
-            .avoid-page-break {
-                page-break-inside: avoid;
-                break-inside: avoid;
+                padding: 0.5cm;
             }
             
             /* CRITICAL: Hide screen view, show print view */
@@ -59,6 +70,92 @@
             .hidden.print\\:block {
                 display: block !important;
             }
+            
+            /* Sales section wrapper - zero gap between heading and content */
+            .print-sales-section {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 1 !important;
+            }
+            
+            .print-sales-section h2 {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            
+            /* Compact grid layout for items - CRITICAL: explicit spacing control */
+            .print-vendor-report .print-transactions-container {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.4rem !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+            }
+            
+            /* Ensure h2 directly before container has no bottom margin */
+            .print-vendor-report h2.mb-0 {
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            
+            .print-transaction-group {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .print-transaction-header {
+                font-size: 0.75rem;
+                color: #4b5563;
+                margin-bottom: 0.2rem;
+                padding: 0.2rem 0.4rem;
+                background: #f3f4f6;
+                border-radius: 0.2rem;
+            }
+            
+            .print-items-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 0.25rem;
+                margin-bottom: 0.2rem;
+            }
+            
+            .print-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.25rem 0.5rem;
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.2rem;
+                font-size: 0.813rem;
+            }
+            
+            .print-item-time {
+                color: #6b7280;
+                font-size: 0.75rem;
+            }
+            
+            .print-item-amount {
+                font-weight: 600;
+                color: #111827;
+            }
+            
+            .print-subtotal {
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.5rem;
+                padding: 0.3rem 0.5rem;
+                background: #e5e7eb;
+                border-radius: 0.2rem;
+                font-size: 0.875rem;
+                margin-top: 0.2rem;
+            }
         }
         
         /* CRITICAL: Hide print view on screen */
@@ -68,10 +165,70 @@
             }
             
             /* Add visual separator between reports for screen preview */
-            .page-break-before {
-                border-top: 2px dashed #ccc;
-                margin-top: 2rem;
-                padding-top: 2rem;
+            .print-vendor-report {
+                border-bottom: 2px dashed #ccc;
+                padding-bottom: 2rem;
+                margin-bottom: 2rem;
+            }
+            
+            /* Add padding to container */
+            .print-reports-container {
+                padding: 2rem;
+            }
+            
+            /* Screen preview of grid layout */
+            .print-transactions-container {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .print-transaction-header {
+                font-size: 0.75rem;
+                color: #4b5563;
+                margin-bottom: 0.25rem;
+                padding: 0.25rem 0.5rem;
+                background: #f3f4f6;
+                border-radius: 0.25rem;
+            }
+            
+            .print-items-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 0.25rem;
+                margin-bottom: 0.25rem;
+            }
+            
+            .print-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.25rem 0.5rem;
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.25rem;
+                font-size: 0.813rem;
+            }
+            
+            .print-item-time {
+                color: #6b7280;
+                font-size: 0.75rem;
+            }
+            
+            .print-item-amount {
+                font-weight: 600;
+                color: #111827;
+            }
+            
+            .print-subtotal {
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.5rem;
+                padding: 0.375rem 0.5rem;
+                background: #e5e7eb;
+                border-radius: 0.25rem;
+                font-size: 0.875rem;
+                margin-top: 0.25rem;
             }
         }
     </style>
