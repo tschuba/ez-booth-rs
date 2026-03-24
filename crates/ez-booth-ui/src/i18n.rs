@@ -178,11 +178,11 @@ mod tests {
     fn test_load_translations() {
         let de = load_translations(Locale::De);
         assert_eq!(de.get("common.save"), "Speichern");
-        assert_eq!(de.get("booth.title"), "Stand");
+        assert_eq!(de.get("booth.title"), "Veranstaltung");
 
         let en = load_translations(Locale::En);
         assert_eq!(en.get("common.save"), "Save");
-        assert_eq!(en.get("booth.title"), "Booth");
+        assert_eq!(en.get("booth.title"), "Event");
     }
 
     #[test]
