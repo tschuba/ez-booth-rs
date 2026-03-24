@@ -590,8 +590,8 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                 })
                                                                 .collect_view()}
                                                             <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
-                                                                <span></span>
-                                                                <span class="text-right w-12">{t!("report.subtotal")}</span>
+                                                                <span class="text-right">{t!("report.subtotal")}</span>
+                                                                <span class="w-12"></span>
                                                                 <span class="text-right w-20">{format!("€ {:.2}", transaction_total)}</span>
                                                             </div>
                                                         </div>
