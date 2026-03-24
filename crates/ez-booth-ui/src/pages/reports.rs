@@ -581,17 +581,17 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                         String::new()
                                                                     };
                                                                     view! {
-                                                                        <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center py-1">
+                                                                        <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1">
                                                                             <span class="text-gray-500 text-xs">{txn_id_str}</span>
-                                                                            <span class="text-gray-500 text-xs">{time_str}</span>
+                                                                            <span class="text-gray-500 text-xs text-right">{time_str}</span>
                                                                             <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                                         </div>
                                                                     }.into_view()
                                                                 })
                                                                 .collect_view()}
-                                                            <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
+                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
                                                                 <span></span>
-                                                                <span>{t!("report.subtotal")}</span>
+                                                                <span class="text-right">{t!("report.subtotal")}</span>
                                                                 <span class="text-right">{format!("€ {:.2}", transaction_total)}</span>
                                                             </div>
                                                         </div>
@@ -603,11 +603,11 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
                                                     view! {
                                                         <div class="mb-2 border-l-2 border-blue-400 pl-2 py-1">
-                                                            <div class="grid grid-cols-[auto_auto_1fr] gap-4 items-center">
+                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center">
                                                                 <span class="text-gray-500 text-xs">
                                                                     {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
                                                                 </span>
-                                                                <span class="text-gray-500 text-xs">{time_str}</span>
+                                                                <span class="text-gray-500 text-xs text-right">{time_str}</span>
                                                                 <span class="font-medium text-right">{format!("€ {:.2}", report_item.item.amount)}</span>
                                                             </div>
                                                         </div>
