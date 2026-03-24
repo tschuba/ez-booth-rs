@@ -391,6 +391,7 @@ pub fn ReportsPage() -> impl IntoView {
 fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
+    let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
@@ -399,7 +400,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     view! {
         <div class="space-y-6">
             // Summary Statistics
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-4 gap-4">
                 <div class="p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
                     <p class="text-2xl font-bold text-blue-600">
@@ -409,6 +410,10 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 <div class="p-4 bg-green-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.purchase_count")}</p>
                     <p class="text-2xl font-bold text-green-600">{total_purchases}</p>
+                </div>
+                <div class="p-4 bg-orange-50 rounded-lg">
+                    <p class="text-sm text-gray-600">{t!("report.items")}</p>
+                    <p class="text-2xl font-bold text-orange-600">{total_items}</p>
                 </div>
                 <div class="p-4 bg-purple-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.vendors_count")}</p>
@@ -631,6 +636,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
 fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
+    let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
@@ -646,7 +652,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
             // Summary Statistics
             <div class="mb-8">
                 <h2 class="text-xl font-bold mb-4">{t!("report.summary_statistics")}</h2>
-                <div class="grid grid-cols-3 gap-6 mb-6">
+                <div class="grid grid-cols-4 gap-6 mb-6">
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.sales_total")}</p>
                         <p class="text-3xl font-bold">{format!("€ {:.2}", total_revenue)}</p>
@@ -654,6 +660,10 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.purchase_count")}</p>
                         <p class="text-3xl font-bold">{total_purchases}</p>
+                    </div>
+                    <div class="border-2 border-gray-300 p-4 rounded">
+                        <p class="text-sm text-gray-600 mb-1">{t!("report.items")}</p>
+                        <p class="text-3xl font-bold">{total_items}</p>
                     </div>
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.vendors_count")}</p>

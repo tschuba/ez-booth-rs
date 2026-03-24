@@ -90,6 +90,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
         // Calculate totals
         let total_revenue: Decimal = vendor_summaries.iter().map(|v| v.gross_sales).sum();
         let total_purchases = purchases.len();
+        let total_items: usize = vendor_summaries.iter().map(|v| v.item_count).sum();
         let unique_vendors = vendor_purchases.len();
 
         // Calculate booth revenue metrics
@@ -110,6 +111,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             booth_id: booth_id.clone(),
             total_revenue,
             total_purchases,
+            total_items,
             unique_vendors,
             vendor_summaries,
             total_participation_fees,
