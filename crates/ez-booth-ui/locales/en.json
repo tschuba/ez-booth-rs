@@ -71,6 +71,18 @@
       "delete_failed": "Failed to delete event",
       "invalid_data": "Invalid event data",
       "init_failed": "App initialization failed: {error}"
+    },
+    "form_errors": {
+      "description_required": "Description is required",
+      "description_length": "Description must be 200 characters or less",
+      "date_required": "Date is required",
+      "participation_fee_required": "Participation fee is required",
+      "sales_fee_required": "Sales fee percent is required",
+      "rounding_step_required": "Rounding step is required",
+      "cannot_be_negative": "Cannot be negative",
+      "cannot_exceed_100": "Cannot exceed 100%",
+      "invalid_number_format": "Invalid number format",
+      "max_two_decimals": "Maximum 2 decimal places allowed"
     }
   },
   "vendor": {
@@ -78,7 +90,7 @@
     "list_title": "Vendors",
     "id_label": "Vendor ID",
     "create": "Create Vendor",
-    "total_sales": "Total Sales",
+    "total_sales": "Revenue",
     "purchase_count": "Checkouts",
     "select_booth": "Select Event",
     "no_booth_selected": "-- Select an event --",
@@ -149,7 +161,7 @@
     "running_totals": {
       "sales": "Total Sales",
       "items": "Items Processed",
-      "vendors": "Vendors Served"
+      "checkouts": "Checkouts Recorded"
     }
   },
   "report": {

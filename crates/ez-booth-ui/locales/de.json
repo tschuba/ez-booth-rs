@@ -71,6 +71,18 @@
       "delete_failed": "Fehler beim Löschen der Veranstaltung",
       "invalid_data": "Ungültige Veranstaltungsdaten",
       "init_failed": "App-Initialisierung fehlgeschlagen: {error}"
+    },
+    "form_errors": {
+      "description_required": "Beschreibung ist erforderlich",
+      "description_length": "Beschreibung darf maximal 200 Zeichen lang sein",
+      "date_required": "Datum ist erforderlich",
+      "participation_fee_required": "Teilnahmegebühr ist erforderlich",
+      "sales_fee_required": "Verkaufsprovision ist erforderlich",
+      "rounding_step_required": "Rundungsschritt ist erforderlich",
+      "cannot_be_negative": "Darf nicht negativ sein",
+      "cannot_exceed_100": "Darf 100% nicht überschreiten",
+      "invalid_number_format": "Ungültiges Zahlenformat",
+      "max_two_decimals": "Maximal 2 Dezimalstellen erlaubt"
     }
   },
   "vendor": {
@@ -78,7 +90,7 @@
     "list_title": "Verkäufer",
     "id_label": "Verkäufer-ID",
     "create": "Verkäufer erstellen",
-    "total_sales": "Gesamtverkäufe",
+    "total_sales": "Umsatz",
     "purchase_count": "Kassiervorgänge",
     "select_booth": "Veranstaltung auswählen",
     "no_booth_selected": "-- Veranstaltung auswählen --",
@@ -149,7 +161,7 @@
     "running_totals": {
       "sales": "Gesamtumsatz",
       "items": "Artikel verarbeitet",
-      "vendors": "Verkäufer bedient"
+      "checkouts": "Kassiervorgänge"
     }
   },
   "report": {

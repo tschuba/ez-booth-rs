@@ -1,3 +1,4 @@
+use crate::booth_ordering::sort_booths;
 use crate::components::toast::use_toast;
 use crate::i18n::{use_locale, Locale};
 use crate::selected_booth_context;
@@ -27,8 +28,9 @@ pub fn BoothSelector() -> impl IntoView {
         if let Some(Ok(state)) = state_result {
             spawn_local(async move {
                 match state.booth_repository.find_all().await {
-                    Ok(loaded_booths) => {
+                    Ok(mut loaded_booths) => {
                         web_sys::console::log_1(&format!("BoothSelector: Loaded {} booths", loaded_booths.len()).into());
+                        sort_booths(&mut loaded_booths);
                         set_booths.set(loaded_booths);
                     }
                     Err(e) => {
