@@ -1130,32 +1130,35 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             >
                                                                 {/* Items list with vendor per item */}
                                                                 <div class="space-y-2">
-                                                                    {purchase.items.iter().enumerate().map(|(idx, item)| {
-                                                                        let position_num = idx + 1;
-                                                                        let locale = use_locale().get();
-                                                                        let vendor_label = t!("checkout.vendor_label")();
-                                                                        view! {
-                                                                            <div class="py-2 border-b border-gray-100 last:border-0">
-                                                                                {/* First line: Item number and amount */}
-                                                                                <div class="flex justify-between text-sm">
-                                                                                    <span class="font-medium text-gray-900">
-                                                                                        {translate_with_params(
-                                                                                            "checkout.transaction_detail.item_number",
-                                                                                            HashMap::from([("number", position_num.to_string())])
-                                                                                        )}
-                                                                                    </span>
-                                                                                    <span class="font-medium text-gray-900">
-                                                                                        {format_currency(item.amount, locale)}
-                                                                                    </span>
+                                                                    {
+                                                                        let vendor_label = format!("{}: ", t!("checkout.vendor_label")());
+                                                                        purchase.items.iter().enumerate().map(|(idx, item)| {
+                                                                            let position_num = idx + 1;
+                                                                            let locale = use_locale().get();
+                                                                            let vendor_text = format!("{}{}", vendor_label, item.vendor_id.as_str());
+                                                                            view! {
+                                                                                <div class="py-2 border-b border-gray-100 last:border-0">
+                                                                                    {/* First line: Item number and amount */}
+                                                                                    <div class="flex justify-between text-sm">
+                                                                                        <span class="font-medium text-gray-900">
+                                                                                            {translate_with_params(
+                                                                                                "checkout.transaction_detail.item_number",
+                                                                                                HashMap::from([("number", position_num.to_string())])
+                                                                                            )}
+                                                                                        </span>
+                                                                                        <span class="font-medium text-gray-900">
+                                                                                            {format_currency(item.amount, locale)}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    
+                                                                                    {/* Second line: Vendor ID */}
+                                                                                    <div class="text-xs text-gray-500 mt-0.5">
+                                                                                        {vendor_text}
+                                                                                    </div>
                                                                                 </div>
-                                                                                
-                                                                                {/* Second line: Vendor ID */}
-                                                                                <div class="text-xs text-gray-500 mt-0.5">
-                                                                                    {vendor_label} ": " {item.vendor_id.as_str()}
-                                                                                </div>
-                                                                            </div>
-                                                                        }
-                                                                    }).collect_view()}
+                                                                            }
+                                                                        }).collect_view()
+                                                                    }
                                                                 </div>
                                                                 
                                                                 {/* Total separator and amount */}
