@@ -141,8 +141,7 @@
       "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}"
     },
     "info": {
-      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt",
-      "vendor_auto_created": "Neuer Verkäufer '{vendor_id}' automatisch erstellt"
+      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt"
     },
     "recent": {
       "items_label": "{count} Position(en)",

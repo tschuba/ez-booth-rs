@@ -551,28 +551,13 @@ pub fn CheckoutPage() -> impl IntoView {
             let purchase_clone = purchase.clone();
             spawn_local(async move {
                 // Use VendorService to get or create vendor
-                let vendor_existed = state
-                    .vendor_repository
-                    .find_by_id(&booth_id_clone, &vendor_id_clone)
-                    .await
-                    .ok()
-                    .flatten()
-                    .is_some();
-
                 match state
                     .vendor_service
                     .get_or_create(booth_id_clone.clone(), vendor_id_str.clone())
                     .await
                 {
                     Ok(_vendor) => {
-                        // Show info toast if vendor was auto-created
-                        if !vendor_existed {
-                            let info_msg = translate_with_params(
-                                "checkout.info.vendor_auto_created",
-                                HashMap::from([("vendor_id", vendor_id_str.clone())]),
-                            );
-                            toast.info(&info_msg);
-                        }
+                        // Vendor successfully retrieved or created
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
