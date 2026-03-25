@@ -19,6 +19,7 @@
   "app": {
     "copyright": "Copyright © 2026 EZ Booth",
     "title": "EZ Booth",
+    "page_title": "EZ Booth - Checkout Made Easy",
     "welcome": "Welcome to EZ Booth"
   },
   "booth": {

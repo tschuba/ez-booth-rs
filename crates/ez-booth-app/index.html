@@ -3,7 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EZ Booth - Flohmarktstand-Verwaltung</title>
+    <title>EZ Booth</title>
+    
+    <!-- Set dynamic title based on browser locale -->
+    <script>
+        (function() {
+            const locale = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+            const titles = {
+                'de': 'EZ Booth - Kassieren leicht gemacht',
+                'de-de': 'EZ Booth - Kassieren leicht gemacht',
+                'de-at': 'EZ Booth - Kassieren leicht gemacht',
+                'de-ch': 'EZ Booth - Kassieren leicht gemacht',
+                'en': 'EZ Booth - Checkout Made Easy',
+                'en-us': 'EZ Booth - Checkout Made Easy',
+                'en-gb': 'EZ Booth - Checkout Made Easy',
+                'en-eu': 'EZ Booth - Checkout Made Easy'
+            };
+            document.title = titles[locale] || titles['en'];
+        })();
+    </script>
     
     <!-- Tailwind CSS with print variant configuration -->
     <script src="https://cdn.tailwindcss.com"></script>

@@ -32,6 +32,20 @@ pub fn App() -> impl IntoView {
 
     let locale = use_locale();
 
+    // Update document title when locale changes
+    {
+        let locale = locale.clone();
+        create_effect(move |_| {
+            let _ = locale.get(); // Track locale changes
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    let title = t!("app.page_title")();
+                    document.set_title(&title);
+                }
+            }
+        });
+    }
+
     view! {
         <ToastProvider>
             <Router>
