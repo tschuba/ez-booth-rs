@@ -1160,19 +1160,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         }).collect_view()
                                                                     }
                                                                 </div>
-                                                                
-                                                                {/* Total separator and amount */}
-                                                                <div class="pt-2 border-t border-gray-300">
-                                                                    <div class="flex justify-between items-baseline">
-                                                                        <span class="text-sm font-semibold text-gray-900">
-                                                                            {t!("checkout.transaction_detail.total_label")}
-                                                                        </span>
-                                                                        <span class="text-lg font-bold text-gray-900">
-                                                                            {let locale = use_locale().get();
-                                                                            format_currency(purchase.total_amount(), locale)}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
                                                             </div>
                                                         </Show>
                                                         
