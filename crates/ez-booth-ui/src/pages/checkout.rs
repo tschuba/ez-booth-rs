@@ -787,66 +787,33 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     </div>
                                                 </div>
 
-                                                <div class="flex flex-col gap-2 sm:flex-row">
-                                                    <Button 
-                                                        variant=ButtonVariant::Success
-                                                        class="flex-[2] shadow-lg ring-2 ring-green-300/50".to_string() 
-                                                        on_click=Box::new(move || {
-                                                            cancel_delete();
-                                                            submit_purchase();
-                                                        })
-                                                    >
-                                                        <span class="inline-flex items-center justify-center gap-4">
-                                                            <svg
-                                                                class="w-8 h-8"
-                                                                viewBox="0 0 24 24"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                stroke-width="2"
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                aria-hidden="true"
-                                                            >
-                                                                <polyline points="20 6 9 17 4 12" />
-                                                            </svg>
-                                                            <span class="text-2xl font-semibold">{move || {
-                                                                let locale = use_locale().get();
-                                                                format_currency(form_data.get().total(), locale)
-                                                            }}</span>
-                                                        </span>
-                                                    </Button>
-                                                    <Button
-                                                        class="flex-1".to_string()
-                                                        variant=ButtonVariant::Secondary
-                                                        on_click=Box::new(move || {
-                                                            cancel_delete();
-                                                            confirm_clear_form();
-                                                        })
-                                                        aria_label=t!("checkout.confirm_cancel_confirm")()
-                                                    >
-                                                        <span
-                                                            class="inline-flex items-center justify-center"
-                                                            title={t!("checkout.confirm_cancel_confirm")()}
+                                                <Button 
+                                                    variant=ButtonVariant::Success
+                                                    class="w-full shadow-lg ring-2 ring-green-300/50".to_string() 
+                                                    on_click=Box::new(move || {
+                                                        cancel_delete();
+                                                        submit_purchase();
+                                                    })
+                                                >
+                                                    <span class="inline-flex items-center justify-center gap-4">
+                                                        <svg
+                                                            class="w-8 h-8"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            stroke-width="2"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            aria-hidden="true"
                                                         >
-                                                            <svg
-                                                                class="w-8 h-8"
-                                                                viewBox="0 0 24 24"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                stroke-width="2"
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                aria-hidden="true"
-                                                            >
-                                                                <polyline points="3 6 5 6 21 6" />
-                                                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                                                <path d="M10 11v6" />
-                                                                <path d="M14 11v6" />
-                                                                <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
-                                                            </svg>
-                                                        </span>
-                                                    </Button>
-                                                </div>
+                                                            <polyline points="20 6 9 17 4 12" />
+                                                        </svg>
+                                                        <span class="text-2xl font-semibold">{move || {
+                                                            let locale = use_locale().get();
+                                                            format_currency(form_data.get().total(), locale)
+                                                        }}</span>
+                                                    </span>
+                                                </Button>
                                             </div>
                                         }
                                     >
@@ -858,7 +825,37 @@ pub fn CheckoutPage() -> impl IntoView {
                             </Show>
                         </Card>
 
-                        <Card title_view={t!("checkout.current_items").into_view()}>
+                        <Card>
+                            {/* Custom header with title and Clear Items button */}
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-xl font-semibold">{t!("checkout.current_items")}</h2>
+                                <Show when=move || !form_data.get().items.is_empty()>
+                                    <Button
+                                        variant=ButtonVariant::Danger
+                                        on_click=Box::new(move || confirm_clear_form())
+                                        class="px-3 py-2".to_string()
+                                        aria_label={t!("checkout.confirm_cancel_confirm")()}
+                                    >
+                                        {/* Trash icon */}
+                                        <svg 
+                                            class="w-5 h-5" 
+                                            viewBox="0 0 24 24" 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            stroke-width="2" 
+                                            stroke-linecap="round" 
+                                            stroke-linejoin="round"
+                                            aria-hidden="true"
+                                        >
+                                            <polyline points="3 6 5 6 21 6" />
+                                            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                            <path d="M10 11v6" />
+                                            <path d="M14 11v6" />
+                                            <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
+                                        </svg>
+                                    </Button>
+                                </Show>
+                            </div>
                             <div class="space-y-2">
                                 <Show
                                     when=move || form_data.get().items.is_empty()
