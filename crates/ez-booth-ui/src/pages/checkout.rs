@@ -537,40 +537,54 @@ pub fn CheckoutPage() -> impl IntoView {
             return;
         }
 
-        let vendor_id = VendorId::new(data.vendor_id.clone());
-
+        // Create purchase items with vendor_id from each item
         let purchase_items: Vec<PurchaseItem> = data
             .items
             .into_iter()
-            .map(|item| PurchaseItem::new(item.amount))
+            .map(|item| PurchaseItem::new(item.amount, VendorId::new(item.vendor_id)))
             .collect();
 
-        let purchase = Purchase::new(booth.id.clone(), vendor_id.clone(), purchase_items);
+        let purchase = Purchase::new(booth.id.clone(), purchase_items);
 
         if let Some(Ok(state)) = state_result {
             let booth_id_clone = booth.id.clone();
-            let vendor_id_clone = vendor_id.clone();
-            let vendor_id_str = vendor_id_clone.as_str().to_string();
             let purchase_clone = purchase.clone();
             let vendor_input_ref_clone = vendor_input_ref_for_add.clone();
             let amount_input_ref_clone = amount_input_ref_for_add.clone();
             spawn_local(async move {
-                // Use VendorService to get or create vendor
-                match state
-                    .vendor_service
-                    .get_or_create(booth_id_clone.clone(), vendor_id_str.clone())
-                    .await
-                {
-                    Ok(_vendor) => {
-                        // Vendor successfully retrieved or created
-                    }
-                    Err(e) => {
-                        let error_msg = translate_with_params(
-                            "checkout.errors.vendor_create_failed",
-                            HashMap::from([("error", format_error_message(&e))]),
-                        );
-                        toast.error(&error_msg);
-                        return;
+                // Collect unique vendor IDs from all items
+                let unique_vendor_ids: Vec<VendorId> = {
+                    use std::collections::HashSet;
+                    let mut ids: Vec<VendorId> = purchase_clone
+                        .items
+                        .iter()
+                        .map(|item| item.vendor_id.clone())
+                        .collect::<HashSet<_>>()
+                        .into_iter()
+                        .collect();
+                    ids.sort();
+                    ids
+                };
+
+                // Get or create all vendors involved in this purchase
+                for vendor_id in unique_vendor_ids {
+                    let vendor_id_str = vendor_id.as_str().to_string();
+                    match state
+                        .vendor_service
+                        .get_or_create(booth_id_clone.clone(), vendor_id_str)
+                        .await
+                    {
+                        Ok(_vendor) => {
+                            // Vendor successfully retrieved or created
+                        }
+                        Err(e) => {
+                            let error_msg = translate_with_params(
+                                "checkout.errors.vendor_create_failed",
+                                HashMap::from([("error", format_error_message(&e))]),
+                            );
+                            toast.error(&error_msg);
+                            return;
+                        }
                     }
                 }
 
@@ -1073,30 +1087,9 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 handle_transaction_detail_click(purchase_id);
                                                             }
                                                         >
-                                                            {/* Chevron indicator */}
-                                                            <div class="absolute left-3 top-[1.125rem] pointer-events-none">
-                                                                <svg 
-                                                                    class=move || format!(
-                                                                        "w-5 h-5 text-gray-400 transition-transform duration-300 {}",
-                                                                        if expanded_purchase_id.get() == Some(purchase_id) {
-                                                                            "rotate-180" // Point up when expanded
-                                                                        } else {
-                                                                            "" // Point down when collapsed
-                                                                        }
-                                                                    )
-                                                                    viewBox="0 0 20 20" 
-                                                                    fill="currentColor"
-                                                                >
-                                                                    <path 
-                                                                        fill-rule="evenodd" 
-                                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                                                                        clip-rule="evenodd"
-                                                                    />
-                                                                </svg>
-                                                            </div>
                                                             
-                                                            {/* Purchase content - add left padding for chevron */}
-                                                            <div class="flex items-center justify-between pr-12 pl-8">
+                                                            {/* Purchase content */}
+                                                            <div class="flex items-center justify-between pr-12">
                                                                 <div class="space-y-1">
                                                                     <p class="text-sm font-semibold">{items_label.clone()}</p>
                                                                      <p class="text-xs text-gray-500">
@@ -1132,33 +1125,34 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         {/* Expanded detail section */}
                                                         <Show when=move || expanded_purchase_id.get() == Some(purchase_id)>
                                                             <div 
-                                                                class="px-6 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-2 duration-300"
+                                                                class="pl-6 pr-14 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-2 duration-300"
                                                                 style="border-top: 1px dashed #e5e7eb;" // Subtle dashed separator
                                                             >
-                                                                {/* Vendor label */}
-                                                                <p class="text-sm text-gray-700 font-medium">
-                                                                    {format!("{} {}", 
-                                                                        t!("checkout.transaction_detail.vendor_label")(), 
-                                                                        purchase.vendor_id.as_str()
-                                                                    )}
-                                                                </p>
-                                                                
-                                                                {/* Items list */}
+                                                                {/* Items list with vendor per item */}
                                                                 <div class="space-y-2">
                                                                     {purchase.items.iter().enumerate().map(|(idx, item)| {
                                                                         let position_num = idx + 1;
                                                                         let locale = use_locale().get();
+                                                                        let vendor_label = t!("checkout.vendor_label")();
                                                                         view! {
-                                                                            <div class="flex justify-between text-sm">
-                                                                                <span class="text-gray-600">
-                                                                                    {translate_with_params(
-                                                                                        "checkout.transaction_detail.item_number",
-                                                                                        HashMap::from([("number", position_num.to_string())])
-                                                                                    )}
-                                                                                </span>
-                                                                                <span class="font-medium text-gray-900">
-                                                                                    {format_currency(item.amount, locale)}
-                                                                                </span>
+                                                                            <div class="py-2 border-b border-gray-100 last:border-0">
+                                                                                {/* First line: Item number and amount */}
+                                                                                <div class="flex justify-between text-sm">
+                                                                                    <span class="font-medium text-gray-900">
+                                                                                        {translate_with_params(
+                                                                                            "checkout.transaction_detail.item_number",
+                                                                                            HashMap::from([("number", position_num.to_string())])
+                                                                                        )}
+                                                                                    </span>
+                                                                                    <span class="font-medium text-gray-900">
+                                                                                        {format_currency(item.amount, locale)}
+                                                                                    </span>
+                                                                                </div>
+                                                                                
+                                                                                {/* Second line: Vendor ID */}
+                                                                                <div class="text-xs text-gray-500 mt-0.5">
+                                                                                    {vendor_label} ": " {item.vendor_id.as_str()}
+                                                                                </div>
                                                                             </div>
                                                                         }
                                                                     }).collect_view()}
