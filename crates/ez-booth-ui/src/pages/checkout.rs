@@ -784,16 +784,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     </div>
                                                 </div>
 
-                                                <div class="rounded-lg border bg-gray-50 p-4 shadow-sm">
-                                                    <div class="flex justify-between text-lg font-semibold">
-                                                        <span>{t!("checkout.total")}</span>
-                                                        <span>{move || {
-                                                            let locale = use_locale().get();
-                                                            format_currency(form_data.get().total(), locale)
-                                                        }}</span>
-                                                    </div>
-                                                </div>
-
                                                 <div class="flex flex-col gap-2 sm:flex-row">
                                                     <Button class="flex-[2]".to_string() on_click=Box::new(move || {
                                                         cancel_delete();
@@ -812,7 +802,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             >
                                                                 <polyline points="20 6 9 17 4 12" />
                                                             </svg>
-                                                            <span>{t!("checkout.confirm")}</span>
+                                                            <span>{move || {
+                                                                let locale = use_locale().get();
+                                                                format_currency(form_data.get().total(), locale)
+                                                            }}</span>
                                                         </span>
                                                     </Button>
                                                     <Button
