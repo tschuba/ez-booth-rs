@@ -33,9 +33,18 @@ pub fn BoothListPage() -> impl IntoView {
                 // German format: DD. MMM (e.g., "24. Mär")
                 let day = date.day();
                 let month = match date.month() {
-                    1 => "Jan", 2 => "Feb", 3 => "Mär", 4 => "Apr",
-                    5 => "Mai", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-                    9 => "Sep", 10 => "Okt", 11 => "Nov", 12 => "Dez",
+                    1 => "Jan",
+                    2 => "Feb",
+                    3 => "Mär",
+                    4 => "Apr",
+                    5 => "Mai",
+                    6 => "Jun",
+                    7 => "Jul",
+                    8 => "Aug",
+                    9 => "Sep",
+                    10 => "Okt",
+                    11 => "Nov",
+                    12 => "Dez",
                     _ => "?",
                 };
                 format!("{}. {}", day, month)
@@ -104,7 +113,10 @@ pub fn BoothListPage() -> impl IntoView {
                                 web_sys::console::log_1(
                                     &format!("Booth saved: {}", booth.description).into(),
                                 );
-                                toast.success(&t!("booth.success.created")().replace("{description}", &booth.description));
+                                toast.success(
+                                    &t!("booth.success.created")()
+                                        .replace("{description}", &booth.description),
+                                );
                                 set_show_create_modal.set(false);
 
                                 // Notify other components that booth list changed
@@ -164,7 +176,10 @@ pub fn BoothListPage() -> impl IntoView {
                                     web_sys::console::log_1(
                                         &format!("Booth updated: {}", booth.description).into(),
                                     );
-                                    toast.success(&t!("booth.success.updated")().replace("{description}", &booth.description));
+                                    toast.success(
+                                        &t!("booth.success.updated")()
+                                            .replace("{description}", &booth.description),
+                                    );
                                     set_show_edit_modal.set(false);
                                     set_editing_booth.set(None);
 
@@ -221,16 +236,21 @@ pub fn BoothListPage() -> impl IntoView {
                             web_sys::console::log_1(
                                 &format!("Booth deleted: {}", booth.description).into(),
                             );
-                            
+
                             // Clear selected booth if it was the one deleted
                             if let Some(current_booth) = selected_booth.get() {
                                 if current_booth.id == booth.id {
-                                    web_sys::console::log_1(&"Clearing selected booth as it was deleted".into());
+                                    web_sys::console::log_1(
+                                        &"Clearing selected booth as it was deleted".into(),
+                                    );
                                     selected_booth.set(None);
                                 }
                             }
-                            
-                            toast.success(&t!("booth.success.deleted")().replace("{description}", &booth.description));
+
+                            toast.success(
+                                &t!("booth.success.deleted")()
+                                    .replace("{description}", &booth.description),
+                            );
                             set_show_delete_confirm.set(false);
                             set_deleting_booth.set(None);
 
@@ -276,10 +296,7 @@ pub fn BoothListPage() -> impl IntoView {
     let delete_message = move || {
         deleting_booth
             .get()
-            .map(|b| {
-                t!("booth.delete_confirm_message")()
-                    .replace("{description}", &b.description)
-            })
+            .map(|b| t!("booth.delete_confirm_message")().replace("{description}", &b.description))
             .unwrap_or_else(|| t!("booth.delete_confirm")())
     };
 

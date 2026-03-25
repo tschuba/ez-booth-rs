@@ -142,7 +142,8 @@
       "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}"
     },
     "info": {
-      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt"
+      "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt",
+      "vendor_auto_created": "Neuer Verkäufer '{vendor_id}' wurde automatisch erstellt"
     },
     "recent": {
       "items_label": "{count} Position(en)",
@@ -167,7 +168,8 @@
     "running_totals": {
       "sales": "Gesamtumsatz",
       "items": "Artikel verarbeitet",
-      "checkouts": "Kassiervorgänge"
+      "checkouts": "Kassiervorgänge",
+      "vendors": "Verkäufer bedient"
     },
     "transactions_hint": "Klicken Sie auf einen Kassiervorgang, um die Artikeldetails anzuzeigen",
     "transaction_detail": {

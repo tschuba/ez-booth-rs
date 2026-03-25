@@ -70,33 +70,30 @@ pub fn format_decimal_for_input(amount: Decimal, locale: Locale, decimals: u32) 
 /// Get ISO currency code for locale
 pub fn currency_code(locale: Locale) -> &'static str {
     match locale {
-        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "EUR",
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU | Locale::En => "EUR",
         Locale::DeCH => "CHF",
         Locale::EnUS => "USD",
         Locale::EnGB => "GBP",
-        Locale::En => "EUR", // Default to EUR for unspecified English
     }
 }
 
 /// Get currency symbol without trailing space (for labels)
 pub fn currency_symbol_for_label(locale: Locale) -> &'static str {
     match locale {
-        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "€",
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU | Locale::En => "€",
         Locale::DeCH => "CHF",
         Locale::EnUS => "$",
         Locale::EnGB => "£",
-        Locale::En => "€",
     }
 }
 
 /// Get currency symbol for locale
 pub fn currency_symbol(locale: Locale) -> &'static str {
     match locale {
-        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "€ ",
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU | Locale::En => "€ ",
         Locale::DeCH => "CHF ",
         Locale::EnUS => "$ ",
         Locale::EnGB => "£ ",
-        Locale::En => "€ ",
     }
 }
 

@@ -1,9 +1,9 @@
 use crate::components::*;
 use crate::formatting::{format_currency, format_datetime};
 use crate::i18n::use_locale;
+use crate::selected_booth_context;
 use crate::state::*;
 use crate::t;
-use crate::selected_booth_context;
 use domain::models::vendor::Vendor;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -50,10 +50,11 @@ pub fn VendorListPage() -> impl IntoView {
                         let mut summaries = Vec::new();
                         for vendor in vendors {
                             // Get all purchases for this vendor
-                            match state.purchase_repository.find_by_vendor(
-                                &vendor.booth_id,
-                                &vendor.vendor_id,
-                            ).await {
+                            match state
+                                .purchase_repository
+                                .find_by_vendor(&vendor.booth_id, &vendor.vendor_id)
+                                .await
+                            {
                                 Ok(purchases) => {
                                     let purchase_count = purchases.len();
                                     let total_sales: Decimal = purchases
@@ -69,7 +70,10 @@ pub fn VendorListPage() -> impl IntoView {
                                     });
                                 }
                                 Err(e) => {
-                                    toast.error(&format!("Failed to load purchases for vendor: {:?}", e));
+                                    toast.error(&format!(
+                                        "Failed to load purchases for vendor: {:?}",
+                                        e
+                                    ));
                                 }
                             }
                         }
@@ -93,8 +97,15 @@ pub fn VendorListPage() -> impl IntoView {
 
     // Helper to get vendor detail modal title
     let vendor_detail_title = move || {
-        selected_vendor.get()
-            .map(|s| format!("{} {}", t!("vendor.detail_title")(), s.vendor.vendor_id.as_str()))
+        selected_vendor
+            .get()
+            .map(|s| {
+                format!(
+                    "{} {}",
+                    t!("vendor.detail_title")(),
+                    s.vendor.vendor_id.as_str()
+                )
+            })
             .unwrap_or_else(|| t!("vendor.detail_title")())
     };
 

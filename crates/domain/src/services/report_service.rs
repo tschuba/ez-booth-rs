@@ -1,7 +1,5 @@
 use crate::error::{DomainError, DomainResult};
-use crate::models::{
-    BoothId, BoothSummary, Purchase, VendorBoothSummary, VendorId,
-};
+use crate::models::{BoothId, BoothSummary, Purchase, VendorBoothSummary, VendorId};
 use crate::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
 use crate::services::dto::{ChargingConfig, VendorReportData, VendorReportItem};
 use chrono::{DateTime, Utc};
@@ -15,9 +13,7 @@ pub struct ReportService<PR: PurchaseRepository, BR: BoothRepository, VR: Vendor
     vendor_repository: VR,
 }
 
-impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
-    ReportService<PR, BR, VR>
-{
+impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportService<PR, BR, VR> {
     pub fn new(purchase_repository: PR, booth_repository: BR, vendor_repository: VR) -> Self {
         Self {
             purchase_repository,
@@ -65,10 +61,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
         // Generate vendor summaries
         let mut vendor_summaries: Vec<VendorBoothSummary> = Vec::new();
         for (vendor_id, vendor_item_list) in vendor_items.iter() {
-            let gross_sales: Decimal = vendor_item_list
-                .iter()
-                .map(|(_, item)| item.amount)
-                .sum();
+            let gross_sales: Decimal = vendor_item_list.iter().map(|(_, item)| item.amount).sum();
 
             let payout = charging_config.calculate_payout(gross_sales);
 
@@ -170,7 +163,10 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             .collect();
 
         // Calculate totals
-        let sales_sum: Decimal = items.iter().map(|report_item| report_item.item.amount).sum();
+        let sales_sum: Decimal = items
+            .iter()
+            .map(|report_item| report_item.item.amount)
+            .sum();
 
         // Calculate payout with rounding applied to net payout
         let charging_config = ChargingConfig::from_booth(&booth);
@@ -518,7 +514,7 @@ mod tests {
             .unwrap();
         assert_eq!(v1_summary.gross_sales, dec!(15.00));
         assert_eq!(v1_summary.item_count, 2); // 2 items in the purchase
-        // Fees: 5.00 participation + 1.50 sales (10% of 15.00) = 6.50
+                                              // Fees: 5.00 participation + 1.50 sales (10% of 15.00) = 6.50
         assert_eq!(v1_summary.fees_due, dec!(6.50));
         assert_eq!(v1_summary.net_payout, dec!(8.50)); // 15.00 - 6.50
     }

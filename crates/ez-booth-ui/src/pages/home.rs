@@ -16,16 +16,16 @@ pub fn HomePage() -> impl IntoView {
             let Some(Ok(state)) = app_state.get() else {
                 return;
             };
-            
+
             let booth_repository = state.booth_repository.clone();
             let navigate = use_navigate();
-            
+
             spawn_local(async move {
                 // Load all booths and check if any are open
                 match booth_repository.find_all().await {
                     Ok(booths) => {
                         let has_open_booth = booths.iter().any(|b| b.is_open());
-                        
+
                         if has_open_booth {
                             // At least one open booth exists - go to checkout
                             navigate("/checkout", Default::default());
