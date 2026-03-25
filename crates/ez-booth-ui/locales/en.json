@@ -113,7 +113,7 @@
     "no_items": "No items added yet",
     "remove_item_confirm": "Delete permanently?",
     "items_list_hint": "Click an item to delete it",
-    "recent_transactions_hint": "Click a checkout to delete it",
+    "recent_transactions_hint": "Click the delete icon to delete a checkout",
     "remove_transaction_confirm": "Delete permanently?",
     "success": "Checkout completed",
     "confirm_cancel": "Cancel checkout? All current items will be cleared.",

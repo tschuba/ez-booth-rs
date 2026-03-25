@@ -674,9 +674,11 @@ pub fn CheckoutPage() -> impl IntoView {
     let cancel_delete_purchase = {
         let set_pending_deletion = set_pending_deletion.clone();
         let set_delete_confirmation_input = set_delete_confirmation_input.clone();
+        let set_purchase_to_delete = set_purchase_to_delete.clone();
         move || {
             set_pending_deletion.set(PendingDeletion::default());
             set_delete_confirmation_input.set(String::new());
+            set_purchase_to_delete.set(None);
         }
     };
 
@@ -789,48 +791,53 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 }
                                                             }
                                                         />
-                                                        <Button 
-                                                            variant=ButtonVariant::Secondary
-                                                            on_click=Box::new(move || {
-                                                                cancel_delete();
-                                                                add_item();
-                                                            })
-                                                        >
-                                                            {t!("checkout.add_item")}
-                                                        </Button>
                                                         <Show when=move || form_data.get().amount_error.is_some()>
                                                             <p class="text-sm text-red-600">{move || form_data.get().amount_error.clone().unwrap_or_default()}</p>
                                                         </Show>
                                                     </div>
                                                 </div>
 
-                                                <Button 
-                                                    variant=ButtonVariant::Success
-                                                    class="w-full shadow-lg ring-2 ring-green-300/50".to_string() 
-                                                    on_click=Box::new(move || {
-                                                        cancel_delete();
-                                                        submit_purchase();
-                                                    })
-                                                >
-                                                    <span class="inline-flex items-center justify-center gap-4">
-                                                        <svg
-                                                            class="w-8 h-8"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            aria-hidden="true"
-                                                        >
-                                                            <polyline points="20 6 9 17 4 12" />
-                                                        </svg>
-                                                        <span class="text-2xl font-semibold">{move || {
-                                                            let locale = use_locale().get();
-                                                            format_currency(form_data.get().total(), locale)
-                                                        }}</span>
-                                                    </span>
-                                                </Button>
+                                                {/* Action buttons - side by side on desktop, stacked on mobile */}
+                                                <div class="flex flex-col sm:flex-row gap-4">
+                                                    <Button 
+                                                        variant=ButtonVariant::Secondary
+                                                        class="sm:flex-[3]".to_string()
+                                                        on_click=Box::new(move || {
+                                                            cancel_delete();
+                                                            add_item();
+                                                        })
+                                                    >
+                                                        {t!("checkout.add_item")}
+                                                    </Button>
+                                                    
+                                                    <Button 
+                                                        variant=ButtonVariant::Success
+                                                        class="sm:flex-[7] shadow-lg ring-2 ring-green-300/50".to_string() 
+                                                        on_click=Box::new(move || {
+                                                            cancel_delete();
+                                                            submit_purchase();
+                                                        })
+                                                    >
+                                                        <span class="inline-flex items-center justify-center gap-4">
+                                                            <svg
+                                                                class="w-8 h-8"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                aria-hidden="true"
+                                                            >
+                                                                <polyline points="20 6 9 17 4 12" />
+                                                            </svg>
+                                                            <span class="text-2xl font-semibold">{move || {
+                                                                let locale = use_locale().get();
+                                                                format_currency(form_data.get().total(), locale)
+                                                            }}</span>
+                                                        </span>
+                                                    </Button>
+                                                </div>
                                             </div>
                                         }
                                     >
@@ -1026,15 +1033,11 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 };
                                                 view! {
                                                     <div 
-                                                        class="relative text-sm p-3 border rounded-lg bg-gray-50 
-                                                               cursor-pointer hover:bg-gray-100 transition-colors select-none"
-                                                        on:click=move |e| {
-                                                            e.stop_propagation();
-                                                            handle_purchase_click(purchase_id);
-                                                        }
+                                                        class="relative group text-sm p-3 border rounded-lg bg-gray-50 
+                                                               transition-colors select-none"
                                                     >
-                                                        {/* Purchase content - pointer-events-none to make entire item the click target */}
-                                                        <div class="flex items-center justify-between pointer-events-none">
+                                                        {/* Purchase content - NOT clickable */}
+                                                        <div class="flex items-center justify-between pr-12">
                                                             <div class="space-y-1">
                                                                 <p class="text-sm font-semibold">{items_label.clone()}</p>
                                                                  <p class="text-xs text-gray-500">
@@ -1063,6 +1066,41 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     let locale = use_locale().get();
                                                                     format_currency(amount, locale)
                                                                 }</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Separator + Delete Icon (hover-visible on desktop, always visible on mobile) */}
+                                                        <div 
+                                                            class="absolute right-0 top-0 h-full flex items-center 
+                                                                   opacity-0 group-hover:opacity-100 sm:opacity-100 
+                                                                   transition-opacity cursor-pointer"
+                                                            on:click=move |e| {
+                                                                e.stop_propagation();
+                                                                handle_purchase_click(purchase_id);
+                                                            }
+                                                            aria-label={t!("checkout.confirm_cancel_confirm")}
+                                                        >
+                                                            {/* Vertical separator */}
+                                                            <div class="h-full w-px bg-gray-300"></div>
+                                                            
+                                                            {/* Delete icon area */}
+                                                            <div class="px-3 py-2 hover:bg-red-50 transition-colors h-full flex items-center">
+                                                                <svg 
+                                                                    class="w-5 h-5 text-gray-400 hover:text-red-600 transition-colors" 
+                                                                    viewBox="0 0 24 24" 
+                                                                    fill="none" 
+                                                                    stroke="currentColor" 
+                                                                    stroke-width="2" 
+                                                                    stroke-linecap="round" 
+                                                                    stroke-linejoin="round"
+                                                                    aria-hidden="true"
+                                                                >
+                                                                    <polyline points="3 6 5 6 21 6" />
+                                                                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                                                    <path d="M10 11v6" />
+                                                                    <path d="M14 11v6" />
+                                                                    <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
+                                                                </svg>
                                                             </div>
                                                         </div>
                                                         
