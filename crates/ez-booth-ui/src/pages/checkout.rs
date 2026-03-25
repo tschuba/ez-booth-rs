@@ -838,7 +838,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                     >
                                         {/* Trash icon */}
                                         <svg 
-                                            class="w-5 h-5" 
+                                            class="w-6 h-6" 
                                             viewBox="0 0 24 24" 
                                             fill="none" 
                                             stroke="currentColor" 
