@@ -802,7 +802,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             >
                                                                 <polyline points="20 6 9 17 4 12" />
                                                             </svg>
-                                                            <span>{move || {
+                                                            <span class="text-lg font-semibold">{move || {
                                                                 let locale = use_locale().get();
                                                                 format_currency(form_data.get().total(), locale)
                                                             }}</span>
