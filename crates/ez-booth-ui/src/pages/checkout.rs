@@ -795,7 +795,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 </div>
 
                                                 <div class="flex flex-col gap-2 sm:flex-row">
-                                                    <Button class="flex-1".to_string() on_click=Box::new(move || {
+                                                    <Button class="flex-[2]".to_string() on_click=Box::new(move || {
                                                         cancel_delete();
                                                         submit_purchase();
                                                     })>
