@@ -77,7 +77,7 @@ pub fn BoothSelector() -> impl IntoView {
     // English: "Mar 24" or "March 24"
     let format_date = move |date: chrono::NaiveDate| -> String {
         match locale.get() {
-            Locale::De => {
+            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
                 // German format: DD. MMM (e.g., "24. Mär")
                 let day = date.day();
                 let month = match date.month() {
@@ -88,7 +88,7 @@ pub fn BoothSelector() -> impl IntoView {
                 };
                 format!("{}. {}", day, month)
             }
-            Locale::En => {
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
                 // English format: MMM DD (e.g., "Mar 24")
                 date.format("%b %d").to_string()
             }

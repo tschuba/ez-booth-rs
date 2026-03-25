@@ -82,8 +82,8 @@ fn format_item_timestamp(added_at: DateTime<Utc>, locale: Locale) -> String {
         translate_with_params(key, HashMap::from([("count", mins.to_string())]))
     } else {
         let format_str = match locale {
-            Locale::De => "%H:%M",
-            Locale::En => "%I:%M %p",
+            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "%H:%M",
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "%I:%M %p",
         };
         let local_time = added_at.with_timezone(&Local).format(format_str).to_string();
         translate_with_params(
@@ -95,8 +95,8 @@ fn format_item_timestamp(added_at: DateTime<Utc>, locale: Locale) -> String {
 
 fn format_item_tooltip(added_at: DateTime<Utc>, locale: Locale) -> String {
     let format_str = match locale {
-        Locale::De => "%d.%m.%Y %H:%M",
-        Locale::En => "%Y-%m-%d %I:%M %p",
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "%d.%m.%Y %H:%M",
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "%Y-%m-%d %I:%M %p",
     };
     let local_time = added_at.with_timezone(&Local).format(format_str).to_string();
     translate_with_params(
@@ -107,8 +107,8 @@ fn format_item_tooltip(added_at: DateTime<Utc>, locale: Locale) -> String {
 
 fn format_purchase_timestamp(timestamp: DateTime<Utc>, locale: Locale) -> String {
     let format_str = match locale {
-        Locale::De => "%d.%m.%Y %H:%M",
-        Locale::En => "%Y-%m-%d %I:%M %p",
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "%d.%m.%Y %H:%M",
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "%Y-%m-%d %I:%M %p",
     };
     timestamp
         .with_timezone(&Local)

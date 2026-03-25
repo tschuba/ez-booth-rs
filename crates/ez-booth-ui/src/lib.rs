@@ -66,8 +66,8 @@ pub fn App() -> impl IntoView {
                                         class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
                                         on:click=move |_| {
                                             let new_locale = match locale.get() {
-                                                Locale::De => Locale::En,
-                                                Locale::En => Locale::De,
+                                                Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
+                                                Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
                                             };
                                             locale.set(new_locale);
                                         }
@@ -92,8 +92,8 @@ pub fn App() -> impl IntoView {
                                         // Language code
                                         <span>
                                             {move || match locale.get() {
-                                                Locale::De => "EN",
-                                                Locale::En => "DE",
+                                                Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "EN",
+                                                Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "DE",
                                             }}
                                         </span>
                                     </button>

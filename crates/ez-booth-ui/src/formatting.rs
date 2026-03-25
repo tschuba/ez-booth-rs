@@ -34,8 +34,12 @@ pub fn format_percentage(percent: Decimal, locale: Locale) -> String {
 /// English: Mar 25, 2026 2:30 PM
 pub fn format_datetime(date: DateTime<Local>, locale: Locale) -> String {
     match locale {
-        Locale::De => date.format("%d.%m.%Y %H:%M").to_string(),
-        Locale::En => date.format("%b %d, %Y %I:%M %p").to_string(),
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
+            date.format("%d.%m.%Y %H:%M").to_string()
+        }
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
+            date.format("%b %d, %Y %I:%M %p").to_string()
+        }
     }
 }
 
@@ -63,10 +67,35 @@ pub fn format_decimal_for_input(amount: Decimal, locale: Locale, decimals: u32) 
     }
 }
 
+/// Get ISO currency code for locale
+pub fn currency_code(locale: Locale) -> &'static str {
+    match locale {
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "EUR",
+        Locale::DeCH => "CHF",
+        Locale::EnUS => "USD",
+        Locale::EnGB => "GBP",
+        Locale::En => "EUR", // Default to EUR for unspecified English
+    }
+}
+
+/// Get currency symbol without trailing space (for labels)
+pub fn currency_symbol_for_label(locale: Locale) -> &'static str {
+    match locale {
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "€",
+        Locale::DeCH => "CHF",
+        Locale::EnUS => "$",
+        Locale::EnGB => "£",
+        Locale::En => "€",
+    }
+}
+
 /// Get currency symbol for locale
 pub fn currency_symbol(locale: Locale) -> &'static str {
     match locale {
-        Locale::De => "€ ",
+        Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU => "€ ",
+        Locale::DeCH => "CHF ",
+        Locale::EnUS => "$ ",
+        Locale::EnGB => "£ ",
         Locale::En => "€ ",
     }
 }
@@ -74,16 +103,16 @@ pub fn currency_symbol(locale: Locale) -> &'static str {
 /// Get decimal separator for locale
 pub fn decimal_separator(locale: Locale) -> char {
     match locale {
-        Locale::De => ',',
-        Locale::En => '.',
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => ',',
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => '.',
     }
 }
 
-/// Get thousand separator for locale
-pub fn thousand_separator(locale: Locale) -> char {
+/// Get thousands separator for locale
+pub fn thousands_separator(locale: Locale) -> char {
     match locale {
-        Locale::De => '.',
-        Locale::En => ',',
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => '.',
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => ',',
     }
 }
 
@@ -127,7 +156,7 @@ fn format_decimal_internal(
 
 /// Add thousand separators to an integer string
 fn add_thousand_separators(int_str: &str, locale: Locale) -> String {
-    let sep = thousand_separator(locale);
+    let sep = thousands_separator(locale);
 
     // Handle negative numbers
     let (is_negative, digits) = if int_str.starts_with('-') {
@@ -491,7 +520,79 @@ mod tests {
     fn test_separators() {
         assert_eq!(decimal_separator(Locale::De), ',');
         assert_eq!(decimal_separator(Locale::En), '.');
-        assert_eq!(thousand_separator(Locale::De), '.');
-        assert_eq!(thousand_separator(Locale::En), ',');
+        assert_eq!(thousands_separator(Locale::De), '.');
+        assert_eq!(thousands_separator(Locale::En), ',');
+    }
+
+    #[test]
+    fn test_currency_code() {
+        // EUR locales
+        assert_eq!(currency_code(Locale::DeDE), "EUR");
+        assert_eq!(currency_code(Locale::DeAT), "EUR");
+        assert_eq!(currency_code(Locale::De), "EUR");
+        assert_eq!(currency_code(Locale::EnEU), "EUR");
+        assert_eq!(currency_code(Locale::En), "EUR");
+
+        // CHF locale
+        assert_eq!(currency_code(Locale::DeCH), "CHF");
+
+        // USD locale
+        assert_eq!(currency_code(Locale::EnUS), "USD");
+
+        // GBP locale
+        assert_eq!(currency_code(Locale::EnGB), "GBP");
+    }
+
+    #[test]
+    fn test_currency_symbol() {
+        // EUR locales (with space)
+        assert_eq!(currency_symbol(Locale::DeDE), "€ ");
+        assert_eq!(currency_symbol(Locale::DeAT), "€ ");
+        assert_eq!(currency_symbol(Locale::De), "€ ");
+        assert_eq!(currency_symbol(Locale::EnEU), "€ ");
+        assert_eq!(currency_symbol(Locale::En), "€ ");
+
+        // Other currencies (with space)
+        assert_eq!(currency_symbol(Locale::DeCH), "CHF ");
+        assert_eq!(currency_symbol(Locale::EnUS), "$ ");
+        assert_eq!(currency_symbol(Locale::EnGB), "£ ");
+    }
+
+    #[test]
+    fn test_currency_symbol_for_label() {
+        // EUR locales (no space)
+        assert_eq!(currency_symbol_for_label(Locale::DeDE), "€");
+        assert_eq!(currency_symbol_for_label(Locale::DeAT), "€");
+        assert_eq!(currency_symbol_for_label(Locale::De), "€");
+        assert_eq!(currency_symbol_for_label(Locale::EnEU), "€");
+        assert_eq!(currency_symbol_for_label(Locale::En), "€");
+
+        // Other currencies (no space)
+        assert_eq!(currency_symbol_for_label(Locale::DeCH), "CHF");
+        assert_eq!(currency_symbol_for_label(Locale::EnUS), "$");
+        assert_eq!(currency_symbol_for_label(Locale::EnGB), "£");
+    }
+
+    #[test]
+    fn test_format_currency_with_variants() {
+        let amount = Decimal::from_str("1234.56").unwrap();
+
+        // EUR variants (German number format)
+        assert_eq!(format_currency(amount, Locale::DeDE), "€ 1.234,56");
+        assert_eq!(format_currency(amount, Locale::DeAT), "€ 1.234,56");
+        assert_eq!(format_currency(amount, Locale::De), "€ 1.234,56");
+
+        // CHF (German number format)
+        assert_eq!(format_currency(amount, Locale::DeCH), "CHF 1.234,56");
+
+        // USD (English number format)
+        assert_eq!(format_currency(amount, Locale::EnUS), "$ 1,234.56");
+
+        // GBP (English number format)
+        assert_eq!(format_currency(amount, Locale::EnGB), "£ 1,234.56");
+
+        // EUR with English format
+        assert_eq!(format_currency(amount, Locale::EnEU), "€ 1,234.56");
+        assert_eq!(format_currency(amount, Locale::En), "€ 1,234.56");
     }
 }
