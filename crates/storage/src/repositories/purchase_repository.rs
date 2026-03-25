@@ -111,12 +111,12 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
         vendor_id: &VendorId,
     ) -> DomainResult<Vec<Purchase>> {
         // Get all purchases for the booth, then filter by vendor
-        // Note: vendor_id is on Purchase, not on PurchaseItem in the current model
+        // Note: vendor_id is now on PurchaseItem, not Purchase
         let all_purchases = self.find_by_booth(booth_id).await?;
 
         let filtered: Vec<Purchase> = all_purchases
             .into_iter()
-            .filter(|p| &p.vendor_id == vendor_id)
+            .filter(|p| p.items.iter().any(|item| &item.vendor_id == vendor_id))
             .collect();
 
         Ok(filtered)
