@@ -111,6 +111,8 @@
     "add_item": "Artikel hinzufügen",
     "current_items": "Aktuelle Positionen",
     "no_items": "Noch keine Artikel hinzugefügt",
+    "item_label": "Position",
+    "vendor_label": "Verkäufer",
     "remove_item_confirm": "Unwiderruflich löschen?",
     "items_list_hint": "Klicken Sie auf einen Artikel, um ihn zu löschen",
     "recent_transactions_hint": "Klicken Sie auf das Löschen-Symbol, um einen Kassiervorgang zu löschen",

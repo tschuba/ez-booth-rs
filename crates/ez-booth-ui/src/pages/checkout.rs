@@ -912,8 +912,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             {/* Item content - pointer-events-none to make entire item the click target */}
                                                             <div class="flex items-start justify-between pointer-events-none">
                                                                 <div>
-                                                                    <p class="font-medium">{format!("Item {}", display_number)}</p>
-                                                                    <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
+                                                                    <p class="font-medium">{format!("{} {}", t!("checkout.item_label")(), display_number)}</p>
+                                                                    <p class="text-xs text-gray-500">{format!("{} {}", t!("checkout.vendor_label")(), vendor_label)}</p>
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="block font-semibold">{

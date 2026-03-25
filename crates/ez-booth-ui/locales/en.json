@@ -111,6 +111,8 @@
     "add_item": "Add Item",
     "current_items": "Current Items",
     "no_items": "No items added yet",
+    "item_label": "Item",
+    "vendor_label": "Vendor",
     "remove_item_confirm": "Delete permanently?",
     "items_list_hint": "Click an item to delete it",
     "recent_transactions_hint": "Click the delete icon to delete a checkout",
