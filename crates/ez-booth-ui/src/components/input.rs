@@ -118,15 +118,15 @@ pub fn NumberInput(
     /// Placeholder text
     #[prop(optional)]
     placeholder: Option<String>,
-    /// Minimum value
+    /// Minimum value (not enforced in HTML, for documentation)
     #[prop(optional)]
-    min: Option<f64>,
-    /// Maximum value
+    _min: Option<f64>,
+    /// Maximum value (not enforced in HTML, for documentation)
     #[prop(optional)]
-    max: Option<f64>,
-    /// Step value
+    _max: Option<f64>,
+    /// Step value (not enforced in HTML, for documentation)
     #[prop(optional)]
-    step: Option<f64>,
+    _step: Option<f64>,
     /// Whether the input is disabled
     #[prop(optional)]
     disabled: Option<bool>,
@@ -170,14 +170,12 @@ pub fn NumberInput(
                 </label>
             })}
             <input
-                type="number"
+                type="text"
+                inputmode="decimal"
                 class=input_classes
                 placeholder=placeholder.unwrap_or_default()
                 disabled=disabled
                 required=required
-                min=min.map(|m| m.to_string()).unwrap_or_default()
-                max=max.map(|m| m.to_string()).unwrap_or_default()
-                step=step.map(|s| s.to_string()).unwrap_or_else(|| "0.01".to_string())
                 aria-label=aria_label
                 aria-invalid=move || if has_error() { Some("true") } else { None }
                 aria-describedby=move || error_id()

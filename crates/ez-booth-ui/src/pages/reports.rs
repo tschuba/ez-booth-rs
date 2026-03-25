@@ -1,4 +1,6 @@
 use crate::components::{Card, Container, use_toast};
+use crate::formatting::format_currency;
+use crate::i18n::use_locale;
 use crate::state::use_app_state;
 use crate::t;
 use crate::selected_booth_context;
@@ -389,6 +391,7 @@ pub fn ReportsPage() -> impl IntoView {
 
 #[component]
 fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
+    let locale = use_locale();
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
     let total_items = summary.total_items;
@@ -404,7 +407,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 <div class="p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
                     <p class="text-2xl font-bold text-blue-600">
-                        {format!("€ {:.2}", total_revenue)}
+                        {move || format_currency(total_revenue, locale.get())}
                     </p>
                 </div>
                 <div class="p-4 bg-green-50 rounded-lg">
@@ -427,15 +430,15 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 <div class="space-y-3">
                     <div class="flex justify-between items-center">
                         <span class="text-gray-700">{t!("report.total_participation_fees")}</span>
-                        <span class="font-semibold text-gray-900">{format!("€ {:.2}", total_participation_fees)}</span>
+                        <span class="font-semibold text-gray-900">{move || format_currency(total_participation_fees, locale.get())}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-gray-700">{t!("report.total_sales_fees")}</span>
-                        <span class="font-semibold text-gray-900">{format!("€ {:.2}", total_sales_fees)}</span>
+                        <span class="font-semibold text-gray-900">{move || format_currency(total_sales_fees, locale.get())}</span>
                     </div>
                     <div class="flex justify-between items-center pt-3 border-t-2 border-blue-200">
                         <span class="text-lg font-bold text-gray-900">{t!("report.total_booth_revenue")}</span>
-                        <span class="text-2xl font-bold text-blue-700">{format!("€ {:.2}", total_booth_revenue)}</span>
+                        <span class="text-2xl font-bold text-blue-700">{move || format_currency(total_booth_revenue, locale.get())}</span>
                     </div>
                 </div>
             </div>
@@ -468,19 +471,22 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                             .into_iter()
                             .map(|vs| {
                                 let vendor_id_str = vs.vendor_id.to_string();
+                                let gross_sales = vs.gross_sales;
+                                let fees_due = vs.fees_due;
+                                let net_payout = vs.net_payout;
                                 view! {
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm font-medium text-gray-900">
                                             {vendor_id_str}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {format!("€ {:.2}", vs.gross_sales)}
+                                            {move || format_currency(gross_sales, locale.get())}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                                            {format!("€ {:.2}", vs.fees_due)}
+                                            {move || format_currency(fees_due, locale.get())}
                                         </td>
                                         <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                                            {format!("€ {:.2}", vs.net_payout)}
+                                            {move || format_currency(net_payout, locale.get())}
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700 text-right">
                                             {vs.item_count}
@@ -498,6 +504,7 @@ fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
 
 #[component]
 fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
+    let locale = use_locale();
     view! {
         <div class="space-y-4">
             {reports
@@ -524,7 +531,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                                 <div class="bg-gray-50 p-3 rounded">
                                     <p class="text-xs text-gray-600">{t!("report.gross_sales")}</p>
-                                    <p class="text-lg font-semibold">{format!("€ {:.2}", sales_sum)}</p>
+                                    <p class="text-lg font-semibold">{move || format_currency(sales_sum, locale.get())}</p>
                                 </div>
                                 <div class="bg-gray-50 p-3 rounded">
                                     <p class="text-xs text-gray-600">{t!("report.item_count")}</p>
@@ -532,11 +539,11 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                 </div>
                                 <div class="bg-gray-50 p-3 rounded">
                                     <p class="text-xs text-gray-600">{t!("report.fees_due")}</p>
-                                    <p class="text-lg">{format!("€ {:.2}", participation_fee + sales_fee)}</p>
+                                    <p class="text-lg">{move || format_currency(participation_fee + sales_fee, locale.get())}</p>
                                 </div>
                                 <div class="bg-green-50 p-3 rounded">
                                     <p class="text-xs text-gray-600">{t!("report.net_payout")}</p>
-                                    <p class="text-lg font-bold text-green-700">{format!("€ {:.2}", total_revenue)}</p>
+                                    <p class="text-lg font-bold text-green-700">{move || format_currency(total_revenue, locale.get())}</p>
                                 </div>
                             </div>
 
@@ -559,6 +566,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                             items.iter().position(|i| i.transaction_id == a.0)
                                                 .cmp(&items.iter().position(|i| i.transaction_id == b.0))
                                         });
+                                        let has_multiple_transactions = transactions.len() > 1;
                                         
                                         let mut item_counter = 0;
                                         transactions
@@ -580,6 +588,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                 .map(|(idx, report_item)| {
                                                                     item_counter += 1;
                                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
+                                                                    let amount = report_item.item.amount;
                                                                     let txn_id_str = if idx == 0 {
                                                                         format!("{}: {}", txn_label(), transaction_id.to_string())
                                                                     } else {
@@ -589,16 +598,22 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                         <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1">
                                                                             <span class="text-gray-500 text-xs">{txn_id_str}</span>
                                                                             <span class="text-gray-500 text-xs text-right w-12">{time_str}</span>
-                                                                            <span class="font-medium text-right w-20">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                            <span class="font-medium text-right w-20">{move || format_currency(amount, locale.get())}</span>
                                                                         </div>
                                                                     }.into_view()
                                                                 })
                                                                 .collect_view()}
-                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
-                                                                <span class="text-right">{t!("report.subtotal")}</span>
-                                                                <span class="w-12"></span>
-                                                                <span class="text-right w-20">{format!("€ {:.2}", transaction_total)}</span>
-                                                            </div>
+                                                            {if has_multiple_transactions {
+                                                                view! {
+                                                                    <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-1 border-t border-gray-300 font-semibold">
+                                                                        <span class="text-right">{t!("report.subtotal")}</span>
+                                                                        <span class="w-12"></span>
+                                                                        <span class="text-right w-20">{move || format_currency(transaction_total, locale.get())}</span>
+                                                                    </div>
+                                                                }.into_view()
+                                                            } else {
+                                                                View::default()
+                                                            }}
                                                         </div>
                                                     }.into_view()
                                                 } else {
@@ -606,6 +621,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                     item_counter += 1;
                                                     let report_item = &transaction_items[0];
                                                     let time_str = report_item.timestamp.format("%H:%M").to_string();
+                                                    let amount = report_item.item.amount;
                                                     view! {
                                                         <div class="mb-2 border-l-2 border-blue-400 pl-2 py-1">
                                                             <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center">
@@ -613,7 +629,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                                     {t!("report.transaction_id")}{": "}{report_item.transaction_id.to_string()}
                                                                 </span>
                                                                 <span class="text-gray-500 text-xs text-right w-12">{time_str}</span>
-                                                                <span class="font-medium text-right w-20">{format!("€ {:.2}", report_item.item.amount)}</span>
+                                                                <span class="font-medium text-right w-20">{move || format_currency(amount, locale.get())}</span>
                                                             </div>
                                                         </div>
                                                     }.into_view()
@@ -634,6 +650,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
 // Print-only component for Booth Summary
 #[component]
 fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
+    let locale = use_locale();
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
     let total_items = summary.total_items;
@@ -655,7 +672,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                 <div class="grid grid-cols-4 gap-6 mb-6">
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.sales_total")}</p>
-                        <p class="text-3xl font-bold">{format!("€ {:.2}", total_revenue)}</p>
+                        <p class="text-3xl font-bold">{move || format_currency(total_revenue, locale.get())}</p>
                     </div>
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.purchase_count")}</p>
@@ -678,15 +695,15 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                 <div class="space-y-2">
                     <div class="flex justify-between text-base">
                         <span class="text-gray-700">{t!("report.total_participation_fees")}"："</span>
-                        <span class="font-semibold">{format!("€ {:.2}", total_participation_fees)}</span>
+                        <span class="font-semibold">{move || format_currency(total_participation_fees, locale.get())}</span>
                     </div>
                     <div class="flex justify-between text-base">
                         <span class="text-gray-700">{t!("report.total_sales_fees")}"："</span>
-                        <span class="font-semibold">{format!("€ {:.2}", total_sales_fees)}</span>
+                        <span class="font-semibold">{move || format_currency(total_sales_fees, locale.get())}</span>
                     </div>
                     <div class="flex justify-between pt-3 border-t-2 border-gray-800 text-lg">
                         <span class="font-bold">{t!("report.total_booth_revenue")}"："</span>
-                        <span class="font-bold text-2xl">{format!("€ {:.2}", total_booth_revenue)}</span>
+                        <span class="font-bold text-2xl">{move || format_currency(total_booth_revenue, locale.get())}</span>
                     </div>
                 </div>
             </div>
@@ -710,12 +727,15 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                             .into_iter()
                             .map(|vs| {
                                 let vendor_id_str = vs.vendor_id.to_string();
+                                let gross_sales = vs.gross_sales;
+                                let fees_due = vs.fees_due;
+                                let net_payout = vs.net_payout;
                                 view! {
                                     <tr class="border-b border-gray-300">
                                         <td class="px-4 py-3 font-medium">{vendor_id_str}</td>
-                                        <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.gross_sales)}</td>
-                                        <td class="px-4 py-3 text-right">{format!("€ {:.2}", vs.fees_due)}</td>
-                                        <td class="px-4 py-3 text-right font-semibold">{format!("€ {:.2}", vs.net_payout)}</td>
+                                        <td class="px-4 py-3 text-right">{move || format_currency(gross_sales, locale.get())}</td>
+                                        <td class="px-4 py-3 text-right">{move || format_currency(fees_due, locale.get())}</td>
+                                        <td class="px-4 py-3 text-right font-semibold">{move || format_currency(net_payout, locale.get())}</td>
                                         <td class="px-4 py-3 text-right">{vs.item_count}</td>
                                     </tr>
                                 }
@@ -738,6 +758,7 @@ fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
 // Print-only component for Vendor Reports
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
+    let locale = use_locale();
     view! {
         <div class="print-reports-container">
             {reports
@@ -764,6 +785,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                         items.iter().position(|i| i.transaction_id == a.0)
                             .cmp(&items.iter().position(|i| i.transaction_id == b.0))
                     });
+                    let has_multiple_transactions = transactions.len() > 1;
                     
                     view! {
                         <div class="print-vendor-report">
@@ -786,19 +808,19 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <div class="border border-gray-400 p-2">
                                     <div class="flex justify-between py-1">
                                         <span class="font-medium">{t!("report.gross_sales")}"："</span>
-                                        <span class="text-base font-semibold">{format!("€ {:.2}", sales_sum)}</span>
+                                        <span class="text-base font-semibold">{move || format_currency(sales_sum, locale.get())}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t border-gray-300">
                                         <span>{t!("report.participation_fee")}"："</span>
-                                        <span>{format!("-€ {:.2}", participation_fee)}</span>
+                                        <span>{move || format!("-{}", format_currency(participation_fee, locale.get()))}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t border-gray-300">
                                         <span>{t!("report.sales_fee")}"："</span>
-                                        <span>{format!("-€ {:.2}", sales_fee)}</span>
+                                        <span>{move || format!("-{}", format_currency(sales_fee, locale.get()))}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t-2 border-gray-800">
                                         <span class="text-base font-bold">{t!("report.net_payout")}"："</span>
-                                        <span class="text-lg font-bold">{format!("€ {:.2}", total_revenue)}</span>
+                                        <span class="text-lg font-bold">{move || format_currency(total_revenue, locale.get())}</span>
                                     </div>
                                 </div>
                             </div>
@@ -823,47 +845,55 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                             <div class="print-transaction-header">
                                                                 <span class="text-xs text-gray-600">{t!("report.transaction_id")}": "{transaction_id.to_string()}</span>
                                                             </div>
-                                                            <div class="print-items-grid">
-                                                                {transaction_items
-                                                                    .into_iter()
-                                                                    .map(|report_item| {
-                                                                        let time_str = report_item.timestamp
-                                                                            .with_timezone(&chrono::Local)
-                                                                            .format("%H:%M")
-                                                                            .to_string();
-                                                                        view! {
-                                                                            <div class="print-item">
-                                                                                <span class="print-item-time">{time_str}</span>
-                                                                                <span class="print-item-amount">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                            </div>
-                                                                        }
-                                                                    })
-                                                                    .collect_view()}
-                                                            </div>
+                                                    <div class="print-items-grid">
+                                                        {transaction_items
+                                                            .into_iter()
+                                                            .map(|report_item| {
+                                                                let time_str = report_item.timestamp
+                                                                    .with_timezone(&chrono::Local)
+                                                                    .format("%H:%M")
+                                                                    .to_string();
+                                                                let amount = report_item.item.amount;
+                                                                view! {
+                                                                    <div class="print-item">
+                                                                        <span class="print-item-time">{time_str}</span>
+                                                                        <span class="print-item-amount">{move || format_currency(amount, locale.get())}</span>
+                                                                    </div>
+                                                                }
+                                                            })
+                                                            .collect_view()}
+                                                    </div>
+                                                    {if has_multiple_transactions {
+                                                        view! {
                                                             <div class="print-subtotal">
                                                                 <span>{t!("report.subtotal")}"："</span>
-                                                                <span class="font-semibold">{format!("€ {:.2}", transaction_total)}</span>
+                                                                <span class="font-semibold">{move || format_currency(transaction_total, locale.get())}</span>
                                                             </div>
                                                         }.into_view()
                                                     } else {
-                                                        // Single-item transaction: show transaction ID and item
-                                                        let report_item = &transaction_items[0];
-                                                        let time_str = report_item.timestamp
-                                                            .with_timezone(&chrono::Local)
-                                                            .format("%H:%M")
-                                                            .to_string();
-                                                        view! {
-                                                            <div class="print-transaction-header">
-                                                                <span class="text-xs text-gray-600">{t!("report.transaction_id")}": "{transaction_id.to_string()}</span>
-                                                            </div>
-                                                            <div class="print-items-grid">
-                                                                <div class="print-item">
-                                                                    <span class="print-item-time">{time_str}</span>
-                                                                    <span class="print-item-amount">{format!("€ {:.2}", report_item.item.amount)}</span>
-                                                                </div>
-                                                            </div>
-                                                        }.into_view()
+                                                        View::default()
                                                     }}
+                                                        }.into_view()
+                                                } else {
+                                                    // Single-item transaction: show transaction ID and item
+                                                    let report_item = &transaction_items[0];
+                                                    let time_str = report_item.timestamp
+                                                        .with_timezone(&chrono::Local)
+                                                        .format("%H:%M")
+                                                        .to_string();
+                                                    let amount = report_item.item.amount;
+                                                    view! {
+                                                        <div class="print-transaction-header">
+                                                            <span class="text-xs text-gray-600">{t!("report.transaction_id")}": "{transaction_id.to_string()}</span>
+                                                        </div>
+                                                        <div class="print-items-grid">
+                                                            <div class="print-item">
+                                                                <span class="print-item-time">{time_str}</span>
+                                                                <span class="print-item-amount">{move || format_currency(amount, locale.get())}</span>
+                                                            </div>
+                                                        </div>
+                                                    }.into_view()
+                                                }}
                                                 </div>
                                             }
                                         })

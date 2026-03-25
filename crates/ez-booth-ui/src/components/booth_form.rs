@@ -1,4 +1,6 @@
 use crate::components::*;
+use crate::formatting::{format_decimal_for_input, parse_decimal_input};
+use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
 use domain::error::DomainError;
@@ -19,29 +21,34 @@ pub struct BoothFormData {
 
 impl Default for BoothFormData {
     fn default() -> Self {
-        // Default date to today
+        // Use English locale for backward compatibility
+        Self::default_with_locale(Locale::En)
+    }
+}
+
+impl BoothFormData {
+    /// Create default form data with locale-aware formatting
+    pub fn default_with_locale(locale: Locale) -> Self {
         let today = chrono::Local::now().date_naive();
         let date_str = today.format("%Y-%m-%d").to_string();
 
         Self {
             description: String::new(),
             date: date_str,
-            participation_fee: "1.00".to_string(), // Default: 1,00€ Standgebühr
-            sales_fee_percent: "15.00".to_string(), // Default: 15% Verkaufsprovision
-            rounding_step: "0.50".to_string(),     // Default: 0,50€ Rundungsschritt
+            participation_fee: format_decimal_for_input(Decimal::ONE, locale, 2),
+            sales_fee_percent: format_decimal_for_input(Decimal::from(15), locale, 2),
+            rounding_step: format_decimal_for_input(Decimal::from_str("0.50").unwrap(), locale, 2),
         }
     }
-}
 
-impl BoothFormData {
     /// Create form data from an existing Booth
-    pub fn from_booth(booth: &Booth) -> Self {
+    pub fn from_booth(booth: &Booth, locale: Locale) -> Self {
         Self {
             description: booth.description.clone(),
             date: booth.date.format("%Y-%m-%d").to_string(),
-            participation_fee: booth.fees.participation_fee.to_string(),
-            sales_fee_percent: booth.fees.sales_fee_percent.to_string(),
-            rounding_step: booth.fees.rounding_step.to_string(),
+            participation_fee: format_decimal_for_input(booth.fees.participation_fee, locale, 2),
+            sales_fee_percent: format_decimal_for_input(booth.fees.sales_fee_percent, locale, 2),
+            rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
         }
     }
 
@@ -53,19 +60,19 @@ impl BoothFormData {
     /// - Date string cannot be parsed
     /// - Fee values cannot be parsed to Decimal
     /// - Fee configuration validation fails
-    pub fn to_booth(&self) -> Result<Booth, DomainError> {
+    pub fn to_booth(&self, locale: Locale) -> Result<Booth, DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
 
-        // Parse fee values to Decimal
-        let participation_fee = Decimal::from_str(&self.participation_fee)
+        // Parse fee values using flexible parsing (accepts both comma and dot)
+        let participation_fee = parse_decimal_input(&self.participation_fee)
             .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
 
-        let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
+        let sales_fee_percent = parse_decimal_input(&self.sales_fee_percent)
             .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
 
-        let rounding_step = Decimal::from_str(&self.rounding_step)
+        let rounding_step = parse_decimal_input(&self.rounding_step)
             .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
 
         // Create FeeConfig
@@ -84,19 +91,19 @@ impl BoothFormData {
     /// # Errors
     ///
     /// Returns DomainError if fee configuration validation fails
-    pub fn update_booth(&self, booth: &mut Booth) -> Result<(), DomainError> {
+    pub fn update_booth(&self, booth: &mut Booth, locale: Locale) -> Result<(), DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
 
-        // Parse fee values
-        let participation_fee = Decimal::from_str(&self.participation_fee)
+        // Parse fee values using flexible parsing (accepts both comma and dot)
+        let participation_fee = parse_decimal_input(&self.participation_fee)
             .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
 
-        let sales_fee_percent = Decimal::from_str(&self.sales_fee_percent)
+        let sales_fee_percent = parse_decimal_input(&self.sales_fee_percent)
             .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
 
-        let rounding_step = Decimal::from_str(&self.rounding_step)
+        let rounding_step = parse_decimal_input(&self.rounding_step)
             .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
 
         // Create and validate FeeConfig
@@ -143,6 +150,20 @@ pub fn BoothForm(
     let (sales_fee_percent_error, set_sales_fee_percent_error) = create_signal(None::<String>);
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
 
+    let locale = use_locale();
+
+    // Localized validation messages
+    let description_required_msg = t!("booth.form_errors.description_required");
+    let description_length_msg = t!("booth.form_errors.description_length");
+    let date_required_msg = t!("booth.form_errors.date_required");
+    let participation_fee_required_msg = t!("booth.form_errors.participation_fee_required");
+    let sales_fee_required_msg = t!("booth.form_errors.sales_fee_required");
+    let rounding_step_required_msg = t!("booth.form_errors.rounding_step_required");
+    let cannot_be_negative_msg = t!("booth.form_errors.cannot_be_negative");
+    let cannot_exceed_100_msg = t!("booth.form_errors.cannot_exceed_100");
+    let invalid_number_format_msg = t!("booth.form_errors.invalid_number_format");
+    let max_two_decimals_msg = t!("booth.form_errors.max_two_decimals");
+
     let validate_and_submit = move || {
         // Clear previous errors
         set_description_error.set(None);
@@ -156,65 +177,96 @@ pub fn BoothForm(
         // Validate description
         let desc = description.get();
         if desc.trim().is_empty() {
-            set_description_error.set(Some("Description is required".to_string()));
+            set_description_error.set(Some(description_required_msg()));
             has_errors = true;
         } else if desc.len() > 200 {
-            set_description_error.set(Some(
-                "Description must be 200 characters or less".to_string(),
-            ));
+            set_description_error.set(Some(description_length_msg()));
             has_errors = true;
         }
 
         // Validate date
         let date_str = date.get();
         if date_str.trim().is_empty() {
-            set_date_error.set(Some("Date is required".to_string()));
+            set_date_error.set(Some(date_required_msg()));
             has_errors = true;
         }
 
-        // Validate participation fee
+        // Validate participation fee using flexible parsing (accepts both comma and dot)
         let part_fee = participation_fee.get();
         if part_fee.trim().is_empty() {
-            set_participation_fee_error.set(Some("Participation fee is required".to_string()));
-            has_errors = true;
-        } else if part_fee.parse::<f64>().is_err() {
-            set_participation_fee_error.set(Some("Invalid number format".to_string()));
-            has_errors = true;
-        } else if part_fee.parse::<f64>().unwrap() < 0.0 {
-            set_participation_fee_error.set(Some("Cannot be negative".to_string()));
-            has_errors = true;
-        }
-
-        // Validate sales fee percent
-        let sales_pct = sales_fee_percent.get();
-        if sales_pct.trim().is_empty() {
-            set_sales_fee_percent_error.set(Some("Sales fee percent is required".to_string()));
-            has_errors = true;
-        } else if sales_pct.parse::<f64>().is_err() {
-            set_sales_fee_percent_error.set(Some("Invalid number format".to_string()));
+            set_participation_fee_error.set(Some(participation_fee_required_msg()));
             has_errors = true;
         } else {
-            let val = sales_pct.parse::<f64>().unwrap();
-            if val < 0.0 {
-                set_sales_fee_percent_error.set(Some("Cannot be negative".to_string()));
-                has_errors = true;
-            } else if val > 100.0 {
-                set_sales_fee_percent_error.set(Some("Cannot exceed 100%".to_string()));
-                has_errors = true;
+            match parse_decimal_input(&part_fee) {
+                Ok(val) => {
+                    if val < Decimal::ZERO {
+                        set_participation_fee_error.set(Some(cannot_be_negative_msg()));
+                        has_errors = true;
+                    }
+                }
+                Err(e) => {
+                    let message = if e == "Maximum 2 decimal places allowed" {
+                        max_two_decimals_msg()
+                    } else {
+                        invalid_number_format_msg()
+                    };
+                    set_participation_fee_error.set(Some(message));
+                    has_errors = true;
+                }
             }
         }
 
-        // Validate rounding step
+        // Validate sales fee percent using flexible parsing (accepts both comma and dot)
+        let sales_pct = sales_fee_percent.get();
+        if sales_pct.trim().is_empty() {
+            set_sales_fee_percent_error.set(Some(sales_fee_required_msg()));
+            has_errors = true;
+        } else {
+            match parse_decimal_input(&sales_pct) {
+                Ok(val) => {
+                    if val < Decimal::ZERO {
+                        set_sales_fee_percent_error.set(Some(cannot_be_negative_msg()));
+                        has_errors = true;
+                    } else if val > Decimal::from(100) {
+                        set_sales_fee_percent_error.set(Some(cannot_exceed_100_msg()));
+                        has_errors = true;
+                    }
+                }
+                Err(e) => {
+                    let message = if e == "Maximum 2 decimal places allowed" {
+                        max_two_decimals_msg()
+                    } else {
+                        invalid_number_format_msg()
+                    };
+                    set_sales_fee_percent_error.set(Some(message));
+                    has_errors = true;
+                }
+            }
+        }
+
+        // Validate rounding step using flexible parsing (accepts both comma and dot)
         let rounding = rounding_step.get();
         if rounding.trim().is_empty() {
-            set_rounding_step_error.set(Some("Rounding step is required".to_string()));
+            set_rounding_step_error.set(Some(rounding_step_required_msg()));
             has_errors = true;
-        } else if rounding.parse::<f64>().is_err() {
-            set_rounding_step_error.set(Some("Invalid number format".to_string()));
-            has_errors = true;
-        } else if rounding.parse::<f64>().unwrap() < 0.0 {
-            set_rounding_step_error.set(Some("Cannot be negative".to_string()));
-            has_errors = true;
+        } else {
+            match parse_decimal_input(&rounding) {
+                Ok(val) => {
+                    if val < Decimal::ZERO {
+                        set_rounding_step_error.set(Some(cannot_be_negative_msg()));
+                        has_errors = true;
+                    }
+                }
+                Err(e) => {
+                    let message = if e == "Maximum 2 decimal places allowed" {
+                        max_two_decimals_msg()
+                    } else {
+                        invalid_number_format_msg()
+                    };
+                    set_rounding_step_error.set(Some(message));
+                    has_errors = true;
+                }
+            }
         }
 
         if !has_errors {
@@ -263,8 +315,6 @@ pub fn BoothForm(
                         value=participation_fee
                         label=t!("booth.participation_fee")()
                         placeholder="0.00".to_string()
-                        min=0.0
-                        step=0.01
                         required=true
                         error=participation_fee_error
                     />
@@ -274,9 +324,6 @@ pub fn BoothForm(
                         value=sales_fee_percent
                         label=t!("booth.sales_fee_percent")()
                         placeholder="0.00".to_string()
-                        min=0.0
-                        max=100.0
-                        step=0.01
                         required=true
                         error=sales_fee_percent_error
                     />
@@ -286,8 +333,6 @@ pub fn BoothForm(
                         value=rounding_step
                         label=t!("booth.rounding_step")()
                         placeholder="0.50".to_string()
-                        min=0.0
-                        step=0.01
                         required=true
                         error=rounding_step_error
                     />

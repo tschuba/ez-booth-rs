@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::formatting::{format_currency, parse_decimal_input};
 use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::selected_booth_context;
 use crate::state::use_app_state;
@@ -10,7 +11,7 @@ use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::str::FromStr;
 use web_sys::window;
 
@@ -332,13 +333,9 @@ pub fn CheckoutPage() -> impl IntoView {
             .map(|p| p.total_amount())
             .sum::<Decimal>();
         let item_count = purchases_list.iter().map(|p| p.items.len()).sum::<usize>();
-        let vendor_count = purchases_list
-            .iter()
-            .map(|p| p.vendor_id.clone())
-            .collect::<HashSet<_>>()
-            .len();
+        let checkout_count = purchases_list.len();
 
-        (total, item_count, vendor_count)
+        (total, item_count, checkout_count)
     });
 
     // Form actions
@@ -375,9 +372,9 @@ pub fn CheckoutPage() -> impl IntoView {
             return;
         }
 
-        let normalized_amount = data.current_amount.replace(',', ".");
+        let normalized_amount = data.current_amount.trim().to_string();
 
-        match Decimal::from_str(&normalized_amount) {
+        match parse_decimal_input(&normalized_amount) {
             Ok(amount) => {
                 if amount <= Decimal::ZERO {
                     let message = t!("checkout.errors.amount_positive")();
@@ -757,7 +754,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             <div class="space-y-6 rounded-lg border bg-gray-50 p-4 shadow-sm">
                                                                 <div class="flex justify-between text-lg font-semibold">
                                                                     <span>{t!("checkout.total")}</span>
-                                                                    <span>{move || format!("{:.2}", form_data.get().total())}</span>
+                                                                    <span>{move || {
+                                                                        let locale = use_locale().get();
+                                                                        format_currency(form_data.get().total(), locale)
+                                                                    }}</span>
                                                                 </div>
 
                                                                 <div class="flex flex-col gap-2 sm:flex-row">
@@ -869,7 +869,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             </p>
                                                         </div>
                                                         <div class="flex items-center gap-2">
-                                                            <span class="text-lg font-bold">{format!("{:.2}", amount)}</span>
+                                                            <span class="text-lg font-bold">{
+                                                                let locale = use_locale().get();
+                                                                format_currency(amount, locale)
+                                                            }</span>
                                                             <Button
                                                                 variant=ButtonVariant::Ghost
                                                                 on_click=Box::new(move || delete_purchase(purchase_id))
@@ -894,14 +897,17 @@ pub fn CheckoutPage() -> impl IntoView {
                             <div class="space-y-4">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">{t!("checkout.running_totals.sales")}</span>
-                                    <span class="text-lg font-semibold">{move || format!("{:.2}", running_totals.get().0)}</span>
+                                    <span class="text-lg font-semibold">{move || {
+                                        let locale = use_locale().get();
+                                        format_currency(running_totals.get().0, locale)
+                                    }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">{t!("checkout.running_totals.items")}</span>
                                     <span class="text-lg font-semibold">{move || running_totals.get().1.to_string()}</span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600">{t!("checkout.running_totals.vendors")}</span>
+                                    <span class="text-gray-600">{t!("checkout.running_totals.checkouts")}</span>
                                     <span class="text-lg font-semibold">{move || running_totals.get().2.to_string()}</span>
                                 </div>
                             </div>
@@ -931,7 +937,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
                                                             </div>
                                                             <div class="text-right">
-                                                                <span class="block font-semibold">{format!("{:.2}", item.amount)}</span>
+                                                                <span class="block font-semibold">{
+                                                                    let locale = use_locale().get();
+                                                                    format_currency(item.amount, locale)
+                                                                }</span>
                                                                 <p class="text-xs text-gray-400" title={
                                                                     let locale = use_locale().get();
                                                                     format_item_tooltip(item.added_at, locale)

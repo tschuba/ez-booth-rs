@@ -1,4 +1,6 @@
 use crate::components::*;
+use crate::formatting::{format_currency, format_datetime};
+use crate::i18n::use_locale;
 use crate::state::*;
 use crate::t;
 use crate::selected_booth_context;
@@ -125,23 +127,24 @@ pub fn VendorListPage() -> impl IntoView {
                                                 on:click=move |_| handle_vendor_click(summary_clone.clone())
                                             >
                                                 <div class="flex justify-between items-start">
-                                                    <div>
-<h3 class="text-lg font-semibold text-gray-900 flex items-center">
-    <span>{t!("vendor.id_label")}</span>
-    <span class="ml-2">{vendor_id}</span>
-</h3>
-                                                        <p class="text-sm text-gray-600 mt-1">
-                                                            {t!("vendor.purchase_count")} {summary.purchase_count}
-                                                        </p>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                            <span>{t!("vendor.id_label")()}</span>
+                                            <span>{vendor_id}</span>
+                                        </h3>
+                                        <p class="text-sm text-gray-600 mt-1 flex items-center gap-1">
+                                            <span>{t!("vendor.purchase_count")()}</span>
+                                            <span>{summary.purchase_count}</span>
+                                        </p>
                                                     </div>
-                                                    <div class="text-right">
-                                                        <p class="text-2xl font-bold text-blue-600">
-                                                            {format!("{:.2}", summary.total_sales)}
-                                                        </p>
-                                                        <p class="text-xs text-gray-500">
-                                                            {t!("vendor.total_sales")}
-                                                        </p>
-                                                    </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-blue-600">
+                        {format_currency(summary.total_sales, use_locale().get())}
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        {t!("vendor.total_sales")}
+                    </p>
+                </div>
                                                 </div>
                                             </div>
                                         }
@@ -162,26 +165,28 @@ pub fn VendorListPage() -> impl IntoView {
                 {move || {
                     selected_vendor.get().map(|summary| {
                         let vendor_id = summary.vendor.vendor_id.as_str().to_string();
-                        let created_at = summary.vendor.created_at.format("%Y-%m-%d %H:%M").to_string();
+                        let created_at_local = summary.vendor.created_at.with_timezone(&chrono::Local);
+                        let locale_value = use_locale().get();
+                        let created_at_formatted = format_datetime(created_at_local, locale_value);
                         view! {
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-600">{t!("vendor.id_label")}</p>
+                                        <p class="text-sm text-gray-600">{t!("vendor.id_label")()}</p>
                                         <p class="text-lg font-semibold">{vendor_id}</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">{t!("vendor.purchase_count")}</p>
+                                        <p class="text-sm text-gray-600">{t!("vendor.purchase_count")()}</p>
                                         <p class="text-lg font-semibold">{summary.purchase_count}</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">{t!("vendor.total_sales")}</p>
-                                        <p class="text-lg font-semibold">{format!("{:.2}", summary.total_sales)}</p>
+                                        <p class="text-sm text-gray-600">{t!("vendor.total_sales")()}</p>
+                <p class="text-lg font-semibold">{format_currency(summary.total_sales, use_locale().get())}</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">{t!("vendor.created_at")}</p>
+                                        <p class="text-sm text-gray-600">{t!("vendor.created_at")()}</p>
                                         <p class="text-lg font-semibold">
-                                            {created_at}
+                                            {created_at_formatted}
                                         </p>
                                     </div>
                                 </div>

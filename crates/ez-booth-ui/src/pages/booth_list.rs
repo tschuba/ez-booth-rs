@@ -86,13 +86,14 @@ pub fn BoothListPage() -> impl IntoView {
 
     // Handle booth creation
     let handle_create_booth = move |data: BoothFormData| {
-        // Read app_state BEFORE spawn_local to avoid reactive tracking issues
+        // Read app_state and locale BEFORE spawn_local to avoid reactive tracking issues
         let state_result = app_state.get();
+        let locale = use_locale().get();
 
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 // Convert form data to domain model
-                match data.to_booth() {
+                match data.to_booth(locale) {
                     Ok(booth) => {
                         // Save to storage
                         match state.booth_repository.save(&booth).await {
@@ -144,12 +145,13 @@ pub fn BoothListPage() -> impl IntoView {
         // Read signals BEFORE spawn_local
         let state_result = app_state.get();
         let booth_to_edit = editing_booth.get();
+        let locale = use_locale().get();
 
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 if let Some(mut booth) = booth_to_edit {
                     // Update the booth with form data
-                    match data.update_booth(&mut booth) {
+                    match data.update_booth(&mut booth, locale) {
                         Ok(_) => {
                             // Save updated booth to storage
                             match state.booth_repository.save(&booth).await {
@@ -378,8 +380,10 @@ pub fn BoothListPage() -> impl IntoView {
                     // Recreate form whenever modal opens by wrapping in a closure
                     // This ensures fields are reset each time
                     if show_create_modal.get() {
+                        let current_locale = locale.get();
                         Some(view! {
                             <BoothForm
+                                initial_data=BoothFormData::default_with_locale(current_locale)
                                 on_submit=handle_create_booth
                                 on_cancel=move || {
                                     set_show_create_modal.set(false);
@@ -403,7 +407,8 @@ pub fn BoothListPage() -> impl IntoView {
                 size=ModalSize::Large
             >
                 {move || editing_booth.get().map(|booth| {
-                    let initial_data = BoothFormData::from_booth(&booth);
+                    let current_locale = locale.get();
+                    let initial_data = BoothFormData::from_booth(&booth, current_locale);
                     view! {
                         <BoothForm
                             initial_data=initial_data
