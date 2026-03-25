@@ -833,7 +833,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                     <Button
                                         variant=ButtonVariant::Danger
                                         on_click=Box::new(move || confirm_clear_form())
-                                        class="px-3 py-2".to_string()
+                                        class="px-3 py-2 !bg-red-100 hover:!bg-red-200 !text-red-700".to_string()
                                         aria_label={t!("checkout.confirm_cancel_confirm")()}
                                     >
                                         {/* Trash icon */}
