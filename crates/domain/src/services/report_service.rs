@@ -1,7 +1,5 @@
 use crate::error::{DomainError, DomainResult};
-use crate::models::{
-    BoothId, BoothSummary, Purchase, VendorBoothSummary, VendorId,
-};
+use crate::models::{BoothId, BoothSummary, Purchase, VendorBoothSummary, VendorId};
 use crate::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
 use crate::services::dto::{ChargingConfig, VendorReportData, VendorReportItem};
 use chrono::{DateTime, Utc};
@@ -15,9 +13,7 @@ pub struct ReportService<PR: PurchaseRepository, BR: BoothRepository, VR: Vendor
     vendor_repository: VR,
 }
 
-impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
-    ReportService<PR, BR, VR>
-{
+impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportService<PR, BR, VR> {
     pub fn new(purchase_repository: PR, booth_repository: BR, vendor_repository: VR) -> Self {
         Self {
             purchase_repository,
@@ -47,13 +43,16 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             purchases = Self::filter_by_date_range(purchases, range);
         }
 
-        // Group purchases by vendor
-        let mut vendor_purchases: HashMap<VendorId, Vec<&Purchase>> = HashMap::new();
+        // Group purchase items by vendor
+        let mut vendor_items: HashMap<VendorId, Vec<(&Purchase, &crate::models::PurchaseItem)>> =
+            HashMap::new();
         for purchase in &purchases {
-            vendor_purchases
-                .entry(purchase.vendor_id.clone())
-                .or_default()
-                .push(purchase);
+            for item in &purchase.items {
+                vendor_items
+                    .entry(item.vendor_id.clone())
+                    .or_default()
+                    .push((purchase, item));
+            }
         }
 
         // Calculate charging config
@@ -61,19 +60,13 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
 
         // Generate vendor summaries
         let mut vendor_summaries: Vec<VendorBoothSummary> = Vec::new();
-        for (vendor_id, vendor_purchases_list) in vendor_purchases.iter() {
-            let gross_sales: Decimal = vendor_purchases_list
-                .iter()
-                .map(|p| p.total_amount())
-                .sum();
+        for (vendor_id, vendor_item_list) in vendor_items.iter() {
+            let gross_sales: Decimal = vendor_item_list.iter().map(|(_, item)| item.amount).sum();
 
             let payout = charging_config.calculate_payout(gross_sales);
 
-            // Count total items across all purchases for this vendor
-            let item_count: usize = vendor_purchases_list
-                .iter()
-                .map(|p| p.items.len())
-                .sum();
+            // Count total items for this vendor
+            let item_count: usize = vendor_item_list.len();
 
             vendor_summaries.push(VendorBoothSummary {
                 vendor_id: vendor_id.clone(),
@@ -91,7 +84,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
         let total_revenue: Decimal = vendor_summaries.iter().map(|v| v.gross_sales).sum();
         let total_purchases = purchases.len();
         let total_items: usize = vendor_summaries.iter().map(|v| v.item_count).sum();
-        let unique_vendors = vendor_purchases.len();
+        let unique_vendors = vendor_items.len();
 
         // Calculate booth revenue metrics
         let total_participation_fees: Decimal = vendor_summaries
@@ -170,7 +163,10 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             .collect();
 
         // Calculate totals
-        let sales_sum: Decimal = items.iter().map(|report_item| report_item.item.amount).sum();
+        let sales_sum: Decimal = items
+            .iter()
+            .map(|report_item| report_item.item.amount)
+            .sum();
 
         // Calculate payout with rounding applied to net payout
         let charging_config = ChargingConfig::from_booth(&booth);
@@ -222,10 +218,10 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository>
             purchases = Self::filter_by_date_range(purchases, range);
         }
 
-        // Collect unique vendor IDs
+        // Collect unique vendor IDs from all items across all purchases
         let vendor_ids: HashSet<VendorId> = purchases
             .into_iter()
-            .map(|p| p.vendor_id)
+            .flat_map(|p| p.items.into_iter().map(|item| item.vendor_id))
             .collect();
 
         // Convert to sorted vector
@@ -339,7 +335,7 @@ mod tests {
                 .cloned()
                 .unwrap_or_default()
                 .into_iter()
-                .filter(|p| &p.vendor_id == vendor_id)
+                .filter(|p| p.items.iter().any(|item| &item.vendor_id == vendor_id))
                 .collect())
         }
 
@@ -486,13 +482,14 @@ mod tests {
         // Add some purchases
         let purchase1 = Purchase::new(
             booth.id.clone(),
-            vendor1.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(10.00)), PurchaseItem::new(dec!(5.00))],
+            vec![
+                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()),
+                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()),
+            ],
         );
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vendor2.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(20.00))],
+            vec![PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone())],
         );
 
         purchase_repo.add_purchase(purchase1);
@@ -517,7 +514,7 @@ mod tests {
             .unwrap();
         assert_eq!(v1_summary.gross_sales, dec!(15.00));
         assert_eq!(v1_summary.item_count, 2); // 2 items in the purchase
-        // Fees: 5.00 participation + 1.50 sales (10% of 15.00) = 6.50
+                                              // Fees: 5.00 participation + 1.50 sales (10% of 15.00) = 6.50
         assert_eq!(v1_summary.fees_due, dec!(6.50));
         assert_eq!(v1_summary.net_payout, dec!(8.50)); // 15.00 - 6.50
     }
@@ -537,13 +534,14 @@ mod tests {
         // Add purchases for vendor
         let purchase1 = Purchase::new(
             booth.id.clone(),
-            vendor.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(10.00)), PurchaseItem::new(dec!(5.00))],
+            vec![
+                PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()),
+                PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()),
+            ],
         );
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vendor.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(8.00))],
+            vec![PurchaseItem::new(dec!(8.00), vendor.vendor_id.clone())],
         );
 
         purchase_repo.add_purchase(purchase1);
@@ -578,13 +576,11 @@ mod tests {
         // Add purchases (vendor2 has no purchases)
         let purchase1 = Purchase::new(
             booth.id.clone(),
-            vendor1.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(10.00))],
+            vec![PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone())],
         );
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vendor3.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(20.00))],
+            vec![PurchaseItem::new(dec!(20.00), vendor3.vendor_id.clone())],
         );
 
         purchase_repo.add_purchase(purchase1);
@@ -618,22 +614,19 @@ mod tests {
 
         let mut purchase1 = Purchase::new(
             booth.id.clone(),
-            vendor.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(10.00))],
+            vec![PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone())],
         );
         purchase1.timestamp = two_hours_ago;
 
         let mut purchase2 = Purchase::new(
             booth.id.clone(),
-            vendor.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(20.00))],
+            vec![PurchaseItem::new(dec!(20.00), vendor.vendor_id.clone())],
         );
         purchase2.timestamp = one_hour_ago;
 
         let mut purchase3 = Purchase::new(
             booth.id.clone(),
-            vendor.vendor_id.clone(),
-            vec![PurchaseItem::new(dec!(30.00))],
+            vec![PurchaseItem::new(dec!(30.00), vendor.vendor_id.clone())],
         );
         purchase3.timestamp = now;
 

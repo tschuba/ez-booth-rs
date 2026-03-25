@@ -23,20 +23,24 @@ pub fn BoothSelector() -> impl IntoView {
     create_effect(move |_| {
         // Track booth_list_version to make this effect reactive to booth changes
         let _ = booth_list_version.get();
-        
+
         let state_result = app_state.get();
         if let Some(Ok(state)) = state_result {
             spawn_local(async move {
                 match state.booth_repository.find_all().await {
                     Ok(mut loaded_booths) => {
-                        web_sys::console::log_1(&format!("BoothSelector: Loaded {} booths", loaded_booths.len()).into());
+                        web_sys::console::log_1(
+                            &format!("BoothSelector: Loaded {} booths", loaded_booths.len()).into(),
+                        );
                         sort_booths(&mut loaded_booths);
                         set_booths.set(loaded_booths);
                     }
                     Err(e) => {
                         let error_msg = t!("booth.errors.load_failed")();
                         toast.error(&error_msg);
-                        web_sys::console::error_1(&format!("Failed to load booths: {:?}", e).into());
+                        web_sys::console::error_1(
+                            &format!("Failed to load booths: {:?}", e).into(),
+                        );
                     }
                 }
             });
@@ -45,7 +49,7 @@ pub fn BoothSelector() -> impl IntoView {
 
     // Close dropdown when clicking outside
     let dropdown_ref = create_node_ref::<html::Div>();
-    
+
     // Handle Escape key to close dropdown
     create_effect(move |_| {
         if is_open.get() {
@@ -71,24 +75,33 @@ pub fn BoothSelector() -> impl IntoView {
             closure.forget();
         }
     });
-    
+
     // Format date based on locale
     // German: "24. Mär" or "24. März"
     // English: "Mar 24" or "March 24"
     let format_date = move |date: chrono::NaiveDate| -> String {
         match locale.get() {
-            Locale::De => {
+            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
                 // German format: DD. MMM (e.g., "24. Mär")
                 let day = date.day();
                 let month = match date.month() {
-                    1 => "Jan", 2 => "Feb", 3 => "Mär", 4 => "Apr",
-                    5 => "Mai", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-                    9 => "Sep", 10 => "Okt", 11 => "Nov", 12 => "Dez",
+                    1 => "Jan",
+                    2 => "Feb",
+                    3 => "Mär",
+                    4 => "Apr",
+                    5 => "Mai",
+                    6 => "Jun",
+                    7 => "Jul",
+                    8 => "Aug",
+                    9 => "Sep",
+                    10 => "Okt",
+                    11 => "Nov",
+                    12 => "Dez",
                     _ => "?",
                 };
                 format!("{}. {}", day, month)
             }
-            Locale::En => {
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
                 // English format: MMM DD (e.g., "Mar 24")
                 date.format("%b %d").to_string()
             }
@@ -104,7 +117,7 @@ pub fn BoothSelector() -> impl IntoView {
     };
 
     view! {
-        <div 
+        <div
             class="relative ml-6"
             node_ref=dropdown_ref
         >
@@ -151,13 +164,13 @@ pub fn BoothSelector() -> impl IntoView {
                     }
                 }}
                 // Dropdown chevron icon
-                <svg 
+                <svg
                     class={move || format!(
                         "w-4 h-4 transition-transform duration-200 {}",
                         if is_open.get() { "rotate-180" } else { "" }
                     )}
-                    fill="none" 
-                    stroke="currentColor" 
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                 >
@@ -169,11 +182,11 @@ pub fn BoothSelector() -> impl IntoView {
             <Show when=move || is_open.get()>
                 <>
                     // Invisible backdrop to capture outside clicks
-                    <div 
+                    <div
                         class="fixed inset-0 z-40"
                         on:click=move |_| set_is_open.set(false)
                     ></div>
-                    
+
                     // Dropdown menu
                     <div class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 max-h-96 overflow-y-auto">
                     {move || {
@@ -198,7 +211,7 @@ pub fn BoothSelector() -> impl IntoView {
                                     BoothStatus::Open => t!("booth.status_open")(),
                                     BoothStatus::Closed { .. } => t!("booth.status_closed")(),
                                 };
-                                
+
                                 view! {
                                     <button
                                         class={move || {

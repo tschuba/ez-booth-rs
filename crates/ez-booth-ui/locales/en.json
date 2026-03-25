@@ -19,6 +19,7 @@
   "app": {
     "copyright": "Copyright © 2026 EZ Booth",
     "title": "EZ Booth",
+    "page_title": "EZ Booth - Checkout Made Easy",
     "welcome": "Welcome to EZ Booth"
   },
   "booth": {
@@ -50,8 +51,8 @@
     "status_closed": "Closed",
     "no_booths_message": "No events yet",
     "loading_message": "Loading events...",
-    "participation_fee": "Participation Fee",
-    "sales_fee_percent": "Sales Commission (%)",
+    "participation_fee": "Participation Fee ({currency})",
+    "sales_fee_percent": "Revenue Share (%)",
     "rounding_step": "Rounding Step",
     "description_placeholder": "e.g., Spring Market 2026",
     "fee_configuration_title": "Fee Configuration",
@@ -76,8 +77,8 @@
       "description_required": "Description is required",
       "description_length": "Description must be 200 characters or less",
       "date_required": "Date is required",
-      "participation_fee_required": "Participation fee is required",
-      "sales_fee_required": "Sales fee percent is required",
+      "participation_fee_required": "Participation fee ({currency}) is required",
+      "sales_fee_required": "Revenue share is required",
       "rounding_step_required": "Rounding step is required",
       "cannot_be_negative": "Cannot be negative",
       "cannot_exceed_100": "Cannot exceed 100%",
@@ -111,7 +112,13 @@
     "add_item": "Add Item",
     "current_items": "Current Items",
     "no_items": "No items added yet",
-    "success": "Sale recorded successfully",
+    "item_label": "Item",
+    "vendor_label": "Vendor",
+    "remove_item_confirm": "Delete permanently?",
+    "items_list_hint": "Click an item to delete it",
+    "recent_transactions_hint": "Click the delete icon to delete a checkout",
+    "remove_transaction_confirm": "Delete permanently?",
+    "success": "Checkout completed",
     "confirm_cancel": "Cancel checkout? All current items will be cleared.",
     "confirm_cancel_title": "Cancel Checkout",
     "confirm_cancel_confirm": "Clear Items",
@@ -161,7 +168,14 @@
     "running_totals": {
       "sales": "Total Sales",
       "items": "Items Processed",
-      "checkouts": "Checkouts Recorded"
+      "checkouts": "Checkouts Recorded",
+      "vendors": "Vendors Served"
+    },
+    "transactions_hint": "Click a transaction to view item details",
+    "transaction_detail": {
+      "vendor_label": "Vendor:",
+      "item_number": "Item {number}",
+      "total_label": "Total:"
     }
   },
   "report": {
@@ -193,7 +207,7 @@
     "no_data": "No data available for the selected criteria",
     "gross_sales": "Revenue",
     "participation_fee": "Participation Fee",
-    "sales_fee": "Sales Fee",
+    "sales_fee": "Revenue Share",
     "fees_due": "Total Fees",
     "net_payout": "Payout",
     "vendor_count": "Vendors",
@@ -233,7 +247,7 @@
     "transaction_id": "Checkout",
     "subtotal": "Subtotal",
     "total_participation_fees": "Total Participation Fees",
-    "total_sales_fees": "Total Sales Fees",
+    "total_sales_fees": "Total Revenue Share",
     "total_booth_revenue": "Total Revenue",
     "booth_revenue": "Revenue",
     "errors": {
@@ -288,7 +302,8 @@
     "example_modal_hint": "You can put any hint here.",
     "close_modal": "Close Modal",
     "action_confirmed": "Action Confirmed!",
-    "confirm_action": "Confirm Action"
+    "confirm_action": "Confirm Action",
+    "error_loading_booths": "Unable to load events. Please try navigating manually."
   },
   "components": {
     "toast": {

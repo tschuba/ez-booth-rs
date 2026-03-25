@@ -19,6 +19,7 @@
   "app": {
     "copyright": "Copyright © 2026 EZ Booth",
     "title": "EZ Booth",
+    "page_title": "EZ Booth - Kassieren leicht gemacht",
     "welcome": "Willkommen bei EZ Booth"
   },
   "booth": {
@@ -50,8 +51,8 @@
     "status_closed": "Geschlossen",
     "no_booths_message": "Noch keine Veranstaltungen",
     "loading_message": "Lade Veranstaltungen...",
-    "participation_fee": "Teilnahmegebühr",
-    "sales_fee_percent": "Verkaufsprovision (%)",
+    "participation_fee": "Teilnahmegebühr ({currency})",
+    "sales_fee_percent": "Umsatzbeteiligung (%)",
     "rounding_step": "Rundungsschritt",
     "description_placeholder": "z.B. Frühlingsmarkt 2026",
     "fee_configuration_title": "Gebührenkonfiguration",
@@ -76,8 +77,8 @@
       "description_required": "Beschreibung ist erforderlich",
       "description_length": "Beschreibung darf maximal 200 Zeichen lang sein",
       "date_required": "Datum ist erforderlich",
-      "participation_fee_required": "Teilnahmegebühr ist erforderlich",
-      "sales_fee_required": "Verkaufsprovision ist erforderlich",
+      "participation_fee_required": "Teilnahmegebühr ({currency}) ist erforderlich",
+      "sales_fee_required": "Umsatzbeteiligung ist erforderlich",
       "rounding_step_required": "Rundungsschritt ist erforderlich",
       "cannot_be_negative": "Darf nicht negativ sein",
       "cannot_exceed_100": "Darf 100% nicht überschreiten",
@@ -111,7 +112,13 @@
     "add_item": "Artikel hinzufügen",
     "current_items": "Aktuelle Positionen",
     "no_items": "Noch keine Artikel hinzugefügt",
-    "success": "Verkauf erfolgreich erfasst",
+    "item_label": "Position",
+    "vendor_label": "Verkäufer",
+    "remove_item_confirm": "Unwiderruflich löschen?",
+    "items_list_hint": "Klicken Sie auf einen Artikel, um ihn zu löschen",
+    "recent_transactions_hint": "Klicken Sie auf das Löschen-Symbol, um einen Kassiervorgang zu löschen",
+    "remove_transaction_confirm": "Unwiderruflich löschen?",
+    "success": "Kassiervorgang abgeschlossen",
     "confirm_cancel": "Kassiervorgang abbrechen? Alle aktuellen Artikel werden gelöscht.",
     "confirm_cancel_title": "Kassiervorgang abbrechen",
     "confirm_cancel_confirm": "Artikel löschen",
@@ -136,7 +143,7 @@
     },
     "info": {
       "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt",
-      "vendor_auto_created": "Neuer Verkäufer '{vendor_id}' automatisch erstellt"
+      "vendor_auto_created": "Neuer Verkäufer '{vendor_id}' wurde automatisch erstellt"
     },
     "recent": {
       "items_label": "{count} Position(en)",
@@ -161,7 +168,14 @@
     "running_totals": {
       "sales": "Gesamtumsatz",
       "items": "Artikel verarbeitet",
-      "checkouts": "Kassiervorgänge"
+      "checkouts": "Kassiervorgänge",
+      "vendors": "Verkäufer bedient"
+    },
+    "transactions_hint": "Klicken Sie auf einen Kassiervorgang, um die Artikeldetails anzuzeigen",
+    "transaction_detail": {
+      "vendor_label": "Verkäufer:",
+      "item_number": "Position {number}",
+      "total_label": "Gesamt:"
     }
   },
   "report": {
@@ -193,7 +207,7 @@
     "no_data": "Keine Daten für die ausgewählten Kriterien verfügbar",
     "gross_sales": "Umsatz",
     "participation_fee": "Teilnahmegebühr",
-    "sales_fee": "Verkaufsgebühr",
+    "sales_fee": "Umsatzbeteiligung",
     "fees_due": "Gebühren gesamt",
     "net_payout": "Auszahlung",
     "vendor_count": "Verkäufer",
@@ -233,7 +247,7 @@
     "transaction_id": "Kassiervorgang",
     "subtotal": "Zwischensumme",
     "total_participation_fees": "Teilnahmegebühren gesamt",
-    "total_sales_fees": "Verkaufsgebühren gesamt",
+    "total_sales_fees": "Umsatzbeteiligungen gesamt",
     "total_booth_revenue": "Einnahmen gesamt",
     "booth_revenue": "Einnahmen",
     "errors": {
@@ -265,30 +279,7 @@
     "storage": "Speicherfehler"
   },
   "home": {
-    "are_you_sure": "Sind Sie sicher?",
-    "manage_booths": "Veranstaltungen und Verkäufer verwalten",
-    "process_sales": "Veranstaltungsverkäufe abwickeln",
-    "component_demo": "Komponenten-Demo",
-    "toast_notifications": "Toast-Benachrichtigungen",
-    "toast_success_msg": "Dies ist eine Erfolgsnachricht!",
-    "toast_error_short_full": "Ein Fehler ist aufgetreten (kurz)",
-    "toast_error_long_full": "Ein Fehler ist aufgetreten: Die Gründe sind ausführlicher und können sehr lang sein, eventuell sogar mehrzeilig – das sollte auch passen.",
-    "toast_warning_msg": "Warnung: Seien Sie vorsichtig!",
-    "toast_info_msg": "Dies ist eine Info-Nachricht.",
-    "show_success": "Erfolg anzeigen",
-    "show_error_short": "Fehler anzeigen (Kurz)",
-    "show_error_long": "Fehler anzeigen (Lang)",
-    "show_warning": "Warnung anzeigen",
-    "show_info": "Info anzeigen",
-    "modals": "Modale Dialoge",
-    "open_modal": "Modal öffnen",
-    "open_confirm": "Bestätigungsdialog öffnen",
-    "example_modal_title": "Beispiel-Modal-Titel",
-    "example_modal_content": "Dies ist der Inhalt eines modalen Dialogs (Beispiel).",
-    "example_modal_hint": "Hinweis frei eintragbar.",
-    "close_modal": "Modal schließen",
-    "action_confirmed": "Aktion bestätigt!",
-    "confirm_action": "Aktion bestätigen"
+    "error_loading_booths": "Veranstaltungen können nicht geladen werden. Bitte manuell navigieren."
   },
   "components": {
     "toast": {

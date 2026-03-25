@@ -1,5 +1,5 @@
 use crate::components::*;
-use crate::formatting::{format_decimal_for_input, parse_decimal_input};
+use crate::formatting::{currency_symbol_for_label, format_decimal_for_input, parse_decimal_input};
 use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
@@ -156,7 +156,11 @@ pub fn BoothForm(
     let description_required_msg = t!("booth.form_errors.description_required");
     let description_length_msg = t!("booth.form_errors.description_length");
     let date_required_msg = t!("booth.form_errors.date_required");
-    let participation_fee_required_msg = t!("booth.form_errors.participation_fee_required");
+    let participation_fee_required_msg = move || {
+        let locale_val = locale.get();
+        let currency = currency_symbol_for_label(locale_val);
+        t!("booth.form_errors.participation_fee_required")().replace("{currency}", currency)
+    };
     let sales_fee_required_msg = t!("booth.form_errors.sales_fee_required");
     let rounding_step_required_msg = t!("booth.form_errors.rounding_step_required");
     let cannot_be_negative_msg = t!("booth.form_errors.cannot_be_negative");
@@ -216,7 +220,7 @@ pub fn BoothForm(
             }
         }
 
-        // Validate sales fee percent using flexible parsing (accepts both comma and dot)
+        // Validate revenue share percent using flexible parsing (accepts both comma and dot)
         let sales_pct = sales_fee_percent.get();
         if sales_pct.trim().is_empty() {
             set_sales_fee_percent_error.set(Some(sales_fee_required_msg()));
@@ -313,7 +317,11 @@ pub fn BoothForm(
                     // Participation Fee
                     <NumberInput
                         value=participation_fee
-                        label=t!("booth.participation_fee")()
+                        label={
+                            let locale_val = locale.get();
+                            let currency = currency_symbol_for_label(locale_val);
+                            t!("booth.participation_fee")().replace("{currency}", currency)
+                        }
                         placeholder="0.00".to_string()
                         required=true
                         error=participation_fee_error

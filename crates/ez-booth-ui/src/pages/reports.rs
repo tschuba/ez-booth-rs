@@ -1,10 +1,10 @@
-use crate::components::{Card, Container, use_toast};
+use crate::components::{use_toast, Card, Container};
 use crate::formatting::format_currency;
 use crate::i18n::use_locale;
+use crate::selected_booth_context;
 use crate::state::use_app_state;
 use crate::t;
-use crate::selected_booth_context;
-use domain::models::{BoothSummary, VendorId, PurchaseId};
+use domain::models::{BoothSummary, PurchaseId, VendorId};
 use domain::services::VendorReportData;
 use leptos::*;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ pub fn ReportsPage() -> impl IntoView {
     let (selected_vendors, set_selected_vendors) = create_signal(Vec::<VendorId>::new());
     let (active_vendors, set_active_vendors) = create_signal(Vec::<VendorId>::new());
     let (show_custom_selection, set_show_custom_selection) = create_signal(false);
-    
+
     // Report data state
     let (booth_summary, set_booth_summary) = create_signal(Option::<BoothSummary>::None);
     let (vendor_reports, set_vendor_reports) = create_signal(Vec::<VendorReportData>::new());
@@ -40,12 +40,18 @@ pub fn ReportsPage() -> impl IntoView {
         if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             let booth_id = booth.id.clone();
             spawn_local(async move {
-                match state.report_service.get_active_vendors(&booth_id, None).await {
+                match state
+                    .report_service
+                    .get_active_vendors(&booth_id, None)
+                    .await
+                {
                     Ok(vendors) => {
                         set_active_vendors.set(vendors);
                     }
                     Err(e) => {
-                        web_sys::console::log_1(&format!("Failed to load active vendors: {:?}", e).into());
+                        web_sys::console::log_1(
+                            &format!("Failed to load active vendors: {:?}", e).into(),
+                        );
                     }
                 }
             });
@@ -59,21 +65,29 @@ pub fn ReportsPage() -> impl IntoView {
         let state_result = app_state.get();
         let booth = selected_booth.get();
         let current_tab = active_tab.get();
-        
+
         if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             let booth_id = booth.id.clone();
             set_is_loading.set(true);
-            
+
             spawn_local(async move {
                 match current_tab {
                     ReportTab::BoothSummary => {
-                        match state.report_service.generate_booth_summary(&booth_id, None).await {
+                        match state
+                            .report_service
+                            .generate_booth_summary(&booth_id, None)
+                            .await
+                        {
                             Ok(summary) => {
                                 set_booth_summary.set(Some(summary));
                                 set_vendor_reports.set(Vec::new());
                             }
                             Err(e) => {
-                                toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
+                                toast.error(&format!(
+                                    "{}: {:?}",
+                                    t!("report.errors.generate_failed")(),
+                                    e
+                                ));
                             }
                         }
                     }
@@ -102,12 +116,20 @@ pub fn ReportsPage() -> impl IntoView {
                     toast.error(&t!("report.errors.no_vendors_found")());
                     set_is_loading.set(false);
                 } else {
-                    match state.report_service.generate_vendor_reports(&booth_id, vendor_ids, None).await {
+                    match state
+                        .report_service
+                        .generate_vendor_reports(&booth_id, vendor_ids, None)
+                        .await
+                    {
                         Ok(reports) => {
                             set_vendor_reports.set(reports);
                         }
                         Err(e) => {
-                            toast.error(&format!("{}: {:?}", t!("report.errors.generate_failed")(), e));
+                            toast.error(&format!(
+                                "{}: {:?}",
+                                t!("report.errors.generate_failed")(),
+                                e
+                            ));
                         }
                     }
                     set_is_loading.set(false);
@@ -206,7 +228,7 @@ pub fn ReportsPage() -> impl IntoView {
                                                                     {t!("report.print_all_vendors")}
                                                                 </h3>
                                                                 <p class="text-sm text-gray-600 mt-1">
-                                                                    {move || format!("{} {} {}", 
+                                                                    {move || format!("{} {} {}",
                                                                         t!("report.print_reports_for")(),
                                                                         active_vendors.get().len(),
                                                                         t!("report.active_vendors")()
@@ -293,7 +315,7 @@ pub fn ReportsPage() -> impl IntoView {
                                                                     {move || if is_loading.get() {
                                                                         t!("report.loading")()
                                                                     } else {
-                                                                        format!("{} ({} {})", 
+                                                                        format!("{} ({} {})",
                                                                             t!("report.print_selected")(),
                                                                             selected_vendors.get().len(),
                                                                             t!("report.vendors")()
@@ -559,7 +581,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                         for item in items.iter() {
                                             grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
                                         }
-                                        
+
                                         let mut transactions: Vec<_> = grouped.into_iter().collect();
                                         transactions.sort_by(|a, b| {
                                             // Sort by the first item's position in the original list
@@ -567,7 +589,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                 .cmp(&items.iter().position(|i| i.transaction_id == b.0))
                                         });
                                         let has_multiple_transactions = transactions.len() > 1;
-                                        
+
                                         let mut item_counter = 0;
                                         transactions
                                             .into_iter()
@@ -576,7 +598,7 @@ fn VendorReportsDisplay(reports: Vec<VendorReportData>) -> impl IntoView {
                                                 let transaction_total: rust_decimal::Decimal = transaction_items.iter()
                                                     .map(|item| item.item.amount)
                                                     .sum();
-                                                
+
                                                 if is_multi_item {
                                                     // Multi-item transaction: show grouped with subtotal
                                                     let txn_label = t!("report.transaction_id");
@@ -773,20 +795,20 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                     let items = report.items;
                     let booth_description = report.booth.description.clone();
                     let booth_date = report.booth.date;
-                    
+
                     // Group items by transaction_id
                     let mut grouped: HashMap<PurchaseId, Vec<_>> = HashMap::new();
                     for item in items.iter() {
                         grouped.entry(item.transaction_id.clone()).or_default().push(item.clone());
                     }
-                    
+
                     let mut transactions: Vec<_> = grouped.into_iter().collect();
                     transactions.sort_by(|a, b| {
                         items.iter().position(|i| i.transaction_id == a.0)
                             .cmp(&items.iter().position(|i| i.transaction_id == b.0))
                     });
                     let has_multiple_transactions = transactions.len() > 1;
-                    
+
                     view! {
                         <div class="print-vendor-report">
                             // Vendor header - compact for efficiency
@@ -801,7 +823,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     <p class="text-sm text-gray-600">{booth_date.format("%d.%m.%Y").to_string()}</p>
                                 </div>
                             </div>
-                            
+
                             // Financial summary - reduced spacing
                             <div class="mb-3">
                                 <h2 class="text-lg font-bold mb-2">{t!("report.financial_summary")}</h2>
@@ -824,7 +846,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             // Sales details - compact grid layout
                             <div class="print-sales-section">
                                 <h2 class="text-lg font-bold mb-0">{t!("report.sales_details")}" ("{items.len()}" "{t!("report.items")}")"</h2>
@@ -836,7 +858,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                             let transaction_total: rust_decimal::Decimal = transaction_items.iter()
                                                 .map(|item| item.item.amount)
                                                 .sum();
-                                            
+
                                             view! {
                                                 <div class="print-transaction-group">
                                                     {if is_multi_item {

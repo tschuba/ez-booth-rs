@@ -3,25 +3,61 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
-/// Supported locales
+/// Supported locales with regional variants
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
-    De,
-    En,
+    De,   // German (fallback) - EUR
+    DeDE, // Germany - EUR
+    DeAT, // Austria - EUR
+    DeCH, // Switzerland - CHF
+    En,   // English (fallback) - EUR (default)
+    EnUS, // United States - USD
+    EnGB, // United Kingdom - GBP
+    EnEU, // English speakers in Europe - EUR
 }
 
 impl Locale {
+    /// Get language code for translation file loading (backward compatible)
     pub fn as_str(&self) -> &'static str {
         match self {
-            Locale::De => "de",
-            Locale::En => "en",
+            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "de",
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "en",
         }
     }
 
+    /// Parse locale string with regional variant support
     pub fn from_str(s: &str) -> Self {
         match s {
-            "en" | "en-US" | "en-GB" => Locale::En,
-            _ => Locale::De, // German is default
+            // English variants
+            "en-US" => Locale::EnUS,
+            "en-GB" => Locale::EnGB,
+            "en-IE" | "en-MT" | "en-EU" => Locale::EnEU,
+
+            // German variants
+            "de-DE" => Locale::DeDE,
+            "de-AT" => Locale::DeAT,
+            "de-CH" | "de-LI" => Locale::DeCH,
+
+            // Fallbacks (for generic "en" or "de")
+            s if s.starts_with("en") => Locale::En,
+            s if s.starts_with("de") => Locale::De,
+
+            // Global fallback
+            _ => Locale::De,
+        }
+    }
+
+    /// Get full locale code for persistence (e.g., "de-DE", "en-US")
+    pub fn full_code(&self) -> &'static str {
+        match self {
+            Locale::De => "de",
+            Locale::DeDE => "de-DE",
+            Locale::DeAT => "de-AT",
+            Locale::DeCH => "de-CH",
+            Locale::En => "en",
+            Locale::EnUS => "en-US",
+            Locale::EnGB => "en-GB",
+            Locale::EnEU => "en-EU",
         }
     }
 }
@@ -113,9 +149,10 @@ pub fn detect_locale() -> Locale {
 
 /// Load translations for a given locale
 pub fn load_translations(locale: Locale) -> Translations {
-    let json_str = match locale {
-        Locale::De => include_str!("../locales/de.json"),
-        Locale::En => include_str!("../locales/en.json"),
+    let json_str = match locale.as_str() {
+        "de" => include_str!("../locales/de.json"),
+        "en" => include_str!("../locales/en.json"),
+        _ => include_str!("../locales/de.json"), // Fallback
     };
 
     serde_json::from_str(json_str).expect("Failed to parse translations")
@@ -132,10 +169,37 @@ pub fn translate_with_params(key: &str, params: HashMap<&str, String>) -> String
     translations.with(|t| t.format(key, &params))
 }
 
-/// Initialize i18n context
+const LOCALE_STORAGE_KEY: &str = "ez_booth_locale";
+
+/// Save locale to localStorage
+pub fn persist_locale(locale: Locale) {
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(storage)) = window.local_storage() {
+            let _ = storage.set_item(LOCALE_STORAGE_KEY, locale.full_code());
+        }
+    }
+}
+
+/// Load locale from localStorage
+pub fn load_persisted_locale() -> Option<Locale> {
+    let window = web_sys::window()?;
+    let storage = window.local_storage().ok()??;
+    let locale_str = storage.get_item(LOCALE_STORAGE_KEY).ok()??;
+    Some(Locale::from_str(&locale_str))
+}
+
+/// Initialize i18n context with locale persistence
 pub fn provide_i18n() {
-    let locale = create_rw_signal(detect_locale());
+    // Try persisted locale first, fall back to browser detection
+    let initial_locale = load_persisted_locale().unwrap_or_else(|| detect_locale());
+
+    let locale = create_rw_signal(initial_locale);
     let translations = create_memo(move |_| load_translations(locale.get()));
+
+    // Persist locale whenever it changes
+    create_effect(move |_| {
+        persist_locale(locale.get());
+    });
 
     provide_context(locale);
     provide_context(translations);
@@ -167,11 +231,50 @@ mod tests {
 
     #[test]
     fn test_locale_from_str() {
-        assert_eq!(Locale::from_str("de"), Locale::De);
-        assert_eq!(Locale::from_str("de-DE"), Locale::De);
+        // English variants
+        assert_eq!(Locale::from_str("en-US"), Locale::EnUS);
+        assert_eq!(Locale::from_str("en-GB"), Locale::EnGB);
+        assert_eq!(Locale::from_str("en-EU"), Locale::EnEU);
+        assert_eq!(Locale::from_str("en-IE"), Locale::EnEU);
         assert_eq!(Locale::from_str("en"), Locale::En);
-        assert_eq!(Locale::from_str("en-US"), Locale::En);
-        assert_eq!(Locale::from_str("fr"), Locale::De); // Default
+
+        // German variants
+        assert_eq!(Locale::from_str("de-DE"), Locale::DeDE);
+        assert_eq!(Locale::from_str("de-AT"), Locale::DeAT);
+        assert_eq!(Locale::from_str("de-CH"), Locale::DeCH);
+        assert_eq!(Locale::from_str("de-LI"), Locale::DeCH);
+        assert_eq!(Locale::from_str("de"), Locale::De);
+
+        // Fallback
+        assert_eq!(Locale::from_str("fr"), Locale::De);
+        assert_eq!(Locale::from_str("es"), Locale::De);
+    }
+
+    #[test]
+    fn test_locale_as_str() {
+        // All German variants return "de"
+        assert_eq!(Locale::De.as_str(), "de");
+        assert_eq!(Locale::DeDE.as_str(), "de");
+        assert_eq!(Locale::DeAT.as_str(), "de");
+        assert_eq!(Locale::DeCH.as_str(), "de");
+
+        // All English variants return "en"
+        assert_eq!(Locale::En.as_str(), "en");
+        assert_eq!(Locale::EnUS.as_str(), "en");
+        assert_eq!(Locale::EnGB.as_str(), "en");
+        assert_eq!(Locale::EnEU.as_str(), "en");
+    }
+
+    #[test]
+    fn test_locale_full_code() {
+        assert_eq!(Locale::De.full_code(), "de");
+        assert_eq!(Locale::DeDE.full_code(), "de-DE");
+        assert_eq!(Locale::DeAT.full_code(), "de-AT");
+        assert_eq!(Locale::DeCH.full_code(), "de-CH");
+        assert_eq!(Locale::En.full_code(), "en");
+        assert_eq!(Locale::EnUS.full_code(), "en-US");
+        assert_eq!(Locale::EnGB.full_code(), "en-GB");
+        assert_eq!(Locale::EnEU.full_code(), "en-EU");
     }
 
     #[test]

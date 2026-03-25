@@ -153,9 +153,9 @@ pub struct BoothSummary {
     pub vendor_summaries: Vec<VendorBoothSummary>,
     /// Total participation fees collected from all vendors
     pub total_participation_fees: Decimal,
-    /// Total sales fees collected from all vendors
+    /// Total revenue share collected from all vendors
     pub total_sales_fees: Decimal,
-    /// Total booth revenue (participation fees + sales fees)
+    /// Total booth revenue (participation fees + revenue share)
     pub total_booth_revenue: Decimal,
 }
 

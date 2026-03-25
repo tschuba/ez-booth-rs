@@ -27,10 +27,12 @@ impl<R: PurchaseRepository> TransactionService<R> {
             ));
         }
 
-        let purchase_items: Vec<PurchaseItem> =
-            item_amounts.into_iter().map(PurchaseItem::new).collect();
+        let purchase_items: Vec<PurchaseItem> = item_amounts
+            .into_iter()
+            .map(|amount| PurchaseItem::new(amount, vendor_id.clone()))
+            .collect();
 
-        let purchase = Purchase::new(booth_id, vendor_id, purchase_items);
+        let purchase = Purchase::new(booth_id, purchase_items);
 
         self.repository.save(&purchase).await?;
         Ok(purchase)
@@ -143,7 +145,10 @@ mod tests {
                 .lock()
                 .unwrap()
                 .values()
-                .filter(|p| &p.booth_id == booth_id && &p.vendor_id == vendor_id)
+                .filter(|p| {
+                    &p.booth_id == booth_id
+                        && p.items.iter().any(|item| &item.vendor_id == vendor_id)
+                })
                 .cloned()
                 .collect())
         }
@@ -181,10 +186,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(purchase.booth_id, booth_id);
-        assert_eq!(purchase.vendor_id, vendor_id);
         assert_eq!(purchase.items.len(), 2);
         assert_eq!(purchase.items[0].amount, dec!(10.50));
+        assert_eq!(purchase.items[0].vendor_id, vendor_id);
         assert_eq!(purchase.items[1].amount, dec!(25.00));
+        assert_eq!(purchase.items[1].vendor_id, vendor_id);
     }
 
     #[tokio::test]
