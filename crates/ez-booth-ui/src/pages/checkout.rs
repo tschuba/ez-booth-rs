@@ -772,10 +772,13 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 }
                                                             }
                                                         />
-                                                        <Button on_click=Box::new(move || {
-                                                            cancel_delete();
-                                                            add_item();
-                                                        })>
+                                                        <Button 
+                                                            variant=ButtonVariant::Ghost
+                                                            on_click=Box::new(move || {
+                                                                cancel_delete();
+                                                                add_item();
+                                                            })
+                                                        >
                                                             {t!("checkout.add_item")}
                                                         </Button>
                                                         <Show when=move || form_data.get().amount_error.is_some()>
@@ -785,10 +788,14 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 </div>
 
                                                 <div class="flex flex-col gap-2 sm:flex-row">
-                                                    <Button class="flex-[2]".to_string() on_click=Box::new(move || {
-                                                        cancel_delete();
-                                                        submit_purchase();
-                                                    })>
+                                                    <Button 
+                                                        variant=ButtonVariant::Success
+                                                        class="flex-[2] shadow-lg ring-2 ring-green-300/50".to_string() 
+                                                        on_click=Box::new(move || {
+                                                            cancel_delete();
+                                                            submit_purchase();
+                                                        })
+                                                    >
                                                         <span class="inline-flex items-center justify-center gap-4">
                                                             <svg
                                                                 class="w-8 h-8"
