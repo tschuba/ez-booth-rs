@@ -113,7 +113,7 @@
     "no_items": "Noch keine Artikel hinzugefügt",
     "remove_item_confirm": "Unwiderruflich löschen?",
     "items_list_hint": "Klicken Sie auf einen Artikel, um ihn zu löschen",
-    "success": "Verkauf erfolgreich erfasst",
+    "success": "Kassiervorgang abgeschlossen",
     "confirm_cancel": "Kassiervorgang abbrechen? Alle aktuellen Artikel werden gelöscht.",
     "confirm_cancel_title": "Kassiervorgang abbrechen",
     "confirm_cancel_confirm": "Artikel löschen",
