@@ -237,6 +237,9 @@ pub fn CheckoutPage() -> impl IntoView {
     let (delete_confirmation_input, set_delete_confirmation_input) = create_signal(String::new());
     let delete_confirmation_ref = create_node_ref::<html::Input>();
 
+    // Item deletion state - tracks which item (by index) is armed for deletion
+    let (item_to_delete, set_item_to_delete) = create_signal::<Option<usize>>(None);
+
     let deletion_token_matches = create_memo(move |_| {
         let required = pending_deletion.get().token.trim().to_uppercase();
 
@@ -420,6 +423,36 @@ pub fn CheckoutPage() -> impl IntoView {
                 focus_and_select_input(&amount_input_ref_for_add);
             }
         }
+    };
+
+    // Item deletion functions
+
+    // Remove an item from the checkout list by index
+    let remove_item = move |index: usize| {
+        set_form_data.update(|data| {
+            if index < data.items.len() {
+                data.items.remove(index);
+            }
+        });
+        set_item_to_delete.set(None);
+    };
+
+    // Handle clicking on an item or its overlay
+    // First click: arm the item for deletion (show red overlay)
+    // Second click (on overlay): delete the item
+    let handle_item_click = move |index: usize| {
+        if item_to_delete.get() == Some(index) {
+            // Clicking armed overlay - delete the item
+            remove_item(index);
+        } else {
+            // Clicking normal item - arm it for deletion
+            set_item_to_delete.set(Some(index));
+        }
+    };
+
+    // Cancel the armed deletion state
+    let cancel_delete = move || {
+        set_item_to_delete.set(None);
     };
 
     let confirm_clear_form = move || {
@@ -632,7 +665,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
     view! {
         <Container>
-            <div class="space-y-6">
+            <div class="space-y-6" on:click=move |_| cancel_delete()>
                 <div class="flex flex-col gap-6 lg:flex-row">
                     <div class="flex-1 space-y-6">
                         <Card title_view={t!("checkout.title").into_view()}>
@@ -662,6 +695,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         value=move || form_data.get().vendor_id
                                                                         node_ref=vendor_input_ref
                                                                         on:input=move |ev| {
+                                                                            cancel_delete();
                                                                             let value = event_target_value(&ev);
                                                                             set_form_data.update(|data| {
                                                                                 data.vendor_id = value;
@@ -726,6 +760,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                             value=move || form_data.get().current_amount
                                                                             node_ref=amount_input_ref
                                                                             on:input=move |ev| {
+                                                                                cancel_delete();
                                                                                 let value = event_target_value(&ev);
                                                                                 set_form_data.update(|data| {
                                                                                     data.current_amount = value;
@@ -739,7 +774,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                                 }
                                                                             }
                                                                         />
-                                                                        <Button on_click=Box::new(add_item)>
+                                                                        <Button on_click=Box::new(move || {
+                                                                            cancel_delete();
+                                                                            add_item();
+                                                                        })>
                                                                             {t!("checkout.add_item")}
                                                                         </Button>
                                                                         <Show when=move || form_data.get().amount_error.is_some()>
@@ -761,7 +799,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 </div>
 
                                                                 <div class="flex flex-col gap-2 sm:flex-row">
-                                                                    <Button class="flex-1".to_string() on_click=Box::new(submit_purchase)>
+                                                                    <Button class="flex-1".to_string() on_click=Box::new(move || {
+                                                                        cancel_delete();
+                                                                        submit_purchase();
+                                                                    })>
                                                                         <span class="inline-flex items-center justify-center gap-4">
                                                                             <svg
                                                                                 class="w-8 h-8"
@@ -781,7 +822,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     <Button
                                                                         class="flex-1".to_string()
                                                                         variant=ButtonVariant::Secondary
-                                                                        on_click=Box::new(move || confirm_clear_form())
+                                                                        on_click=Box::new(move || {
+                                                                            cancel_delete();
+                                                                            confirm_clear_form();
+                                                                        })
                                                                         aria_label=t!("checkout.confirm_cancel_confirm")()
                                                                     >
                                                                         <span
@@ -922,6 +966,11 @@ pub fn CheckoutPage() -> impl IntoView {
                                         let items = data.items;
                                         let total_items = items.len();
                                         view! {
+                                            {/* Explanatory hint text */}
+                                            <p class="text-xs text-gray-500 mb-3 px-1">
+                                                {t!("checkout.items_list_hint")}
+                                            </p>
+                                            
                                             <ul class="space-y-2">
                                                 {items.into_iter().enumerate().map(move |(index, item)| {
                                                     let display_number = total_items - index;
@@ -931,24 +980,73 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         item.vendor_id.clone()
                                                     };
                                                     view! {
-                                                        <li class="flex items-start justify-between text-sm p-2 border rounded-lg bg-gray-50">
-                                                            <div>
-                                                                <p class="font-medium">{format!("Item {}", display_number)}</p>
-                                                                <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
+                                                        <li 
+                                                            class="relative text-sm p-2 border rounded-lg bg-gray-50 
+                                                                   cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                                                            on:click=move |e| {
+                                                                e.stop_propagation();
+                                                                handle_item_click(index);
+                                                            }
+                                                        >
+                                                            {/* Item content - pointer-events-none to make entire item the click target */}
+                                                            <div class="flex items-start justify-between pointer-events-none">
+                                                                <div>
+                                                                    <p class="font-medium">{format!("Item {}", display_number)}</p>
+                                                                    <p class="text-xs text-gray-500">{format!("Vendor {}", vendor_label)}</p>
+                                                                </div>
+                                                                <div class="text-right">
+                                                                    <span class="block font-semibold">{
+                                                                        let locale = use_locale().get();
+                                                                        format_currency(item.amount, locale)
+                                                                    }</span>
+                                                                    <p class="text-xs text-gray-400" title={
+                                                                        let locale = use_locale().get();
+                                                                        format_item_tooltip(item.added_at, locale)
+                                                                    }>{
+                                                                        let locale = use_locale().get();
+                                                                        format!("{}", format_item_timestamp(item.added_at, locale))
+                                                                    }</p>
+                                                                </div>
                                                             </div>
-                                                            <div class="text-right">
-                                                                <span class="block font-semibold">{
-                                                                    let locale = use_locale().get();
-                                                                    format_currency(item.amount, locale)
-                                                                }</span>
-                                                                <p class="text-xs text-gray-400" title={
-                                                                    let locale = use_locale().get();
-                                                                    format_item_tooltip(item.added_at, locale)
-                                                                }>{
-                                                                    let locale = use_locale().get();
-                                                                    format!("{}", format_item_timestamp(item.added_at, locale))
-                                                                }</p>
-                                                            </div>
+                                                            
+                                                            {/* RED OVERLAY - shown when item is armed for deletion */}
+                                                            <Show when=move || item_to_delete.get() == Some(index)>
+                                                                <div
+                                                                    class="absolute inset-0 rounded-lg cursor-pointer z-10 transition-all pointer-events-auto"
+                                                                    style="background: rgba(220, 38, 38, 0.7); backdrop-filter: blur(2px);"
+                                                                    on:click=move |e| {
+                                                                        e.stop_propagation();
+                                                                        handle_item_click(index)
+                                                                    }
+                                                                    role="alertdialog"
+                                                                    aria-label={t!("checkout.remove_item_confirm")}
+                                                                >
+                                                                    <div class="flex items-center justify-center gap-3 h-full">
+                                                                        {/* Trash icon */}
+                                                                        <svg 
+                                                                            class="w-8 h-8 text-white flex-shrink-0" 
+                                                                            viewBox="0 0 24 24" 
+                                                                            fill="none" 
+                                                                            stroke="currentColor" 
+                                                                            stroke-width="2" 
+                                                                            stroke-linecap="round" 
+                                                                            stroke-linejoin="round"
+                                                                            aria-hidden="true"
+                                                                        >
+                                                                            <polyline points="3 6 5 6 21 6" />
+                                                                            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                                                            <path d="M10 11v6" />
+                                                                            <path d="M14 11v6" />
+                                                                            <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
+                                                                        </svg>
+                                                                        
+                                                                        {/* Confirmation text */}
+                                                                        <p class="text-white text-base font-semibold">
+                                                                            {t!("checkout.remove_item_confirm")}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </Show>
                                                         </li>
                                                     }
                                                 }).collect_view()}

@@ -111,6 +111,8 @@
     "add_item": "Add Item",
     "current_items": "Current Items",
     "no_items": "No items added yet",
+    "remove_item_confirm": "Delete permanently?",
+    "items_list_hint": "Click an item to delete it",
     "success": "Sale recorded successfully",
     "confirm_cancel": "Cancel checkout? All current items will be cleared.",
     "confirm_cancel_title": "Cancel Checkout",
