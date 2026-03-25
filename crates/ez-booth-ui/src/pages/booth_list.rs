@@ -1,3 +1,4 @@
+use crate::booth_ordering::sort_booths;
 use crate::components::*;
 use crate::i18n::{use_locale, Locale};
 use crate::selected_booth_context::use_selected_booth;
@@ -63,7 +64,9 @@ pub fn BoothListPage() -> impl IntoView {
                         web_sys::console::log_1(
                             &format!("Loaded {} booths", loaded_booths.len()).into(),
                         );
-                        set_booths.set(loaded_booths.clone());
+                        let mut sorted = loaded_booths.clone();
+                        sort_booths(&mut sorted);
+                        set_booths.set(sorted);
                         set_is_loading.set(false);
                         web_sys::console::log_1(&format!("Set booths signal, is_loading now false. Booths count in signal: {}", loaded_booths.len()).into());
                     }
@@ -117,7 +120,9 @@ pub fn BoothListPage() -> impl IntoView {
                                             )
                                             .into(),
                                         );
-                                        set_booths.set(loaded_booths);
+                                        let mut sorted = loaded_booths;
+                                        sort_booths(&mut sorted);
+                                        set_booths.set(sorted);
                                     }
                                     Err(e) => {
                                         web_sys::console::log_1(
@@ -176,7 +181,9 @@ pub fn BoothListPage() -> impl IntoView {
                                                 )
                                                 .into(),
                                             );
-                                            set_booths.set(loaded_booths);
+                                            let mut sorted = loaded_booths;
+                                            sort_booths(&mut sorted);
+                                            set_booths.set(sorted);
                                         }
                                         Err(e) => {
                                             web_sys::console::log_1(
@@ -240,7 +247,9 @@ pub fn BoothListPage() -> impl IntoView {
                                         )
                                         .into(),
                                     );
-                                    set_booths.set(loaded_booths);
+                                    let mut sorted = loaded_booths;
+                                    sort_booths(&mut sorted);
+                                    set_booths.set(sorted);
                                 }
                                 Err(e) => {
                                     web_sys::console::log_1(
