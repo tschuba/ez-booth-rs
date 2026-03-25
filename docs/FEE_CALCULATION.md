@@ -23,7 +23,7 @@ Es gibt zwei Arten von Gebühren:
 *There are two types of fees:*
 
 1. **Standgebühr / Participation Fee**: Ein fester Betrag, der einmalig erhoben wird / *A fixed amount charged once*
-2. **Verkaufsgebühr / Sales Fee**: Ein Prozentsatz der Bruttoverkäufe / *A percentage of gross sales*
+2. **Umsatzbeteiligung / Revenue Share**: Ein Prozentsatz der Bruttoverkäufe / *A percentage of gross sales*
 
 ---
 
@@ -47,10 +47,10 @@ Berechne die Netto-Auszahlung vor der Rundung:
 *Calculate the net payout before rounding:*
 
 ```
-Theoretische Verkaufsgebühr = Bruttoverkäufe × (Verkaufsgebühr% / 100)
+Theoretische Verkaufsgebühr = Bruttoverkäufe × (Umsatzbeteiligung% / 100)
 Theoretische Netto = Bruttoverkäufe - Standgebühr - Theoretische Verkaufsgebühr
 
-Theoretical Sales Fee = Gross Sales × (Sales Fee% / 100)
+Theoretical Sales Fee = Gross Sales × (Revenue Share% / 100)
 Theoretical Net = Gross Sales - Participation Fee - Theoretical Sales Fee
 ```
 
@@ -91,7 +91,7 @@ Total Fees = Gross Sales - Net Payout
 ### Konfiguration / Configuration
 
 - **Standgebühr / Participation Fee**: 10,00 €
-- **Verkaufsgebühr / Sales Fee**: 15%
+- **Umsatzbeteiligung / Revenue Share**: 15%
 - **Rundungsschritt / Rounding Step**: 0,50 €
 
 ### Berechnung / Calculation
@@ -139,7 +139,7 @@ Total Fees = 518.11 € - 430.50 € = 87.61 €
 
 **Konfiguration / Configuration:**
 - Standgebühr / Participation Fee: 5,00 €
-- Verkaufsgebühr / Sales Fee: 10%
+- Umsatzbeteiligung / Revenue Share: 10%
 - Rundungsschritt / Rounding Step: 1,00 €
 
 **Berechnung mit 100,50 € Bruttoverkäufe / Calculation with 100.50 € Gross Sales:**
@@ -153,7 +153,7 @@ Total Fees = 518.11 € - 430.50 € = 87.61 €
 
 **Konfiguration / Configuration:**
 - Standgebühr / Participation Fee: 2,00 €
-- Verkaufsgebühr / Sales Fee: 12%
+- Umsatzbeteiligung / Revenue Share: 12%
 - Rundungsschritt / Rounding Step: 0,25 €
 
 **Berechnung mit 50,00 € Bruttoverkäufe / Calculation with 50.00 € Gross Sales:**
@@ -167,7 +167,7 @@ Total Fees = 518.11 € - 430.50 € = 87.61 €
 
 **Konfiguration / Configuration:**
 - Standgebühr / Participation Fee: 3,00 €
-- Verkaufsgebühr / Sales Fee: 8%
+- Umsatzbeteiligung / Revenue Share: 8%
 - Rundungsschritt / Rounding Step: 0,00 €
 
 **Berechnung mit 47,33 € Bruttoverkäufe / Calculation with 47.33 € Gross Sales:**
@@ -210,7 +210,7 @@ Total Fees = 518.11 € - 430.50 € = 87.61 €
 
 - Rounding is **always applied to the net payout**, not to the fees
 - The participation fee is **never rounded** and always stays the configured amount
-- The sales fee is **automatically adjusted** to make the calculation work
+- The revenue share is **automatically adjusted** to make the calculation work
 - With a rounding step of 0.00 €, rounding is done to **2 decimal places** (cents)
 
 ---

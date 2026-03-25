@@ -286,7 +286,7 @@ mod tests {
 
         // Participation fee should always be the configured amount
         assert_eq!(fees.participation_fee, dec!(1.50));
-        // Sales fee: 15% of 100 = 15.00 (already a multiple of 0.50)
+        // Revenue share: 15% of 100 = 15.00 (already a multiple of 0.50)
         assert_eq!(fees.sales_fee, dec!(15.00));
     }
 
