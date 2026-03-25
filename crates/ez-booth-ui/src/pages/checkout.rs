@@ -239,6 +239,9 @@ pub fn CheckoutPage() -> impl IntoView {
 
     // Item deletion state - tracks which item (by index) is armed for deletion
     let (item_to_delete, set_item_to_delete) = create_signal::<Option<usize>>(None);
+    
+    // Purchase deletion state - tracks which purchase (by ID) is armed for deletion
+    let (purchase_to_delete, set_purchase_to_delete) = create_signal::<Option<PurchaseId>>(None);
 
     let deletion_token_matches = create_memo(move |_| {
         let required = pending_deletion.get().token.trim().to_uppercase();
@@ -453,6 +456,7 @@ pub fn CheckoutPage() -> impl IntoView {
     // Cancel the armed deletion state
     let cancel_delete = move || {
         set_item_to_delete.set(None);
+        set_purchase_to_delete.set(None);
     };
 
     let confirm_clear_form = move || {
@@ -617,6 +621,19 @@ pub fn CheckoutPage() -> impl IntoView {
                 let _ = input.select();
             }
         });
+    };
+    
+    // Handle clicking on a purchase or its overlay
+    // First click: arm the purchase for deletion (show red overlay)
+    // Second click (on overlay): trigger deletion modal with token confirmation
+    let handle_purchase_click = move |purchase_id: PurchaseId| {
+        if purchase_to_delete.get() == Some(purchase_id) {
+            // Clicking armed overlay - trigger deletion modal
+            delete_purchase(purchase_id);
+        } else {
+            // Clicking normal purchase - arm it for deletion
+            set_purchase_to_delete.set(Some(purchase_id));
+        }
     };
 
     let perform_delete_purchase = {
@@ -986,6 +1003,11 @@ pub fn CheckoutPage() -> impl IntoView {
                                     let list = filtered_purchases.get();
                                     view! {
                                         <div class="space-y-2">
+                                            {/* Explanatory hint text */}
+                                            <p class="text-xs text-gray-500 mb-3 px-1">
+                                                {t!("checkout.recent_transactions_hint")}
+                                            </p>
+                                            
                                             {list.into_iter().map(|purchase| {
                                                 let amount = purchase.total_amount();
                                                 let purchase_id = purchase.id;
@@ -1003,42 +1025,85 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     )
                                                 };
                                                 view! {
-                                                    <div class="flex items-center justify-between p-3 border rounded-lg">
-                                                        <div class="space-y-1">
-                                                            <p class="text-sm font-semibold">{items_label.clone()}</p>
-                                                             <p class="text-xs text-gray-500">
-                                                                {let locale = use_locale().get();
-                                                                translate_with_params(
-                                                                    "checkout.recent.timestamp",
-                                                                    HashMap::from([(
-                                                                        "datetime",
-                                                                        format_purchase_timestamp(purchase.timestamp, locale)
-                                                                    )])
-                                                                )
+                                                    <div 
+                                                        class="relative text-sm p-3 border rounded-lg bg-gray-50 
+                                                               cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                                                        on:click=move |e| {
+                                                            e.stop_propagation();
+                                                            handle_purchase_click(purchase_id);
+                                                        }
+                                                    >
+                                                        {/* Purchase content - pointer-events-none to make entire item the click target */}
+                                                        <div class="flex items-center justify-between pointer-events-none">
+                                                            <div class="space-y-1">
+                                                                <p class="text-sm font-semibold">{items_label.clone()}</p>
+                                                                 <p class="text-xs text-gray-500">
+                                                                    {let locale = use_locale().get();
+                                                                    translate_with_params(
+                                                                        "checkout.recent.timestamp",
+                                                                        HashMap::from([(
+                                                                            "datetime",
+                                                                            format_purchase_timestamp(purchase.timestamp, locale)
+                                                                        )])
+                                                                    )
+                                                                    }
+                                                                 </p>
+                                                                <p class="text-xs text-gray-500 font-mono break-all">
+                                                                    {translate_with_params(
+                                                                        "checkout.recent.purchase_id",
+                                                                        HashMap::from([(
+                                                                            "id",
+                                                                            purchase_id_label.clone()
+                                                                        )])
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <span class="text-lg font-bold">{
+                                                                    let locale = use_locale().get();
+                                                                    format_currency(amount, locale)
+                                                                }</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* RED OVERLAY - shown when purchase is armed for deletion */}
+                                                        <Show when=move || purchase_to_delete.get() == Some(purchase_id)>
+                                                            <div
+                                                                class="absolute inset-0 rounded-lg cursor-pointer z-10 transition-all pointer-events-auto"
+                                                                style="background: rgba(220, 38, 38, 0.7); backdrop-filter: blur(2px);"
+                                                                on:click=move |e| {
+                                                                    e.stop_propagation();
+                                                                    handle_purchase_click(purchase_id)
                                                                 }
-                                                             </p>
-                                                            <p class="text-xs text-gray-500 font-mono break-all">
-                                                                {translate_with_params(
-                                                                    "checkout.recent.purchase_id",
-                                                                    HashMap::from([(
-                                                                        "id",
-                                                                        purchase_id_label.clone()
-                                                                    )])
-                                                                )}
-                                                            </p>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <span class="text-lg font-bold">{
-                                                                let locale = use_locale().get();
-                                                                format_currency(amount, locale)
-                                                            }</span>
-                                                            <Button
-                                                                variant=ButtonVariant::Ghost
-                                                                on_click=Box::new(move || delete_purchase(purchase_id))
+                                                                role="alertdialog"
+                                                                aria-label={t!("checkout.remove_transaction_confirm")}
                                                             >
-                                                                {t!("common.delete")}
-                                                            </Button>
-                                                        </div>
+                                                                <div class="flex items-center justify-center gap-3 h-full">
+                                                                    {/* Trash icon */}
+                                                                    <svg 
+                                                                        class="w-8 h-8 text-white flex-shrink-0" 
+                                                                        viewBox="0 0 24 24" 
+                                                                        fill="none" 
+                                                                        stroke="currentColor" 
+                                                                        stroke-width="2" 
+                                                                        stroke-linecap="round" 
+                                                                        stroke-linejoin="round"
+                                                                        aria-hidden="true"
+                                                                    >
+                                                                        <polyline points="3 6 5 6 21 6" />
+                                                                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                                                        <path d="M10 11v6" />
+                                                                        <path d="M14 11v6" />
+                                                                        <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" />
+                                                                    </svg>
+                                                                    
+                                                                    {/* Confirmation text */}
+                                                                    <p class="text-white text-base font-semibold">
+                                                                        {t!("checkout.remove_transaction_confirm")}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </Show>
                                                     </div>
                                                 }
                                             }).collect_view()}
