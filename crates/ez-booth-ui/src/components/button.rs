@@ -7,6 +7,7 @@ pub enum ButtonVariant {
     Secondary,
     Danger,
     Ghost,
+    Success,
 }
 
 impl ButtonVariant {
@@ -16,6 +17,7 @@ impl ButtonVariant {
             ButtonVariant::Secondary => "bg-gray-200 hover:bg-gray-300 text-gray-900",
             ButtonVariant::Danger => "bg-red-600 hover:bg-red-700 text-white",
             ButtonVariant::Ghost => "bg-transparent hover:bg-gray-100 text-gray-700",
+            ButtonVariant::Success => "bg-teal-600 hover:bg-teal-700 text-white",
         }
     }
 }
@@ -73,7 +75,15 @@ pub fn Button(
     let disabled = disabled.unwrap_or(false);
     let full_width = full_width.unwrap_or(false);
 
-    let base_classes = "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed";
+    let focus_ring_color = match variant {
+        ButtonVariant::Success => "focus:ring-teal-500",
+        _ => "focus:ring-blue-500",
+    };
+
+    let base_classes = format!(
+        "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 {} disabled:opacity-50 disabled:cursor-not-allowed",
+        focus_ring_color
+    );
     let width_class = if full_width { "w-full" } else { "" };
     let additional_classes = class.unwrap_or_default();
 
