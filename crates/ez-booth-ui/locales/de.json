@@ -271,30 +271,7 @@
     "storage": "Speicherfehler"
   },
   "home": {
-    "are_you_sure": "Sind Sie sicher?",
-    "manage_booths": "Veranstaltungen und Verkäufer verwalten",
-    "process_sales": "Veranstaltungsverkäufe abwickeln",
-    "component_demo": "Komponenten-Demo",
-    "toast_notifications": "Toast-Benachrichtigungen",
-    "toast_success_msg": "Dies ist eine Erfolgsnachricht!",
-    "toast_error_short_full": "Ein Fehler ist aufgetreten (kurz)",
-    "toast_error_long_full": "Ein Fehler ist aufgetreten: Die Gründe sind ausführlicher und können sehr lang sein, eventuell sogar mehrzeilig – das sollte auch passen.",
-    "toast_warning_msg": "Warnung: Seien Sie vorsichtig!",
-    "toast_info_msg": "Dies ist eine Info-Nachricht.",
-    "show_success": "Erfolg anzeigen",
-    "show_error_short": "Fehler anzeigen (Kurz)",
-    "show_error_long": "Fehler anzeigen (Lang)",
-    "show_warning": "Warnung anzeigen",
-    "show_info": "Info anzeigen",
-    "modals": "Modale Dialoge",
-    "open_modal": "Modal öffnen",
-    "open_confirm": "Bestätigungsdialog öffnen",
-    "example_modal_title": "Beispiel-Modal-Titel",
-    "example_modal_content": "Dies ist der Inhalt eines modalen Dialogs (Beispiel).",
-    "example_modal_hint": "Hinweis frei eintragbar.",
-    "close_modal": "Modal schließen",
-    "action_confirmed": "Aktion bestätigt!",
-    "confirm_action": "Aktion bestätigen"
+    "error_loading_booths": "Veranstaltungen können nicht geladen werden. Bitte manuell navigieren."
   },
   "components": {
     "toast": {

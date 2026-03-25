@@ -271,30 +271,7 @@
     "storage": "Storage error"
   },
   "home": {
-    "are_you_sure": "Are you sure?",
-    "manage_booths": "Manage events and vendors",
-    "process_sales": "Process event sales",
-    "component_demo": "Component Demo",
-    "toast_notifications": "Toast Notifications",
-    "toast_success_msg": "This is a success message!",
-    "toast_error_short_full": "An error occurred (short)",
-    "toast_error_long_full": "An error occurred: The reasons are more detailed and can be very long, maybe even multiline, which should be fine as well.",
-    "toast_warning_msg": "Warning: Be careful!",
-    "toast_info_msg": "This is some info.",
-    "show_success": "Show Success",
-    "show_error_short": "Show Error (Short)",
-    "show_error_long": "Show Error (Long)",
-    "show_warning": "Show Warning",
-    "show_info": "Show Info",
-    "modals": "Modal Dialogs",
-    "open_modal": "Open Modal",
-    "open_confirm": "Open Confirm Modal",
-    "example_modal_title": "Example Modal Title",
-    "example_modal_content": "This is the content of an example modal dialog.",
-    "example_modal_hint": "You can put any hint here.",
-    "close_modal": "Close Modal",
-    "action_confirmed": "Action Confirmed!",
-    "confirm_action": "Confirm Action"
+    "error_loading_booths": "Unable to load events. Please try navigating manually."
   },
   "components": {
     "toast": {
