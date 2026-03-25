@@ -549,6 +549,8 @@ pub fn CheckoutPage() -> impl IntoView {
             let vendor_id_clone = vendor_id.clone();
             let vendor_id_str = vendor_id_clone.as_str().to_string();
             let purchase_clone = purchase.clone();
+            let vendor_input_ref_clone = vendor_input_ref_for_add.clone();
+            let amount_input_ref_clone = amount_input_ref_for_add.clone();
             spawn_local(async move {
                 // Use VendorService to get or create vendor
                 match state
@@ -575,6 +577,17 @@ pub fn CheckoutPage() -> impl IntoView {
                             list.push(purchase_clone.clone());
                             list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
                         });
+                        
+                        // Clear input fields explicitly and focus vendor input for next checkout
+                        if let Some(vendor_input) = vendor_input_ref_clone.get() {
+                            let _ = vendor_input.set_value("");
+                            let _ = vendor_input.focus();
+                            let _ = vendor_input.select();
+                        }
+                        if let Some(amount_input) = amount_input_ref_clone.get() {
+                            let _ = amount_input.set_value("");
+                        }
+                        
                         toast.success(&t!("checkout.success")());
                         set_form_data.set(CheckoutFormData::default());
                         let booth_id = selected_booth.get().map(|b| b.id.as_str());
