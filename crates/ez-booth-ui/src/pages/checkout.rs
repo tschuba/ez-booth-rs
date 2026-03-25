@@ -773,7 +773,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             }
                                                         />
                                                         <Button 
-                                                            variant=ButtonVariant::Ghost
+                                                            variant=ButtonVariant::Secondary
                                                             on_click=Box::new(move || {
                                                                 cancel_delete();
                                                                 add_item();
