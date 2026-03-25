@@ -168,6 +168,12 @@
       "sales": "Gesamtumsatz",
       "items": "Artikel verarbeitet",
       "checkouts": "Kassiervorgänge"
+    },
+    "transactions_hint": "Klicken Sie auf einen Kassiervorgang, um die Artikeldetails anzuzeigen",
+    "transaction_detail": {
+      "vendor_label": "Verkäufer:",
+      "item_number": "Position {number}",
+      "total_label": "Gesamt:"
     }
   },
   "report": {

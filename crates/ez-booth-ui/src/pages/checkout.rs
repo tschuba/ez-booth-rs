@@ -243,6 +243,9 @@ pub fn CheckoutPage() -> impl IntoView {
     // Purchase deletion state - tracks which purchase (by ID) is armed for deletion
     let (purchase_to_delete, set_purchase_to_delete) = create_signal::<Option<PurchaseId>>(None);
 
+    // Transaction detail expansion state - tracks which purchase is expanded
+    let (expanded_purchase_id, set_expanded_purchase_id) = create_signal::<Option<PurchaseId>>(None);
+
     let deletion_token_matches = create_memo(move |_| {
         let required = pending_deletion.get().token.trim().to_uppercase();
 
@@ -634,6 +637,22 @@ pub fn CheckoutPage() -> impl IntoView {
         }
     };
 
+    // Handle clicking on transaction card to expand/collapse details
+    let handle_transaction_detail_click = move |purchase_id: PurchaseId| {
+        // Priority 1: Don't interfere with armed deletion state
+        if purchase_to_delete.get() == Some(purchase_id) {
+            return; // Let deletion overlay handle the click
+        }
+        
+        // Priority 2: Toggle expansion (accordion behavior)
+        let current = expanded_purchase_id.get();
+        if current == Some(purchase_id) {
+            set_expanded_purchase_id.set(None); // Collapse if already expanded
+        } else {
+            set_expanded_purchase_id.set(Some(purchase_id)); // Expand, auto-collapsing any other
+        }
+    };
+
     let perform_delete_purchase = {
         let app_state = app_state.clone();
         let set_purchases = set_purchases.clone();
@@ -1009,7 +1028,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                         <div class="space-y-2">
                                             {/* Explanatory hint text */}
                                             <p class="text-xs text-gray-500 mb-3 px-1">
-                                                {t!("checkout.recent_transactions_hint")}
+                                                {t!("checkout.transactions_hint")}
                                             </p>
                                             
                                             {list.into_iter().map(|purchase| {
@@ -1030,41 +1049,135 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 };
                                                 view! {
                                                     <div 
-                                                        class="relative group text-sm p-3 border rounded-lg bg-gray-50 
-                                                               transition-colors select-none"
+                                                        class=move || format!(
+                                                            "relative group text-sm border rounded-lg bg-gray-50 transition-all duration-300 select-none {}",
+                                                            if expanded_purchase_id.get() == Some(purchase_id) {
+                                                                "border-blue-500 shadow-sm" // Active state: blue border
+                                                            } else {
+                                                                "border-gray-200 hover:border-blue-300" // Default/hover state
+                                                            }
+                                                        )
                                                     >
-                                                        {/* Purchase content - NOT clickable */}
-                                                        <div class="flex items-center justify-between pr-12">
-                                                            <div class="space-y-1">
-                                                                <p class="text-sm font-semibold">{items_label.clone()}</p>
-                                                                 <p class="text-xs text-gray-500">
-                                                                    {let locale = use_locale().get();
-                                                                    translate_with_params(
-                                                                        "checkout.recent.timestamp",
-                                                                        HashMap::from([(
-                                                                            "datetime",
-                                                                            format_purchase_timestamp(purchase.timestamp, locale)
-                                                                        )])
+                                                        {/* Card header - clickable area */}
+                                                        <div 
+                                                            class=move || format!(
+                                                                "p-3 transition-colors duration-300 cursor-pointer {}",
+                                                                if expanded_purchase_id.get() == Some(purchase_id) {
+                                                                    "bg-blue-50" // Active state: blue background
+                                                                } else {
+                                                                    ""
+                                                                }
+                                                            )
+                                                            on:click=move |e| {
+                                                                e.stop_propagation();
+                                                                handle_transaction_detail_click(purchase_id);
+                                                            }
+                                                        >
+                                                            {/* Chevron indicator */}
+                                                            <div class="absolute left-3 top-[1.125rem] pointer-events-none">
+                                                                <svg 
+                                                                    class=move || format!(
+                                                                        "w-5 h-5 text-gray-400 transition-transform duration-300 {}",
+                                                                        if expanded_purchase_id.get() == Some(purchase_id) {
+                                                                            "rotate-180" // Point up when expanded
+                                                                        } else {
+                                                                            "" // Point down when collapsed
+                                                                        }
                                                                     )
-                                                                    }
-                                                                 </p>
-                                                                <p class="text-xs text-gray-500 font-mono break-all">
-                                                                    {translate_with_params(
-                                                                        "checkout.recent.purchase_id",
-                                                                        HashMap::from([(
-                                                                            "id",
-                                                                            purchase_id_label.clone()
-                                                                        )])
-                                                                    )}
-                                                                </p>
+                                                                    viewBox="0 0 20 20" 
+                                                                    fill="currentColor"
+                                                                >
+                                                                    <path 
+                                                                        fill-rule="evenodd" 
+                                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                                                                        clip-rule="evenodd"
+                                                                    />
+                                                                </svg>
                                                             </div>
-                                                            <div>
-                                                                <span class="text-lg font-bold">{
-                                                                    let locale = use_locale().get();
-                                                                    format_currency(amount, locale)
-                                                                }</span>
+                                                            
+                                                            {/* Purchase content - add left padding for chevron */}
+                                                            <div class="flex items-center justify-between pr-12 pl-8">
+                                                                <div class="space-y-1">
+                                                                    <p class="text-sm font-semibold">{items_label.clone()}</p>
+                                                                     <p class="text-xs text-gray-500">
+                                                                        {let locale = use_locale().get();
+                                                                        translate_with_params(
+                                                                            "checkout.recent.timestamp",
+                                                                            HashMap::from([(
+                                                                                "datetime",
+                                                                                format_purchase_timestamp(purchase.timestamp, locale)
+                                                                            )])
+                                                                        )
+                                                                        }
+                                                                     </p>
+                                                                    <p class="text-xs text-gray-500 font-mono break-all">
+                                                                        {translate_with_params(
+                                                                            "checkout.recent.purchase_id",
+                                                                            HashMap::from([(
+                                                                                "id",
+                                                                                purchase_id_label.clone()
+                                                                            )])
+                                                                        )}
+                                                                    </p>
+                                                                </div>
+                                                                <div>
+                                                                    <span class="text-lg font-bold">{
+                                                                        let locale = use_locale().get();
+                                                                        format_currency(amount, locale)
+                                                                    }</span>
+                                                                </div>
                                                             </div>
                                                         </div>
+                                                        
+                                                        {/* Expanded detail section */}
+                                                        <Show when=move || expanded_purchase_id.get() == Some(purchase_id)>
+                                                            <div 
+                                                                class="px-6 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-2 duration-300"
+                                                                style="border-top: 1px dashed #e5e7eb;" // Subtle dashed separator
+                                                            >
+                                                                {/* Vendor label */}
+                                                                <p class="text-sm text-gray-700 font-medium">
+                                                                    {format!("{} {}", 
+                                                                        t!("checkout.transaction_detail.vendor_label")(), 
+                                                                        purchase.vendor_id.as_str()
+                                                                    )}
+                                                                </p>
+                                                                
+                                                                {/* Items list */}
+                                                                <div class="space-y-2">
+                                                                    {purchase.items.iter().enumerate().map(|(idx, item)| {
+                                                                        let position_num = idx + 1;
+                                                                        let locale = use_locale().get();
+                                                                        view! {
+                                                                            <div class="flex justify-between text-sm">
+                                                                                <span class="text-gray-600">
+                                                                                    {translate_with_params(
+                                                                                        "checkout.transaction_detail.item_number",
+                                                                                        HashMap::from([("number", position_num.to_string())])
+                                                                                    )}
+                                                                                </span>
+                                                                                <span class="font-medium text-gray-900">
+                                                                                    {format_currency(item.amount, locale)}
+                                                                                </span>
+                                                                            </div>
+                                                                        }
+                                                                    }).collect_view()}
+                                                                </div>
+                                                                
+                                                                {/* Total separator and amount */}
+                                                                <div class="pt-2 border-t border-gray-300">
+                                                                    <div class="flex justify-between items-baseline">
+                                                                        <span class="text-sm font-semibold text-gray-900">
+                                                                            {t!("checkout.transaction_detail.total_label")}
+                                                                        </span>
+                                                                        <span class="text-lg font-bold text-gray-900">
+                                                                            {let locale = use_locale().get();
+                                                                            format_currency(purchase.total_amount(), locale)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </Show>
                                                         
                                                         {/* Separator + Delete Icon (hover-visible on desktop, always visible on mobile) */}
                                                         <div 

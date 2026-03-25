@@ -168,6 +168,12 @@
       "sales": "Total Sales",
       "items": "Items Processed",
       "checkouts": "Checkouts Recorded"
+    },
+    "transactions_hint": "Click a transaction to view item details",
+    "transaction_detail": {
+      "vendor_label": "Vendor:",
+      "item_number": "Item {number}",
+      "total_label": "Total:"
     }
   },
   "report": {
