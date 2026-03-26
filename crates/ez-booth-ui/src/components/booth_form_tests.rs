@@ -31,6 +31,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let booth = form.to_booth(Locale::En);
@@ -58,6 +60,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -73,6 +77,8 @@ mod tests {
             participation_fee: "invalid".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -88,6 +94,8 @@ mod tests {
             participation_fee: "-10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -103,6 +111,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "invalid".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -118,6 +128,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "150.00".to_string(), // > 100%
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -133,6 +145,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "invalid".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -148,6 +162,8 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -218,6 +234,8 @@ mod tests {
             participation_fee: "10.50".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let booth_dot = form_dot.to_booth(Locale::En).unwrap();
@@ -241,6 +259,8 @@ mod tests {
             participation_fee: "10,50".to_string(),
             sales_fee_percent: "15,00".to_string(),
             rounding_step: "0,50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let booth_comma = form_comma.to_booth(Locale::De).unwrap();
@@ -290,6 +310,8 @@ mod tests {
             participation_fee: "20.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "1.00".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -329,6 +351,8 @@ mod tests {
             participation_fee: "20.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "1.00".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);

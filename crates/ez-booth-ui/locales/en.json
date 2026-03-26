@@ -58,6 +58,14 @@
     "fee_configuration_title": "Fee Configuration",
     "rounding_step_help": "Fee calculations will be rounded to this step (e.g., 0.50 rounds to nearest 50 cents)",
     "save_button": "Save Event",
+    "vendor_validation_title": "Vendor ID Validation",
+    "vendor_validation_description": "Control what format vendor IDs must follow when checking out",
+    "vendor_validation_type_label": "Validation Rule",
+    "vendor_validation_unrestricted": "Unrestricted (any format)",
+    "vendor_validation_digits_only": "Digits only (0-9)",
+    "vendor_validation_regex": "Custom pattern (regex)",
+    "vendor_validation_regex_pattern": "Regex Pattern",
+    "vendor_validation_regex_help": "Enter a regular expression pattern (e.g., ^V\\d{3}$ for V followed by 3 digits)",
     "errors": {
       "load_failed": "Failed to load events"
     },
@@ -83,7 +91,8 @@
       "cannot_be_negative": "Cannot be negative",
       "cannot_exceed_100": "Cannot exceed 100%",
       "invalid_number_format": "Invalid number format",
-      "max_two_decimals": "Maximum 2 decimal places allowed"
+      "max_two_decimals": "Maximum 2 decimal places allowed",
+      "regex_pattern_required": "Regex pattern is required when using custom validation"
     }
   },
   "vendor": {

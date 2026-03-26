@@ -1,6 +1,7 @@
 use crate::error::{DomainError, DomainResult};
-use crate::models::{Booth, BoothId, BoothStatus, FeeConfig};
+use crate::models::{Booth, BoothId, BoothStatus, FeeConfig, VendorIdValidation};
 use crate::repositories::BoothRepository;
+use crate::validation::validate_regex_pattern;
 use chrono::NaiveDate;
 
 /// Service for booth management operations
@@ -53,6 +54,11 @@ impl<R: BoothRepository> BoothService<R> {
     pub async fn update_booth(&self, booth: Booth) -> DomainResult<()> {
         // Validate fees configuration
         booth.fees.validate_ranges()?;
+        
+        // Validate regex pattern if using Regex validation
+        if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
+            validate_regex_pattern(pattern)?;
+        }
 
         self.repository.save(&booth).await
     }
@@ -83,7 +89,7 @@ impl<R: BoothRepository> BoothService<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::FeeConfig;
+    use crate::models::{FeeConfig, VendorIdValidation};
     use async_trait::async_trait;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
@@ -219,5 +225,65 @@ mod tests {
             .unwrap();
         assert_eq!(open_booths.len(), 1);
         assert_eq!(open_booths[0].id, booth2.id);
+    }
+
+    #[tokio::test]
+    async fn test_update_booth_with_valid_regex() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+
+        let mut booth = service
+            .create_booth(
+                "Test Booth".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                fees,
+            )
+            .await
+            .unwrap();
+
+        // Update with valid regex pattern
+        booth.vendor_id_validation = VendorIdValidation::Regex(r"^V\d{3}$".to_string());
+        
+        let result = service.update_booth(booth).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_booth_with_invalid_regex() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+
+        let mut booth = service
+            .create_booth(
+                "Test Booth".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                fees,
+            )
+            .await
+            .unwrap();
+
+        // Update with invalid regex pattern
+        booth.vendor_id_validation = VendorIdValidation::Regex("[invalid".to_string());
+        
+        let result = service.update_booth(booth).await;
+        assert!(result.is_err());
+        match result {
+            Err(DomainError::Validation(msg)) => {
+                assert!(msg.contains("Invalid regex pattern"));
+            }
+            _ => panic!("Expected Validation error"),
+        }
     }
 }

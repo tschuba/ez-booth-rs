@@ -4,7 +4,8 @@ use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
 use domain::error::DomainError;
-use domain::models::booth::{Booth, FeeConfig};
+use domain::models::booth::{Booth, FeeConfig, VendorIdValidation};
+use domain::validation::validate_regex_pattern;
 use leptos::*;
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -17,6 +18,8 @@ pub struct BoothFormData {
     pub participation_fee: String,
     pub sales_fee_percent: String,
     pub rounding_step: String,
+    pub vendor_validation_type: String, // "unrestricted", "digits_only", or "regex"
+    pub vendor_validation_regex: String,
 }
 
 impl Default for BoothFormData {
@@ -38,17 +41,27 @@ impl BoothFormData {
             participation_fee: format_decimal_for_input(Decimal::ONE, locale, 2),
             sales_fee_percent: format_decimal_for_input(Decimal::from(15), locale, 2),
             rounding_step: format_decimal_for_input(Decimal::from_str("0.50").unwrap(), locale, 2),
+            vendor_validation_type: "digits_only".to_string(), // Default to digits only
+            vendor_validation_regex: String::new(),
         }
     }
 
     /// Create form data from an existing Booth
     pub fn from_booth(booth: &Booth, locale: Locale) -> Self {
+        let (validation_type, validation_regex) = match &booth.vendor_id_validation {
+            VendorIdValidation::Unrestricted => ("unrestricted".to_string(), String::new()),
+            VendorIdValidation::DigitsOnly => ("digits_only".to_string(), String::new()),
+            VendorIdValidation::Regex(pattern) => ("regex".to_string(), pattern.clone()),
+        };
+
         Self {
             description: booth.description.clone(),
             date: booth.date.format("%Y-%m-%d").to_string(),
             participation_fee: format_decimal_for_input(booth.fees.participation_fee, locale, 2),
             sales_fee_percent: format_decimal_for_input(booth.fees.sales_fee_percent, locale, 2),
             rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
+            vendor_validation_type: validation_type,
+            vendor_validation_regex: validation_regex,
         }
     }
 
@@ -60,7 +73,8 @@ impl BoothFormData {
     /// - Date string cannot be parsed
     /// - Fee values cannot be parsed to Decimal
     /// - Fee configuration validation fails
-    pub fn to_booth(&self, locale: Locale) -> Result<Booth, DomainError> {
+    /// - Vendor ID validation configuration is invalid
+    pub fn to_booth(&self, _locale: Locale) -> Result<Booth, DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
@@ -82,8 +96,23 @@ impl BoothFormData {
             rounding_step,
         };
 
-        // Create and return Booth (this validates the fee ranges)
-        Booth::new(self.description.clone(), date, fees)
+        // Parse vendor validation rule
+        let vendor_id_validation = match self.vendor_validation_type.as_str() {
+            "unrestricted" => VendorIdValidation::Unrestricted,
+            "digits_only" => VendorIdValidation::DigitsOnly,
+            "regex" => {
+                // Validate the regex pattern
+                validate_regex_pattern(&self.vendor_validation_regex)?;
+                VendorIdValidation::Regex(self.vendor_validation_regex.clone())
+            }
+            _ => VendorIdValidation::DigitsOnly, // Default fallback
+        };
+
+        // Create Booth (this validates the fee ranges)
+        let mut booth = Booth::new(self.description.clone(), date, fees)?;
+        booth.vendor_id_validation = vendor_id_validation;
+
+        Ok(booth)
     }
 
     /// Update an existing booth with form data
@@ -91,7 +120,7 @@ impl BoothFormData {
     /// # Errors
     ///
     /// Returns DomainError if fee configuration validation fails
-    pub fn update_booth(&self, booth: &mut Booth, locale: Locale) -> Result<(), DomainError> {
+    pub fn update_booth(&self, booth: &mut Booth, _locale: Locale) -> Result<(), DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
             .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
@@ -114,10 +143,23 @@ impl BoothFormData {
         };
         fees.validate_ranges()?;
 
+        // Parse vendor validation rule
+        let vendor_id_validation = match self.vendor_validation_type.as_str() {
+            "unrestricted" => VendorIdValidation::Unrestricted,
+            "digits_only" => VendorIdValidation::DigitsOnly,
+            "regex" => {
+                // Validate the regex pattern
+                validate_regex_pattern(&self.vendor_validation_regex)?;
+                VendorIdValidation::Regex(self.vendor_validation_regex.clone())
+            }
+            _ => VendorIdValidation::DigitsOnly, // Default fallback
+        };
+
         // Update booth fields
         booth.update_description(self.description.clone());
         booth.date = date;
         booth.update_fees(fees);
+        booth.vendor_id_validation = vendor_id_validation;
 
         Ok(())
     }
@@ -142,6 +184,9 @@ pub fn BoothForm(
     let participation_fee = create_rw_signal(form_data.get_untracked().participation_fee);
     let sales_fee_percent = create_rw_signal(form_data.get_untracked().sales_fee_percent);
     let rounding_step = create_rw_signal(form_data.get_untracked().rounding_step);
+    let vendor_validation_type = create_rw_signal(form_data.get_untracked().vendor_validation_type);
+    let vendor_validation_regex =
+        create_rw_signal(form_data.get_untracked().vendor_validation_regex);
 
     // Validation errors
     let (description_error, set_description_error) = create_signal(None::<String>);
@@ -149,6 +194,8 @@ pub fn BoothForm(
     let (participation_fee_error, set_participation_fee_error) = create_signal(None::<String>);
     let (sales_fee_percent_error, set_sales_fee_percent_error) = create_signal(None::<String>);
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
+    let (vendor_validation_regex_error, set_vendor_validation_regex_error) =
+        create_signal(None::<String>);
 
     let locale = use_locale();
 
@@ -175,6 +222,7 @@ pub fn BoothForm(
         set_participation_fee_error.set(None);
         set_sales_fee_percent_error.set(None);
         set_rounding_step_error.set(None);
+        set_vendor_validation_regex_error.set(None);
 
         let mut has_errors = false;
 
@@ -273,6 +321,23 @@ pub fn BoothForm(
             }
         }
 
+        // Validate vendor ID validation regex pattern if type is "regex"
+        let validation_type = vendor_validation_type.get();
+        if validation_type == "regex" {
+            let regex_pattern = vendor_validation_regex.get();
+            if regex_pattern.trim().is_empty() {
+                set_vendor_validation_regex_error
+                    .set(Some(t!("booth.form_errors.regex_pattern_required")()));
+                has_errors = true;
+            } else {
+                // Validate the regex pattern
+                if let Err(e) = validate_regex_pattern(&regex_pattern) {
+                    set_vendor_validation_regex_error.set(Some(format!("{}", e)));
+                    has_errors = true;
+                }
+            }
+        }
+
         if !has_errors {
             let data = BoothFormData {
                 description: description.get(),
@@ -280,6 +345,8 @@ pub fn BoothForm(
                 participation_fee: participation_fee.get(),
                 sales_fee_percent: sales_fee_percent.get(),
                 rounding_step: rounding_step.get(),
+                vendor_validation_type: vendor_validation_type.get(),
+                vendor_validation_regex: vendor_validation_regex.get(),
             };
             on_submit(data);
         }
@@ -347,6 +414,54 @@ pub fn BoothForm(
                     <p class="text-sm text-gray-600 mt-1">
                         {t!("booth.rounding_step_help")()}
                     </p>
+                </div>
+            </div>
+
+            // Vendor ID Validation Section
+            <div class="border-t pt-6">
+                <h3 class="text-lg font-semibold mb-4">{t!("booth.vendor_validation_title")()}</h3>
+                <p class="text-sm text-gray-600 mb-4">{t!("booth.vendor_validation_description")()}</p>
+
+                <div class="space-y-4">
+                    // Validation Type Select
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {t!("booth.vendor_validation_type_label")()}
+                        </label>
+                        <select
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            on:change=move |ev| {
+                                vendor_validation_type.set(event_target_value(&ev));
+                            }
+                            prop:value=move || vendor_validation_type.get()
+                        >
+                            <option value="unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
+                            <option value="digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
+                            <option value="regex">{t!("booth.vendor_validation_regex")()}</option>
+                        </select>
+                    </div>
+
+                    // Regex Pattern Input (only shown when type is "regex")
+                    {move || {
+                        if vendor_validation_type.get() == "regex" {
+                            view! {
+                                <div class="space-y-2">
+                                    <Input
+                                        value=vendor_validation_regex
+                                        label=t!("booth.vendor_validation_regex_pattern")()
+                                        placeholder=r"^V\d{3}$".to_string()
+                                        required=true
+                                        error=vendor_validation_regex_error
+                                    />
+                                    <p class="text-sm text-gray-600">
+                                        {t!("booth.vendor_validation_regex_help")()}
+                                    </p>
+                                </div>
+                            }.into_view()
+                        } else {
+                            view! { <div></div> }.into_view()
+                        }
+                    }}
                 </div>
             </div>
 
