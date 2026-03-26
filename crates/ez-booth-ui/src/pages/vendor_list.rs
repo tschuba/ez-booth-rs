@@ -316,30 +316,32 @@ pub fn VendorListPage() -> impl IntoView {
                                                 
                                                 // IDs for keyboard support closure captures
                                                 let vendor_id_for_select = vendor_id.clone();
+                                                let vendor_id_for_select_key = vendor_id.clone();
                                                 let vendor_id_for_keydown = vendor_id.clone();
                                                 let vendor_id_for_details_btn = vendor_id.clone();
                                                 
                                                 view! {
                                                     <div
                                                         class=move || {
-                                                            let base = "relative rounded-lg transition-all duration-200 overflow-hidden";
-                                                            let border_color = if is_expanded.get() {
-                                                                "border-2 border-blue-500 shadow-lg"
-                                                            } else if is_selected.get() {
-                                                                "border-2 border-blue-400 shadow-md"
+                                                            let base = "group relative rounded-lg transition-all duration-200 overflow-hidden";
+                                                            let border_color = if is_selected.get() {
+                                                                "border-2 border-blue-500 shadow-md"
                                                             } else {
                                                                 "border border-gray-200 hover:border-gray-300 hover:shadow-md"
                                                             };
-                                                            format!("{} {}", base, border_color)
+                                                            let bg = if is_expanded.get() {
+                                                                "bg-blue-50"
+                                                            } else {
+                                                                "bg-white"
+                                                            };
+                                                            format!("{} {} {}", base, border_color, bg)
                                                         }
                                                     >
                                                         {/* Left accent bar */}
                                                         <div
                                                             class=move || {
-                                                                let color = if is_expanded.get() {
+                                                                let color = if is_selected.get() {
                                                                     "bg-blue-500"
-                                                                } else if is_selected.get() {
-                                                                    "bg-blue-400"
                                                                 } else {
                                                                     "bg-gray-200"
                                                                 };
@@ -347,12 +349,42 @@ pub fn VendorListPage() -> impl IntoView {
                                                             }
                                                         />
                                                         
-                                                        {/* Summary section - three-zone layout */}
-                                                        <div class="pl-4 pr-4 py-4">
-                                                            <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center">
+                                                        {/* Summary section - clickable for selection */}
+                                                        <div
+                                                            class="pl-4 pr-4 py-4 cursor-pointer"
+                                                            tabindex="0"
+                                                            role="button"
+                                                            aria-pressed=move || if is_selected.get() { "true" } else { "false" }
+                                                            on:click=move |_| {
+                                                                toggle_vendor_selection(vendor_id_for_select.clone());
+                                                                let msg = if selected_vendor_ids.get().contains(&vendor_id_for_select) {
+                                                                    format!("Vendor {} selected", vendor_id_for_select.as_str())
+                                                                } else {
+                                                                    format!("Vendor {} deselected", vendor_id_for_select.as_str())
+                                                                };
+                                                                set_aria_announcement.set(msg);
+                                                            }
+                                                            on:keydown=move |e| {
+                                                                match e.key().as_str() {
+                                                                    " " | "Enter" => {
+                                                                        e.prevent_default();
+                                                                        toggle_vendor_selection(vendor_id_for_select_key.clone());
+                                                                        let msg = if selected_vendor_ids.get().contains(&vendor_id_for_select_key) {
+                                                                            format!("Vendor {} selected", vendor_id_for_select_key.as_str())
+                                                                        } else {
+                                                                            format!("Vendor {} deselected", vendor_id_for_select_key.as_str())
+                                                                        };
+                                                                        set_aria_announcement.set(msg);
+                                                                    }
+                                                                    _ => {}
+                                                                }
+                                                            }
+                                                        >
+                                                            {/* Content wrapper with right margin for controls */}
+                                                            <div class="flex items-center justify-between pr-20">
                                                                 {/* Zone 1: Identity (Vendor ID + item count) */}
                                                                 <div class="flex flex-col gap-1">
-                                                                    <div class="flex items-center gap-2">
+                                                                    <div class="flex items-end gap-2">
                                                                         <span class="text-xs text-gray-500 uppercase tracking-wide">{t!("vendor.id_label")()}</span>
                                                                         <span class="text-lg font-bold text-gray-900">{vendor_id_str.clone()}</span>
                                                                     </div>
@@ -377,96 +409,101 @@ pub fn VendorListPage() -> impl IntoView {
                                                                         <span class="ml-1 font-semibold">{format_currency(report.sales_sum, locale.get())}</span>
                                                                     </div>
                                                                 </div>
-                                                                
-                                                                {/* Zone 3: Actions (checkbox + details button) */}
-                                                                <div class="flex items-center gap-2">
-                                                                    {/* Selection checkbox */}
-                                                                    <button
-                                                                        on:click=move |_| {
-                                                                            toggle_vendor_selection(vendor_id_for_select.clone());
-                                                                            let msg = if selected_vendor_ids.get().contains(&vendor_id_for_select) {
-                                                                                format!("Vendor {} selected", vendor_id_for_select.as_str())
-                                                                            } else {
-                                                                                format!("Vendor {} deselected", vendor_id_for_select.as_str())
-                                                                            };
-                                                                            set_aria_announcement.set(msg);
-                                                                        }
-                                                                        title=move || if is_selected.get() { t!("vendor.deselect")() } else { t!("vendor.select")() }
-                                                                        aria-label=move || if is_selected.get() { t!("vendor.deselect")() } else { t!("vendor.select")() }
-                                                                        class="w-9 h-9 flex items-center justify-center rounded-md transition-all border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                                                                        class:border-blue-500=move || is_selected.get()
-                                                                        class:bg-blue-500=move || is_selected.get()
-                                                                        class:text-white=move || is_selected.get()
-                                                                        class:border-gray-300=move || !is_selected.get()
-                                                                        class:hover:border-gray-400=move || !is_selected.get()
-                                                                    >
-                                                                        {/* Checkbox icon */}
-                                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <Show
-                                                                                when=move || is_selected.get()
-                                                                                fallback=|| view! {
-                                                                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Checkout-style controls on right edge */}
+                                                        <div class="absolute right-0 top-0 h-full flex items-center">
+                                                            {/* Print button - hover visible when collapsed, always visible when expanded */}
+                                                            <div
+                                                                class=move || format!(
+                                                                    "px-3 flex items-center transition-opacity {}",
+                                                                    if is_expanded.get() {
+                                                                        "opacity-100"
+                                                                    } else {
+                                                                        "opacity-0 group-hover:opacity-100"
+                                                                    }
+                                                                )
+                                                            >
+                                                                <button
+                                                                    on:click=move |e| {
+                                                                        e.stop_propagation();
+                                                                        set_reports_for_print.set(vec![report_data.clone()]);
+                                                                        set_timeout(
+                                                                            move || {
+                                                                                if let Some(window) = web_sys::window() {
+                                                                                    let _ = window.print();
                                                                                 }
-                                                                            >
-                                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                                                            </Show>
-                                                                        </svg>
-                                                                    </button>
-                                                                    
-                                                                    {/* Details pill button */}
-                                                                    <button
-                                                                        on:click=move |_| {
-                                                                            set_expanded_vendor_id.update(|current| {
-                                                                                let was_expanded = current.as_ref() == Some(&vendor_id_for_details_btn);
-                                                                                *current = if was_expanded {
-                                                                                    None
-                                                                                } else {
-                                                                                    Some(vendor_id_for_details_btn.clone())
-                                                                                };
-                                                                                let msg = if was_expanded {
-                                                                                    format!("Details collapsed for Vendor {}", vendor_id_for_details_btn.as_str())
-                                                                                } else {
-                                                                                    format!("Details expanded for Vendor {}", vendor_id_for_details_btn.as_str())
-                                                                                };
-                                                                                set_aria_announcement.set(msg);
-                                                                            });
+                                                                            },
+                                                                            std::time::Duration::from_millis(100),
+                                                                        );
+                                                                    }
+                                                                    title={t!("vendor.print_report")}
+                                                                    aria-label={t!("vendor.print_report")}
+                                                                    class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                                                >
+                                                                    {/* Print icon - matches FAB size */}
+                                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            {/* Vertical separator */}
+                                                            <div class="h-full w-px bg-gray-300"></div>
+                                                            
+                                                            {/* Expansion toggle button */}
+                                                            <div
+                                                                class="px-3 hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
+                                                                on:click=move |e| {
+                                                                    e.stop_propagation();
+                                                                    set_expanded_vendor_id.update(|current| {
+                                                                        let was_expanded = current.as_ref() == Some(&vendor_id_for_details_btn);
+                                                                        *current = if was_expanded {
+                                                                            None
+                                                                        } else {
+                                                                            Some(vendor_id_for_details_btn.clone())
+                                                                        };
+                                                                        let msg = if was_expanded {
+                                                                            format!("Details collapsed for Vendor {}", vendor_id_for_details_btn.as_str())
+                                                                        } else {
+                                                                            format!("Details expanded for Vendor {}", vendor_id_for_details_btn.as_str())
+                                                                        };
+                                                                        set_aria_announcement.set(msg);
+                                                                    });
+                                                                }
+                                                                on:keydown=move |e| {
+                                                                    match e.key().as_str() {
+                                                                        "ArrowRight" => {
+                                                                            e.prevent_default();
+                                                                            e.stop_propagation();
+                                                                            set_expanded_vendor_id.set(Some(vendor_id_for_keydown.clone()));
+                                                                            set_aria_announcement.set(format!("Details expanded for Vendor {}", vendor_id_for_keydown.as_str()));
                                                                         }
-                                                                        on:keydown=move |e| {
-                                                                            match e.key().as_str() {
-                                                                                "ArrowRight" => {
-                                                                                    e.prevent_default();
-                                                                                    set_expanded_vendor_id.set(Some(vendor_id_for_keydown.clone()));
-                                                                                    set_aria_announcement.set(format!("Details expanded for Vendor {}", vendor_id_for_keydown.as_str()));
-                                                                                }
-                                                                                "ArrowLeft" => {
-                                                                                    e.prevent_default();
-                                                                                    set_expanded_vendor_id.set(None);
-                                                                                    set_aria_announcement.set(format!("Details collapsed for Vendor {}", vendor_id_for_keydown.as_str()));
-                                                                                }
-                                                                                _ => {}
-                                                                            }
+                                                                        "ArrowLeft" => {
+                                                                            e.prevent_default();
+                                                                            e.stop_propagation();
+                                                                            set_expanded_vendor_id.set(None);
+                                                                            set_aria_announcement.set(format!("Details collapsed for Vendor {}", vendor_id_for_keydown.as_str()));
                                                                         }
-                                                                        aria-expanded=move || if is_expanded.get() { "true" } else { "false" }
-                                                                        aria-controls=format!("vendor-details-{}", vendor_id_str.clone())
-                                                                        class="px-4 py-2 flex items-center gap-2 rounded-full transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                                                                        class:bg-blue-500=move || is_expanded.get()
-                                                                        class:text-white=move || is_expanded.get()
-                                                                        class:bg-gray-100=move || !is_expanded.get()
-                                                                        class:text-gray-700=move || !is_expanded.get()
-                                                                        class:hover:bg-blue-600=move || is_expanded.get()
-                                                                        class:hover:bg-gray-200=move || !is_expanded.get()
-                                                                    >
-                                                                        <span>{move || if is_expanded.get() { t!("vendor.collapse_details")() } else { t!("vendor.view_details")() }}</span>
-                                                                        <svg 
-                                                                            class=move || format!("w-4 h-4 transition-transform duration-200 {}", if is_expanded.get() { "rotate-180" } else { "" })
-                                                                            fill="none" 
-                                                                            stroke="currentColor" 
-                                                                            viewBox="0 0 24 24"
-                                                                        >
-                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                                        </svg>
-                                                                    </button>
-                                                                </div>
+                                                                        _ => {}
+                                                                    }
+                                                                }
+                                                                tabindex="0"
+                                                                role="button"
+                                                                aria-expanded=move || if is_expanded.get() { "true" } else { "false" }
+                                                                aria-controls=format!("vendor-details-{}", vendor_id_str.clone())
+                                                                aria-label=move || if is_expanded.get() { t!("common.close")() } else { t!("vendor.view_details")() }
+                                                            >
+                                                                {/* Chevron icon */}
+                                                                <svg
+                                                                    class=move || format!("w-5 h-5 text-gray-400 hover:text-blue-600 transition-all {}", if is_expanded.get() { "rotate-180" } else { "" })
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                                </svg>
                                                             </div>
                                                         </div>
                                                         
@@ -483,81 +520,57 @@ pub fn VendorListPage() -> impl IntoView {
                                                             <div class="border-t border-gray-200 p-4 bg-gray-50">
                                                                 {
                                                                     let report = detail_report.get();
-                                                                    let vendor_id = report.vendor.vendor_id.as_str().to_string();
                                                                     let locale = use_locale();
-                                                                    let report_for_print_btn = report.clone();
                                                                     
-                                                                    view! {
+                                                                     view! {
                                                                         <div class="space-y-4">
-                                                                            {/* Drawer header with collapse link */}
-                                                                            <div class="flex items-center justify-between mb-2">
-                                                                                <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                                                                                    {t!("vendor.sales_details")()}
-                                                                                </h3>
-                                                                                <button
-                                                                                    on:click=move |_| {
-                                                                                        set_expanded_vendor_id.set(None);
-                                                                                        set_aria_announcement.set(format!("Details collapsed for Vendor {}", vendor_id));
-                                                                                    }
-                                                                                    class="text-xs text-blue-600 hover:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded px-2 py-1"
-                                                                                >
-                                                                                    {t!("vendor.collapse_details")()}
-                                                                                </button>
-                                                                            </div>
-                                                                            
                                                                             {/* Two-column responsive grid layout */}
                                                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                                {/* Left column: Fee breakdown */}
+                                                                                {/* Left column: Fee breakdown with sum visualization */}
                                                                                 <div class="space-y-3">
                                                                                     <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                                                                                         {t!("vendor.financial_summary")()}
                                                                                     </h4>
                                                                                     <div class="space-y-2">
+                                                                                        {/* Individual fees with plus indicator */}
                                                                                         <div class="bg-white p-3 rounded shadow-sm">
                                                                                             <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
                                                                                             <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
                                                                                         </div>
+                                                                                        
+                                                                                        {/* Plus symbol */}
+                                                                                        <div class="flex justify-center">
+                                                                                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                                                                                <span class="text-gray-600 text-sm font-bold">+</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        
                                                                                         <div class="bg-white p-3 rounded shadow-sm">
                                                                                             <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
                                                                                             <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
                                                                                         </div>
-                                                                                        <div class="bg-white p-3 rounded shadow-sm border-2 border-blue-500">
-                                                                                            <p class="text-xs text-gray-600">{t!("vendor.fees_due")()}</p>
-                                                                                            <p class="text-lg font-semibold text-blue-700">{format_currency(report.participation_fee + report.sales_fee, locale.get())}</p>
+                                                                                        
+                                                                                        {/* Equals symbol */}
+                                                                                        <div class="flex justify-center">
+                                                                                            <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                                                <span class="text-blue-600 text-sm font-bold">=</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        
+                                                                                        {/* Cumulative total with emphasis */}
+                                                                                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded shadow-md border-2 border-blue-500">
+                                                                                            <p class="text-xs text-gray-700 font-semibold">{t!("vendor.fees_due")()}</p>
+                                                                                            <p class="text-xl font-bold text-blue-700">{format_currency(report.participation_fee + report.sales_fee, locale.get())}</p>
+                                                                                            <p class="text-xs text-gray-600 mt-1">{t!("vendor.fees_sum_explanation")()}</p>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
                                                                                 
-                                                                                {/* Right column: Transactions with print button */}
+                                                                                {/* Right column: Transactions */}
                                                                                 <div class="space-y-3">
-                                                                                    <div class="flex items-center justify-between">
-                                                                                        <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                                                                                            {t!("vendor.transaction_id")()}{" "}({report.items.len()}{" "}{t!("vendor.items")()})
-                                                                                        </h4>
-                                                                                        {/* Print button with label */}
-                                                                                        <button
-                                                                                            on:click=move |e| {
-                                                                                                e.stop_propagation();
-                                                                                                set_reports_for_print.set(vec![report_for_print_btn.clone()]);
-                                                                                                set_timeout(
-                                                                                                    move || {
-                                                                                                        if let Some(window) = web_sys::window() {
-                                                                                                            let _ = window.print();
-                                                                                                        }
-                                                                                                    },
-                                                                                                    std::time::Duration::from_millis(100),
-                                                                                                );
-                                                                                            }
-                                                                                            title={t!("vendor.print_report")}
-                                                                                            aria-label={t!("vendor.print_report")}
-                                                                                            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                                                                                        >
-                                                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                                                                            </svg>
-                                                                                            <span>{t!("vendor.print_report")()}</span>
-                                                                                        </button>
-                                                                                    </div>
+                                                                                    <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                                                                        {t!("vendor.transaction_id")()}{" "}({report.items.len()}{" "}{t!("vendor.items")()})
+                                                                                    </h4>
                                                                                     
                                                                                     {/* Transactions list */}
                                                                                     <div class="bg-white p-3 rounded shadow-sm max-h-96 overflow-y-auto">

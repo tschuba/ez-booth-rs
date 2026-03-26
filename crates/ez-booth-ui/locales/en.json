@@ -112,6 +112,7 @@
     "net_payout": "Net Payout",
     "item_count": "Items",
     "fees_due": "Cumulative Fees",
+    "fees_sum_explanation": "Participation Fee + Sales Fee",
     "participation_fee": "Participation Fee",
     "sales_fee": "Sales Fee",
     "print_actions_title": "Print Vendor Reports",
