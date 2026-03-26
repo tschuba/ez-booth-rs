@@ -38,6 +38,8 @@
     "create_aria_label": "Create new event",
     "edit": "Edit Event",
     "edit_button": "Edit",
+    "view_report": "View Report",
+    "view_report_aria": "View financial report for this event",
     "delete": "Delete Event",
     "delete_button": "Delete",
     "delete_confirm": "Are you sure you want to delete this event?",

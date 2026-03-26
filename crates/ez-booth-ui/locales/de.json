@@ -38,6 +38,8 @@
     "create_aria_label": "Neue Veranstaltung erstellen",
     "edit": "Veranstaltung bearbeiten",
     "edit_button": "Bearbeiten",
+    "view_report": "Bericht anzeigen",
+    "view_report_aria": "Finanzbericht für diese Veranstaltung anzeigen",
     "delete": "Veranstaltung löschen",
     "delete_button": "Löschen",
     "delete_confirm": "Möchten Sie diese Veranstaltung wirklich löschen?",
