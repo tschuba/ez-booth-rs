@@ -129,7 +129,7 @@
     "view_items": "View Items",
     "view_details": "Details",
     "collapse_details": "Collapse",
-    "transaction_id": "Transaction",
+    "transaction_id": "Transactions",
     "print_report": "Print Report",
     "vendor_selected": "Vendor {id} selected",
     "vendor_deselected": "Vendor {id} deselected",
