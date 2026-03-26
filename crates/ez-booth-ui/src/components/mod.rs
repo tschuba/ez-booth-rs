@@ -4,6 +4,8 @@ mod button;
 mod input;
 mod layout;
 mod modal;
+pub mod pagination;
+pub mod pagination_prefs;
 mod toast;
 
 #[cfg(test)]
@@ -16,4 +18,6 @@ pub use button::*;
 pub use input::*;
 pub use layout::*;
 pub use modal::*;
+pub use pagination::*;
+pub use pagination_prefs::*;
 pub use toast::*;

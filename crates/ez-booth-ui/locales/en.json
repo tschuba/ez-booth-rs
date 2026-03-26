@@ -111,7 +111,7 @@
     "gross_sales": "Gross Sales",
     "net_payout": "Net Payout",
     "item_count": "Items",
-    "fees_due": "Fees Due",
+    "fees_due": "Cumulative Fees",
     "participation_fee": "Participation Fee",
     "sales_fee": "Sales Fee",
     "print_actions_title": "Print Vendor Reports",
@@ -135,7 +135,20 @@
     "items": "items",
     "subtotal": "Subtotal",
     "no_vendors_with_purchases": "No vendors with purchases found",
-    "no_vendors_selected": "Please select at least one vendor"
+    "no_vendors_selected": "Please select at least one vendor",
+    "vendors_without_purchases_heading": "Vendors Without Purchases",
+    "pagination": {
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last",
+      "page_info": "Page {current} of {total} ({count} total)",
+      "page_size_label": "Items per page:",
+      "page_label": "Page",
+      "of_label": "of",
+      "total_label": "total",
+      "per_page_label": "per page"
+    }
   },
   "checkout": {
     "prompt_select_booth": "Please select an event above to start checkout.",
@@ -184,7 +197,12 @@
       "previous": "Previous",
       "next": "Next",
       "last": "Last",
-      "page_info": "Page {current} of {total} ({count} total)"
+      "page_info": "Page {current} of {total} ({count} total)",
+      "page_size_label": "Items per page:",
+      "page_label": "Page",
+      "of_label": "of",
+      "total_label": "total",
+      "per_page_label": "per page"
     },
     "info": {
       "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID",

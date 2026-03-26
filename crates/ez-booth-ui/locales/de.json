@@ -109,9 +109,9 @@
     "detail_title": "Verkäufer-Details",
     "created_at": "Erstellt",
     "gross_sales": "Bruttoumsatz",
-    "net_payout": "Nettoauszahlung",
+    "net_payout": "Auszahlung",
     "item_count": "Artikel",
-    "fees_due": "Fällige Gebühren",
+    "fees_due": "Gebühren kumuliert",
     "participation_fee": "Standgebühr",
     "sales_fee": "Umsatzgebühr",
     "print_actions_title": "Verkäuferabrechnungen drucken",
@@ -135,7 +135,20 @@
     "items": "Artikel",
     "subtotal": "Zwischensumme",
     "no_vendors_with_purchases": "Keine Verkäufer mit Umsätzen gefunden",
-    "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus"
+    "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus",
+    "vendors_without_purchases_heading": "Verkäufer ohne Umsätze",
+    "pagination": {
+      "first": "Erste",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "last": "Letzte",
+      "page_info": "Seite {current} von {total} ({count} gesamt)",
+      "page_size_label": "Einträge pro Seite:",
+      "page_label": "Seite",
+      "of_label": "von",
+      "total_label": "gesamt",
+      "per_page_label": "pro Seite"
+    }
   },
   "checkout": {
     "prompt_select_booth": "Bitte wähle oben eine Veranstaltung aus, um mit der Kasse zu starten.",
@@ -184,7 +197,12 @@
       "previous": "Zurück",
       "next": "Weiter",
       "last": "Letzte",
-      "page_info": "Seite {current} von {total} ({count} gesamt)"
+      "page_info": "Seite {current} von {total} ({count} gesamt)",
+      "page_size_label": "Einträge pro Seite:",
+      "page_label": "Seite",
+      "of_label": "von",
+      "total_label": "gesamt",
+      "per_page_label": "pro Seite"
     },
     "info": {
       "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt",
@@ -212,7 +230,7 @@
     },
     "running_totals": {
       "sales": "Gesamtumsatz",
-      "items": "Artikel verarbeitet",
+      "items": "Artikel",
       "checkouts": "Kassiervorgänge",
       "vendors": "Verkäufer bedient"
     },
