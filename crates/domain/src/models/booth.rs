@@ -6,6 +6,24 @@ use validator::Validate;
 use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
 
+/// Vendor ID validation rules for a booth
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "pattern")]
+pub enum VendorIdValidation {
+    /// No restrictions on vendor ID format
+    Unrestricted,
+    /// Only ASCII digits (0-9) are allowed
+    DigitsOnly,
+    /// Custom regular expression pattern
+    Regex(String),
+}
+
+impl Default for VendorIdValidation {
+    fn default() -> Self {
+        VendorIdValidation::DigitsOnly
+    }
+}
+
 /// Represents a bazaar booth/event
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
 pub struct Booth {
@@ -20,6 +38,9 @@ pub struct Booth {
     pub fees: FeeConfig,
 
     pub status: BoothStatus,
+
+    #[serde(default)]
+    pub vendor_id_validation: VendorIdValidation,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -104,6 +125,7 @@ impl Booth {
             date,
             fees,
             status: BoothStatus::Open,
+            vendor_id_validation: VendorIdValidation::default(),
             created_at: now,
             updated_at: now,
         };

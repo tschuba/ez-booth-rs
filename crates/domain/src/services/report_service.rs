@@ -452,6 +452,7 @@ mod tests {
                 rounding_step: dec!(0.50),
             },
             status: BoothStatus::Open,
+            vendor_id_validation: crate::models::VendorIdValidation::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

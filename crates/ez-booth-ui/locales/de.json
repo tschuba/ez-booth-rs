@@ -58,6 +58,14 @@
     "fee_configuration_title": "Gebührenkonfiguration",
     "rounding_step_help": "Gebührenberechnungen werden auf diesen Schritt gerundet (z.B. 0,50 rundet auf die nächsten 50 Cent)",
     "save_button": "Veranstaltung speichern",
+    "vendor_validation_title": "Verkäufer-ID-Validierung",
+    "vendor_validation_description": "Legen Sie fest, welches Format Verkäufer-IDs beim Kassieren haben müssen",
+    "vendor_validation_type_label": "Validierungsregel",
+    "vendor_validation_unrestricted": "Unbeschränkt (beliebiges Format)",
+    "vendor_validation_digits_only": "Nur Ziffern (0-9)",
+    "vendor_validation_regex": "Benutzerdefiniertes Muster (Regex)",
+    "vendor_validation_regex_pattern": "Regex-Muster",
+    "vendor_validation_regex_help": "Geben Sie ein reguläres Ausdrucksmuster ein (z.B. ^V\\d{3}$ für V gefolgt von 3 Ziffern)",
     "errors": {
       "load_failed": "Fehler beim Laden der Veranstaltungen"
     },
@@ -83,7 +91,8 @@
       "cannot_be_negative": "Darf nicht negativ sein",
       "cannot_exceed_100": "Darf 100% nicht überschreiten",
       "invalid_number_format": "Ungültiges Zahlenformat",
-      "max_two_decimals": "Maximal 2 Dezimalstellen erlaubt"
+      "max_two_decimals": "Maximal 2 Dezimalstellen erlaubt",
+      "regex_pattern_required": "Regex-Muster ist erforderlich bei benutzerdefinierter Validierung"
     }
   },
   "vendor": {

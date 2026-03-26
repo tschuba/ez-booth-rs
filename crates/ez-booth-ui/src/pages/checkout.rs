@@ -7,6 +7,7 @@ use crate::t;
 use chrono::{DateTime, Local, Utc};
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
+use domain::validation::validate_vendor_id;
 use leptos::html;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -282,6 +283,11 @@ pub fn CheckoutPage() -> impl IntoView {
     // Loading state
     let (is_loading, set_is_loading) = create_signal(true);
 
+    // Vendor validation rule for current booth (changes when booth changes)
+    let vendor_validation_rule = create_memo(move |_| {
+        selected_booth.get().map(|booth| booth.vendor_id_validation.clone())
+    });
+
     // Focus vendor input when view is ready and data is loaded
     {
         let vendor_input_ref = vendor_input_ref.clone();
@@ -379,6 +385,17 @@ pub fn CheckoutPage() -> impl IntoView {
             focus_and_select_input(&vendor_input_ref_for_add);
             return;
         }
+
+        // Validate vendor ID against booth rules (if booth selected)
+        if let Some(rule) = vendor_validation_rule.get() {
+            if let Err(e) = validate_vendor_id(&vendor_id_for_item, &rule) {
+                let error_msg = format!("{}", e);
+                set_form_data.update(|form| form.vendor_error = Some(error_msg));
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
+        }
+        // If no booth selected, defer validation to server
 
         if data.current_amount.trim().is_empty() {
             let message = t!("checkout.errors.amount_required")();
@@ -752,13 +769,37 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         placeholder={t!("checkout.vendor_placeholder")}
                                                         value=move || form_data.get().vendor_id
                                                         node_ref=vendor_input_ref
-                                                        on:input=move |ev| {
+                                                    on:input=move |ev| {
                                                             cancel_delete();
                                                             let value = event_target_value(&ev);
+                                                            let trimmed = value.trim().to_string();
+                                                            
+                                                            // Update vendor_id with raw value
                                                             set_form_data.update(|data| {
-                                                                data.vendor_id = value;
-                                                                data.vendor_error = None;
+                                                                data.vendor_id = value.clone();
                                                             });
+                                                            
+                                                            // Validate against booth rules
+                                                            if trimmed.is_empty() {
+                                                                // Clear error if empty (required check happens on add/submit)
+                                                                set_form_data.update(|data| data.vendor_error = None);
+                                                            } else if let Some(rule) = vendor_validation_rule.get() {
+                                                                // Validate using domain validation
+                                                                match validate_vendor_id(&trimmed, &rule) {
+                                                                    Ok(()) => {
+                                                                        set_form_data.update(|data| data.vendor_error = None);
+                                                                    }
+                                                                    Err(e) => {
+                                                                        let error_msg = format!("{}", e);
+                                                                        set_form_data.update(|data| {
+                                                                            data.vendor_error = Some(error_msg);
+                                                                        });
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                // No booth selected - clear error (will be caught on submit)
+                                                                set_form_data.update(|data| data.vendor_error = None);
+                                                            }
                                                         }
                                                         on:keydown=move |ev: web_sys::KeyboardEvent| {
                                                             if ev.key() == "Enter" {
@@ -785,10 +826,64 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         let _ = input.select();
                                                                     }
                                                                 } else {
-                                                                    set_form_data.update(|data| data.vendor_error = None);
-                                                                    if let Some(amount_input) = amount_input_ref.get() {
-                                                                        let _ = amount_input.focus();
-                                                                        let _ = amount_input.select();
+                                                                    // Validate against booth rules before advancing
+                                                                    let is_valid = if let Some(rule) = vendor_validation_rule.get() {
+                                                                        validate_vendor_id(&trimmed, &rule).is_ok()
+                                                                    } else {
+                                                                        // No booth selected - treat as invalid
+                                                                        false
+                                                                    };
+                                                                    
+                                                                    if is_valid {
+                                                                        // Valid: clear error and advance to amount field
+                                                                        set_form_data.update(|data| data.vendor_error = None);
+                                                                        if let Some(amount_input) = amount_input_ref.get() {
+                                                                            let _ = amount_input.focus();
+                                                                            let _ = amount_input.select();
+                                                                        }
+                                                                    } else {
+                                                                        // Invalid: keep focus on vendor, select text, ensure error is set
+                                                                        if let Some(rule) = vendor_validation_rule.get() {
+                                                                            if let Err(e) = validate_vendor_id(&trimmed, &rule) {
+                                                                                let error_msg = format!("{}", e);
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                            }
+                                                                        }
+                                                                        if let Some(input) = vendor_input_ref.get() {
+                                                                            let _ = input.focus();
+                                                                            let _ = input.select();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        on:blur=move |_| {
+                                                            // Auto-trim and re-validate on blur
+                                                            let current_value = form_data.get().vendor_id;
+                                                            let trimmed = current_value.trim().to_string();
+                                                            
+                                                            if trimmed != current_value {
+                                                                set_form_data.update(|data| data.vendor_id = trimmed.clone());
+                                                                if let Some(input) = vendor_input_ref.get() {
+                                                                    input.set_value(&trimmed);
+                                                                }
+                                                            }
+                                                            
+                                                            // Re-validate after trimming
+                                                            if trimmed.is_empty() {
+                                                                set_form_data.update(|data| data.vendor_error = None);
+                                                            } else if let Some(rule) = vendor_validation_rule.get() {
+                                                                match validate_vendor_id(&trimmed, &rule) {
+                                                                    Ok(()) => {
+                                                                        set_form_data.update(|data| data.vendor_error = None);
+                                                                    }
+                                                                    Err(e) => {
+                                                                        let error_msg = format!("{}", e);
+                                                                        set_form_data.update(|data| {
+                                                                            data.vendor_error = Some(error_msg);
+                                                                        });
                                                                     }
                                                                 }
                                                             }
