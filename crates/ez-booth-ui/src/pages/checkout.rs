@@ -228,8 +228,16 @@ pub fn CheckoutPage() -> impl IntoView {
     // Use global selected booth context
     let selected_booth = selected_booth_context::use_selected_booth();
 
-    // Purchases for current booth
+    // Purchases for current booth (paginated)
     let (purchases, set_purchases) = create_signal(Vec::<Purchase>::new());
+    let (total_purchase_count, set_total_purchase_count) = create_signal(0_usize);
+    
+    // Pagination state
+    const PAGE_SIZE: usize = 5;
+    let (current_page, set_current_page) = create_signal(0_usize);
+    
+    // Running totals (separate from paginated data)
+    let (running_totals, set_running_totals) = create_signal((Decimal::ZERO, 0_usize, 0_usize));
 
     // Checkout form data
     let (_, initial_form_data) =
@@ -304,21 +312,28 @@ pub fn CheckoutPage() -> impl IntoView {
         });
     }
 
-    // Load purchases for selected booth
+    // Load paginated purchases for selected booth
     create_effect(move |_| {
         let state_result = app_state.get();
         let booth = selected_booth.get();
+        let page = current_page.get();
+        
         if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
             let set_purchases = set_purchases.clone();
+            let set_total_count = set_total_purchase_count.clone();
+            let set_running_totals = set_running_totals.clone();
             let toast = toast.clone();
             let booth_id = booth.id.clone();
+            let booth_id_for_totals = booth.id.clone();
+            
             spawn_local(async move {
-                match state.purchase_repository.find_by_booth(&booth_id).await {
-                    Ok(existing_purchases) => {
-                        let mut sorted = existing_purchases;
-                        sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-                        set_purchases.set(sorted);
+                // Fetch paginated purchases
+                let offset = page * PAGE_SIZE;
+                match state.purchase_repository.find_by_booth_paginated(&booth_id, offset, PAGE_SIZE).await {
+                    Ok(paginated) => {
+                        set_purchases.set(paginated.items);
+                        set_total_count.set(paginated.total_count);
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
@@ -328,36 +343,24 @@ pub fn CheckoutPage() -> impl IntoView {
                         toast.error(&error_msg);
                     }
                 }
+                
+                // Fetch running totals separately
+                match state.purchase_repository.get_running_totals(&booth_id_for_totals).await {
+                    Ok(totals) => {
+                        set_running_totals.set((totals.total_sales, totals.total_items, totals.total_checkouts));
+                    }
+                    Err(e) => {
+                        let error_msg = translate_with_params(
+                            "checkout.errors.load_totals_failed",
+                            HashMap::from([("error", format_error_message(&e))]),
+                        );
+                        toast.error(&error_msg);
+                    }
+                }
+                
                 set_is_loading.set(false);
             });
         }
-    });
-
-    let filtered_purchases = Memo::new(move |_| {
-        selected_booth
-            .get()
-            .map(|booth| {
-                let mut list: Vec<Purchase> = purchases
-                    .get()
-                    .into_iter()
-                    .filter(|purchase| purchase.booth_id == booth.id)
-                    .collect();
-                list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-                list
-            })
-            .unwrap_or_default()
-    });
-
-    let running_totals = Memo::new(move |_| {
-        let purchases_list = filtered_purchases.get();
-        let total = purchases_list
-            .iter()
-            .map(|p| p.total_amount())
-            .sum::<Decimal>();
-        let item_count = purchases_list.iter().map(|p| p.items.len()).sum::<usize>();
-        let checkout_count = purchases_list.len();
-
-        (total, item_count, checkout_count)
     });
 
     // Form actions
@@ -617,11 +620,9 @@ pub fn CheckoutPage() -> impl IntoView {
 
                 match state.purchase_repository.save(&purchase_clone).await {
                     Ok(_) => {
-                        set_purchases.update(|list| {
-                            list.push(purchase_clone.clone());
-                            list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-                        });
-
+                        // Reload first page to show new purchase
+                        set_current_page.set(0);
+                        
                         // Clear input fields explicitly and focus vendor input for next checkout
                         if let Some(vendor_input) = vendor_input_ref_clone.get() {
                             let _ = vendor_input.set_value("");
@@ -696,7 +697,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
     let perform_delete_purchase = {
         let app_state = app_state.clone();
-        let set_purchases = set_purchases.clone();
+        let set_current_page = set_current_page.clone();
         let toast = toast.clone();
         move || {
             let pending = pending_deletion.get();
@@ -706,6 +707,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
             let purchase_id = pending.purchase_id.unwrap();
             let state_result = app_state.get();
+            let current_page_val = current_page.get();
 
             if let Some(Ok(state)) = state_result {
                 spawn_local(async move {
@@ -715,12 +717,11 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
+                    } else {
+                        // Reload current page to reflect deletion
+                        // Trigger a re-fetch by setting the same page (the effect will re-run)
+                        set_current_page.set(current_page_val);
                     }
-                });
-
-                set_purchases.update(|list| {
-                    list.retain(|p| p.id != purchase_id);
-                    list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
                 });
             }
 
@@ -1140,9 +1141,13 @@ pub fn CheckoutPage() -> impl IntoView {
 
                         <Card title_view={t!("checkout.recent_transactions_title").into_view()}>
                             <Show
-                                when=move || filtered_purchases.get().is_empty()
+                                when=move || purchases.get().is_empty() && !is_loading.get()
                                 fallback=move || {
-                                    let list = filtered_purchases.get();
+                                    let list = purchases.get();
+                                    let total_count = total_purchase_count.get();
+                                    let page = current_page.get();
+                                    let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                    
                                     view! {
                                         <div class="space-y-2">
                                             {/* Explanatory hint text */}
@@ -1344,6 +1349,121 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     </div>
                                                 }
                                             }).collect_view()}
+                                            
+                                            {/* Pagination controls */}
+                                            <Show when=move || {
+                                                let total_count = total_purchase_count.get();
+                                                let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                total_pages > 1
+                                            }>
+                                                <div class="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
+                                                    {/* First page button */}
+                                                    <button
+                                                        class="px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                        disabled=move || current_page.get() == 0
+                                                        on:click=move |_| set_current_page.set(0)
+                                                    >
+                                                        <span class="sr-only">{t!("checkout.pagination.first")}</span>
+                                                        {"«"}
+                                                    </button>
+                                                    
+                                                    {/* Previous page button */}
+                                                    <button
+                                                        class="px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                        disabled=move || current_page.get() == 0
+                                                        on:click=move |_| {
+                                                            let page = current_page.get();
+                                                            set_current_page.set(page.saturating_sub(1))
+                                                        }
+                                                    >
+                                                        <span class="sr-only">{t!("checkout.pagination.previous")}</span>
+                                                        {"‹"}
+                                                    </button>
+                                                    
+                                                    {/* Page numbers */}
+                                                    <div class="flex items-center gap-1">
+                                                        {move || {
+                                                            let current = page;
+                                                            let total = total_pages;
+                                                            (0..total).map(|page_num| {
+                                                                view! {
+                                                                    <button
+                                                                        class=move || format!(
+                                                                            "px-3 py-2 text-sm font-medium rounded-md transition-colors {}",
+                                                                            if page_num == current {
+                                                                                "bg-blue-500 text-white"
+                                                                            } else {
+                                                                                "hover:bg-gray-100"
+                                                                            }
+                                                                        )
+                                                                        on:click=move |_| set_current_page.set(page_num)
+                                                                        aria-label={format!("Page {}", page_num + 1)}
+                                                                        aria-current=move || if page_num == current { Some("page") } else { None }
+                                                                    >
+                                                                        {page_num + 1}
+                                                                    </button>
+                                                                }
+                                                            }).collect_view()
+                                                        }}
+                                                    </div>
+                                                    
+                                                    {/* Next page button */}
+                                                    <button
+                                                        class="px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                        disabled=move || {
+                                                            let page = current_page.get();
+                                                            let total_count = total_purchase_count.get();
+                                                            let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                            page >= total_pages.saturating_sub(1)
+                                                        }
+                                                        on:click=move |_| {
+                                                            let page = current_page.get();
+                                                            let total_count = total_purchase_count.get();
+                                                            let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                            set_current_page.set((page + 1).min(total_pages.saturating_sub(1)))
+                                                        }
+                                                    >
+                                                        <span class="sr-only">{t!("checkout.pagination.next")}</span>
+                                                        {"›"}
+                                                    </button>
+                                                    
+                                                    {/* Last page button */}
+                                                    <button
+                                                        class="px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                        disabled=move || {
+                                                            let page = current_page.get();
+                                                            let total_count = total_purchase_count.get();
+                                                            let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                            page >= total_pages.saturating_sub(1)
+                                                        }
+                                                        on:click=move |_| {
+                                                            let total_count = total_purchase_count.get();
+                                                            let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                            set_current_page.set(total_pages.saturating_sub(1))
+                                                        }
+                                                    >
+                                                        <span class="sr-only">{t!("checkout.pagination.last")}</span>
+                                                        {"»"}
+                                                    </button>
+                                                    
+                                                    {/* Page info */}
+                                                    <span class="ml-2 text-sm text-gray-600">
+                                                        {move || {
+                                                            let page = current_page.get();
+                                                            let total_count = total_purchase_count.get();
+                                                            let total_pages = (total_count + PAGE_SIZE - 1) / PAGE_SIZE;
+                                                            translate_with_params(
+                                                                "checkout.pagination.page_info",
+                                                                HashMap::from([
+                                                                    ("current", (page + 1).to_string()),
+                                                                    ("total", total_pages.to_string()),
+                                                                    ("count", total_count.to_string())
+                                                                ])
+                                                            )
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </Show>
                                         </div>
                                     }
                                 }
