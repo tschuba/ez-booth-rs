@@ -386,6 +386,17 @@ pub fn CheckoutPage() -> impl IntoView {
             return;
         }
 
+        // Validate vendor ID against booth rules (if booth selected)
+        if let Some(rule) = vendor_validation_rule.get() {
+            if let Err(e) = validate_vendor_id(&vendor_id_for_item, &rule) {
+                let error_msg = format!("{}", e);
+                set_form_data.update(|form| form.vendor_error = Some(error_msg));
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
+        }
+        // If no booth selected, defer validation to server
+
         if data.current_amount.trim().is_empty() {
             let message = t!("checkout.errors.amount_required")();
             toast.warning(&message);
