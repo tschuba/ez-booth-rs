@@ -380,10 +380,10 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 }
                                                             }
                                                         >
-                                                            {/* Content wrapper with right margin for controls */}
-                                                            <div class="flex items-center justify-between pr-32">
-                                                                {/* Zone 1: Identity (Vendor ID + item count) */}
-                                                                <div class="flex flex-col gap-1">
+                                                            {/* Content wrapper - Identity left, Print+Payout grouped right */}
+                                                            <div class="flex items-center pr-16">
+                                                                {/* Zone 1: Identity (Vendor ID + item count) - grows to fill space */}
+                                                                <div class="flex flex-col gap-1 flex-1">
                                                                     <div class="flex items-end gap-2">
                                                                         <span class="text-xs text-gray-500 uppercase tracking-wide">{t!("vendor.id_label")()}</span>
                                                                         <span class="text-lg font-bold text-gray-900">{vendor_id_str.clone()}</span>
@@ -394,61 +394,60 @@ pub fn VendorListPage() -> impl IntoView {
                                                                     </div>
                                                                 </div>
                                                                 
-                                                                {/* Zone 2: Performance metrics */}
-                                                                <div class="flex flex-col items-end gap-1">
-                                                                    <div class="text-right">
-                                                                        <div class="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                                                                            {t!("vendor.net_payout")()}
+                                                                {/* Zone 2+3: Print button + Payout metrics grouped together */}
+                                                                <div class="flex items-center gap-3">
+                                                                    {/* Print button - hover visible when collapsed, always visible when expanded */}
+                                                                    <button
+                                                                        on:click=move |e| {
+                                                                            e.stop_propagation();
+                                                                            set_reports_for_print.set(vec![report_data.clone()]);
+                                                                            set_timeout(
+                                                                                move || {
+                                                                                    if let Some(window) = web_sys::window() {
+                                                                                        let _ = window.print();
+                                                                                    }
+                                                                                },
+                                                                                std::time::Duration::from_millis(100),
+                                                                            );
+                                                                        }
+                                                                        title={t!("vendor.print_report")}
+                                                                        aria-label={t!("vendor.print_report")}
+                                                                        class=move || format!(
+                                                                            "min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full transition-all shadow-lg bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {}",
+                                                                            if is_expanded.get() {
+                                                                                "opacity-100"
+                                                                            } else {
+                                                                                "opacity-0 group-hover:opacity-100"
+                                                                            }
+                                                                        )
+                                                                    >
+                                                                        {/* Print icon - matches FAB size */}
+                                                                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                    
+                                                                    {/* Performance metrics - directly adjacent to print button */}
+                                                                    <div class="flex flex-col items-end gap-1">
+                                                                        <div class="text-right">
+                                                                            <div class="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
+                                                                                {t!("vendor.net_payout")()}
+                                                                            </div>
+                                                                            <div class="text-2xl font-bold text-green-700">
+                                                                                {format_currency(report.total_revenue, locale.get())}
+                                                                            </div>
                                                                         </div>
-                                                                        <div class="text-2xl font-bold text-green-700">
-                                                                            {format_currency(report.total_revenue, locale.get())}
+                                                                        <div class="text-xs text-gray-600">
+                                                                            <span>{t!("vendor.total_sales")()}</span>
+                                                                            <span class="ml-1 font-semibold">{format_currency(report.sales_sum, locale.get())}</span>
                                                                         </div>
-                                                                    </div>
-                                                                    <div class="text-xs text-gray-600">
-                                                                        <span>{t!("vendor.total_sales")()}</span>
-                                                                        <span class="ml-1 font-semibold">{format_currency(report.sales_sum, locale.get())}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* Checkout-style controls on right edge */}
+                                                        {/* Checkout-style expansion toggle on right edge */}
                                                         <div class="absolute right-0 top-0 h-full flex items-center">
-                                                            {/* Print button - hover visible when collapsed, always visible when expanded */}
-                                                            <div
-                                                                class=move || format!(
-                                                                    "px-3 flex items-center transition-opacity {}",
-                                                                    if is_expanded.get() {
-                                                                        "opacity-100"
-                                                                    } else {
-                                                                        "opacity-0 group-hover:opacity-100"
-                                                                    }
-                                                                )
-                                                            >
-                                                                <button
-                                                                    on:click=move |e| {
-                                                                        e.stop_propagation();
-                                                                        set_reports_for_print.set(vec![report_data.clone()]);
-                                                                        set_timeout(
-                                                                            move || {
-                                                                                if let Some(window) = web_sys::window() {
-                                                                                    let _ = window.print();
-                                                                                }
-                                                                            },
-                                                                            std::time::Duration::from_millis(100),
-                                                                        );
-                                                                    }
-                                                                    title={t!("vendor.print_report")}
-                                                                    aria-label={t!("vendor.print_report")}
-                                                                    class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                                                                >
-                                                                    {/* Print icon - matches FAB size */}
-                                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                                                    </svg>
-                                                                </button>
-                                                            </div>
-                                                            
                                                             {/* Vertical separator */}
                                                             <div class="h-full w-px bg-gray-300"></div>
                                                             
@@ -517,7 +516,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 if is_expanded.get() { "max-h-[1000px] opacity-100" } else { "max-h-0 opacity-0" }
                                                             )
                                                         >
-                                                            <div class="border-t border-gray-200 p-4 bg-gray-50">
+                                                            <div class="border-t border-gray-200 p-4 pr-16 bg-gray-50">
                                                                 {
                                                                     let report = detail_report.get();
                                                                     let locale = use_locale();
