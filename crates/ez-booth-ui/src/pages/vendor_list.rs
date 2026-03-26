@@ -235,67 +235,52 @@ pub fn VendorListPage() -> impl IntoView {
                                     fallback=|| view! { <p class="text-gray-500 text-center py-8">{t!("vendor.select_booth_prompt")}</p> }
                                 >
                                     // Action buttons section
-                                    <div class="mb-6 space-y-4">
-                                        // Generate All button
-                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                            <div class="flex items-center justify-between">
-                                                <div>
-                                                    <h3 class="text-lg font-semibold text-gray-900">
-                                                        {t!("vendor.generate_all_title")}
-                                                    </h3>
-                                                    <p class="text-sm text-gray-600 mt-1">
-                                                        {move || {
-                                                            let count = vendor_reports.get().len();
-                                                            format!("{} {} {}", 
-                                                                t!("vendor.generate_reports_for")(),
-                                                                count,
-                                                                t!("vendor.vendors_with_purchases")()
-                                                            )
-                                                        }}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    on:click=generate_all_reports
-                                                    disabled=move || is_loading.get() || vendor_reports.get().is_empty()
-                                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium shadow-sm"
-                                                >
-                                                    {move || if is_loading.get() {
-                                                        t!("common.loading")()
-                                                    } else {
-                                                        t!("vendor.generate_all")()
-                                                    }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        // Custom selection button
+                                    <div class="mb-6">
                                         <Show when=move || !vendor_reports.get().is_empty()>
-                                            <div class="border border-gray-200 rounded-lg p-4">
+                                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                                 <div class="flex items-center justify-between">
-                                                    <div>
+                                                    <div class="flex-1">
                                                         <h3 class="text-lg font-semibold text-gray-900">
-                                                            {t!("vendor.custom_selection_title")}
+                                                            {t!("vendor.print_actions_title")}
                                                         </h3>
                                                         <p class="text-sm text-gray-600 mt-1">
                                                             {move || {
-                                                                let count = selected_vendor_ids.get().len();
-                                                                if count > 0 {
-                                                                    format!("{} {} {}", 
-                                                                        count,
-                                                                        t!("vendor.vendors_selected")(),
+                                                                let total_count = vendor_reports.get().len();
+                                                                let selected_count = selected_vendor_ids.get().len();
+                                                                if selected_count > 0 {
+                                                                    format!("{} {} {} {} {}", 
+                                                                        selected_count,
+                                                                        t!("vendor.vendors_selected_of")(),
+                                                                        total_count,
+                                                                        t!("vendor.vendors_with_purchases")(),
                                                                         ""
                                                                     )
                                                                 } else {
-                                                                    t!("vendor.click_vendors_to_select")()
+                                                                    format!("{} {} {}", 
+                                                                        total_count,
+                                                                        t!("vendor.vendors_with_purchases")(),
+                                                                        t!("vendor.click_vendors_hint")()
+                                                                    )
                                                                 }
                                                             }}
                                                         </p>
                                                     </div>
-                                                    <div class="flex gap-2">
+                                                    <div class="flex gap-2 ml-4">
+                                                        <button
+                                                            on:click=generate_all_reports
+                                                            disabled=move || is_loading.get() || vendor_reports.get().is_empty()
+                                                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium shadow-sm"
+                                                        >
+                                                            {move || if is_loading.get() {
+                                                                t!("common.loading")()
+                                                            } else {
+                                                                t!("vendor.print_all")()
+                                                            }}
+                                                        </button>
                                                         <button
                                                             on:click=move |_| set_selected_vendor_ids.set(Vec::new())
                                                             disabled=move || selected_vendor_ids.get().is_empty()
-                                                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                                         >
                                                             {t!("vendor.clear_selection")}
                                                         </button>
@@ -307,13 +292,12 @@ pub fn VendorListPage() -> impl IntoView {
                                                             {move || {
                                                                 let count = selected_vendor_ids.get().len();
                                                                 if count > 0 {
-                                                                    format!("{} ({} {})", 
-                                                                        t!("vendor.print_selected")(),
-                                                                        count,
-                                                                        t!("vendor.vendors")()
+                                                                    format!("{} ({})", 
+                                                                        t!("vendor.print_selection")(),
+                                                                        count
                                                                     )
                                                                 } else {
-                                                                    t!("vendor.print_selected")()
+                                                                    t!("vendor.print_selection")()
                                                                 }
                                                             }}
                                                         </button>
