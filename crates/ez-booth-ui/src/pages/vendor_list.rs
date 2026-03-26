@@ -71,11 +71,17 @@ pub fn VendorListPage() -> impl IntoView {
         let booth = selected_booth.get();
 
         if booth.is_none() {
-            // No booth selected, clear vendors
+            // No booth selected, clear vendors and selection state
             set_vendor_reports.set(Vec::new());
             set_vendors_without_purchases.set(Vec::new());
+            set_selected_vendor_ids.set(Vec::new());
+            set_expanded_vendor_id.set(None);
             set_is_loading.set(false);
         } else if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
+            // Clear selection when changing booths
+            set_selected_vendor_ids.set(Vec::new());
+            set_expanded_vendor_id.set(None);
+            
             set_is_loading.set(true);
             let booth_id = booth.id.clone();
             spawn_local(async move {
@@ -789,7 +795,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <h1 class="text-2xl font-bold mb-1">{t!("vendor.report_title")}</h1>
                                 <div class="text-base">
                                     <p class="font-semibold">
-                                        {t!("vendor.id_label")()}": "{vendor_id.clone()}
+                                        {t!("vendor.id_label")()}{": "}{vendor_id.clone()}
                                         {vendor_name.as_ref().map(|name| format!(" - {}", name))}
                                     </p>
                                     <p class="text-sm text-gray-700">{booth_description.clone()}</p>
@@ -802,19 +808,19 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <h2 class="text-lg font-bold mb-2">{t!("vendor.financial_summary")}</h2>
                                 <div class="border border-gray-400 p-2">
                                     <div class="flex justify-between py-1">
-                                        <span class="font-medium">{t!("vendor.gross_sales")}"："</span>
+                                        <span class="font-medium">{t!("vendor.gross_sales")}{"："}</span>
                                         <span class="text-base font-semibold">{move || format_currency(sales_sum, locale.get())}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t border-gray-300">
-                                        <span>{t!("vendor.participation_fee")}"："</span>
+                                        <span>{t!("vendor.participation_fee")}{"："}</span>
                                         <span>{move || format!("-{}", format_currency(participation_fee, locale.get()))}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t border-gray-300">
-                                        <span>{t!("vendor.sales_fee")}"："</span>
+                                        <span>{t!("vendor.sales_fee")}{"："}</span>
                                         <span>{move || format!("-{}", format_currency(sales_fee, locale.get()))}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t-2 border-gray-800">
-                                        <span class="text-base font-bold">{t!("vendor.net_payout")}"："</span>
+                                        <span class="text-base font-bold">{t!("vendor.net_payout")}{"："}</span>
                                         <span class="text-lg font-bold">{move || format_currency(total_revenue, locale.get())}</span>
                                     </div>
                                 </div>
@@ -838,7 +844,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         // Multi-item transaction
                                                         view! {
                                                             <div class="print-transaction-header">
-                                                                <span class="text-xs text-gray-600">{t!("vendor.transaction_id")}": "{transaction_id.to_string()}</span>
+                                                                <span class="text-xs text-gray-600">{t!("vendor.transaction_id")}{": "}{transaction_id.to_string()}</span>
                                                             </div>
                                                             <div class="print-items-grid">
                                                                 {transaction_items
@@ -861,7 +867,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                             {if has_multiple_transactions {
                                                                 view! {
                                                                     <div class="print-subtotal">
-                                                                        <span>{t!("vendor.subtotal")}"："</span>
+                                                                        <span>{t!("vendor.subtotal")}{"："}</span>
                                                                         <span class="font-semibold">{move || format_currency(transaction_total, locale.get())}</span>
                                                                     </div>
                                                                 }.into_view()
@@ -879,7 +885,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                                         let amount = report_item.item.amount;
                                                         view! {
                                                             <div class="print-transaction-header">
-                                                                <span class="text-xs text-gray-600">{t!("vendor.transaction_id")}": "{transaction_id.to_string()}</span>
+                                                                <span class="text-xs text-gray-600">{t!("vendor.transaction_id")}{": "}{transaction_id.to_string()}</span>
                                                             </div>
                                                             <div class="print-items-grid">
                                                                 <div class="print-item">

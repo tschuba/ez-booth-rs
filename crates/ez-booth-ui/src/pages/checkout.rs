@@ -1166,7 +1166,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 } else {
                                                     0
                                                 };
-                                                total_pages > 1 || total_count > 5
+                                                total_pages > 1
                                             }>
                                                 <div class="mb-4">
                                                     <Pagination
@@ -1388,7 +1388,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 } else {
                                                     0
                                                 };
-                                                total_pages > 1 || total_count > 5
+                                                total_pages > 1
                                             }>
                                                 <Pagination
                                                     current_page=current_page
