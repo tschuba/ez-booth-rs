@@ -381,7 +381,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                             }
                                                         >
                                                             {/* Content wrapper with right margin for controls */}
-                                                            <div class="flex items-center justify-between pr-20">
+                                                            <div class="flex items-center justify-between pr-32">
                                                                 {/* Zone 1: Identity (Vendor ID + item count) */}
                                                                 <div class="flex flex-col gap-1">
                                                                     <div class="flex items-end gap-2">
