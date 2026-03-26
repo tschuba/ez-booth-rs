@@ -433,7 +433,7 @@ pub fn BoothForm(
                             on:change=move |ev| {
                                 vendor_validation_type.set(event_target_value(&ev));
                             }
-                            prop:value=move || vendor_validation_type.get()
+                            prop:value=vendor_validation_type
                         >
                             <option value="unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
                             <option value="digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
