@@ -570,7 +570,9 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                 {/* Right column: Transactions */}
                                                                                 <div class="space-y-3">
                                                                                     <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                                                                                        {t!("vendor.transaction_id")()}{" "}({report.items.len()}{" "}{t!("vendor.items")()})
+                                                                                        {t!("vendor.transaction_id")()}
+                                                                                        {" "}
+                                                                                        {format!("({} {})", report.items.len(), t!("vendor.items")())}
                                                                                     </h4>
                                                                                     
                                                                                     {/* Transactions list */}
