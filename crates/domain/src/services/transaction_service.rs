@@ -144,20 +144,20 @@ mod tests {
         ) -> DomainResult<PaginatedPurchases> {
             let mut purchases = self.find_by_booth(booth_id).await?;
             purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-            
+
             let total_count = purchases.len();
             let items: Vec<Purchase> = purchases.into_iter().skip(offset).take(limit).collect();
-            
+
             Ok(PaginatedPurchases { items, total_count })
         }
 
         async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
             let purchases = self.find_by_booth(booth_id).await?;
-            
+
             let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
             let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
             let total_checkouts = purchases.len();
-            
+
             Ok(BoothRunningTotals {
                 total_sales,
                 total_items,

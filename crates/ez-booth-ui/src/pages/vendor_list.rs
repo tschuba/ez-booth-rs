@@ -1,8 +1,8 @@
-use crate::components::*;
 use crate::components::pagination::Pagination;
 use crate::components::pagination_prefs::use_pagination_preference;
+use crate::components::*;
 use crate::formatting::format_currency;
-use crate::i18n::use_locale;
+use crate::i18n::{translate_with_params, use_locale};
 use crate::selected_booth_context;
 use crate::state::*;
 use crate::t;
@@ -16,39 +16,49 @@ use std::collections::HashMap;
 pub fn VendorListPage() -> impl IntoView {
     let app_state = use_app_state();
     let (vendor_reports, set_vendor_reports) = create_signal(Vec::<VendorReportData>::new());
-    let (vendors_without_purchases, set_vendors_without_purchases) = create_signal(Vec::<Vendor>::new());
-    
+    let (vendors_without_purchases, set_vendors_without_purchases) =
+        create_signal(Vec::<Vendor>::new());
+
     // Use global selected booth context
     let selected_booth = selected_booth_context::use_selected_booth();
     let (is_loading, set_is_loading) = create_signal(true);
-    
+
     // Accordion state - only one vendor can be expanded at a time
     let (expanded_vendor_id, set_expanded_vendor_id) = create_signal(None::<VendorId>);
-    
+
     // Selection state
     let (selected_vendor_ids, set_selected_vendor_ids) = create_signal(Vec::<VendorId>::new());
     let (reports_for_print, set_reports_for_print) = create_signal(Vec::<VendorReportData>::new());
-    
+
     // Accessibility announcements
     let (aria_announcement, set_aria_announcement) = create_signal(String::new());
-    
+
+    // Vendor deletion state
+    let vendor_delete = use_two_step_delete::<VendorId>();
+    let vendor_delete_signal = vendor_delete.signal();
+    let (pending_vendor_deletion, set_pending_vendor_deletion) =
+        create_signal::<Option<Vendor>>(None);
+    let (show_delete_modal, set_show_delete_modal) = create_signal(false);
+    let (reload_vendors_toggle, set_reload_vendors_toggle) = create_signal(false);
+
     // Pagination state with readiness flag
-    let (page_size, set_page_size, page_size_ready) = use_pagination_preference("vendor_page_size", 10);
+    let (page_size, set_page_size, page_size_ready) =
+        use_pagination_preference("vendor_page_size", 10);
     let (current_page, set_current_page) = create_signal(0);
-    
+
     // Create paginated vendor reports - only slice when preference is ready
     let paginated_vendor_reports = create_memo(move |_| {
         // Wait for page size preference to be ready
         if !page_size_ready.get() {
             return Vec::new();
         }
-        
+
         let reports = vendor_reports.get();
         let size = page_size.get();
         let page = current_page.get();
         let start = page * size;
         let end = (start + size).min(reports.len());
-        
+
         if start >= reports.len() {
             Vec::new()
         } else {
@@ -65,10 +75,11 @@ pub fn VendorListPage() -> impl IntoView {
         set_current_page.set(0);
     });
 
-    // Load vendors when booth is selected
+    // Load vendors when booth is selected or reload toggle changes
     create_effect(move |_| {
         let state_result = app_state.get();
         let booth = selected_booth.get();
+        let _ = reload_vendors_toggle.get(); // Track reload toggle
 
         if booth.is_none() {
             // No booth selected, clear vendors and selection state
@@ -81,27 +92,34 @@ pub fn VendorListPage() -> impl IntoView {
             // Clear selection when changing booths
             set_selected_vendor_ids.set(Vec::new());
             set_expanded_vendor_id.set(None);
-            
+
             set_is_loading.set(true);
             let booth_id = booth.id.clone();
             spawn_local(async move {
                 // Get all registered vendors for the booth
                 let all_vendors_result = state.vendor_repository.find_by_booth(&booth_id).await;
-                
+
                 // Get active vendors (those with purchases)
-                let active_vendors_result = state.report_service.get_active_vendors(&booth_id, None).await;
-                
+                let active_vendors_result = state
+                    .report_service
+                    .get_active_vendors(&booth_id, None)
+                    .await;
+
                 match (all_vendors_result, active_vendors_result) {
                     (Ok(mut all_vendors), Ok(active_vendor_ids)) => {
                         // Sort all vendors
                         all_vendors.sort_by(|a, b| a.vendor_id.cmp(&b.vendor_id));
-                        
+
                         // Generate reports for active vendors
                         if !active_vendor_ids.is_empty() {
-                            match state.report_service.generate_vendor_reports(&booth_id, active_vendor_ids.clone(), None).await {
+                            match state
+                                .report_service
+                                .generate_vendor_reports(&booth_id, active_vendor_ids.clone(), None)
+                                .await
+                            {
                                 Ok(reports) => {
                                     set_vendor_reports.set(reports);
-                                    
+
                                     // Find vendors without purchases
                                     let vendors_without: Vec<Vendor> = all_vendors
                                         .into_iter()
@@ -126,7 +144,7 @@ pub fn VendorListPage() -> impl IntoView {
                         toast.error(&format!("Failed to load active vendors: {:?}", e));
                     }
                 }
-                
+
                 set_is_loading.set(false);
             });
         }
@@ -143,24 +161,32 @@ pub fn VendorListPage() -> impl IntoView {
             ids.sort();
         });
     };
-    
+
     // Generate reports for all vendors
     let generate_all_reports = move |_| {
         let state_result = app_state.get();
         let booth = selected_booth.get();
-        
+
         if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
             let booth_id = booth.id.clone();
-            
+
             spawn_local(async move {
-                match state.report_service.get_active_vendors(&booth_id, None).await {
+                match state
+                    .report_service
+                    .get_active_vendors(&booth_id, None)
+                    .await
+                {
                     Ok(vendor_ids) => {
                         if vendor_ids.is_empty() {
                             toast.error(&t!("vendor.no_vendors_with_purchases")());
                             set_is_loading.set(false);
                         } else {
-                            match state.report_service.generate_vendor_reports(&booth_id, vendor_ids, None).await {
+                            match state
+                                .report_service
+                                .generate_vendor_reports(&booth_id, vendor_ids, None)
+                                .await
+                            {
                                 Ok(reports) => {
                                     set_reports_for_print.set(reports);
                                     // Trigger print after a short delay to allow DOM update
@@ -188,7 +214,7 @@ pub fn VendorListPage() -> impl IntoView {
             });
         }
     };
-    
+
     // Generate reports for selected vendors
     let generate_selected_reports = move |_| {
         let selected = selected_vendor_ids.get();
@@ -196,16 +222,20 @@ pub fn VendorListPage() -> impl IntoView {
             toast.error(&t!("vendor.no_vendors_selected")());
             return;
         }
-        
+
         let state_result = app_state.get();
         let booth = selected_booth.get();
-        
+
         if let (Some(Ok(state)), Some(booth)) = (state_result, booth) {
             set_is_loading.set(true);
             let booth_id = booth.id.clone();
-            
+
             spawn_local(async move {
-                match state.report_service.generate_vendor_reports(&booth_id, selected, None).await {
+                match state
+                    .report_service
+                    .generate_vendor_reports(&booth_id, selected, None)
+                    .await
+                {
                     Ok(reports) => {
                         set_reports_for_print.set(reports);
                         // Trigger print after a short delay to allow DOM update
@@ -227,6 +257,118 @@ pub fn VendorListPage() -> impl IntoView {
         }
     };
 
+    // Vendor deletion handlers
+    // Handle clicking on a vendor card or its overlay
+    // First click: arm the vendor for deletion (show red overlay)
+    // Second click (on overlay): open confirmation modal
+    let handle_vendor_delete_click = move |vendor_id: VendorId| {
+            if vendor_delete_signal.get() == Some(vendor_id.clone()) {
+                log::info!(
+                    "Opening vendor deletion modal for vendor_id: {:?}",
+                    vendor_id
+                );
+                let vendors = vendors_without_purchases.get();
+                if let Some(vendor) = vendors.iter().find(|v| v.vendor_id == vendor_id) {
+                    set_pending_vendor_deletion.set(Some(vendor.clone()));
+                    set_show_delete_modal.set(true);
+                } else {
+                    log::warn!(
+                        "Could not find vendor with id {:?} in vendors_without_purchases",
+                        vendor_id
+                    );
+                }
+            } else {
+                log::info!("Arming vendor for deletion: {:?}", vendor_id);
+                vendor_delete_signal.set(Some(vendor_id));
+            }
+        };
+
+    // Perform actual vendor deletion
+    let perform_vendor_delete = {
+        let app_state = app_state.clone();
+        let selected_booth = selected_booth.clone();
+        let set_reload_vendors_toggle = set_reload_vendors_toggle.clone();
+        let set_pending_vendor_deletion = set_pending_vendor_deletion.clone();
+        let set_show_delete_modal = set_show_delete_modal.clone();
+        let toast = toast.clone();
+        move || {
+            let pending = pending_vendor_deletion.get();
+            if pending.is_none() {
+                log::warn!("perform_vendor_delete called but no vendor in pending_vendor_deletion");
+                return;
+            }
+
+            let vendor = pending.unwrap();
+            let vendor_id = vendor.vendor_id.clone();
+            let booth_id_opt = selected_booth.get().map(|b| b.id.clone());
+
+            if booth_id_opt.is_none() {
+                log::warn!("No booth selected, cannot delete vendor");
+                return;
+            }
+
+            let booth_id = booth_id_opt.unwrap();
+            log::info!(
+                "perform_vendor_delete: deleting vendor_id: {:?} from booth: {:?}",
+                vendor_id,
+                booth_id
+            );
+            let state_result = app_state.get();
+
+            if let Some(Ok(state)) = state_result {
+                spawn_local(async move {
+                    log::info!("Calling vendor_repository.delete_from_booth for vendor_id: {:?}, booth_id: {:?}", vendor_id, booth_id);
+                    match state
+                        .vendor_repository
+                        .delete_from_booth(&booth_id, &vendor_id)
+                        .await
+                    {
+                        Ok(_) => {
+                            log::info!("Successfully deleted vendor_id: {:?}", vendor_id);
+                            set_pending_vendor_deletion.set(None);
+                            vendor_delete_signal.set(None);
+                            set_show_delete_modal.set(false);
+                            set_reload_vendors_toggle.update(|v| *v = !*v);
+                            log::info!("Toggled reload signal to refresh vendor list");
+                            toast.success(&translate_with_params(
+                                "vendor.delete.success",
+                                HashMap::from([("vendor_id", vendor_id.as_str().to_string())]),
+                            ));
+                        }
+                        Err(e) => {
+                            log::error!("Failed to delete vendor_id {:?}: {:?}", vendor_id, e);
+                            set_pending_vendor_deletion.set(None);
+                            vendor_delete_signal.set(None);
+                            set_show_delete_modal.set(false);
+                            toast.error(&translate_with_params(
+                                "vendor.delete.error",
+                                HashMap::from([("error", format_error_message(&e))]),
+                            ));
+                        }
+                    }
+                });
+            } else {
+                log::warn!("App state not available for deletion");
+                // Reset state if app state not available
+                set_pending_vendor_deletion.set(None);
+                vendor_delete_signal.set(None);
+                set_show_delete_modal.set(false);
+            }
+        }
+    };
+
+    // Cancel vendor deletion
+    let cancel_vendor_delete = {
+        let set_pending_vendor_deletion = set_pending_vendor_deletion.clone();
+        let set_show_delete_modal = set_show_delete_modal.clone();
+        move || {
+            log::info!("Canceling vendor deletion");
+            set_pending_vendor_deletion.set(None);
+            vendor_delete_signal.set(None);
+            set_show_delete_modal.set(false);
+        }
+    };
+
     view! {
         <>
             // Aria-live region for accessibility announcements
@@ -240,17 +382,17 @@ pub fn VendorListPage() -> impl IntoView {
             </div>
             
             // Screen-only UI (hidden during print)
-            <div class="print:hidden">
+            <div class="print:hidden" on:click=move |_| cancel_vendor_delete()>
                 <Container>
-                    <div class="py-8">
-                        <Card title_view={t!("vendor.list_title").into_view()}>
+                     <div class="py-8">
+                         <Card title_view={t!("vendor.list_title").into_view()}>
                             <Show
                                 when=move || !is_loading.get()
-                                fallback=|| view! { <p class="text-gray-600">{t!("common.loading")}</p> }
+                                fallback=move || view! { <p class="text-gray-600">{t!("common.loading")}</p> }
                             >
                                 <Show
                                     when=move || selected_booth.get().is_some()
-                                    fallback=|| view! { <p class="text-gray-500 text-center py-8">{t!("vendor.select_booth_prompt")}</p> }
+                                    fallback=move || view! { <p class="text-gray-500 text-center py-8">{t!("vendor.select_booth_prompt")}</p> }
                                 >
                                     // Helper text section
                                     <div class="mb-6">
@@ -260,14 +402,14 @@ pub fn VendorListPage() -> impl IntoView {
                                                     let total_count = vendor_reports.get().len();
                                                     let selected_count = selected_vendor_ids.get().len();
                                                     if selected_count > 0 {
-                                                        format!("{} {} {} {}", 
+                                                        format!("{} {} {} {}",
                                                             selected_count,
                                                             t!("vendor.vendors_selected_of")(),
                                                             total_count,
                                                             t!("vendor.vendors_with_purchases")()
                                                         )
                                                     } else {
-                                                        format!("{} {} {}", 
+                                                        format!("{} {} {}",
                                                             total_count,
                                                             t!("vendor.vendors_with_purchases")(),
                                                             t!("vendor.click_vendors_hint")()
@@ -277,7 +419,7 @@ pub fn VendorListPage() -> impl IntoView {
                                             </p>
                                         </Show>
                                     </div>
-                                    
+
                                     // Top pagination controls
                                     <Show when=move || !vendor_reports.get().is_empty()>
                                         <div class="mb-4">
@@ -296,7 +438,7 @@ pub fn VendorListPage() -> impl IntoView {
                                     // Vendor list
                                     <Show
                                         when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()
-                                        fallback=|| view! { <p class="text-gray-500 text-center py-8">{t!("vendor.no_vendors")}</p> }
+                                         fallback=move || view! { <p class="text-gray-500 text-center py-8">{t!("vendor.no_vendors")}</p> }
                                     >
                                         <div class="space-y-4">
                                             {/* Vendors with purchases */}
@@ -308,24 +450,24 @@ pub fn VendorListPage() -> impl IntoView {
                                                 let vendor_id_for_expanded = vendor_id.clone();
                                                 let vendor_id_str = vendor_id.as_str().to_string();
                                                 let locale = use_locale();
-                                                
+
                                                 // Create stores for detail data
                                                 let (detail_report, _) = create_signal(report_data.clone());
-                                                
+
                                                 let is_expanded = create_memo(move |_| {
                                                     expanded_vendor_id.get() == Some(vendor_id_for_expanded.clone())
                                                 });
-                                                
+
                                                 let is_selected = create_memo(move |_| {
                                                     selected_vendor_ids.get().contains(&vendor_id_for_class1)
                                                 });
-                                                
+
                                                 // IDs for keyboard support closure captures
                                                 let vendor_id_for_select = vendor_id.clone();
                                                 let vendor_id_for_select_key = vendor_id.clone();
                                                 let vendor_id_for_keydown = vendor_id.clone();
                                                 let vendor_id_for_details_btn = vendor_id.clone();
-                                                
+
                                                 view! {
                                                     <div
                                                         class=move || {
@@ -354,7 +496,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 format!("absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 {}", color)
                                                             }
                                                         />
-                                                        
+
                                                         {/* Summary section - clickable for selection */}
                                                         <div
                                                             class="pl-4 pr-4 py-4 cursor-pointer"
@@ -399,7 +541,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                         <span class="ml-1">{t!("checkout.running_totals.items")()}</span>
                                                                     </div>
                                                                 </div>
-                                                                
+
                                                                 {/* Zone 2+3: Print button + Payout metrics grouped together */}
                                                                 <div class="flex items-center gap-3">
                                                                     {/* Print button - hover visible when collapsed, always visible when expanded */}
@@ -416,8 +558,8 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                 std::time::Duration::from_millis(100),
                                                                             );
                                                                         }
-                                                                        title={t!("vendor.print_report")}
-                                                                        aria-label={t!("vendor.print_report")}
+                                                                        title={t!("vendor.print_report")()}
+                                                                        aria-label={t!("vendor.print_report")()}
                                                                         class=move || format!(
                                                                             "min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full transition-all shadow-lg bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {}",
                                                                             if is_expanded.get() {
@@ -432,7 +574,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                                                                         </svg>
                                                                     </button>
-                                                                    
+
                                                                     {/* Performance metrics - directly adjacent to print button */}
                                                                     <div class="flex flex-col items-end gap-1">
                                                                         <div class="text-right">
@@ -451,12 +593,12 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         {/* Checkout-style expansion toggle on right edge */}
                                                         <div class="absolute right-0 top-0 h-full flex items-center">
                                                             {/* Vertical separator */}
                                                             <div class="h-full w-px bg-gray-300"></div>
-                                                            
+
                                                             {/* Expansion toggle button */}
                                                             <div
                                                                 class="px-3 hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
@@ -511,7 +653,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 </svg>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         {/* Expanded detail drawer */}
                                                         <div
                                                             id=format!("vendor-details-{}", vendor_id_str.clone())
@@ -526,7 +668,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 {
                                                                     let report = detail_report.get();
                                                                     let locale = use_locale();
-                                                                    
+
                                                                      view! {
                                                                         <div class="space-y-4">
                                                                             {/* Two-column responsive grid layout */}
@@ -543,27 +685,27 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                                 <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
                                                                                                 <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
                                                                                             </div>
-                                                                                            
+
                                                                                             {/* Plus symbol */}
                                                                                             <div class="flex-shrink-0">
                                                                                                 <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
                                                                                                     <span class="text-gray-600 text-sm font-bold">+</span>
                                                                                                 </div>
                                                                                             </div>
-                                                                                            
+
                                                                                             <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
                                                                                                 <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
                                                                                                 <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
                                                                                             </div>
                                                                                         </div>
-                                                                                        
+
                                                                                         {/* Equals symbol */}
                                                                                         <div class="flex justify-center">
                                                                                             <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                                                                                                 <span class="text-blue-600 text-sm font-bold">=</span>
                                                                                             </div>
                                                                                         </div>
-                                                                                        
+
                                                                                         {/* Cumulative total with emphasis */}
                                                                                         <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded shadow-md border-2 border-blue-500">
                                                                                             <p class="text-xs text-gray-700 font-semibold">{t!("vendor.fees_due")()}</p>
@@ -572,7 +714,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
-                                                                                
+
                                                                                 {/* Right column: Transactions */}
                                                                                 <div class="space-y-3">
                                                                                     <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -580,7 +722,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                         {" "}
                                                                                         {format!("({} {})", report.items.len(), t!("vendor.items")())}
                                                                                     </h4>
-                                                                                    
+
                                                                                     {/* Transactions list */}
                                                                                     <div class="bg-white p-3 rounded shadow-sm max-h-96 overflow-y-auto">
                                                                                         <div class="text-xs text-gray-600 space-y-2">
@@ -603,7 +745,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                                     let time_str = transaction_items[0].timestamp.format("%H:%M").to_string();
                                                                                                     let total: Decimal = transaction_items.iter().map(|i| i.item.amount).sum();
                                                                                                     let item_count = transaction_items.len();
-                                                                                                    
+
                                                                                                     view! {
                                                                                                         <div class="border-l-2 border-blue-400 pl-2 py-1">
                                                                                                             <div class="flex justify-between items-center gap-2">
@@ -636,7 +778,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                     </div>
                                                 }
                                             }).collect_view()}
-                                            
+
                                             {/* Bottom pagination */}
                                             <Show when=move || !vendor_reports.get().is_empty()>
                                                 <div class="mt-4">
@@ -651,31 +793,56 @@ pub fn VendorListPage() -> impl IntoView {
                                                     />
                                                 </div>
                                             </Show>
-                                            
+
                                             {/* Vendors without purchases heading */}
                                             <Show when=move || !vendors_without_purchases.get().is_empty()>
                                                 <div class="mt-8 mb-4">
                                                     <h2 class="text-lg font-semibold text-gray-700 border-b border-gray-300 pb-2">
                                                         {t!("vendor.vendors_without_purchases_heading")}
                                                     </h2>
+                                                    <p class="text-sm text-gray-500 mt-2">
+                                                        {t!("vendor.vendors_without_purchases_help")}
+                                                    </p>
                                                 </div>
                                             </Show>
-                                            
-                                            {/* Vendors without purchases */}
-                                            {move || vendors_without_purchases.get().into_iter().map(|vendor| {
-                                                let vendor_id_str = vendor.vendor_id.as_str().to_string();
-                                                view! {
-                                                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                                        <h3 class="text-lg font-semibold text-gray-600 flex items-center gap-2">
-                                                            <span>{t!("vendor.id_label")()}</span>
-                                                            <span>{vendor_id_str}</span>
-                                                        </h3>
-                                                        <p class="text-sm text-gray-500 mt-2">
-                                                            {t!("vendor.no_purchases")}
-                                                        </p>
+
+                                             {/* Vendors without purchases */}
+                                             {move || {
+                                                 let handle_vendor_delete_click = handle_vendor_delete_click.clone();
+                                                  vendors_without_purchases.get().into_iter().map(|vendor| {
+                                                     let vendor_id = vendor.vendor_id.clone();
+                                                     let vendor_id_stored = store_value(vendor_id.clone());
+                                                     let vendor_id_str = vendor.vendor_id.as_str().to_string();
+                                                     view! {
+                                                    <div class="relative border border-gray-200 rounded-lg p-4 bg-gray-50 group transition-all duration-300">
+                                                        <div
+                                                            class="cursor-pointer"
+                                                            on:click=move |e| {
+                                                                e.stop_propagation();
+                                                                handle_vendor_delete_click(vendor_id_stored.get_value());
+                                                            }
+                                                        >
+                                                            <h3 class="text-lg font-semibold text-gray-600 flex items-center gap-2">
+                                                                <span>{t!("vendor.id_label")()}</span>
+                                                                <span>{vendor_id_str.clone()}</span>
+                                                            </h3>
+                                                            <p class="text-sm text-gray-500 mt-2">
+                                                                {t!("vendor.no_purchases")}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* RED OVERLAY - shown when vendor is armed for deletion */}
+                                                        <Show when=move || vendor_delete_signal.get() == Some(vendor_id_stored.get_value())>
+                                                            <DeleteOverlay
+                                                                prompt={t!("vendor.delete.arm_prompt")()}
+                                                                aria_label={t!("vendor.delete.arm_prompt")()}
+                                                                on_click={move |_| handle_vendor_delete_click(vendor_id_stored.get_value())}
+                                                            />
+                                                        </Show>
                                                     </div>
                                                 }
-                                            }).collect_view()}
+                                            }).collect_view()
+                                             }}
                                         </div>
                                     </Show>
                                 </Show>
@@ -691,17 +858,17 @@ pub fn VendorListPage() -> impl IntoView {
                         <button
                             on:click=move |_| set_selected_vendor_ids.set(Vec::new())
                             disabled=move || selected_vendor_ids.get().is_empty()
-                            title={t!("vendor.clear_selection")}
-                            aria-label={t!("vendor.clear_selection")}
+                            title={t!("vendor.clear_selection")()}
+                            aria-label={t!("vendor.clear_selection")()}
                             class="min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full transition-all shadow-2xl bg-gray-800/80 backdrop-blur text-white hover:bg-gray-900 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                         >
-                            <span class="sr-only">{t!("vendor.clear_selection")}</span>
+                            <span class="sr-only">{t!("vendor.clear_selection")()}</span>
                             {/* Clear selection icon - list with X marks */}
                             <svg class="w-7 h-7" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M10 12.6l.7.7 1.6-1.6 1.6 1.6.8-.7L13 11l1.7-1.6-.8-.8-1.6 1.7-1.6-1.7-.7.8 1.6 1.6-1.6 1.6zM1 4h14V3H1v1zm0 3h14V6H1v1zm8 2.5V9H1v1h8v-.5zM9 13v-1H1v1h8z" />
                             </svg>
                         </button>
-                        
+
                         {/* Print button - with text */}
                         <button
                             on:click=move |_| {
@@ -753,6 +920,46 @@ pub fn VendorListPage() -> impl IntoView {
                 </Show>
             </div>
         </>
+
+        {/* Vendor deletion confirmation modal */}
+        <Modal
+            show=show_delete_modal
+            on_close=cancel_vendor_delete.clone()
+            title={t!("vendor.delete.modal_title")()}
+            size=ModalSize::Medium
+        >
+            <Show when=move || pending_vendor_deletion.get().is_some()>
+                <div class="space-y-4">
+                    <p class="text-gray-700">
+                        {move || {
+                            if let Some(vendor) = pending_vendor_deletion.get() {
+                                translate_with_params(
+                                    "vendor.delete.modal_message",
+                                    HashMap::from([("vendor_id", vendor.vendor_id.as_str().to_string())]),
+                                )
+                            } else {
+                                String::new()
+                            }
+                        }}
+                    </p>
+
+                    <div class="flex justify-end gap-2">
+                        <Button
+                            variant=ButtonVariant::Secondary
+                            on_click=Box::new(cancel_vendor_delete.clone())
+                        >
+                            {t!("common.cancel")}
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Danger
+                            on_click=Box::new(perform_vendor_delete.clone())
+                        >
+                            {t!("vendor.delete.modal_confirm")}
+                        </Button>
+                    </div>
+                </div>
+            </Show>
+        </Modal>
     }
 }
 

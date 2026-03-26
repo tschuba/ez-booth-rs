@@ -16,6 +16,7 @@ leptos = { workspace = true }
 # WASM
 wasm-bindgen = { workspace = true }
 console_error_panic_hook = "0.1"
+wasm-logger = "0.2"
 
 [lib]
 crate-type = ["cdylib"]

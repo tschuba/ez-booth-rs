@@ -143,6 +143,16 @@
     "no_vendors_with_purchases": "No vendors with purchases found",
     "no_vendors_selected": "Please select at least one vendor",
     "vendors_without_purchases_heading": "Vendors Without Purchases",
+    "vendors_without_purchases_help": "Click on a vendor card to delete it",
+    "delete": {
+      "arm_prompt": "Delete permanently?",
+      "aria_label": "Delete vendor",
+      "modal_title": "Delete Vendor",
+      "modal_message": "Are you sure you want to permanently delete vendor {vendor_id}? This action cannot be undone.",
+      "modal_confirm": "Delete Vendor",
+      "success": "Vendor {vendor_id} deleted",
+      "error": "Failed to delete vendor: {error}"
+    },
     "pagination": {
       "first": "First",
       "previous": "Previous",

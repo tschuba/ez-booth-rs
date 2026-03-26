@@ -3,6 +3,8 @@ use domain::{
     BoothId, BoothRunningTotals, DomainResult, PaginatedPurchases, Purchase, PurchaseId,
     PurchaseRepository, VendorId,
 };
+use js_sys;
+use log::info;
 use rexie::TransactionMode;
 use rust_decimal::Decimal;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -78,6 +80,11 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
     }
 
     async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>> {
+        info!(
+            "IndexedDbPurchaseRepository::find_by_booth called for booth_id: {:?}",
+            booth_id
+        );
+
         let transaction = self
             .db
             .transaction(&["purchases"], TransactionMode::ReadOnly)
@@ -106,6 +113,10 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .filter_map(|value| from_value(value).ok())
             .collect();
 
+        info!(
+            "IndexedDbPurchaseRepository::find_by_booth returning {} purchases",
+            purchases.len()
+        );
         Ok(purchases)
     }
 
@@ -115,31 +126,30 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
         offset: usize,
         limit: usize,
     ) -> DomainResult<PaginatedPurchases> {
+        info!("IndexedDbPurchaseRepository::find_by_booth_paginated called for booth_id: {:?}, offset: {}, limit: {}", booth_id, offset, limit);
+
         // Get all purchases for the booth
         let mut all_purchases = self.find_by_booth(booth_id).await?;
-        
+
         // Sort by timestamp descending (newest first)
         all_purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        
+
         let total_count = all_purchases.len();
-        
+
         // Apply pagination
-        let items: Vec<Purchase> = all_purchases
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .collect();
-        
+        let items: Vec<Purchase> = all_purchases.into_iter().skip(offset).take(limit).collect();
+
+        info!("IndexedDbPurchaseRepository::find_by_booth_paginated returning {} items (total_count: {})", items.len(), total_count);
         Ok(PaginatedPurchases { items, total_count })
     }
 
     async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
         let purchases = self.find_by_booth(booth_id).await?;
-        
+
         let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
         let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
         let total_checkouts = purchases.len();
-        
+
         Ok(BoothRunningTotals {
             total_sales,
             total_items,
@@ -188,6 +198,30 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
     }
 
     async fn delete(&self, id: &PurchaseId) -> DomainResult<()> {
+        info!(
+            "IndexedDbPurchaseRepository::delete called for id: {:?}",
+            id
+        );
+
+        // First, fetch the purchase to get its booth_id (needed for compound key)
+        let purchase = self.find_by_id(id).await?.ok_or_else(|| {
+            StorageError::NotFound(format!("Purchase not found: {}", id.as_str()))
+        })?;
+
+        info!(
+            "Found purchase with booth_id: {:?}, will delete with compound key",
+            purchase.booth_id
+        );
+
+        self.delete_from_booth(&purchase.booth_id, id).await
+    }
+
+    async fn delete_from_booth(&self, booth_id: &BoothId, id: &PurchaseId) -> DomainResult<()> {
+        info!(
+            "IndexedDbPurchaseRepository::delete_from_booth called for booth_id: {:?}, id: {:?}",
+            booth_id, id
+        );
+
         let transaction = self
             .db
             .transaction(&["purchases"], TransactionMode::ReadWrite)
@@ -197,18 +231,33 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .store("purchases")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        let key = JsValue::from_str(&id.as_str());
+        // Purchases use compound key: [booth_id, id]
+        let key_array = js_sys::Array::new();
+        key_array.push(&JsValue::from_str(&booth_id.as_str()));
+        key_array.push(&JsValue::from_str(&id.as_str()));
+        let key = JsValue::from(key_array);
+
+        info!(
+            "Deleting purchase with compound key: [booth_id: {}, id: {}]",
+            booth_id.as_str(),
+            id.as_str()
+        );
 
         store
             .delete(key)
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
+        info!("Delete operation completed, waiting for transaction.done()");
         transaction
             .done()
             .await
             .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
 
+        info!(
+            "Transaction committed successfully for purchase_id: {:?}",
+            id
+        );
         Ok(())
     }
 }

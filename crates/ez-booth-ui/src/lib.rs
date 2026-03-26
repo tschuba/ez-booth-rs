@@ -10,6 +10,7 @@ mod i18n;
 mod pages;
 mod selected_booth_context;
 mod state;
+mod utils;
 pub use selected_booth_context::SelectedBoothProvider;
 
 use components::*;

@@ -143,6 +143,16 @@
     "no_vendors_with_purchases": "Keine Verkäufer mit Umsätzen gefunden",
     "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus",
     "vendors_without_purchases_heading": "Verkäufer ohne Umsätze",
+    "vendors_without_purchases_help": "Klicken Sie auf eine Verkäuferkarte, um sie zu löschen",
+    "delete": {
+      "arm_prompt": "Unwiderruflich löschen?",
+      "aria_label": "Verkäufer löschen",
+      "modal_title": "Verkäufer löschen",
+      "modal_message": "Sind Sie sicher, dass Sie den Verkäufer {vendor_id} dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "modal_confirm": "Verkäufer löschen",
+      "success": "Verkäufer {vendor_id} gelöscht",
+      "error": "Verkäufer konnte nicht gelöscht werden: {error}"
+    },
     "pagination": {
       "first": "Erste",
       "previous": "Zurück",

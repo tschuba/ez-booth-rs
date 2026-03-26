@@ -45,6 +45,10 @@ pub trait VendorRepository {
 
     /// Delete a vendor
     async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()>;
+
+    /// Delete a vendor by booth ID and vendor ID (for compound key stores)
+    async fn delete_from_booth(&self, booth_id: &BoothId, vendor_id: &VendorId)
+        -> DomainResult<()>;
 }
 
 /// Paginated query result for purchases
@@ -103,4 +107,7 @@ pub trait PurchaseRepository {
 
     /// Delete a purchase by ID
     async fn delete(&self, id: &PurchaseId) -> DomainResult<()>;
+
+    /// Delete a purchase by booth ID and purchase ID (for compound key stores)
+    async fn delete_from_booth(&self, booth_id: &BoothId, id: &PurchaseId) -> DomainResult<()>;
 }
