@@ -435,9 +435,9 @@ pub fn BoothForm(
                             }
                             prop:value=vendor_validation_type
                         >
-                            <option value="unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
-                            <option value="digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
-                            <option value="regex">{t!("booth.vendor_validation_regex")()}</option>
+                            <option value="unrestricted" selected=move || vendor_validation_type.get() == "unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
+                            <option value="digits_only" selected=move || vendor_validation_type.get() == "digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
+                            <option value="regex" selected=move || vendor_validation_type.get() == "regex">{t!("booth.vendor_validation_regex")()}</option>
                         </select>
                     </div>
 
