@@ -530,23 +530,25 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                     <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                                                                                         {t!("vendor.financial_summary")()}
                                                                                     </h4>
-                                                                                    <div class="space-y-2">
-                                                                                        {/* Individual fees with plus indicator */}
-                                                                                        <div class="bg-white p-3 rounded shadow-sm">
-                                                                                            <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
-                                                                                            <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
-                                                                                        </div>
-                                                                                        
-                                                                                        {/* Plus symbol */}
-                                                                                        <div class="flex justify-center">
-                                                                                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                                                                                                <span class="text-gray-600 text-sm font-bold">+</span>
+                                                                                    <div class="space-y-3">
+                                                                                        {/* Individual fees side-by-side with plus indicator */}
+                                                                                        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                                                                            <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
+                                                                                                <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
+                                                                                                <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
                                                                                             </div>
-                                                                                        </div>
-                                                                                        
-                                                                                        <div class="bg-white p-3 rounded shadow-sm">
-                                                                                            <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
-                                                                                            <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
+                                                                                            
+                                                                                            {/* Plus symbol */}
+                                                                                            <div class="flex-shrink-0">
+                                                                                                <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                                                                                    <span class="text-gray-600 text-sm font-bold">+</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            
+                                                                                            <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
+                                                                                                <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
+                                                                                                <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
+                                                                                            </div>
                                                                                         </div>
                                                                                         
                                                                                         {/* Equals symbol */}
