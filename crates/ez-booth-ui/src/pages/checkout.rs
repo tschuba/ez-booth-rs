@@ -815,10 +815,35 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         let _ = input.select();
                                                                     }
                                                                 } else {
-                                                                    set_form_data.update(|data| data.vendor_error = None);
-                                                                    if let Some(amount_input) = amount_input_ref.get() {
-                                                                        let _ = amount_input.focus();
-                                                                        let _ = amount_input.select();
+                                                                    // Validate against booth rules before advancing
+                                                                    let is_valid = if let Some(rule) = vendor_validation_rule.get() {
+                                                                        validate_vendor_id(&trimmed, &rule).is_ok()
+                                                                    } else {
+                                                                        // No booth selected - treat as invalid
+                                                                        false
+                                                                    };
+                                                                    
+                                                                    if is_valid {
+                                                                        // Valid: clear error and advance to amount field
+                                                                        set_form_data.update(|data| data.vendor_error = None);
+                                                                        if let Some(amount_input) = amount_input_ref.get() {
+                                                                            let _ = amount_input.focus();
+                                                                            let _ = amount_input.select();
+                                                                        }
+                                                                    } else {
+                                                                        // Invalid: keep focus on vendor, select text, ensure error is set
+                                                                        if let Some(rule) = vendor_validation_rule.get() {
+                                                                            if let Err(e) = validate_vendor_id(&trimmed, &rule) {
+                                                                                let error_msg = format!("{}", e);
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                            }
+                                                                        }
+                                                                        if let Some(input) = vendor_input_ref.get() {
+                                                                            let _ = input.focus();
+                                                                            let _ = input.select();
+                                                                        }
                                                                     }
                                                                 }
                                                             }
