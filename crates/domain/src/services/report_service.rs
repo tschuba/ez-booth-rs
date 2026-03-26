@@ -155,11 +155,14 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         let items: Vec<VendorReportItem> = purchases
             .iter()
             .flat_map(|p| {
-                p.items.iter().filter(|item| &item.vendor_id == vendor_id).map(|item| VendorReportItem {
-                    transaction_id: p.id.clone(),
-                    item: item.clone(),
-                    timestamp: p.timestamp,
-                })
+                p.items
+                    .iter()
+                    .filter(|item| &item.vendor_id == vendor_id)
+                    .map(|item| VendorReportItem {
+                        transaction_id: p.id.clone(),
+                        item: item.clone(),
+                        timestamp: p.timestamp,
+                    })
             })
             .collect();
 
@@ -334,20 +337,20 @@ mod tests {
         ) -> DomainResult<PaginatedPurchases> {
             let mut purchases = self.find_by_booth(booth_id).await?;
             purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-            
+
             let total_count = purchases.len();
             let items: Vec<Purchase> = purchases.into_iter().skip(offset).take(limit).collect();
-            
+
             Ok(PaginatedPurchases { items, total_count })
         }
 
         async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
             let purchases = self.find_by_booth(booth_id).await?;
-            
+
             let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
             let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
             let total_checkouts = purchases.len();
-            
+
             Ok(BoothRunningTotals {
                 total_sales,
                 total_items,
@@ -376,6 +379,14 @@ mod tests {
         }
 
         async fn delete(&self, _id: &crate::models::PurchaseId) -> DomainResult<()> {
+            Ok(())
+        }
+
+        async fn delete_from_booth(
+            &self,
+            _booth_id: &BoothId,
+            _id: &crate::models::PurchaseId,
+        ) -> DomainResult<()> {
             Ok(())
         }
     }
@@ -467,6 +478,14 @@ mod tests {
         }
 
         async fn delete(&self, _booth_id: &BoothId, _vendor_id: &VendorId) -> DomainResult<()> {
+            Ok(())
+        }
+
+        async fn delete_from_booth(
+            &self,
+            _booth_id: &BoothId,
+            _vendor_id: &VendorId,
+        ) -> DomainResult<()> {
             Ok(())
         }
     }

@@ -54,7 +54,7 @@ impl<R: BoothRepository> BoothService<R> {
     pub async fn update_booth(&self, booth: Booth) -> DomainResult<()> {
         // Validate fees configuration
         booth.fees.validate_ranges()?;
-        
+
         // Validate regex pattern if using Regex validation
         if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
             validate_regex_pattern(pattern)?;
@@ -249,7 +249,7 @@ mod tests {
 
         // Update with valid regex pattern
         booth.vendor_id_validation = VendorIdValidation::Regex(r"^V\d{3}$".to_string());
-        
+
         let result = service.update_booth(booth).await;
         assert!(result.is_ok());
     }
@@ -276,7 +276,7 @@ mod tests {
 
         // Update with invalid regex pattern
         booth.vendor_id_validation = VendorIdValidation::Regex("[invalid".to_string());
-        
+
         let result = service.update_booth(booth).await;
         assert!(result.is_err());
         match result {

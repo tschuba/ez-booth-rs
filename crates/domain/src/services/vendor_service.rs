@@ -37,7 +37,11 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
 
         let vendor_id = VendorId::new(vendor_id_str.clone());
 
-        if let Some(vendor) = self.vendor_repository.find_by_id(&booth_id, &vendor_id).await? {
+        if let Some(vendor) = self
+            .vendor_repository
+            .find_by_id(&booth_id, &vendor_id)
+            .await?
+        {
             Ok(vendor)
         } else {
             let vendor = Vendor::new(vendor_id, booth_id);
@@ -158,6 +162,18 @@ mod tests {
                 .remove(&(*booth_id, vendor_id.clone()));
             Ok(())
         }
+
+        async fn delete_from_booth(
+            &self,
+            booth_id: &BoothId,
+            vendor_id: &VendorId,
+        ) -> DomainResult<()> {
+            self.vendors
+                .lock()
+                .unwrap()
+                .remove(&(*booth_id, vendor_id.clone()));
+            Ok(())
+        }
     }
 
     #[derive(Clone)]
@@ -204,15 +220,11 @@ mod tests {
             sales_fee_percent: Decimal::new(10, 0),
             rounding_step: Decimal::new(50, 2),
         };
-        
+
         let date = NaiveDate::from_ymd_opt(2026, 6, 15).unwrap();
-        
-        let mut booth = Booth::new(
-            "Test Booth".to_string(),
-            date,
-            fees,
-        ).unwrap();
-        
+
+        let mut booth = Booth::new("Test Booth".to_string(), date, fees).unwrap();
+
         // Override the default validation with the one we want
         booth.vendor_id_validation = validation;
         booth
@@ -226,11 +238,11 @@ mod tests {
     async fn test_get_or_create_new_vendor() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         let vendor = service
@@ -246,11 +258,11 @@ mod tests {
     async fn test_get_or_create_existing_vendor() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Create vendor first time
@@ -273,11 +285,11 @@ mod tests {
     async fn test_list_vendors_with_smart_sorting() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Create vendors in random order
@@ -322,11 +334,11 @@ mod tests {
     async fn test_delete_vendor() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Create vendor
@@ -350,11 +362,11 @@ mod tests {
     async fn test_validation_digits_only_success() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Should succeed with digits only
@@ -370,17 +382,15 @@ mod tests {
     async fn test_validation_digits_only_failure() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Should fail with non-digits
-        let result = service
-            .get_or_create(booth_id, "V123".to_string())
-            .await;
+        let result = service.get_or_create(booth_id, "V123".to_string()).await;
 
         assert!(result.is_err());
         match result {
@@ -395,11 +405,12 @@ mod tests {
     async fn test_validation_regex_success() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
-        let booth = create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
+
+        let booth =
+            create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Should succeed with matching pattern
@@ -415,17 +426,16 @@ mod tests {
     async fn test_validation_regex_failure() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
-        let booth = create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
+
+        let booth =
+            create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
         // Should fail with non-matching pattern
-        let result = service
-            .get_or_create(booth_id, "A123".to_string())
-            .await;
+        let result = service.get_or_create(booth_id, "A123".to_string()).await;
 
         assert!(result.is_err());
         match result {
@@ -440,14 +450,12 @@ mod tests {
     async fn test_validation_booth_not_found() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
-        
+
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
         let booth_id = create_test_booth_id();
 
         // Should fail when booth doesn't exist
-        let result = service
-            .get_or_create(booth_id, "V123".to_string())
-            .await;
+        let result = service.get_or_create(booth_id, "V123".to_string()).await;
 
         assert!(result.is_err());
         match result {

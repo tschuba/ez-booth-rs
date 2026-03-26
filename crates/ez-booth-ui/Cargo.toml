@@ -38,3 +38,7 @@ web-sys = { workspace = true }
 # Error handling
 thiserror = { workspace = true }
 regex = "1.12.3"
+
+# Logging
+log = "0.4"
+wasm-logger = "0.2"

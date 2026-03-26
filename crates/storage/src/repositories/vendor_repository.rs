@@ -162,4 +162,50 @@ impl VendorRepository for IndexedDbVendorRepository {
 
         Ok(())
     }
+
+    async fn delete_from_booth(
+        &self,
+        booth_id: &BoothId,
+        vendor_id: &VendorId,
+    ) -> DomainResult<()> {
+        log::info!("IndexedDbVendorRepository::delete_from_booth called for booth_id: {:?}, vendor_id: {:?}", booth_id, vendor_id);
+
+        let transaction = self
+            .db
+            .transaction(&["vendors"], TransactionMode::ReadWrite)
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+
+        let store = transaction
+            .store("vendors")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        // Vendors use compound key: [booth_id, vendor_id]
+        let key_array = js_sys::Array::new();
+        key_array.push(&JsValue::from_str(&booth_id.as_str()));
+        key_array.push(&JsValue::from_str(vendor_id.as_str()));
+        let key = JsValue::from(key_array);
+
+        log::info!(
+            "Deleting vendor with compound key: [booth_id: {}, vendor_id: {}]",
+            booth_id.as_str(),
+            vendor_id.as_str()
+        );
+
+        store
+            .delete(key)
+            .await
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        log::info!("Delete operation completed, waiting for transaction.done()");
+        transaction
+            .done()
+            .await
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+
+        log::info!(
+            "Transaction committed successfully for vendor_id: {:?}",
+            vendor_id
+        );
+        Ok(())
+    }
 }
