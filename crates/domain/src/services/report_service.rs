@@ -381,6 +381,14 @@ mod tests {
         async fn delete(&self, _id: &crate::models::PurchaseId) -> DomainResult<()> {
             Ok(())
         }
+
+        async fn delete_from_booth(
+            &self,
+            _booth_id: &BoothId,
+            _id: &crate::models::PurchaseId,
+        ) -> DomainResult<()> {
+            Ok(())
+        }
     }
 
     #[derive(Clone)]
@@ -470,6 +478,14 @@ mod tests {
         }
 
         async fn delete(&self, _booth_id: &BoothId, _vendor_id: &VendorId) -> DomainResult<()> {
+            Ok(())
+        }
+
+        async fn delete_from_booth(
+            &self,
+            _booth_id: &BoothId,
+            _vendor_id: &VendorId,
+        ) -> DomainResult<()> {
             Ok(())
         }
     }

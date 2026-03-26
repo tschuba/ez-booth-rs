@@ -162,6 +162,18 @@ mod tests {
                 .remove(&(*booth_id, vendor_id.clone()));
             Ok(())
         }
+
+        async fn delete_from_booth(
+            &self,
+            booth_id: &BoothId,
+            vendor_id: &VendorId,
+        ) -> DomainResult<()> {
+            self.vendors
+                .lock()
+                .unwrap()
+                .remove(&(*booth_id, vendor_id.clone()));
+            Ok(())
+        }
     }
 
     #[derive(Clone)]

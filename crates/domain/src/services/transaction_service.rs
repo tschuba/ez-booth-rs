@@ -191,6 +191,15 @@ mod tests {
             self.purchases.lock().unwrap().remove(id);
             Ok(())
         }
+
+        async fn delete_from_booth(
+            &self,
+            _booth_id: &BoothId,
+            id: &PurchaseId,
+        ) -> DomainResult<()> {
+            self.purchases.lock().unwrap().remove(id);
+            Ok(())
+        }
     }
 
     fn create_test_booth_id() -> BoothId {
