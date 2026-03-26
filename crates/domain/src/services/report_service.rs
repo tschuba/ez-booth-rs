@@ -279,6 +279,7 @@ impl DateRange {
 mod tests {
     use super::*;
     use crate::models::{Booth, BoothStatus, FeeConfig, PurchaseItem, Vendor};
+    use crate::{BoothRunningTotals, PaginatedPurchases};
     use async_trait::async_trait;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
@@ -323,6 +324,35 @@ mod tests {
         async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>> {
             let purchases = self.purchases.lock().unwrap();
             Ok(purchases.get(booth_id).cloned().unwrap_or_default())
+        }
+
+        async fn find_by_booth_paginated(
+            &self,
+            booth_id: &BoothId,
+            offset: usize,
+            limit: usize,
+        ) -> DomainResult<PaginatedPurchases> {
+            let mut purchases = self.find_by_booth(booth_id).await?;
+            purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+            
+            let total_count = purchases.len();
+            let items: Vec<Purchase> = purchases.into_iter().skip(offset).take(limit).collect();
+            
+            Ok(PaginatedPurchases { items, total_count })
+        }
+
+        async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
+            let purchases = self.find_by_booth(booth_id).await?;
+            
+            let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
+            let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
+            let total_checkouts = purchases.len();
+            
+            Ok(BoothRunningTotals {
+                total_sales,
+                total_items,
+                total_checkouts,
+            })
         }
 
         async fn find_by_vendor(

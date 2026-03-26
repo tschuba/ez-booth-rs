@@ -6,6 +6,7 @@
 use crate::error::DomainResult;
 use crate::models::{Booth, BoothId, Purchase, PurchaseId, Vendor, VendorId};
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 
 /// Repository trait for booth persistence operations
 #[async_trait(?Send)]
@@ -46,6 +47,26 @@ pub trait VendorRepository {
     async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()>;
 }
 
+/// Paginated query result for purchases
+#[derive(Debug, Clone)]
+pub struct PaginatedPurchases {
+    /// The purchases for the current page
+    pub items: Vec<Purchase>,
+    /// Total number of purchases matching the query
+    pub total_count: usize,
+}
+
+/// Running totals for a booth
+#[derive(Debug, Clone)]
+pub struct BoothRunningTotals {
+    /// Total sales amount across all purchases
+    pub total_sales: Decimal,
+    /// Total number of items across all purchases
+    pub total_items: usize,
+    /// Total number of checkouts (purchases)
+    pub total_checkouts: usize,
+}
+
 /// Repository trait for purchase persistence operations
 #[async_trait(?Send)]
 pub trait PurchaseRepository {
@@ -57,6 +78,18 @@ pub trait PurchaseRepository {
 
     /// Find all purchases for a specific booth
     async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>>;
+
+    /// Find purchases for a specific booth with pagination
+    /// Returns paginated results sorted by timestamp descending (newest first)
+    async fn find_by_booth_paginated(
+        &self,
+        booth_id: &BoothId,
+        offset: usize,
+        limit: usize,
+    ) -> DomainResult<PaginatedPurchases>;
+
+    /// Get running totals for a specific booth
+    async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals>;
 
     /// Find all purchases for a specific vendor in a booth
     async fn find_by_vendor(

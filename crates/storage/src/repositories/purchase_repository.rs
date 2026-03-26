@@ -1,6 +1,10 @@
 use async_trait::async_trait;
-use domain::{BoothId, DomainResult, Purchase, PurchaseId, PurchaseRepository, VendorId};
+use domain::{
+    BoothId, BoothRunningTotals, DomainResult, PaginatedPurchases, Purchase, PurchaseId,
+    PurchaseRepository, VendorId,
+};
 use rexie::TransactionMode;
+use rust_decimal::Decimal;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
@@ -103,6 +107,44 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .collect();
 
         Ok(purchases)
+    }
+
+    async fn find_by_booth_paginated(
+        &self,
+        booth_id: &BoothId,
+        offset: usize,
+        limit: usize,
+    ) -> DomainResult<PaginatedPurchases> {
+        // Get all purchases for the booth
+        let mut all_purchases = self.find_by_booth(booth_id).await?;
+        
+        // Sort by timestamp descending (newest first)
+        all_purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        
+        let total_count = all_purchases.len();
+        
+        // Apply pagination
+        let items: Vec<Purchase> = all_purchases
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .collect();
+        
+        Ok(PaginatedPurchases { items, total_count })
+    }
+
+    async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
+        let purchases = self.find_by_booth(booth_id).await?;
+        
+        let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
+        let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
+        let total_checkouts = purchases.len();
+        
+        Ok(BoothRunningTotals {
+            total_sales,
+            total_items,
+            total_checkouts,
+        })
     }
 
     async fn find_by_vendor(

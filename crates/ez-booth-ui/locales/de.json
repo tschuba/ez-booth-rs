@@ -148,7 +148,15 @@
       "load_purchases_failed": "Fehler beim Laden der Käufe: {error}",
       "load_booths_failed": "Fehler beim Laden der Veranstaltungen: {error}",
       "save_purchase_failed": "Fehler beim Speichern des Kaufs: {error}",
-      "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}"
+      "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}",
+      "load_totals_failed": "Fehler beim Laden der Summen: {error}"
+    },
+    "pagination": {
+      "first": "Erste",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "last": "Letzte",
+      "page_info": "Seite {current} von {total} ({count} gesamt)"
     },
     "info": {
       "vendor_trimmed": "Leerzeichen am Anfang und Ende der Verkäufer-ID wurden entfernt",

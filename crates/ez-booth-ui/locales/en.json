@@ -148,7 +148,15 @@
       "load_purchases_failed": "Failed to load purchases: {error}",
       "load_booths_failed": "Failed to load events: {error}",
       "save_purchase_failed": "Failed to save purchase: {error}",
-      "delete_purchase_failed": "Failed to delete purchase: {error}"
+      "delete_purchase_failed": "Failed to delete purchase: {error}",
+      "load_totals_failed": "Failed to load totals: {error}"
+    },
+    "pagination": {
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last",
+      "page_info": "Page {current} of {total} ({count} total)"
     },
     "info": {
       "vendor_trimmed": "Leading and trailing spaces were removed from the Vendor ID",
