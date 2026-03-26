@@ -60,6 +60,7 @@ pub fn VendorListPage() -> impl IntoView {
                                     let total_sales: Decimal = purchases
                                         .iter()
                                         .flat_map(|p| &p.items)
+                                        .filter(|item| item.vendor_id == vendor.vendor_id)
                                         .map(|item| item.amount)
                                         .sum();
 

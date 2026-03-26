@@ -151,10 +151,11 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         }
 
         // Collect all items from purchases with their transaction IDs
+        // Filter to only include items for this specific vendor
         let items: Vec<VendorReportItem> = purchases
             .iter()
             .flat_map(|p| {
-                p.items.iter().map(|item| VendorReportItem {
+                p.items.iter().filter(|item| &item.vendor_id == vendor_id).map(|item| VendorReportItem {
                     transaction_id: p.id.clone(),
                     item: item.clone(),
                     timestamp: p.timestamp,
@@ -645,5 +646,92 @@ mod tests {
 
         assert_eq!(report.sales_sum, dec!(50.00)); // 20 + 30
         assert_eq!(report.items.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_mixed_vendor_purchases() {
+        // Test scenario: A purchase contains items from multiple vendors
+        // Each vendor's report should only include their own items
+        let booth = create_test_booth();
+        let vendor1 = create_test_vendor(&booth.id, "V1");
+        let vendor2 = create_test_vendor(&booth.id, "V2");
+
+        let purchase_repo = MockPurchaseRepository::new();
+        let booth_repo = MockBoothRepository::new();
+        let vendor_repo = MockVendorRepository::new();
+
+        booth_repo.add_booth(booth.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor1.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor2.clone());
+
+        // Create a purchase with items from both vendors
+        let mixed_purchase = Purchase::new(
+            booth.id.clone(),
+            vec![
+                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()),
+                PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()),
+                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()),
+            ],
+        );
+
+        purchase_repo.add_purchase(mixed_purchase);
+
+        let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
+
+        // Test vendor1's report - should only include their items (10.00 + 5.00)
+        let report1 = service
+            .generate_vendor_report(&booth.id, &vendor1.vendor_id, None)
+            .await
+            .unwrap();
+
+        assert_eq!(report1.sales_sum, dec!(15.00)); // 10.00 + 5.00
+        assert_eq!(report1.items.len(), 2, "Vendor 1 should have 2 items");
+        assert!(
+            report1
+                .items
+                .iter()
+                .all(|item| item.item.vendor_id == vendor1.vendor_id),
+            "All items in vendor 1 report should belong to vendor 1"
+        );
+
+        // Test vendor2's report - should only include their item (20.00)
+        let report2 = service
+            .generate_vendor_report(&booth.id, &vendor2.vendor_id, None)
+            .await
+            .unwrap();
+
+        assert_eq!(report2.sales_sum, dec!(20.00));
+        assert_eq!(report2.items.len(), 1, "Vendor 2 should have 1 item");
+        assert_eq!(
+            report2.items[0].item.vendor_id, vendor2.vendor_id,
+            "The item should belong to vendor 2"
+        );
+
+        // Test booth summary - should correctly aggregate per vendor
+        let booth_summary = service
+            .generate_booth_summary(&booth.id, None)
+            .await
+            .unwrap();
+
+        assert_eq!(booth_summary.unique_vendors, 2);
+        assert_eq!(booth_summary.total_revenue, dec!(35.00)); // 10 + 20 + 5
+
+        // Find vendor summaries
+        let v1_summary = booth_summary
+            .vendor_summaries
+            .iter()
+            .find(|v| v.vendor_id == vendor1.vendor_id)
+            .unwrap();
+        let v2_summary = booth_summary
+            .vendor_summaries
+            .iter()
+            .find(|v| v.vendor_id == vendor2.vendor_id)
+            .unwrap();
+
+        assert_eq!(v1_summary.gross_sales, dec!(15.00), "Vendor 1 gross sales");
+        assert_eq!(v1_summary.item_count, 2, "Vendor 1 item count");
+
+        assert_eq!(v2_summary.gross_sales, dec!(20.00), "Vendor 2 gross sales");
+        assert_eq!(v2_summary.item_count, 1, "Vendor 2 item count");
     }
 }
