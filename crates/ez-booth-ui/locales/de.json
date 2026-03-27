@@ -221,7 +221,7 @@
     "draft_restored": "Gespeicherter Entwurf wiederhergestellt.",
     "draft_corrupted": "Beschädigte Entwurfsdaten wurden gefunden und gelöscht.",
     "recovery": {
-      "partial_data_warning": "Einige Kassiervorgänge konnten nicht geladen werden und wurden übersprungen ({count}). Die sichtbaren Summen enthalten nur wiederherstellbare Daten."
+      "partial_data_warning": "Einige Kassiervorgänge konnten nicht geladen werden und wurden übersprungen ({count}). Die sichtbaren Summen enthalten nur wiederherstellbare Daten. Bitte Summen vor dem Fortfahren prüfen."
     },
     "pagination": {
       "first": "Erste",

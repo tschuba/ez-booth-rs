@@ -98,7 +98,28 @@ Performance notes: ________________________________________________
 
 Performance notes: ________________________________________________
 
-## Scenario 5: Display And Printing Accuracy
+## Scenario 5: Corruption Warning And Operator Guidance
+
+- [ ] Prepare one valid purchase for the booth
+- [ ] Corrupt one purchase record manually in IndexedDB
+- [ ] Refresh checkout view in Safari
+- [ ] Verify a visible warning appears about skipped purchases
+- [ ] Verify healthy purchases still load
+- [ ] Verify visible totals only reflect recoverable purchases
+- [ ] Review totals before continuing and note whether operator guidance is clear enough
+
+### Result Comparison
+
+| Check | Expected | Actual | Match |
+|-------|----------|--------|-------|
+| Warning toast shown | Yes | __________ | [ ] |
+| Healthy purchases still visible | Yes | __________ | [ ] |
+| Corrupted purchase excluded | Yes | __________ | [ ] |
+| Totals match recoverable data only | Yes | __________ | [ ] |
+
+Operator notes: _________________________________________________
+
+## Scenario 6: Display And Printing Accuracy
 
 - [ ] Verify currency values use two decimal places consistently
 - [ ] Verify report print layout keeps values readable
@@ -112,7 +133,7 @@ Performance notes: ________________________________________________
 | Vendor report | [ ] | |
 | Booth summary | [ ] | |
 
-## Scenario 6: Performance Observations
+## Scenario 7: Performance Observations
 
 | Action | Observed time | Acceptable | Notes |
 |--------|---------------|------------|-------|
@@ -136,6 +157,7 @@ Notes: _____________________________________________________________
 | Checkout correctness | [ ] Pass / [ ] Fail | |
 | Data consistency | [ ] Pass / [ ] Fail | |
 | Report accuracy | [ ] Pass / [ ] Fail | |
+| Recovery guidance | [ ] Pass / [ ] Fail | |
 | Performance | [ ] Pass / [ ] Fail | |
 
 Overall outcome: [ ] PASS / [ ] FAIL

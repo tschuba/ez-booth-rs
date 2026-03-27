@@ -276,12 +276,12 @@ jobs:
 ## Test Coverage
 
 ### Automated Test Inventory
-- ✅ Unit tests: 99
-- ✅ Browser integration tests per browser run: 17
+- ✅ Unit tests: 102
+- ✅ Browser integration tests per browser run: 20
   - Booth repository tests: 6
-  - Purchase diagnostics tests: 1
+  - Purchase diagnostics and compound-key tests: 3
   - Safari-specific resilience tests: 4
-  - Checkout/report browser tests: 6
+  - Checkout/report browser tests: 7
 
 ### Reusable Manual Validation Assets
 - `docs/SAFARI_VALIDATION_CHECKLIST.md` - detailed Safari checkout/report verification with result comparison tables
@@ -348,6 +348,7 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] Enter negative amount and verify checkout rejects it
 - [ ] Trigger draft persistence by entering checkout items, then refresh
 - [ ] Verify draft recovery behaves as expected
+- [ ] Corrupt one purchase record and verify a visible warning explains that only recoverable data is shown
 - [ ] Confirm there are no uncaught console errors during checkout/report flows
 
 Use `docs/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow, including expected values, result comparison tables, and performance notes.
