@@ -1,7 +1,6 @@
 use crate::models::{Booth, Transaction};
 // TODO: Re-enable BoothReport once report module is fixed
 // use crate::models::BoothReport;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use uuid::Uuid;
 

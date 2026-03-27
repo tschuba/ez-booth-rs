@@ -1,6 +1,7 @@
 use leptos::*;
 
 /// Button variant styles
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ButtonVariant {
     Primary,
@@ -23,6 +24,7 @@ impl ButtonVariant {
 }
 
 /// Button size
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ButtonSize {
     Small,

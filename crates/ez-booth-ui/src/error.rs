@@ -2,6 +2,7 @@ use domain::DomainError;
 use thiserror::Error;
 
 /// UI-specific errors
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum UiError {
     #[error("Domain error: {0}")]
@@ -17,9 +18,11 @@ pub enum UiError {
     StateError(String),
 }
 
+#[allow(dead_code)]
 pub type UiResult<T> = Result<T, UiError>;
 
 /// Convert UiError to user-friendly message key
+#[allow(dead_code)]
 pub fn error_to_message_key(error: &UiError) -> &'static str {
     match error {
         UiError::Domain(DomainError::NotFound(_)) => "error.not_found",

@@ -45,6 +45,7 @@ pub fn format_percentage_smart(percent: Decimal, locale: Locale) -> String {
 /// Format a chrono DateTime<Local> with locale-aware date and time
 /// German: 25.03.2026 14:30
 /// English: Mar 25, 2026 2:30 PM
+#[allow(dead_code)]
 pub fn format_datetime(date: DateTime<Local>, locale: Locale) -> String {
     match locale {
         Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
@@ -81,6 +82,7 @@ pub fn format_decimal_for_input(amount: Decimal, locale: Locale, decimals: u32) 
 }
 
 /// Get ISO currency code for locale
+#[allow(dead_code)]
 pub fn currency_code(locale: Locale) -> &'static str {
     match locale {
         Locale::DeDE | Locale::DeAT | Locale::De | Locale::EnEU | Locale::En => "EUR",

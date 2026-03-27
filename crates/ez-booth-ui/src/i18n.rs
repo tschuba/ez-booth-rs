@@ -159,6 +159,7 @@ pub fn load_translations(locale: Locale) -> Translations {
 }
 
 /// Translate helper
+#[allow(dead_code)]
 pub fn translate(key: &str) -> String {
     let translations = use_translations();
     translations.with(|t| t.get(key))

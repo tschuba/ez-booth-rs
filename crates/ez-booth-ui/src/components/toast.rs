@@ -105,6 +105,7 @@ impl ToastContext {
     }
 
     /// Show error toast with full message for copying
+    #[allow(dead_code)]
     pub fn error_with_full(&self, message: impl Into<String>, full_message: impl Into<String>) {
         self.show_with_full(
             message.into(),
