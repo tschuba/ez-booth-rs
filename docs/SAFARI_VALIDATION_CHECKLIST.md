@@ -106,6 +106,7 @@ Performance notes: ________________________________________________
 - [ ] Verify a visible warning appears about skipped purchases
 - [ ] Verify healthy purchases still load
 - [ ] Verify visible totals only reflect recoverable purchases
+- [ ] Verify the warning remains visible while reviewing totals and recent transactions
 - [ ] Review totals before continuing and note whether operator guidance is clear enough
 
 ### Result Comparison
