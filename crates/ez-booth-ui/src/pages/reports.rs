@@ -397,7 +397,19 @@ pub fn ReportsPage() -> impl IntoView {
             // Print-only layout (hidden on screen, visible during print)
             <div class="hidden print:block">
                 <Show when=move || booth_summary.get().is_some()>
-                    {move || booth_summary.get().map(|summary| view! { <PrintBoothSummary summary=summary /> })}
+                    {move || {
+                        booth_summary.get().and_then(|summary| {
+                            selected_booth.get().map(|booth| {
+                                view! {
+                                    <PrintBoothSummary
+                                        summary=summary
+                                        booth_name=booth.description.clone()
+                                        booth_date=booth.date
+                                    />
+                                }
+                            })
+                        })
+                    }}
                 </Show>
 
                 <Show when=move || !vendor_reports.get().is_empty()>

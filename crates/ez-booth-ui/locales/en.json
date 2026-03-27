@@ -329,7 +329,7 @@
     "subtotal": "Subtotal",
     "total_participation_fees": "Total Participation Fees",
     "total_sales_fees": "Total Revenue Share",
-    "total_participation_fees_with_config": "Total Participation Fees ({fee}/vendor)",
+    "total_participation_fees_with_config": "Total Participation Fees ({fee})",
     "total_sales_fees_with_config": "Total Revenue Share ({percent})",
     "total_booth_revenue": "Net Event Revenue",
     "booth_revenue": "Revenue",

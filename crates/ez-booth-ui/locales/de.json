@@ -329,7 +329,7 @@
     "subtotal": "Zwischensumme",
     "total_participation_fees": "Teilnahmegebühren gesamt",
     "total_sales_fees": "Umsatzbeteiligungen gesamt",
-    "total_participation_fees_with_config": "Teilnahmegebühren gesamt ({fee}/Verkäufer)",
+    "total_participation_fees_with_config": "Teilnahmegebühren gesamt ({fee})",
     "total_sales_fees_with_config": "Umsatzbeteiligungen gesamt ({percent})",
     "total_booth_revenue": "Gesamterlös",
     "booth_revenue": "Einnahmen",

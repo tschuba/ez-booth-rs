@@ -290,6 +290,24 @@ pub fn BoothListPage() -> impl IntoView {
         );
     };
 
+    let print_header_action = move || {
+        view! {
+            <button
+                type="button"
+                on:click=handle_print
+                class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                title={t!("report.print_report")()}
+                aria-label={t!("report.print_report")()}
+            >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                <span>{t!("report.print_report")}</span>
+            </button>
+        }
+            .into_view()
+    };
+
     view! {
         <>
             <div class="print:hidden">
@@ -420,7 +438,8 @@ pub fn BoothListPage() -> impl IntoView {
                                     show=Signal::derive(move || expanded_booth_id.get().is_some())
                                     on_close=close_report_modal
                                     title=modal_title
-                                    size=ModalSize::ExtraLarge
+                                    header_actions=print_header_action()
+                                    size=ModalSize::XLarge
                                 >
                                     <div class="space-y-6">
                                         <Show
@@ -431,22 +450,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                         {move || {
                                                             expanded_booth_summary.get().map(|summary| {
                                                                 view! {
-                                                                    <>
-                                                                        <BoothSummaryDisplay summary=summary />
-
-                                                                        <div class="flex justify-end pt-2">
-                                                                            <button
-                                                                                on:click=handle_print
-                                                                                class="min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full transition-all shadow-lg bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                                                                title={t!("report.print_report")()}
-                                                                                aria-label={t!("report.print_report")()}
-                                                                            >
-                                                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                        </div>
-                                                                    </>
+                                                                    <BoothSummaryDisplay summary=summary />
                                                                 }
                                                             })
                                                         }}
@@ -535,9 +539,23 @@ pub fn BoothListPage() -> impl IntoView {
             <div class="hidden print:block">
                 <Show when=move || expanded_booth_summary.get().is_some()>
                     {move || {
-                        expanded_booth_summary
-                            .get()
-                            .map(|summary| view! { <PrintBoothSummary summary=summary /> })
+                        expanded_booth_summary.get().and_then(|summary| {
+                            expanded_booth_id.get().and_then(|booth_id| {
+                                booths
+                                    .get()
+                                    .into_iter()
+                                    .find(|booth| booth.id == booth_id)
+                                    .map(|booth| {
+                                        view! {
+                                            <PrintBoothSummary
+                                                summary=summary
+                                                booth_name=booth.description.clone()
+                                                booth_date=booth.date
+                                            />
+                                        }
+                                    })
+                            })
+                        })
                     }}
                 </Show>
             </div>

@@ -1,8 +1,8 @@
 use crate::components::pagination::Pagination;
 use crate::formatting::{format_currency, format_percentage_smart};
-use crate::i18n::{translate_with_params, use_locale};
+use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::t;
-use chrono::Local;
+use chrono::{Datelike, Local, NaiveDate};
 use domain::models::{BoothSummary, VendorBoothSummary};
 use leptos::*;
 use std::collections::HashMap;
@@ -23,6 +23,33 @@ fn configured_sales_fee_label(
     let mut params = HashMap::new();
     params.insert("percent", format_percentage_smart(percent, locale));
     translate_with_params("report.total_sales_fees_with_config", params)
+}
+
+fn format_booth_date(date: NaiveDate, locale: Locale) -> String {
+    match locale {
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
+            let month_name = match date.month() {
+                1 => "Januar",
+                2 => "Februar",
+                3 => "März",
+                4 => "April",
+                5 => "Mai",
+                6 => "Juni",
+                7 => "Juli",
+                8 => "August",
+                9 => "September",
+                10 => "Oktober",
+                11 => "November",
+                12 => "Dezember",
+                _ => "",
+            };
+
+            format!("{}. {} {}", date.day(), month_name, date.year())
+        }
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
+            date.format("%B %d, %Y").to_string()
+        }
+    }
 }
 
 fn vendor_row_view(vs: &VendorBoothSummary, locale: RwSignal<crate::i18n::Locale>) -> View {
@@ -133,11 +160,6 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
             </div>
 
             <div class="border rounded-lg overflow-hidden">
-                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">
-                        {t!("report.vendor_breakdown")}
-                    </h3>
-                </div>
                 <Show
                     when=move || has_vendor_summaries
                     fallback=move || view! {
@@ -205,8 +227,13 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
 }
 
 #[component]
-pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
+pub fn PrintBoothSummary(
+    summary: BoothSummary,
+    booth_name: String,
+    booth_date: NaiveDate,
+) -> impl IntoView {
     let locale = use_locale();
+    let booth_name = store_value(booth_name);
     let total_revenue = summary.total_revenue;
     let total_purchases = summary.total_purchases;
     let total_items = summary.total_items;
@@ -247,7 +274,8 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
     view! {
         <div class="p-8 max-w-4xl mx-auto">
             <div class="mb-8 pb-4 border-b-2 border-gray-800">
-                <h1 class="text-3xl font-bold mb-2">{t!("report.booth_summary_report")}</h1>
+                <h1 class="text-3xl font-bold mb-2">{move || booth_name.get_value()}</h1>
+                <p class="text-lg text-gray-700">{move || format_booth_date(booth_date, locale.get())}</p>
             </div>
 
             <div class="mb-8 border-2 border-gray-400 p-6 rounded bg-gray-50">
@@ -301,7 +329,6 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
             </div>
 
             <div>
-                <h2 class="text-xl font-bold mb-4">{t!("report.vendor_breakdown")}</h2>
                 <Show
                     when=move || has_vendor_summaries
                     fallback=move || view! {
