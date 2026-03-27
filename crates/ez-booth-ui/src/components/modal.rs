@@ -7,6 +7,7 @@ pub enum ModalSize {
     Small,
     Medium,
     Large,
+    ExtraLarge,
     FullScreen,
 }
 
@@ -16,6 +17,7 @@ impl ModalSize {
             ModalSize::Small => "max-w-sm",
             ModalSize::Medium => "max-w-md",
             ModalSize::Large => "max-w-2xl",
+            ModalSize::ExtraLarge => "max-w-4xl",
             ModalSize::FullScreen => "max-w-full",
         }
     }
@@ -86,7 +88,7 @@ pub fn Modal(
     view! {
         <Show when=move || show.get()>
             <div
-                class="fixed inset-0 z-50 overflow-y-auto"
+                class="fixed inset-0 z-50 overflow-y-auto print:hidden"
                 aria-labelledby="modal-title"
                 role="dialog"
                 aria-modal="true"

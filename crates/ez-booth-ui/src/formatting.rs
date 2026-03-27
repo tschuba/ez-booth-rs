@@ -29,6 +29,19 @@ pub fn format_percentage(percent: Decimal, locale: Locale) -> String {
     format!("{}%", formatted)
 }
 
+/// Format a Decimal as a percentage with smart decimal handling.
+///
+/// Whole values render without decimals, fractional values keep two decimals.
+/// German (DE): 15% or 15,50%
+/// English (EN): 15% or 15.50%
+pub fn format_percentage_smart(percent: Decimal, locale: Locale) -> String {
+    if percent.fract().is_zero() {
+        format!("{}%", format_decimal(percent, locale, 0))
+    } else {
+        format_percentage(percent, locale)
+    }
+}
+
 /// Format a chrono DateTime<Local> with locale-aware date and time
 /// German: 25.03.2026 14:30
 /// English: Mar 25, 2026 2:30 PM
@@ -357,6 +370,26 @@ mod tests {
         assert_eq!(
             format_percentage(Decimal::from_str("0.5").unwrap(), Locale::En),
             "0.50%"
+        );
+    }
+
+    #[test]
+    fn test_format_percentage_smart() {
+        assert_eq!(
+            format_percentage_smart(Decimal::from_str("15.00").unwrap(), Locale::De),
+            "15%"
+        );
+        assert_eq!(
+            format_percentage_smart(Decimal::from_str("15.00").unwrap(), Locale::En),
+            "15%"
+        );
+        assert_eq!(
+            format_percentage_smart(Decimal::from_str("15.50").unwrap(), Locale::De),
+            "15,50%"
+        );
+        assert_eq!(
+            format_percentage_smart(Decimal::from_str("15.50").unwrap(), Locale::En),
+            "15.50%"
         );
     }
 

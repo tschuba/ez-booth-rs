@@ -26,7 +26,6 @@ pub fn BoothListPage() -> impl IntoView {
     let (expanded_booth_id, set_expanded_booth_id) = create_signal(None::<BoothId>);
     let (expanded_booth_summary, set_expanded_booth_summary) = create_signal(None::<BoothSummary>);
     let (is_loading_report, set_is_loading_report) = create_signal(false);
-    let (saved_scroll_y, set_saved_scroll_y) = create_signal(0.0_f64);
 
     let toast = use_toast();
 
@@ -55,26 +54,10 @@ pub fn BoothListPage() -> impl IntoView {
         }
     };
 
-    let save_scroll_position = move || {
-        if let Some(window) = window() {
-            set_saved_scroll_y.set(window.scroll_y().unwrap_or(0.0));
-        }
-    };
-
-    let restore_scroll_position = move || {
-        if let Some(window) = window() {
-            let y = saved_scroll_y.get_untracked();
-            window.scroll_to_with_x_and_y(0.0, y);
-        }
-    };
-
-    let collapse_expanded_report = move || {
-        if expanded_booth_id.get_untracked().is_some() {
-            set_expanded_booth_id.set(None);
-            set_expanded_booth_summary.set(None);
-            set_is_loading_report.set(false);
-            restore_scroll_position();
-        }
+    let close_report_modal = move || {
+        set_expanded_booth_id.set(None);
+        set_expanded_booth_summary.set(None);
+        set_is_loading_report.set(false);
     };
 
     create_effect(move |_| {
@@ -129,9 +112,7 @@ pub fn BoothListPage() -> impl IntoView {
                                 )]),
                             );
                             toast.error(&error_msg);
-                            set_expanded_booth_id.set(None);
-                            set_expanded_booth_summary.set(None);
-                            restore_scroll_position();
+                            close_report_modal();
                         }
                     }
                 }
@@ -288,17 +269,32 @@ pub fn BoothListPage() -> impl IntoView {
             .unwrap_or_else(|| t!("booth.delete_confirm")())
     };
 
+    let report_modal_title = move || {
+        expanded_booth_id.get().and_then(|booth_id| {
+            booths
+                .get()
+                .into_iter()
+                .find(|booth| booth.id == booth_id)
+                .map(|booth| format!("{} - {}", booth.description, t!("report.booth_summary_report")()))
+        })
+    };
+
     let handle_print = move |_| {
-        if let Some(window) = window() {
-            let _ = window.print();
-        }
+        set_timeout(
+            move || {
+                if let Some(window) = window() {
+                    let _ = window.print();
+                }
+            },
+            std::time::Duration::from_millis(100),
+        );
     };
 
     view! {
         <>
             <div class="print:hidden">
                 <Container>
-                    <div class="py-8" on:click=move |_| collapse_expanded_report()>
+                    <div class="py-8">
                         <div class="flex justify-between items-center mb-6">
                             <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
                             <Button
@@ -325,124 +321,67 @@ pub fn BoothListPage() -> impl IntoView {
                                                             let booth_description = store_value(booth.description.clone());
                                                             let booth_is_open = booth.is_open();
                                                             let booth_date = booth.date;
-                                                            let booth_id = booth.id;
-                                                            let booth_id_stored = store_value(booth_id);
+                                                            let booth_id_stored = store_value(booth.id);
                                                             let booth_for_edit = store_value(booth.clone());
                                                             let booth_for_delete = store_value(booth.clone());
 
                                                             view! {
-                                                                <div on:click=move |e| e.stop_propagation()>
-                                                                    <Show
-                                                                        when=move || {
-                                                                            expanded_booth_id.get() == Some(booth_id_stored.get_value())
-                                                                        }
-                                                                        fallback=move || {
-                                                                            view! {
-                                                                                <Card class="booth-card h-full">
-                                                                                    <div class="flex flex-col gap-4 h-full">
-                                                                                        <div class="space-y-2">
-                                                                                            <h3 class="text-lg font-semibold text-gray-900">
-                                                                                                {booth_description.get_value()}
-                                                                                            </h3>
-                                                                                            <p class="text-gray-600">
-                                                                                                {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
-                                                                                            </p>
-                                                                                            <p class="text-sm text-gray-500">
-                                                                                                {t!("booth.status_label")} " "
-                                                                                                {move || if booth_is_open {
-                                                                                                    t!("booth.status_open")()
-                                                                                                } else {
-                                                                                                    t!("booth.status_closed")()
-                                                                                                }}
-                                                                                            </p>
-                                                                                        </div>
-                                                                                        <div class="flex items-center justify-end gap-2 mt-auto">
-                                                                                            <button
-                                                                                                on:click=move |e| {
-                                                                                                    e.stop_propagation();
-                                                                                                    save_scroll_position();
-                                                                                                    set_expanded_booth_summary.set(None);
-                                                                                                    set_expanded_booth_id.set(Some(booth_id_stored.get_value()));
-                                                                                                }
-                                                                                                disabled=move || is_loading_report.get()
-                                                                                                title={t!("booth.view_report")()}
-                                                                                                aria-label={t!("booth.view_report_aria")()}
-                                                                                                class="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                                                            >
-                                                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                                                                                                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                                                                                                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                                                                                                </svg>
-                                                                                            </button>
-                                                                                            <Button
-                                                                                                on_click=Box::new(move || {
-                                                                                                    set_editing_booth.set(Some(booth_for_edit.get_value()));
-                                                                                                    set_show_edit_modal.set(true);
-                                                                                                })
-                                                                                                variant=ButtonVariant::Secondary
-                                                                                            >
-                                                                                                {t!("booth.edit_button")}
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                                on_click=Box::new(move || {
-                                                                                                    set_deleting_booth.set(Some(booth_for_delete.get_value()));
-                                                                                                    set_show_delete_confirm.set(true);
-                                                                                                })
-                                                                                                variant=ButtonVariant::Danger
-                                                                                            >
-                                                                                                {t!("booth.delete_button")}
-                                                                                            </Button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </Card>
-                                                                            }
-                                                                        }
-                                                                    >
-                                                                        <Card class="expanded-booth-report lg:col-span-2 xl:col-span-3">
-                                                                            <div class="space-y-6">
-                                                                                <div class="flex items-center justify-between gap-4">
-                                                                                    <div>
-                                                                                        <h3 class="text-xl font-semibold text-gray-900">
-                                                                                            {booth_description.get_value()}
-                                                                                        </h3>
-                                                                                        <p class="text-sm text-gray-500 mt-1">
-                                                                                            {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                    <Button
-                                                                                        variant=ButtonVariant::Secondary
-                                                                                        on_click=Box::new(move || collapse_expanded_report())
-                                                                                    >
-                                                                                        {t!("common.back")}
-                                                                                    </Button>
-                                                                                </div>
-
-                                                                                <Show
-                                                                                    when=move || is_loading_report.get()
-                                                                                    fallback=move || {
-                                                                                        view! {
-                                                                                            <Show when=move || expanded_booth_summary.get().is_some()>
-                                                                                                {move || {
-                                                                                                    expanded_booth_summary.get().map(|summary| {
-                                                                                                        view! { <BoothSummaryDisplay summary=summary /> }
-                                                                                                    })
-                                                                                                }}
-                                                                                            </Show>
-                                                                                        }
-                                                                                    }
-                                                                                >
-                                                                                    <div class="flex items-center justify-center py-12">
-                                                                                        <div class="text-center">
-                                                                                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                                                                                            <p class="mt-4 text-gray-600">{t!("report.loading")}</p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </Show>
-                                                                            </div>
-                                                                        </Card>
-                                                                    </Show>
-                                                                </div>
+                                                                <Card class="booth-card h-full">
+                                                                    <div class="flex flex-col gap-4 h-full">
+                                                                        <div class="space-y-2">
+                                                                            <h3 class="text-lg font-semibold text-gray-900">
+                                                                                {booth_description.get_value()}
+                                                                            </h3>
+                                                                            <p class="text-gray-600">
+                                                                                {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
+                                                                            </p>
+                                                                            <p class="text-sm text-gray-500">
+                                                                                {t!("booth.status_label")} " "
+                                                                                {move || if booth_is_open {
+                                                                                    t!("booth.status_open")()
+                                                                                } else {
+                                                                                    t!("booth.status_closed")()
+                                                                                }}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div class="flex items-center justify-end gap-2 mt-auto">
+                                                                            <button
+                                                                                on:click=move |_| {
+                                                                                    set_expanded_booth_summary.set(None);
+                                                                                    set_expanded_booth_id.set(Some(booth_id_stored.get_value()));
+                                                                                }
+                                                                                disabled=move || is_loading_report.get()
+                                                                                title={t!("booth.view_report")()}
+                                                                                aria-label={t!("booth.view_report_aria")()}
+                                                                                class="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                            >
+                                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                                                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                                                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <Button
+                                                                                on_click=Box::new(move || {
+                                                                                    set_editing_booth.set(Some(booth_for_edit.get_value()));
+                                                                                    set_show_edit_modal.set(true);
+                                                                                })
+                                                                                variant=ButtonVariant::Secondary
+                                                                            >
+                                                                                {t!("booth.edit_button")}
+                                                                            </Button>
+                                                                            <Button
+                                                                                on_click=Box::new(move || {
+                                                                                    set_deleting_booth.set(Some(booth_for_delete.get_value()));
+                                                                                    set_show_delete_confirm.set(true);
+                                                                                })
+                                                                                variant=ButtonVariant::Danger
+                                                                            >
+                                                                                {t!("booth.delete_button")}
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                </Card>
                                                             }
                                                         }
                                                     />
@@ -472,19 +411,60 @@ pub fn BoothListPage() -> impl IntoView {
                         </Show>
                     </div>
 
-                    <Show
-                        when=move || expanded_booth_id.get().is_some() && expanded_booth_summary.get().is_some() && !is_loading_report.get()
-                    >
-                        <button
-                            on:click=handle_print
-                            class="fixed bottom-8 right-8 min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full shadow-2xl bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            title={t!("report.print_report")()}
-                            aria-label={t!("report.print_report")()}
-                        >
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                            </svg>
-                        </button>
+                    <Show when=move || expanded_booth_id.get().is_some()>
+                        {move || {
+                            let modal_title = report_modal_title().unwrap_or_else(|| t!("report.booth_summary_report")());
+
+                            view! {
+                                <Modal
+                                    show=Signal::derive(move || expanded_booth_id.get().is_some())
+                                    on_close=close_report_modal
+                                    title=modal_title
+                                    size=ModalSize::ExtraLarge
+                                >
+                                    <div class="space-y-6">
+                                        <Show
+                                            when=move || is_loading_report.get()
+                                            fallback=move || {
+                                                view! {
+                                                    <Show when=move || expanded_booth_summary.get().is_some()>
+                                                        {move || {
+                                                            expanded_booth_summary.get().map(|summary| {
+                                                                view! {
+                                                                    <>
+                                                                        <BoothSummaryDisplay summary=summary />
+
+                                                                        <div class="flex justify-end pt-2">
+                                                                            <button
+                                                                                on:click=handle_print
+                                                                                class="min-w-[4rem] min-h-[4rem] w-16 h-16 flex items-center justify-center rounded-full transition-all shadow-lg bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                                                title={t!("report.print_report")()}
+                                                                                aria-label={t!("report.print_report")()}
+                                                                            >
+                                                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    </>
+                                                                }
+                                                            })
+                                                        }}
+                                                    </Show>
+                                                }
+                                            }
+                                        >
+                                            <div class="flex items-center justify-center py-12">
+                                                <div class="text-center">
+                                                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                                    <p class="mt-4 text-gray-600">{t!("report.loading")}</p>
+                                                </div>
+                                            </div>
+                                        </Show>
+                                    </div>
+                                </Modal>
+                            }
+                        }}
                     </Show>
 
                     <Modal

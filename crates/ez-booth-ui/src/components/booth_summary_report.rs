@@ -1,9 +1,54 @@
-use crate::formatting::format_currency;
-use crate::i18n::use_locale;
+use crate::components::pagination::Pagination;
+use crate::formatting::{format_currency, format_percentage_smart};
+use crate::i18n::{translate_with_params, use_locale};
 use crate::t;
 use chrono::Local;
-use domain::models::BoothSummary;
+use domain::models::{BoothSummary, VendorBoothSummary};
 use leptos::*;
+use std::collections::HashMap;
+
+fn configured_participation_fee_label(
+    fee: rust_decimal::Decimal,
+    locale: crate::i18n::Locale,
+) -> String {
+    let mut params = HashMap::new();
+    params.insert("fee", format_currency(fee, locale));
+    translate_with_params("report.total_participation_fees_with_config", params)
+}
+
+fn configured_sales_fee_label(
+    percent: rust_decimal::Decimal,
+    locale: crate::i18n::Locale,
+) -> String {
+    let mut params = HashMap::new();
+    params.insert("percent", format_percentage_smart(percent, locale));
+    translate_with_params("report.total_sales_fees_with_config", params)
+}
+
+fn vendor_row_view(vs: &VendorBoothSummary, locale: RwSignal<crate::i18n::Locale>) -> View {
+    let vendor_id_str = vs.vendor_id.to_string();
+    let net_payout = vs.net_payout;
+    let gross_sales = vs.gross_sales;
+    let fees_due = vs.fees_due;
+    let item_count = vs.item_count;
+
+    view! {
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm font-medium text-gray-900">{vendor_id_str}</td>
+            <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                {move || format_currency(net_payout, locale.get())}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-700 text-right">
+                {move || format_currency(gross_sales, locale.get())}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-700 text-right">
+                {move || format_currency(fees_due, locale.get())}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-700 text-right">{item_count}</td>
+        </tr>
+    }
+    .into_view()
+}
 
 #[component]
 pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
@@ -12,43 +57,60 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
     let total_purchases = summary.total_purchases;
     let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
+    let participation_fee = summary.participation_fee;
+    let sales_fee_percent = summary.sales_fee_percent;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
     let total_booth_revenue = summary.total_booth_revenue;
-    let vendor_summaries = summary.vendor_summaries;
-    let has_vendor_summaries = !vendor_summaries.is_empty();
-    let vendor_rows = vendor_summaries
-        .into_iter()
-        .map(|vs| {
-            let vendor_id_str = vs.vendor_id.to_string();
-            let gross_sales = vs.gross_sales;
-            let fees_due = vs.fees_due;
-            let net_payout = vs.net_payout;
-            view! {
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                        {vendor_id_str}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                        {move || format_currency(gross_sales, locale.get())}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                        {move || format_currency(fees_due, locale.get())}
-                    </td>
-                    <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                        {move || format_currency(net_payout, locale.get())}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-700 text-right">
-                        {vs.item_count}
-                    </td>
-                </tr>
-            }
+    let vendor_summaries = store_value(summary.vendor_summaries);
+    let total_vendors = vendor_summaries.with_value(|rows| rows.len());
+    let has_vendor_summaries = total_vendors > 0;
+    let (current_page, set_current_page) = create_signal(0usize);
+    let (page_size, set_page_size) = create_signal(10usize);
+
+    let vendor_rows = create_memo(move |_| {
+        vendor_summaries.with_value(|rows| {
+            let page = current_page.get();
+            let size = page_size.get();
+            let start = page.saturating_mul(size);
+
+            rows.iter()
+                .skip(start)
+                .take(size)
+                .map(|vs| vendor_row_view(vs, locale))
+                .collect_view()
         })
-        .collect_view();
-    let vendor_rows = store_value(vendor_rows);
+    });
 
     view! {
         <div class="space-y-6">
+            <div class="border rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-gray-700">
+                            {move || configured_participation_fee_label(participation_fee, locale.get())}
+                        </span>
+                        <span class="font-semibold text-gray-900">
+                            {move || format_currency(total_participation_fees, locale.get())}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-gray-700">
+                            {move || configured_sales_fee_label(sales_fee_percent, locale.get())}
+                        </span>
+                        <span class="font-semibold text-gray-900">
+                            {move || format_currency(total_sales_fees, locale.get())}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4 pt-3 border-t-2 border-blue-200">
+                        <span class="text-lg font-bold text-gray-900">{t!("report.total_booth_revenue")}</span>
+                        <span class="text-2xl font-bold text-blue-700">
+                            {move || format_currency(total_booth_revenue, locale.get())}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div class="p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">{t!("report.sales_total")}</p>
@@ -70,30 +132,6 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                 </div>
             </div>
 
-            <div class="border rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">{t!("report.booth_revenue")}</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center gap-4">
-                        <span class="text-gray-700">{t!("report.total_participation_fees")}</span>
-                        <span class="font-semibold text-gray-900">
-                            {move || format_currency(total_participation_fees, locale.get())}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center gap-4">
-                        <span class="text-gray-700">{t!("report.total_sales_fees")}</span>
-                        <span class="font-semibold text-gray-900">
-                            {move || format_currency(total_sales_fees, locale.get())}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center gap-4 pt-3 border-t-2 border-blue-200">
-                        <span class="text-lg font-bold text-gray-900">{t!("report.total_booth_revenue")}</span>
-                        <span class="text-2xl font-bold text-blue-700">
-                            {move || format_currency(total_booth_revenue, locale.get())}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
             <div class="border rounded-lg overflow-hidden">
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700">
@@ -106,6 +144,20 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                         <div class="p-6 text-sm text-gray-600">{t!("report.no_data")}</div>
                     }
                 >
+                    <div class="px-4 border-b border-gray-200">
+                        <Pagination
+                            current_page=current_page
+                            total_items=Signal::derive(move || total_vendors)
+                            page_size=page_size
+                            on_page_change=move |page| set_current_page.set(page)
+                            on_page_size_change=move |size| {
+                                set_page_size.set(size);
+                                set_current_page.set(0);
+                            }
+                            translation_prefix="vendor.pagination"
+                            show_page_size_selector=true
+                        />
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -114,13 +166,13 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                         {t!("report.vendor_id")}
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {t!("report.net_payout")}
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         {t!("report.gross_sales")}
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         {t!("report.fees_due")}
-                                    </th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {t!("report.net_payout")}
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         {t!("report.item_count")}
@@ -128,9 +180,23 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                {move || vendor_rows.get_value()}
+                                {move || vendor_rows.get()}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="px-4 border-t border-gray-200 bg-white">
+                        <Pagination
+                            current_page=current_page
+                            total_items=Signal::derive(move || total_vendors)
+                            page_size=page_size
+                            on_page_change=move |page| set_current_page.set(page)
+                            on_page_size_change=move |size| {
+                                set_page_size.set(size);
+                                set_current_page.set(0);
+                            }
+                            translation_prefix="vendor.pagination"
+                            show_page_size_selector=true
+                        />
                     </div>
                 </Show>
             </div>
@@ -145,6 +211,8 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
     let total_purchases = summary.total_purchases;
     let total_items = summary.total_items;
     let unique_vendors = summary.unique_vendors;
+    let participation_fee = summary.participation_fee;
+    let sales_fee_percent = summary.sales_fee_percent;
     let total_participation_fees = summary.total_participation_fees;
     let total_sales_fees = summary.total_sales_fees;
     let total_booth_revenue = summary.total_booth_revenue;
@@ -154,20 +222,20 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
         .into_iter()
         .map(|vs| {
             let vendor_id_str = vs.vendor_id.to_string();
+            let net_payout = vs.net_payout;
             let gross_sales = vs.gross_sales;
             let fees_due = vs.fees_due;
-            let net_payout = vs.net_payout;
             view! {
                 <tr class="border-b border-gray-300">
                     <td class="px-4 py-3 font-medium">{vendor_id_str}</td>
+                    <td class="px-4 py-3 text-right font-semibold">
+                        {move || format_currency(net_payout, locale.get())}
+                    </td>
                     <td class="px-4 py-3 text-right">
                         {move || format_currency(gross_sales, locale.get())}
                     </td>
                     <td class="px-4 py-3 text-right">
                         {move || format_currency(fees_due, locale.get())}
-                    </td>
-                    <td class="px-4 py-3 text-right font-semibold">
-                        {move || format_currency(net_payout, locale.get())}
                     </td>
                     <td class="px-4 py-3 text-right">{vs.item_count}</td>
                 </tr>
@@ -182,8 +250,34 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                 <h1 class="text-3xl font-bold mb-2">{t!("report.booth_summary_report")}</h1>
             </div>
 
+            <div class="mb-8 border-2 border-gray-400 p-6 rounded bg-gray-50">
+                <div class="space-y-2">
+                    <div class="flex justify-between text-base gap-4">
+                        <span class="text-gray-700">
+                            {move || configured_participation_fee_label(participation_fee, locale.get())}
+                        </span>
+                        <span class="font-semibold">
+                            {move || format_currency(total_participation_fees, locale.get())}
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-base gap-4">
+                        <span class="text-gray-700">
+                            {move || configured_sales_fee_label(sales_fee_percent, locale.get())}
+                        </span>
+                        <span class="font-semibold">
+                            {move || format_currency(total_sales_fees, locale.get())}
+                        </span>
+                    </div>
+                    <div class="flex justify-between pt-3 border-t-2 border-gray-800 text-lg gap-4">
+                        <span class="font-bold">{t!("report.total_booth_revenue")}</span>
+                        <span class="font-bold text-2xl">
+                            {move || format_currency(total_booth_revenue, locale.get())}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-8">
-                <h2 class="text-xl font-bold mb-4">{t!("report.summary_statistics")}</h2>
                 <div class="grid grid-cols-4 gap-6 mb-6">
                     <div class="border-2 border-gray-300 p-4 rounded">
                         <p class="text-sm text-gray-600 mb-1">{t!("report.sales_total")}</p>
@@ -206,30 +300,6 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                 </div>
             </div>
 
-            <div class="mb-8 border-2 border-gray-400 p-6 rounded bg-gray-50">
-                <h2 class="text-xl font-bold mb-4">{t!("report.booth_revenue")}</h2>
-                <div class="space-y-2">
-                    <div class="flex justify-between text-base gap-4">
-                        <span class="text-gray-700">{t!("report.total_participation_fees")}</span>
-                        <span class="font-semibold">
-                            {move || format_currency(total_participation_fees, locale.get())}
-                        </span>
-                    </div>
-                    <div class="flex justify-between text-base gap-4">
-                        <span class="text-gray-700">{t!("report.total_sales_fees")}</span>
-                        <span class="font-semibold">
-                            {move || format_currency(total_sales_fees, locale.get())}
-                        </span>
-                    </div>
-                    <div class="flex justify-between pt-3 border-t-2 border-gray-800 text-lg gap-4">
-                        <span class="font-bold">{t!("report.total_booth_revenue")}</span>
-                        <span class="font-bold text-2xl">
-                            {move || format_currency(total_booth_revenue, locale.get())}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
             <div>
                 <h2 class="text-xl font-bold mb-4">{t!("report.vendor_breakdown")}</h2>
                 <Show
@@ -242,9 +312,9 @@ pub fn PrintBoothSummary(summary: BoothSummary) -> impl IntoView {
                         <thead>
                             <tr class="border-b-2 border-gray-800">
                                 <th class="px-4 py-3 text-left font-bold">{t!("report.vendor_id")}</th>
+                                <th class="px-4 py-3 text-right font-bold">{t!("report.net_payout")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.gross_sales")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.fees_due")}</th>
-                                <th class="px-4 py-3 text-right font-bold">{t!("report.net_payout")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.item_count")}</th>
                             </tr>
                         </thead>
