@@ -1,7 +1,7 @@
 use crate::error::{DomainError, DomainResult};
 use crate::models::{BoothId, Purchase, PurchaseId, PurchaseItem, VendorId};
 use crate::repositories::PurchaseRepository;
-use crate::services::dto::{ChargedFees, ChargingConfig};
+use crate::services::dto::{ChargingConfig, VendorPayout};
 use rust_decimal::Decimal;
 
 /// Service for transaction and purchase operations
@@ -77,9 +77,9 @@ impl<R: PurchaseRepository> TransactionService<R> {
         Ok(total)
     }
 
-    /// Calculate fees for a vendor based on their total sales
-    pub fn calculate_fees(&self, total_sales: Decimal, config: &ChargingConfig) -> ChargedFees {
-        config.calculate_fees(total_sales)
+    /// Calculate vendor payout using the authoritative rounding path
+    pub fn calculate_payout(&self, total_sales: Decimal, config: &ChargingConfig) -> VendorPayout {
+        config.calculate_payout(total_sales)
     }
 
     /// Delete a purchase (for corrections)
@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_calculate_fees() {
+    async fn test_calculate_payout() {
         let repo = MockPurchaseRepository::new();
         let service = TransactionService::new(repo);
 
@@ -320,11 +320,11 @@ mod tests {
             rounding_step: dec!(0.50),
         };
 
-        let fees = service.calculate_fees(dec!(100.00), &config);
+        let payout = service.calculate_payout(dec!(100.00), &config);
 
-        assert_eq!(fees.participation_fee, dec!(5.00));
-        assert_eq!(fees.sales_fee, dec!(10.00)); // 10% of 100
-        assert_eq!(fees.total(), dec!(15.00));
+        assert_eq!(payout.gross_sales, dec!(100.00));
+        assert_eq!(payout.fees_due, dec!(15.00));
+        assert_eq!(payout.net_payout, dec!(85.00));
     }
 
     #[tokio::test]

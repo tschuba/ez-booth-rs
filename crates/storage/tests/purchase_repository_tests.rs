@@ -61,3 +61,34 @@ async fn test_find_by_booth_with_diagnostics_detects_corruption() {
     assert_eq!(purchases[0].id, purchase.id);
     assert!(!errors.is_empty());
 }
+
+#[wasm_bindgen_test]
+async fn test_find_by_id_works_with_compound_purchase_keys() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbPurchaseRepository::new(db.clone());
+    let booth_id = BoothId::new();
+
+    let purchase = create_test_purchase(&booth_id, rust_decimal_macros::dec!(42.00));
+    repo.save(&purchase).await.unwrap();
+
+    let loaded = repo.find_by_id(&purchase.id).await.unwrap();
+    assert!(loaded.is_some());
+    assert_eq!(loaded.unwrap().id, purchase.id);
+}
+
+#[wasm_bindgen_test]
+async fn test_delete_from_booth_preserves_purchase_for_wrong_booth_key() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbPurchaseRepository::new(db.clone());
+    let booth_id = BoothId::new();
+    let wrong_booth_id = BoothId::new();
+
+    let purchase = create_test_purchase(&booth_id, rust_decimal_macros::dec!(42.00));
+    repo.save(&purchase).await.unwrap();
+
+    repo.delete_from_booth(&wrong_booth_id, &purchase.id).await.unwrap();
+
+    let loaded = repo.find_by_id(&purchase.id).await.unwrap();
+    assert!(loaded.is_some());
+    assert_eq!(loaded.unwrap().booth_id, booth_id);
+}
