@@ -199,20 +199,20 @@ mod tests {
         };
 
         // 15% of 23.50 = 3.525 -> should round to 3.50
-        let fees = config.calculate_fees(dec!(23.50));
-        assert_eq!(fees.sales_fee, dec!(3.50));
+        let payout = config.calculate_payout(dec!(23.50));
+        assert_eq!(payout.sales_fee(&config), dec!(3.50));
 
         // 15% of 24.00 = 3.60 -> should round to 3.50
-        let fees = config.calculate_fees(dec!(24.00));
-        assert_eq!(fees.sales_fee, dec!(3.50));
+        let payout = config.calculate_payout(dec!(24.00));
+        assert_eq!(payout.sales_fee(&config), dec!(3.50));
 
-        // 15% of 25.00 = 3.75 -> should round to 4.00
-        let fees = config.calculate_fees(dec!(25.00));
-        assert_eq!(fees.sales_fee, dec!(4.00));
+        // Payout-authoritative fee component after net rounding lands at 3.50
+        let payout = config.calculate_payout(dec!(25.00));
+        assert_eq!(payout.sales_fee(&config), dec!(3.50));
 
         // 15% of 27.00 = 4.05 -> should round to 4.00
-        let fees = config.calculate_fees(dec!(27.00));
-        assert_eq!(fees.sales_fee, dec!(4.00));
+        let payout = config.calculate_payout(dec!(27.00));
+        assert_eq!(payout.sales_fee(&config), dec!(4.00));
     }
 
     #[test]
@@ -224,16 +224,16 @@ mod tests {
         };
 
         // 10% of 23.00 = 2.30 -> should round to 2.25
-        let fees = config.calculate_fees(dec!(23.00));
-        assert_eq!(fees.sales_fee, dec!(2.25));
+        let payout = config.calculate_payout(dec!(23.00));
+        assert_eq!(payout.sales_fee(&config), dec!(2.25));
 
         // 10% of 24.00 = 2.40 -> should round to 2.50
-        let fees = config.calculate_fees(dec!(24.00));
-        assert_eq!(fees.sales_fee, dec!(2.50));
+        let payout = config.calculate_payout(dec!(24.00));
+        assert_eq!(payout.sales_fee(&config), dec!(2.50));
 
         // 10% of 26.75 = 2.675 -> should round to 2.75
-        let fees = config.calculate_fees(dec!(26.75));
-        assert_eq!(fees.sales_fee, dec!(2.75));
+        let payout = config.calculate_payout(dec!(26.75));
+        assert_eq!(payout.sales_fee(&config), dec!(2.75));
     }
 
     #[test]
@@ -244,21 +244,21 @@ mod tests {
             rounding_step: dec!(1.00),
         };
 
-        // 15% of 10.00 = 1.50 -> should round to 2.00
-        let fees = config.calculate_fees(dec!(10.00));
-        assert_eq!(fees.sales_fee, dec!(2.00));
+        // Payout-authoritative fee component after net rounding lands at 1.00
+        let payout = config.calculate_payout(dec!(10.00));
+        assert_eq!(payout.sales_fee(&config), dec!(1.00));
 
         // 15% of 20.00 = 3.00 -> should stay 3.00
-        let fees = config.calculate_fees(dec!(20.00));
-        assert_eq!(fees.sales_fee, dec!(3.00));
+        let payout = config.calculate_payout(dec!(20.00));
+        assert_eq!(payout.sales_fee(&config), dec!(3.00));
 
         // 15% of 23.00 = 3.45 -> should round to 3.00
-        let fees = config.calculate_fees(dec!(23.00));
-        assert_eq!(fees.sales_fee, dec!(3.00));
+        let payout = config.calculate_payout(dec!(23.00));
+        assert_eq!(payout.sales_fee(&config), dec!(3.00));
 
         // 15% of 27.00 = 4.05 -> should round to 4.00
-        let fees = config.calculate_fees(dec!(27.00));
-        assert_eq!(fees.sales_fee, dec!(4.00));
+        let payout = config.calculate_payout(dec!(27.00));
+        assert_eq!(payout.sales_fee(&config), dec!(4.00));
     }
 
     #[test]
@@ -276,11 +276,11 @@ mod tests {
             dec!(0.50),
             dec!(99999.99),
         ] {
-            #[allow(deprecated)]
-            let fees = config.calculate_fees(gross_sales);
             let payout = config.calculate_payout(gross_sales);
-            let sales_fee_from_payout = payout.fees_due - config.participation_fee;
-            let diff = (fees.sales_fee - sales_fee_from_payout).abs();
+            let theoretical_sales_fee = (config.sales_fee * gross_sales / dec!(100))
+                .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
+            let payout_sales_fee = payout.sales_fee(&config);
+            let diff = (theoretical_sales_fee - payout_sales_fee).abs();
             assert!(diff <= config.rounding_step);
         }
     }
@@ -316,12 +316,12 @@ mod tests {
         };
 
         // 15% of 23.33 = 3.4995 -> should round to 3.50 (2 decimal places)
-        let fees = config.calculate_fees(dec!(23.33));
-        assert_eq!(fees.sales_fee, dec!(3.50));
+        let payout = config.calculate_payout(dec!(23.33));
+        assert_eq!(payout.sales_fee(&config), dec!(3.50));
 
         // 15% of 23.34 = 3.501 -> should round to 3.50 (2 decimal places)
-        let fees = config.calculate_fees(dec!(23.34));
-        assert_eq!(fees.sales_fee, dec!(3.50));
+        let payout = config.calculate_payout(dec!(23.34));
+        assert_eq!(payout.sales_fee(&config), dec!(3.50));
     }
 
     #[test]
@@ -332,12 +332,11 @@ mod tests {
             rounding_step: dec!(0.50),
         };
 
-        let fees = config.calculate_fees(dec!(100.00));
-
         // Participation fee should always be the configured amount
-        assert_eq!(fees.participation_fee, dec!(1.50));
+        let payout = config.calculate_payout(dec!(100.00));
+        assert_eq!(payout.participation_fee(&config), dec!(1.50));
         // Revenue share: 15% of 100 = 15.00 (already a multiple of 0.50)
-        assert_eq!(fees.sales_fee, dec!(15.00));
+        assert_eq!(payout.sales_fee(&config), dec!(15.00));
     }
 
     #[test]

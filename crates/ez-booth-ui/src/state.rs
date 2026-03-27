@@ -13,6 +13,7 @@ pub struct AppState {
     pub booth_repository: Arc<dyn BoothRepository>,
     pub vendor_repository: Arc<dyn VendorRepository>,
     pub purchase_repository: Arc<dyn PurchaseRepository>,
+    pub indexed_purchase_repository: Arc<IndexedDbPurchaseRepository>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository, IndexedDbBoothRepository>>,
     pub transaction_service: Arc<TransactionService<IndexedDbPurchaseRepository>>,
     pub report_service: Arc<
@@ -39,8 +40,8 @@ impl AppState {
             Arc::new(IndexedDbBoothRepository::new(db.clone()));
         let vendor_repository: Arc<dyn VendorRepository> =
             Arc::new(IndexedDbVendorRepository::new(db.clone()));
-        let purchase_repository: Arc<dyn PurchaseRepository> =
-            Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
+        let indexed_purchase_repository = Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
+        let purchase_repository: Arc<dyn PurchaseRepository> = indexed_purchase_repository.clone();
 
         // Create services (use separate instances for service layer)
         let vendor_service = Arc::new(VendorService::new(
@@ -60,6 +61,7 @@ impl AppState {
             booth_repository,
             vendor_repository,
             purchase_repository,
+            indexed_purchase_repository,
             vendor_service,
             transaction_service,
             report_service,

@@ -97,30 +97,8 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
     }
 
     async fn find_by_id(&self, id: &PurchaseId) -> DomainResult<Option<Purchase>> {
-        let transaction = self
-            .db
-            .transaction(&["purchases"], TransactionMode::ReadOnly)
-            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
-
-        let store = transaction
-            .store("purchases")
-            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-
-        let key = JsValue::from_str(&id.as_str());
-
-        let result = store
-            .get(key)
-            .await
-            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
-
-        match result {
-            Some(value) => {
-                let purchase: Purchase = from_value(value)
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-                Ok(Some(purchase))
-            }
-            None => Ok(None),
-        }
+        let purchases = self.find_all().await?;
+        Ok(purchases.into_iter().find(|purchase| &purchase.id == id))
     }
 
     async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>> {

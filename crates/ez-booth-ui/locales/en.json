@@ -219,6 +219,9 @@
     },
     "draft_save_failed": "Failed to save draft: browser storage may be full. Your progress is not being saved automatically.",
     "draft_corrupted": "Corrupted draft data was found and cleared.",
+    "recovery": {
+      "partial_data_warning": "Some purchases could not be loaded and were skipped ({count}). Visible totals only include recoverable data."
+    },
     "pagination": {
       "first": "First",
       "previous": "Previous",

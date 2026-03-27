@@ -186,3 +186,70 @@ async fn fee_reports_remain_consistent_across_storage_backed_services() {
     assert_eq!(total_vendor_fees, summary.total_booth_revenue);
     assert_eq!(summary.total_booth_revenue, summary.total_participation_fees + summary.total_sales_fees);
 }
+
+#[wasm_bindgen_test]
+async fn deleting_a_purchase_recalculates_running_totals_and_reports() {
+    let db = Arc::new(create_test_db().await);
+    let booth_repo = IndexedDbBoothRepository::new(db.clone());
+    let vendor_repo = IndexedDbVendorRepository::new(db.clone());
+    let purchase_repo = IndexedDbPurchaseRepository::new(db.clone());
+
+    let booth = create_test_booth(&booth_repo).await;
+
+    for vendor_id in ["1", "2"] {
+        vendor_repo
+            .save(&domain::models::vendor::Vendor::new(
+                VendorId::new(vendor_id.to_string()),
+                booth.id,
+            ))
+            .await
+            .unwrap();
+    }
+
+    let purchase_one = Purchase::new(
+        booth.id,
+        vec![PurchaseItem::new(dec!(100.00), VendorId::new("1".to_string())).unwrap()],
+    )
+    .unwrap();
+    let purchase_two = Purchase::new(
+        booth.id,
+        vec![PurchaseItem::new(dec!(50.00), VendorId::new("2".to_string())).unwrap()],
+    )
+    .unwrap();
+
+    purchase_repo.save(&purchase_one).await.unwrap();
+    purchase_repo.save(&purchase_two).await.unwrap();
+
+    purchase_repo
+        .delete_from_booth(&booth.id, &purchase_one.id)
+        .await
+        .unwrap();
+
+    let totals = purchase_repo.get_running_totals(&booth.id).await.unwrap();
+    assert_eq!(totals.total_sales, dec!(50.00));
+    assert_eq!(totals.total_items, 1);
+    assert_eq!(totals.total_checkouts, 1);
+
+    let report_service = ReportService::new(
+        IndexedDbPurchaseRepository::new(db.clone()),
+        IndexedDbBoothRepository::new(db.clone()),
+        IndexedDbVendorRepository::new(db.clone()),
+    );
+
+    let summary = report_service.generate_booth_summary(&booth.id, None).await.unwrap();
+    assert_eq!(summary.total_revenue, dec!(50.00));
+    assert_eq!(summary.unique_vendors, 1);
+    assert_eq!(summary.vendor_summaries.len(), 1);
+    assert_eq!(summary.vendor_summaries[0].vendor_id.as_str(), "2");
+
+    let vendor_reports = report_service
+        .generate_vendor_reports(
+            &booth.id,
+            vec![VendorId::new("2".to_string())],
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(vendor_reports.len(), 1);
+    assert_eq!(vendor_reports[0].sales_sum, dec!(50.00));
+}

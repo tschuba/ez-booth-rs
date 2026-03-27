@@ -252,6 +252,8 @@ pub fn CheckoutPage() -> impl IntoView {
 
     // Running totals (separate from paginated data)
     let (running_totals, set_running_totals) = create_signal((Decimal::ZERO, 0_usize, 0_usize));
+    let (last_partial_recovery_warning, set_last_partial_recovery_warning) =
+        create_signal::<Option<(String, usize)>>(None);
 
     // Checkout form data
     let (_, initial_form_data) =
@@ -357,19 +359,55 @@ pub fn CheckoutPage() -> impl IntoView {
             let set_running_totals = set_running_totals.clone();
             let toast = toast.clone();
             let booth_id = booth.id.clone();
-            let booth_id_for_totals = booth.id.clone();
+            let warning_booth_id = booth.id.as_str();
+            let set_last_partial_recovery_warning = set_last_partial_recovery_warning.clone();
 
             spawn_local(async move {
-                // Fetch paginated purchases
-                let offset = page * page_size_val;
                 match state
-                    .purchase_repository
-                    .find_by_booth_paginated(&booth_id, offset, page_size_val)
+                    .indexed_purchase_repository
+                    .find_by_booth_with_diagnostics(&booth_id)
                     .await
                 {
-                    Ok(paginated) => {
-                        set_purchases.set(paginated.items);
-                        set_total_count.set(paginated.total_count);
+                    Ok((mut recovered_purchases, diagnostics)) => {
+                        recovered_purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+                        let total_count = recovered_purchases.len();
+                        let offset = page * page_size_val;
+                        let paginated_items = recovered_purchases
+                            .iter()
+                            .skip(offset)
+                            .take(page_size_val)
+                            .cloned()
+                            .collect::<Vec<_>>();
+
+                        let total_sales: Decimal = recovered_purchases
+                            .iter()
+                            .map(|purchase| purchase.total_amount())
+                            .sum();
+                        let total_items: usize =
+                            recovered_purchases.iter().map(|purchase| purchase.items.len()).sum();
+
+                        set_purchases.set(paginated_items);
+                        set_total_count.set(total_count);
+                        set_running_totals.set((total_sales, total_items, total_count));
+
+                        if !diagnostics.is_empty() {
+                            let warning_key = (warning_booth_id.clone(), diagnostics.len());
+                            let already_shown = last_partial_recovery_warning.get_untracked();
+                            if already_shown != Some(warning_key.clone()) {
+                                let message = translate_with_params(
+                                    "checkout.recovery.partial_data_warning",
+                                    HashMap::from([(
+                                        "count",
+                                        diagnostics.len().to_string(),
+                                    )]),
+                                );
+                                toast.warning(&message);
+                                set_last_partial_recovery_warning.set(Some(warning_key));
+                            }
+                        } else {
+                            set_last_partial_recovery_warning.set(None);
+                        }
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
@@ -377,28 +415,9 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
-                    }
-                }
-
-                // Fetch running totals separately
-                match state
-                    .purchase_repository
-                    .get_running_totals(&booth_id_for_totals)
-                    .await
-                {
-                    Ok(totals) => {
-                        set_running_totals.set((
-                            totals.total_sales,
-                            totals.total_items,
-                            totals.total_checkouts,
-                        ));
-                    }
-                    Err(e) => {
-                        let error_msg = translate_with_params(
-                            "checkout.errors.load_totals_failed",
-                            HashMap::from([("error", format_error_message(&e))]),
-                        );
-                        toast.error(&error_msg);
+                        set_purchases.set(Vec::new());
+                        set_total_count.set(0);
+                        set_running_totals.set((Decimal::ZERO, 0, 0));
                     }
                 }
 
