@@ -101,7 +101,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         let total_booth_revenue = total_participation_fees + total_sales_fees;
 
         Ok(BoothSummary {
-            booth_id: booth_id.clone(),
+            booth_id: *booth_id,
             total_revenue,
             total_purchases,
             total_items,
@@ -161,7 +161,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
                     .iter()
                     .filter(|item| &item.vendor_id == vendor_id)
                     .map(|item| VendorReportItem {
-                        transaction_id: p.id.clone(),
+                        transaction_id: p.id,
                         item: item.clone(),
                         timestamp: p.timestamp,
                     })

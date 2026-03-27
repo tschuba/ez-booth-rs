@@ -7,21 +7,16 @@ use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
 
 /// Vendor ID validation rules for a booth
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "type", content = "pattern")]
 pub enum VendorIdValidation {
     /// No restrictions on vendor ID format
     Unrestricted,
     /// Only ASCII digits (0-9) are allowed
+    #[default]
     DigitsOnly,
     /// Custom regular expression pattern
     Regex(String),
-}
-
-impl Default for VendorIdValidation {
-    fn default() -> Self {
-        VendorIdValidation::DigitsOnly
-    }
 }
 
 /// Represents a bazaar booth/event
