@@ -18,14 +18,14 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use web_sys::window;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct CheckoutItem {
     amount: Decimal,
     vendor_id: String,
     added_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 struct CheckoutFormData {
     vendor_id: String,
     current_amount: String,
@@ -56,6 +56,22 @@ struct StoredCheckoutForm {
 }
 
 const CHECKOUT_DRAFT_STORAGE_KEY: &str = "ez-booth-checkout-draft";
+
+#[derive(Clone, Debug, PartialEq)]
+enum DraftLoadOutcome {
+    Empty,
+    Restored {
+        booth_id: Option<String>,
+        form_data: CheckoutFormData,
+    },
+    CorruptedCleared,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum DraftNotice {
+    Restored,
+    CorruptedCleared,
+}
 
 impl CheckoutFormData {
     fn total(&self) -> Decimal {
@@ -150,26 +166,19 @@ fn get_local_storage() -> Option<web_sys::Storage> {
     window.local_storage().ok().flatten()
 }
 
-fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
-    let storage = get_local_storage()?;
-    let raw = storage.get_item(CHECKOUT_DRAFT_STORAGE_KEY).ok()??;
-    let parsed: StoredCheckoutForm = match serde_json::from_str(&raw) {
-        Ok(parsed) => parsed,
-        Err(err) => {
-            error!("Failed to deserialize checkout draft: {:?}", err);
-            let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
-            return None;
-        }
-    };
+fn parse_stored_form_data(raw: &str) -> Result<(Option<String>, CheckoutFormData), String> {
+    let parsed: StoredCheckoutForm =
+        serde_json::from_str(raw).map_err(|err| format!("failed to deserialize draft: {err}"))?;
 
     let mut items = Vec::with_capacity(parsed.items.len());
     for stored in parsed.items {
         let amount = match Decimal::from_str(&stored.amount) {
             Ok(amount) => amount,
             Err(err) => {
-                error!("Failed to parse stored checkout amount '{}': {:?}", stored.amount, err);
-                let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
-                return None;
+                return Err(format!(
+                    "failed to parse stored checkout amount '{}': {err}",
+                    stored.amount
+                ));
             }
         };
         let added_at = DateTime::<Utc>::from_timestamp_millis(stored.added_at_ms)
@@ -181,7 +190,7 @@ fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
         });
     }
 
-    Some((
+    Ok((
         parsed.booth_id,
         CheckoutFormData {
             vendor_id: parsed.vendor_id,
@@ -190,6 +199,26 @@ fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
             ..Default::default()
         },
     ))
+}
+
+fn load_saved_form_data() -> DraftLoadOutcome {
+    let Some(storage) = get_local_storage() else {
+        return DraftLoadOutcome::Empty;
+    };
+
+    let raw = match storage.get_item(CHECKOUT_DRAFT_STORAGE_KEY) {
+        Ok(Some(raw)) => raw,
+        Ok(None) | Err(_) => return DraftLoadOutcome::Empty,
+    };
+
+    match parse_stored_form_data(&raw) {
+        Ok((booth_id, form_data)) => DraftLoadOutcome::Restored { booth_id, form_data },
+        Err(err) => {
+            error!("Failed to recover checkout draft: {}", err);
+            let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
+            DraftLoadOutcome::CorruptedCleared
+        }
+    }
 }
 
 fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) -> Result<(), String> {
@@ -256,9 +285,18 @@ pub fn CheckoutPage() -> impl IntoView {
         create_signal::<Option<(String, usize)>>(None);
 
     // Checkout form data
-    let (_, initial_form_data) =
-        load_saved_form_data().unwrap_or((None, CheckoutFormData::default()));
+    let draft_load_outcome = load_saved_form_data();
+    let initial_draft_notice = match &draft_load_outcome {
+        DraftLoadOutcome::Restored { .. } => Some(DraftNotice::Restored),
+        DraftLoadOutcome::CorruptedCleared => Some(DraftNotice::CorruptedCleared),
+        DraftLoadOutcome::Empty => None,
+    };
+    let initial_form_data = match draft_load_outcome {
+        DraftLoadOutcome::Restored { form_data, .. } => form_data,
+        DraftLoadOutcome::Empty | DraftLoadOutcome::CorruptedCleared => CheckoutFormData::default(),
+    };
     let (form_data, set_form_data) = create_signal(initial_form_data);
+    let (draft_notice_pending, set_draft_notice_pending) = create_signal(initial_draft_notice);
 
     // Cancel confirmation modal
     let (show_cancel_modal, set_show_cancel_modal) = create_signal(false);
@@ -333,6 +371,16 @@ pub fn CheckoutPage() -> impl IntoView {
             }
         });
     }
+
+    create_effect(move |_| {
+        if let Some(notice) = draft_notice_pending.get() {
+            match notice {
+                DraftNotice::Restored => toast.info(&t!("checkout.draft_restored")()),
+                DraftNotice::CorruptedCleared => toast.warning(&t!("checkout.draft_corrupted")()),
+            }
+            set_draft_notice_pending.set(None);
+        }
+    });
 
     // Load paginated purchases for selected booth
     create_effect(move |_| {
@@ -1602,5 +1650,35 @@ pub fn CheckoutPage() -> impl IntoView {
             </div>
         </Show>
         </Modal>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_stored_form_data_restores_valid_draft() {
+        let raw = r#"{"booth_id":"booth-1","vendor_id":"12","current_amount":"5.50","items":[{"amount":"5.50","vendor_id":"12","added_at_ms":1711576800000}]}"#;
+
+        let (booth_id, form_data) = parse_stored_form_data(raw).unwrap();
+        assert_eq!(booth_id, Some("booth-1".to_string()));
+        assert_eq!(form_data.vendor_id, "12");
+        assert_eq!(form_data.current_amount, "5.50");
+        assert_eq!(form_data.items.len(), 1);
+        assert_eq!(form_data.items[0].vendor_id, "12");
+        assert_eq!(form_data.items[0].amount, Decimal::from_str("5.50").unwrap());
+    }
+
+    #[test]
+    fn parse_stored_form_data_rejects_invalid_json() {
+        let raw = r#"{"vendor_id":"12","current_amount":"5.50""#;
+        assert!(parse_stored_form_data(raw).is_err());
+    }
+
+    #[test]
+    fn parse_stored_form_data_rejects_invalid_amount() {
+        let raw = r#"{"booth_id":null,"vendor_id":"12","current_amount":"5.50","items":[{"amount":"oops","vendor_id":"12","added_at_ms":1711576800000}]}"#;
+        assert!(parse_stored_form_data(raw).is_err());
     }
 }
