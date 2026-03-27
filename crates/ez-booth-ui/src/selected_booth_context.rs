@@ -1,4 +1,3 @@
-use crate::state::use_app_state;
 use domain::models::booth::Booth;
 use domain::models::shared::BoothId;
 use leptos::*;

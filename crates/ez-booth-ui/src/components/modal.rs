@@ -7,6 +7,8 @@ pub enum ModalSize {
     Small,
     Medium,
     Large,
+    XLarge,
+    ExtraLarge,
     FullScreen,
 }
 
@@ -16,6 +18,8 @@ impl ModalSize {
             ModalSize::Small => "max-w-sm",
             ModalSize::Medium => "max-w-md",
             ModalSize::Large => "max-w-2xl",
+            ModalSize::XLarge => "max-w-3xl",
+            ModalSize::ExtraLarge => "max-w-4xl",
             ModalSize::FullScreen => "max-w-full",
         }
     }
@@ -32,6 +36,9 @@ pub fn Modal(
     /// Modal title
     #[prop(optional)]
     title: Option<String>,
+    /// Optional actions rendered in the header
+    #[prop(optional)]
+    header_actions: Option<View>,
     /// Modal size
     #[prop(default = ModalSize::Medium)]
     size: ModalSize,
@@ -47,6 +54,7 @@ pub fn Modal(
     // Store callback and title in non-reactive storage to avoid FnOnce issues
     let on_close_stored = store_value(on_close.clone());
     let title_stored = store_value(title.clone());
+    let header_actions_stored = store_value(header_actions.clone());
 
     // Store children view - call it once and store the result
     let children_stored = store_value(children());
@@ -86,7 +94,7 @@ pub fn Modal(
     view! {
         <Show when=move || show.get()>
             <div
-                class="fixed inset-0 z-50 overflow-y-auto"
+                class="fixed inset-0 z-50 overflow-y-auto print:hidden"
                 aria-labelledby="modal-title"
                 role="dialog"
                 aria-modal="true"
@@ -102,13 +110,19 @@ pub fn Modal(
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div
                         class=format!(
-                            "relative bg-white rounded-lg shadow-xl {} w-full transform transition-all",
+                            "relative bg-white rounded-lg shadow-xl {} w-full max-h-[calc(100vh-2rem)] flex flex-col transform transition-all",
                             size.max_width_class()
                         )
                         on:click=content_click
                     >
                         // Header
-                        <Show when=move || title_stored.get_value().is_some() || show_close_button>
+                        <Show
+                            when=move || {
+                                title_stored.get_value().is_some()
+                                    || header_actions_stored.get_value().is_some()
+                                    || show_close_button
+                            }
+                        >
                             <div class="flex items-center justify-between p-4 border-b border-gray-200">
                                 <Show when=move || title_stored.get_value().is_some()>
                                     <h3
@@ -118,33 +132,38 @@ pub fn Modal(
                                         {title_stored.get_value().unwrap_or_default()}
                                     </h3>
                                 </Show>
-                                <Show when=move || show_close_button>
-                                    <button
-                                        type="button"
-                                        class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                                        on:click=close_button_click
-                                        aria-label="Close modal"
-                                    >
-                                        <svg
-                                            class="w-6 h-6"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
+                                <div class="flex items-center gap-2">
+                                    <Show when=move || header_actions_stored.get_value().is_some()>
+                                        {move || header_actions_stored.get_value()}
+                                    </Show>
+                                    <Show when=move || show_close_button>
+                                        <button
+                                            type="button"
+                                            class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                                            on:click=close_button_click
+                                            aria-label="Close modal"
                                         >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12"
-                                            />
-                                        </svg>
-                                    </button>
-                                </Show>
+                                            <svg
+                                                class="w-6 h-6"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M6 18L18 6M6 6l12 12"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </Show>
+                                </div>
                             </div>
                         </Show>
 
                         // Body
-                        <div class="p-4">
+                        <div class="p-4 overflow-y-auto min-h-0">
                             {children_stored.get_value()}
                         </div>
                     </div>

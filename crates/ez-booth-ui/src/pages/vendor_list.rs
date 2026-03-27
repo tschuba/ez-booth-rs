@@ -385,7 +385,7 @@ pub fn VendorListPage() -> impl IntoView {
             <div class="print:hidden" on:click=move |_| cancel_vendor_delete()>
                 <Container>
                      <div class="py-8">
-                         <Card title_view={t!("vendor.list_title").into_view()}>
+                         <Card>
                             <Show
                                 when=move || !is_loading.get()
                                 fallback=move || view! { <p class="text-gray-600">{t!("common.loading")}</p> }

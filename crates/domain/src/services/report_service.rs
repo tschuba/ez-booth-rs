@@ -101,12 +101,14 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         let total_booth_revenue = total_participation_fees + total_sales_fees;
 
         Ok(BoothSummary {
-            booth_id: booth_id.clone(),
+            booth_id: *booth_id,
             total_revenue,
             total_purchases,
             total_items,
             unique_vendors,
             vendor_summaries,
+            participation_fee: booth.fees.participation_fee,
+            sales_fee_percent: booth.fees.sales_fee_percent,
             total_participation_fees,
             total_sales_fees,
             total_booth_revenue,
@@ -159,7 +161,7 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
                     .iter()
                     .filter(|item| &item.vendor_id == vendor_id)
                     .map(|item| VendorReportItem {
-                        transaction_id: p.id.clone(),
+                        transaction_id: p.id,
                         item: item.clone(),
                         timestamp: p.timestamp,
                     })
@@ -556,6 +558,11 @@ mod tests {
         assert_eq!(summary.total_purchases, 2);
         assert_eq!(summary.unique_vendors, 2);
         assert_eq!(summary.vendor_summaries.len(), 2);
+        assert_eq!(summary.participation_fee, dec!(5.00));
+        assert_eq!(summary.sales_fee_percent, dec!(10.0));
+        assert_eq!(summary.total_participation_fees, dec!(10.00));
+        assert_eq!(summary.total_sales_fees, dec!(3.50));
+        assert_eq!(summary.total_booth_revenue, dec!(13.50));
 
         // Check vendor1 summary
         let v1_summary = summary
