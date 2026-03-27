@@ -14,53 +14,47 @@ This project uses a Cargo workspace with multiple crates:
 
 ## Current Status
 
-### ✅ Phase 1: Foundation & Core Architecture (88% Complete)
+### Phase 1 Complete
 
-**Domain Layer** - Comprehensive business logic implementation:
-- **Type-safe identifiers**: `BoothId`, `VendorId`, `PurchaseId`
-- **Entities**:
-  - `Booth` - Flea market booth with fee configuration and status
-  - `Vendor` - Vendors selling items at a booth
-  - `Purchase` - Purchase transactions with multiple items
-  - `PurchaseItem` - Individual items in a purchase
-- **Services**: BoothService, VendorService, TransactionService with full CRUD operations
-- **Smart vendor sorting**: Numeric IDs sort numerically (1, 2, 10) while alphanumeric IDs sort lexicographically
-- **Comprehensive validation**: Using validator crate with custom validation logic
-- **Error handling**: DomainError with 4 variants (Validation, NotFound, InvalidState, Storage)
+Phase 1 focused on correctness, recovery, and validation of the critical money-handling paths.
 
-**Storage Layer** - IndexedDB persistence:
-- Repository pattern with async trait interfaces
-- Three repositories: BoothRepository, VendorRepository, PurchaseRepository
-- Efficient serialization with serde-wasm-bindgen
-- Proper error propagation from StorageError to DomainError
+Delivered:
+- validated `Purchase` and `PurchaseItem` creation at the domain boundary
+- consistent fee and payout handling across checkout, reports, and summaries
+- corruption diagnostics and partial-recovery warnings for damaged purchase data
+- centralized checkout draft recovery with explicit restored/corrupted outcomes
+- regression coverage for purchase deletion and recalculated reports
+- Chrome and Safari browser validation support
+- reusable manual validation assets for Safari and UAT execution
 
-### ✅ Phase 2: UI Foundation (67% Complete)
+### Current Product Capabilities
 
-**Internationalization**:
-- Custom JSON-based i18n system
-- German (primary) and English (fallback) translations
-- Browser locale detection
-- Translation context with `use_translations()` hook and `t!` macro
+- booth management with fee configuration and status handling
+- vendor management with smart numeric/alphanumeric sorting
+- checkout flow with validation, draft persistence, and recovery guidance
+- vendor and booth reporting with consistent payout-derived totals
+- German primary / English fallback translations
+- IndexedDB persistence through repository abstractions
 
-**Component Library**:
-- Button (variants, sizes, states)
-- Input and NumberInput
-- Card and Container layout components
-- Tailwind CSS styling
+### Current Validation Workflow
 
-**Application Structure**:
-- Leptos 0.6 with client-side rendering
-- Leptos Router for navigation
-- WASM build pipeline with Trunk
-- Auto-initialization with wasm_bindgen
+- fast local unit suite: `./run-tests.sh`
+- Chrome browser validation: `./run-tests.sh --chrome`
+- Safari browser validation: `./run-tests.sh --safari`
+- full automated suite: `./run-tests.sh --chrome --safari`
 
-### 📋 Next Steps
+Manual validation assets:
+- `docs/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/UAT_Ausfuehrungsplan_DE_EN.html`
 
-- Phase 2.2: Expand component library (Modal, Toast, Form helpers)
-- Phase 2.3: Global error handling system
-- Phase 3: Core features (Booth management, Checkout flow, Reports)
-- Phase 4: Testing and refinement
-- Phase 5: Production deployment
+### Next Focus
+
+The next planned phase is product-readiness cleanup and maintainability work:
+- reduce warning noise in active crates
+- refresh onboarding and technical documentation
+- polish operator-facing recovery and correction workflows
+
+See `docs/PHASE2_PROPOSAL.md` for the concrete follow-up plan.
 
 ## How to Run
 
@@ -116,10 +110,13 @@ cargo build -p ez-booth-ui
 # Build for WASM target
 cargo build -p ez-booth-app --target wasm32-unknown-unknown
 
-# Run tests
-cargo test
+# Run unit tests only
+./run-tests.sh
 
-# Run tests for specific crate
+# Run full automated validation
+./run-tests.sh --chrome --safari
+
+# Run tests for a specific crate
 cargo test -p domain
 ```
 
@@ -128,6 +125,8 @@ cargo test -p domain
 ### User Documentation
 
 - **[Fee Calculation Guide](docs/FEE_CALCULATION.md)** - Detailed explanation of how vendor fees and payouts are calculated (Bilingual: DE/EN)
+- **[Safari Validation Checklist](docs/SAFARI_VALIDATION_CHECKLIST.md)** - Manual Safari validation for checkout, recovery, and reporting
+- **[Bilingual UAT Execution Plan](docs/UAT_Ausfuehrungsplan_DE_EN.html)** - Reusable on-screen / printable UAT guide
 
 ### Technical Documentation
 
@@ -139,6 +138,8 @@ See the `docs/redesign/` folder for detailed architecture and implementation doc
 - `03_IMPROVEMENTS.md` - Planned improvements
 - `04_IMPLEMENTATION.md` - Implementation guide with code examples
 - `05_STATUS.md` - **Current implementation progress (33% complete)**
+- `PHASE1_M2_PREPARATION.md` - Milestone 2 safety/recovery planning reference
+- `PHASE2_PROPOSAL.md` - Proposed next phase for cleanup, maintainability, and operator polish
 
 ## License
 

@@ -11,6 +11,7 @@ pub fn compute_total_pages(total_items: usize, page_size: usize) -> usize {
 }
 
 /// Clamp page to valid range
+#[allow(dead_code)]
 pub fn clamp_page(page: usize, total_pages: usize) -> usize {
     if total_pages == 0 {
         0

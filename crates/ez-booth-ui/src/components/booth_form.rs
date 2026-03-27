@@ -8,7 +8,6 @@ use domain::models::booth::{Booth, FeeConfig, VendorIdValidation};
 use domain::validation::validate_regex_pattern;
 use leptos::*;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 
 /// Form data for creating/editing a booth
 #[derive(Clone, Debug)]
@@ -40,7 +39,7 @@ impl BoothFormData {
             date: date_str,
             participation_fee: format_decimal_for_input(Decimal::ONE, locale, 2),
             sales_fee_percent: format_decimal_for_input(Decimal::from(15), locale, 2),
-            rounding_step: format_decimal_for_input(Decimal::from_str("0.50").unwrap(), locale, 2),
+            rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
         }

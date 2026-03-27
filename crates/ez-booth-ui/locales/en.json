@@ -221,7 +221,11 @@
     "draft_restored": "Saved draft restored.",
     "draft_corrupted": "Corrupted draft data was found and cleared.",
     "recovery": {
-      "partial_data_warning": "Some purchases could not be loaded and were skipped ({count}). Visible totals only include recoverable data. Review totals before continuing."
+      "partial_data_title": "Recovered with skipped purchases",
+      "partial_data_warning": "Some purchases could not be loaded and were skipped ({count}). Visible totals only include recoverable data. Review totals before continuing.",
+      "partial_data_step_review": "Review running totals and recent checkouts before continuing.",
+      "partial_data_step_refresh": "Refresh or reopen the event after resolving browser storage issues.",
+      "partial_data_step_stop": "Stop and record the issue if the missing checkouts affect payout or report trust."
     },
     "pagination": {
       "first": "First",

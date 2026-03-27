@@ -283,6 +283,7 @@ pub fn CheckoutPage() -> impl IntoView {
     let (running_totals, set_running_totals) = create_signal((Decimal::ZERO, 0_usize, 0_usize));
     let (last_partial_recovery_warning, set_last_partial_recovery_warning) =
         create_signal::<Option<(String, usize)>>(None);
+    let (partial_recovery_count, set_partial_recovery_count) = create_signal(0_usize);
 
     // Checkout form data
     let draft_load_outcome = load_saved_form_data();
@@ -440,6 +441,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         set_running_totals.set((total_sales, total_items, total_count));
 
                         if !diagnostics.is_empty() {
+                            set_partial_recovery_count.set(diagnostics.len());
                             let warning_key = (warning_booth_id.clone(), diagnostics.len());
                             let already_shown = last_partial_recovery_warning.get_untracked();
                             if already_shown != Some(warning_key.clone()) {
@@ -454,6 +456,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                 set_last_partial_recovery_warning.set(Some(warning_key));
                             }
                         } else {
+                            set_partial_recovery_count.set(0);
                             set_last_partial_recovery_warning.set(None);
                         }
                     }
@@ -466,6 +469,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         set_purchases.set(Vec::new());
                         set_total_count.set(0);
                         set_running_totals.set((Decimal::ZERO, 0, 0));
+                        set_partial_recovery_count.set(0);
                     }
                 }
 
@@ -1301,6 +1305,39 @@ pub fn CheckoutPage() -> impl IntoView {
                     </div>
 
                     <div class="flex-1 space-y-6">
+                        <Show when=move || { partial_recovery_count.get() > 0 }>
+                            <Card>
+                                <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-amber-950">
+                                    <div class="flex items-start gap-3">
+                                        <div class="mt-0.5 shrink-0 text-amber-700" aria-hidden="true">
+                                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.981-1.742 2.981H4.42c-1.53 0-2.492-1.647-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-6a1 1 0 00-.993.883L9 8v3a1 1 0 001.993.117L11 11V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <p class="text-sm font-semibold">{t!("checkout.recovery.partial_data_title")()}</p>
+                                            <p class="text-sm leading-6">
+                                                {move || {
+                                                    translate_with_params(
+                                                        "checkout.recovery.partial_data_warning",
+                                                        HashMap::from([(
+                                                            "count",
+                                                            partial_recovery_count.get().to_string(),
+                                                        )]),
+                                                    )
+                                                }}
+                                            </p>
+                                            <ul class="list-disc space-y-1 pl-5 text-sm text-amber-900">
+                                                <li>{t!("checkout.recovery.partial_data_step_review")()}</li>
+                                                <li>{t!("checkout.recovery.partial_data_step_refresh")()}</li>
+                                                <li>{t!("checkout.recovery.partial_data_step_stop")()}</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        </Show>
+
                         <Card title_view={t!("checkout.running_totals_title").into_view()}>
                             <div class="space-y-4">
                                 <div class="flex justify-between">

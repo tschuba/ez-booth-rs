@@ -361,6 +361,12 @@ Use `docs/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow,
 - [ ] Print the selected modules if a paper execution guide is preferred
 - [ ] Use the final sign-off section to document the release or onboarding decision
 
+Recommended module focus by current maintenance goal:
+- checkout and report safety checks: Modules `C` and `D`
+- persistence and recovery checks: Modules `E` and `F`
+- onboarding walkthrough: run all modules end-to-end
+- post-cleanup smoke validation: Modules `A`, `C`, `D`, and `E`
+
 ## Debugging Tests
 
 ### Enable Debug Logging

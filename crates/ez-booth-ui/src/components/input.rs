@@ -1,6 +1,7 @@
 use leptos::*;
 
 /// Input type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InputType {
     Text,

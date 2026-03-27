@@ -2,6 +2,7 @@ use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 
 /// Modal size variants
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModalSize {
     Small,
