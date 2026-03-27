@@ -69,10 +69,6 @@ pub fn App() -> impl IntoView {
                                     <a href="/checkout" class="text-gray-700 hover:text-blue-600">
                                         {t!("checkout.title")}
                                     </a>
-                                    <a href="/reports" class="text-gray-700 hover:text-blue-600">
-                                        {t!("report.title")}
-                                    </a>
-
                                     // Visual separator
                                     <span class="text-gray-300 mx-2">"|"</span>
 
@@ -124,7 +120,6 @@ pub fn App() -> impl IntoView {
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
-                            <Route path="/reports" view=ReportsPage/>
                         </Routes>
                     </main>
 
