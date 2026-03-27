@@ -58,19 +58,64 @@ wasm-pack test --headless --firefox crates/storage
 - ✅ Delete non-existent booth (idempotent)
 - ✅ Concurrent save operations
 
-### 3. Browser Component Tests (Future)
-**Location**: `crates/ez-booth-ui/tests/` (to be created)
+### 3. Purchase Storage Diagnostics Tests
+**Location**: `crates/storage/tests/purchase_repository_tests.rs`
 
-Tests Leptos components in a real browser environment:
-- Component rendering
-- User interactions
-- Event handling
-- Signal reactivity
+Tests IndexedDB purchase handling with corruption diagnostics:
+- Detect corrupted purchase records
+- Verify valid purchases still load when corrupted data exists
+
+**Run with**:
+```bash
+wasm-pack test --headless --chrome crates/storage
+```
+
+**Coverage**:
+- ✅ Corrupted purchase record detection
+- ✅ Valid purchase preservation during corrupted loads
+
+### 4. Browser Checkout/Report Tests
+**Location**: `crates/ez-booth-ui/tests/checkout_integration_tests.rs`
+
+Tests checkout-critical persistence and report integrity in a real browser environment:
+- Single-item purchase persistence
+- Multi-vendor purchase persistence
+- Running totals correctness
+- Domain validation rejection for invalid amounts
+- Fee/report consistency across storage-backed services
 
 **Run with**:
 ```bash
 wasm-pack test --headless --chrome crates/ez-booth-ui
 ```
+
+**Coverage**:
+- ✅ Single-item checkout persistence
+- ✅ Multi-vendor checkout persistence
+- ✅ Running totals correctness
+- ✅ Invalid amount rejection
+- ✅ Empty purchase rejection
+- ✅ Fee/report consistency
+
+### 5. Safari-Specific Browser Resilience Tests
+**Location**: `crates/storage/tests/safari_specific_tests.rs`
+
+Tests Safari-sensitive persistence and recovery behavior proactively:
+- Large checkout draft payload handling in localStorage
+- Rapid IndexedDB round trips under repeated save/read sequences
+- Decimal serialization edge cases for currency amounts
+- Corrupted draft detection and safe replacement
+
+**Run with**:
+```bash
+./run-tests.sh --safari
+```
+
+**Coverage**:
+- ✅ Large draft payload write/read behavior
+- ✅ Rapid IndexedDB round-trip consistency
+- ✅ Decimal precision preservation for currency edge cases
+- ✅ Corrupted draft overwrite readiness
 
 ## Running Tests
 
@@ -81,15 +126,27 @@ wasm-pack test --headless --chrome crates/ez-booth-ui
    ```bash
    cargo install wasm-pack
    ```
+3. **Safari browser tests**: enable Safari WebDriver once per Mac
+   ```bash
+   sudo safaridriver --enable
+   ```
+
+   This is checked automatically by `scripts/ensure-safaridriver.sh` when Safari tests are requested.
 
 ### Run All Tests
 
 ```bash
-# Unit tests (fast, no browser required)
-cargo test --workspace --lib
+# Unit tests only (default)
+./run-tests.sh
 
-# Integration tests (requires browser)
-wasm-pack test --headless --chrome crates/storage
+# Unit tests + Chrome browser tests
+./run-tests.sh --chrome
+
+# Unit tests + Safari browser tests
+./run-tests.sh --safari
+
+# Full automated suite
+./run-tests.sh --chrome --safari
 ```
 
 ### Run Specific Test Suites
@@ -98,8 +155,17 @@ wasm-pack test --headless --chrome crates/storage
 # Only UI unit tests
 cargo test -p ez-booth-ui --lib
 
-# Only storage integration tests  
+# Only storage integration tests in Chrome
 wasm-pack test --headless --chrome crates/storage
+
+# Only storage integration tests in Safari
+wasm-pack test --headless --safari crates/storage
+
+# Only checkout/report browser tests in Chrome
+wasm-pack test --headless --chrome crates/ez-booth-ui
+
+# Only checkout/report browser tests in Safari
+wasm-pack test --headless --safari crates/ez-booth-ui
 
 # Run a specific test
 cargo test -p ez-booth-ui test_to_booth_valid_data
@@ -134,6 +200,10 @@ Browser tests use `wasm-bindgen-test` which automatically:
 - Starts a headless browser
 - Runs tests in the browser environment
 - Reports results back to the terminal
+
+Helper scripts wrap the browser setup details:
+- `scripts/ensure-chromedriver.sh` aligns ChromeDriver with the installed Chrome version
+- `scripts/ensure-safaridriver.sh` verifies Safari WebDriver is available and reminds testers how to enable it on a new machine
 
 ## Writing Tests
 
@@ -205,6 +275,18 @@ jobs:
 
 ## Test Coverage
 
+### Automated Test Inventory
+- ✅ Unit tests: 99
+- ✅ Browser integration tests per browser run: 17
+  - Booth repository tests: 6
+  - Purchase diagnostics tests: 1
+  - Safari-specific resilience tests: 4
+  - Checkout/report browser tests: 6
+
+### Reusable Manual Validation Assets
+- `docs/SAFARI_VALIDATION_CHECKLIST.md` - detailed Safari checkout/report verification with result comparison tables
+- `docs/UAT_Ausfuehrungsplan_DE_EN.html` - reusable bilingual UAT execution plan for onboarding and pre-production reliability checks
+
 To generate coverage reports:
 
 ```bash
@@ -254,6 +336,30 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] No console errors
 - [ ] Loading states show appropriately
 
+### Safari Checkout And Report Validation
+- [ ] Start app with `trunk serve` from `crates/ez-booth-app`
+- [ ] Open app in Safari
+- [ ] Create booth with participation fee `10.00`, sales fee `15`, rounding `0.50`
+- [ ] Add checkouts for vendors `1`, `2`, `3` with amounts `100.00`, `518.11`, `75.25`
+- [ ] Verify booth summary `total_booth_revenue` equals sum of all vendor fees
+- [ ] Verify printed booth summary matches on-screen values
+- [ ] Verify each vendor report shows correct gross sales, fees, and payout
+- [ ] Enter invalid amount `10.123` and verify checkout rejects it
+- [ ] Enter negative amount and verify checkout rejects it
+- [ ] Trigger draft persistence by entering checkout items, then refresh
+- [ ] Verify draft recovery behaves as expected
+- [ ] Confirm there are no uncaught console errors during checkout/report flows
+
+Use `docs/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow, including expected values, result comparison tables, and performance notes.
+
+### Reusable User Acceptance Testing
+- [ ] Open `docs/UAT_Ausfuehrungsplan_DE_EN.html` in a browser
+- [ ] Select the primary language (`Deutsch` or `English`)
+- [ ] Choose the modules relevant for onboarding, regression checks, or production-readiness verification
+- [ ] Execute the selected modules and record actual results, timings, and issues
+- [ ] Print the selected modules if a paper execution guide is preferred
+- [ ] Use the final sign-off section to document the release or onboarding decision
+
 ## Debugging Tests
 
 ### Enable Debug Logging
@@ -274,11 +380,12 @@ RUST_BACKTRACE=1 cargo test
 ```bash
 # Remove --headless to see browser
 wasm-pack test --chrome crates/storage
+wasm-pack test --chrome crates/ez-booth-ui
 ```
 
 ## Known Issues
 
-1. **Browser tests require Chrome/Firefox**: Safari support is limited
+1. **Safari WebDriver requires enablement**: each Mac must run `sudo safaridriver --enable` once before Safari tests can run
 2. **IndexedDB cleanup**: Each test uses a unique database name to avoid conflicts
 3. **Async timing**: Some tests may be flaky due to async operations
 

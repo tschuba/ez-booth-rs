@@ -93,12 +93,15 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
             .sum();
         let total_sales_fees: Decimal = vendor_summaries
             .iter()
-            .map(|v| {
-                let fees = charging_config.calculate_fees(v.gross_sales);
-                fees.sales_fee
-            })
+            .map(|v| v.fees_due - charging_config.participation_fee)
             .sum();
         let total_booth_revenue = total_participation_fees + total_sales_fees;
+
+        debug_assert_eq!(
+            vendor_summaries.iter().map(|v| v.fees_due).sum::<Decimal>(),
+            total_booth_revenue,
+            "sum of vendor fees must match booth revenue"
+        );
 
         Ok(BoothSummary {
             booth_id: *booth_id,
@@ -536,14 +539,16 @@ mod tests {
         let purchase1 = Purchase::new(
             booth.id.clone(),
             vec![
-                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()),
-                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()),
+                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap(),
+                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()).unwrap(),
             ],
-        );
+        )
+        .unwrap();
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
 
         purchase_repo.add_purchase(purchase1);
         purchase_repo.add_purchase(purchase2);
@@ -593,14 +598,16 @@ mod tests {
         let purchase1 = Purchase::new(
             booth.id.clone(),
             vec![
-                PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()),
-                PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()),
+                PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()).unwrap(),
+                PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()).unwrap(),
             ],
-        );
+        )
+        .unwrap();
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(8.00), vendor.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(8.00), vendor.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
 
         purchase_repo.add_purchase(purchase1);
         purchase_repo.add_purchase(purchase2);
@@ -634,12 +641,14 @@ mod tests {
         // Add purchases (vendor2 has no purchases)
         let purchase1 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
         let purchase2 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(20.00), vendor3.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(20.00), vendor3.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
 
         purchase_repo.add_purchase(purchase1);
         purchase_repo.add_purchase(purchase2);
@@ -672,20 +681,23 @@ mod tests {
 
         let mut purchase1 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
         purchase1.timestamp = two_hours_ago;
 
         let mut purchase2 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(20.00), vendor.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(20.00), vendor.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
         purchase2.timestamp = one_hour_ago;
 
         let mut purchase3 = Purchase::new(
             booth.id.clone(),
-            vec![PurchaseItem::new(dec!(30.00), vendor.vendor_id.clone())],
-        );
+            vec![PurchaseItem::new(dec!(30.00), vendor.vendor_id.clone()).unwrap()],
+        )
+        .unwrap();
         purchase3.timestamp = now;
 
         purchase_repo.add_purchase(purchase1);
@@ -725,11 +737,12 @@ mod tests {
         let mixed_purchase = Purchase::new(
             booth.id.clone(),
             vec![
-                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()),
-                PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()),
-                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()),
+                PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap(),
+                PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()).unwrap(),
+                PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()).unwrap(),
             ],
-        );
+        )
+        .unwrap();
 
         purchase_repo.add_purchase(mixed_purchase);
 
@@ -790,5 +803,54 @@ mod tests {
 
         assert_eq!(v2_summary.gross_sales, dec!(20.00), "Vendor 2 gross sales");
         assert_eq!(v2_summary.item_count, 1, "Vendor 2 item count");
+    }
+
+    #[tokio::test]
+    async fn test_booth_summary_fees_match_vendor_sum() {
+        let booth = create_test_booth();
+        let vendor1 = create_test_vendor(&booth.id, "1");
+        let vendor2 = create_test_vendor(&booth.id, "2");
+        let vendor3 = create_test_vendor(&booth.id, "3");
+
+        let purchase_repo = MockPurchaseRepository::new();
+        let booth_repo = MockBoothRepository::new();
+        let vendor_repo = MockVendorRepository::new();
+
+        booth_repo.add_booth(booth.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor1.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor2.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor3.clone());
+
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(100.00), vendor1.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(518.11), vendor2.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(75.25), vendor3.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+
+        let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
+        let summary = service.generate_booth_summary(&booth.id, None).await.unwrap();
+
+        let sum_vendor_fees: Decimal = summary.vendor_summaries.iter().map(|v| v.fees_due).sum();
+        assert_eq!(sum_vendor_fees, summary.total_booth_revenue);
+        assert_eq!(
+            summary.total_booth_revenue,
+            summary.total_participation_fees + summary.total_sales_fees
+        );
     }
 }

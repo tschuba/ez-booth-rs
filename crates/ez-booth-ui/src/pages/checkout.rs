@@ -5,6 +5,7 @@ use crate::selected_booth_context;
 use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
+use domain::error::DomainError;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
 use domain::validation::validate_vendor_id;
@@ -152,11 +153,25 @@ fn get_local_storage() -> Option<web_sys::Storage> {
 fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
     let storage = get_local_storage()?;
     let raw = storage.get_item(CHECKOUT_DRAFT_STORAGE_KEY).ok()??;
-    let parsed: StoredCheckoutForm = serde_json::from_str(&raw).ok()?;
+    let parsed: StoredCheckoutForm = match serde_json::from_str(&raw) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            error!("Failed to deserialize checkout draft: {:?}", err);
+            let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
+            return None;
+        }
+    };
 
     let mut items = Vec::with_capacity(parsed.items.len());
     for stored in parsed.items {
-        let amount = Decimal::from_str(&stored.amount).ok()?;
+        let amount = match Decimal::from_str(&stored.amount) {
+            Ok(amount) => amount,
+            Err(err) => {
+                error!("Failed to parse stored checkout amount '{}': {:?}", stored.amount, err);
+                let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
+                return None;
+            }
+        };
         let added_at = DateTime::<Utc>::from_timestamp_millis(stored.added_at_ms)
             .unwrap_or_else(|| Utc::now());
         items.push(CheckoutItem {
@@ -177,15 +192,17 @@ fn load_saved_form_data() -> Option<(Option<String>, CheckoutFormData)> {
     ))
 }
 
-fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) {
+fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) -> Result<(), String> {
     let is_empty = data.vendor_id.trim().is_empty()
         && data.current_amount.trim().is_empty()
         && data.items.is_empty();
 
     if let Some(storage) = get_local_storage() {
         if is_empty {
-            let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
-            return;
+            storage
+                .remove_item(CHECKOUT_DRAFT_STORAGE_KEY)
+                .map_err(|err| format!("failed to clear draft: {:?}", err))?;
+            return Ok(());
         }
 
         let stored = StoredCheckoutForm {
@@ -203,10 +220,14 @@ fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) {
                 .collect(),
         };
 
-        if let Ok(serialized) = serde_json::to_string(&stored) {
-            let _ = storage.set_item(CHECKOUT_DRAFT_STORAGE_KEY, &serialized);
-        }
+        let serialized =
+            serde_json::to_string(&stored).map_err(|err| format!("failed to serialize draft: {err}"))?;
+        storage
+            .set_item(CHECKOUT_DRAFT_STORAGE_KEY, &serialized)
+            .map_err(|err| format!("failed to persist draft: {:?}", err))?;
     }
+
+    Ok(())
 }
 
 #[component]
@@ -274,7 +295,10 @@ pub fn CheckoutPage() -> impl IntoView {
         create_effect(move |_| {
             let data = form_data.get();
             let booth_id = selected_booth.get().map(|b| b.id.as_str());
-            persist_form_data(booth_id, &data);
+            if let Err(err) = persist_form_data(booth_id, &data) {
+                error!("Checkout draft persistence failed: {}", err);
+                toast.error(&t!("checkout.draft_save_failed")());
+            }
         });
     }
 
@@ -485,7 +509,10 @@ pub fn CheckoutPage() -> impl IntoView {
         } else {
             set_form_data.set(CheckoutFormData::default());
             let booth_id = selected_booth.get().map(|b| b.id.as_str());
-            persist_form_data(booth_id, &CheckoutFormData::default());
+            if let Err(err) = persist_form_data(booth_id, &CheckoutFormData::default()) {
+                error!("Failed to clear checkout draft: {}", err);
+                toast.error(&t!("checkout.draft_save_failed")());
+            }
         }
     };
 
@@ -505,13 +532,16 @@ pub fn CheckoutPage() -> impl IntoView {
             new_form.vendor_id = current_vendor_id.clone();
             set_form_data.set(new_form);
             let booth_id = selected_booth.get().map(|b| b.id.as_str());
-            persist_form_data(
+            if let Err(err) = persist_form_data(
                 booth_id,
                 &CheckoutFormData {
                     vendor_id: current_vendor_id.clone(),
                     ..Default::default()
                 },
-            );
+            ) {
+                error!("Failed to persist checkout draft after cancel: {}", err);
+                toast.error(&t!("checkout.draft_save_failed")());
+            }
 
             // Set focus appropriately
             if current_vendor_id.trim().is_empty() {
@@ -532,7 +562,10 @@ pub fn CheckoutPage() -> impl IntoView {
             return;
         }
 
-        let booth = booth.unwrap();
+        let Some(booth) = booth else {
+            toast.error(&t!("checkout.errors.no_booth_selected")());
+            return;
+        };
 
         let trimmed_vendor_id = data.vendor_id.trim().to_string();
         if trimmed_vendor_id != data.vendor_id {
@@ -557,13 +590,46 @@ pub fn CheckoutPage() -> impl IntoView {
         }
 
         // Create purchase items with vendor_id from each item
-        let purchase_items: Vec<PurchaseItem> = data
+        let purchase_items: Vec<PurchaseItem> = match data
             .items
             .into_iter()
             .map(|item| PurchaseItem::new(item.amount, VendorId::new(item.vendor_id)))
-            .collect();
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(items) => items,
+            Err(DomainError::Validation(message)) => {
+                toast.error(&translate_with_params(
+                    "checkout.errors.validation_failed",
+                    HashMap::from([("error", message)]),
+                ));
+                return;
+            }
+            Err(err) => {
+                toast.error(&translate_with_params(
+                    "checkout.errors.validation_failed",
+                    HashMap::from([("error", err.to_string())]),
+                ));
+                return;
+            }
+        };
 
-        let purchase = Purchase::new(booth.id.clone(), purchase_items);
+        let purchase = match Purchase::new(booth.id.clone(), purchase_items) {
+            Ok(purchase) => purchase,
+            Err(DomainError::Validation(message)) => {
+                toast.error(&translate_with_params(
+                    "checkout.errors.validation_failed",
+                    HashMap::from([("error", message)]),
+                ));
+                return;
+            }
+            Err(err) => {
+                toast.error(&translate_with_params(
+                    "checkout.errors.validation_failed",
+                    HashMap::from([("error", err.to_string())]),
+                ));
+                return;
+            }
+        };
 
         if let Some(Ok(state)) = state_result {
             let booth_id_clone = booth.id.clone();
@@ -625,7 +691,10 @@ pub fn CheckoutPage() -> impl IntoView {
                         toast.success(&t!("checkout.success")());
                         set_form_data.set(CheckoutFormData::default());
                         let booth_id = selected_booth.get().map(|b| b.id.as_str());
-                        persist_form_data(booth_id, &CheckoutFormData::default());
+                        if let Err(err) = persist_form_data(booth_id, &CheckoutFormData::default()) {
+                            error!("Failed to clear checkout draft after purchase save: {}", err);
+                            toast.error(&t!("checkout.draft_save_failed")());
+                        }
                     }
                     Err(e) => {
                         let error_msg = translate_with_params(
@@ -704,15 +773,23 @@ pub fn CheckoutPage() -> impl IntoView {
                 return;
             }
 
-            let purchase_id = pending.purchase_id.unwrap();
+            let Some(purchase_id) = pending.purchase_id else {
+                warn!("perform_delete_purchase called but pending purchase id missing");
+                toast.error(&t!("checkout.errors.invalid_delete_state")());
+                return;
+            };
             let booth_id_opt = selected_booth.get().map(|b| b.id.clone());
 
             if booth_id_opt.is_none() {
                 warn!("No booth selected, cannot delete purchase");
+                toast.error(&t!("checkout.errors.no_booth_selected")());
                 return;
             }
 
-            let booth_id = booth_id_opt.unwrap();
+            let Some(booth_id) = booth_id_opt else {
+                toast.error(&t!("checkout.errors.no_booth_selected")());
+                return;
+            };
             info!(
                 "perform_delete_purchase: deleting purchase_id: {:?} from booth: {:?}",
                 purchase_id, booth_id

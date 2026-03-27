@@ -30,9 +30,9 @@ impl<R: PurchaseRepository> TransactionService<R> {
         let purchase_items: Vec<PurchaseItem> = item_amounts
             .into_iter()
             .map(|amount| PurchaseItem::new(amount, vendor_id.clone()))
-            .collect();
+            .collect::<DomainResult<Vec<_>>>()?;
 
-        let purchase = Purchase::new(booth_id, purchase_items);
+        let purchase = Purchase::new(booth_id, purchase_items)?;
 
         self.repository.save(&purchase).await?;
         Ok(purchase)

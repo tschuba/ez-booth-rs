@@ -298,16 +298,24 @@ pub fn VendorListPage() -> impl IntoView {
                 return;
             }
 
-            let vendor = pending.unwrap();
+            let Some(vendor) = pending else {
+                log::warn!("perform_vendor_delete called without pending vendor");
+                toast.error(&t!("vendor.errors.invalid_delete_state")());
+                return;
+            };
             let vendor_id = vendor.vendor_id.clone();
             let booth_id_opt = selected_booth.get().map(|b| b.id.clone());
 
             if booth_id_opt.is_none() {
                 log::warn!("No booth selected, cannot delete vendor");
+                toast.error(&t!("vendor.errors.no_booth_selected")());
                 return;
             }
 
-            let booth_id = booth_id_opt.unwrap();
+            let Some(booth_id) = booth_id_opt else {
+                toast.error(&t!("vendor.errors.no_booth_selected")());
+                return;
+            };
             log::info!(
                 "perform_vendor_delete: deleting vendor_id: {:?} from booth: {:?}",
                 vendor_id,

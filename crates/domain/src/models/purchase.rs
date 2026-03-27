@@ -1,5 +1,7 @@
+use crate::error::{DomainError, DomainResult};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 
 use super::shared::{BoothId, ItemId, PurchaseId, VendorId};
@@ -23,14 +25,27 @@ pub struct PurchaseItem {
 }
 
 impl Purchase {
-    pub fn new(booth_id: BoothId, items: Vec<PurchaseItem>) -> Self {
-        Self {
+    pub fn new(booth_id: BoothId, items: Vec<PurchaseItem>) -> DomainResult<Self> {
+        if items.is_empty() {
+            return Err(DomainError::Validation(
+                "Purchase must contain at least one item".to_string(),
+            ));
+        }
+
+        let total: Decimal = items.iter().map(|item| item.amount).sum();
+        if total > dec!(10000000) {
+            return Err(DomainError::Validation(
+                "Purchase total too large (maximum: 10000000)".to_string(),
+            ));
+        }
+
+        Ok(Self {
             id: PurchaseId::new(),
             booth_id,
             items,
             timestamp: Utc::now(),
             note: None,
-        }
+        })
     }
 
     pub fn with_note(mut self, note: String) -> Self {
@@ -72,11 +87,90 @@ impl Purchase {
 }
 
 impl PurchaseItem {
-    pub fn new(amount: Decimal, vendor_id: VendorId) -> Self {
-        Self {
+    pub fn new(amount: Decimal, vendor_id: VendorId) -> DomainResult<Self> {
+        if amount <= Decimal::ZERO {
+            return Err(DomainError::Validation(
+                "Item amount must be positive".to_string(),
+            ));
+        }
+
+        if amount.scale() > 2 {
+            return Err(DomainError::Validation(
+                "Item amount cannot have more than 2 decimal places".to_string(),
+            ));
+        }
+
+        if amount > dec!(1000000) {
+            return Err(DomainError::Validation(
+                "Item amount too large (maximum: 1000000)".to_string(),
+            ));
+        }
+
+        Ok(Self {
             id: ItemId::new(),
             amount,
             vendor_id,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn vendor_id(id: &str) -> VendorId {
+        VendorId::new(id.to_string())
+    }
+
+    #[test]
+    fn rejects_negative_item_amount() {
+        assert!(PurchaseItem::new(dec!(-10.00), vendor_id("1")).is_err());
+    }
+
+    #[test]
+    fn rejects_zero_item_amount() {
+        assert!(PurchaseItem::new(Decimal::ZERO, vendor_id("1")).is_err());
+    }
+
+    #[test]
+    fn rejects_item_precision_over_two_decimals() {
+        assert!(PurchaseItem::new(dec!(10.123), vendor_id("1")).is_err());
+    }
+
+    #[test]
+    fn rejects_large_item_amount() {
+        assert!(PurchaseItem::new(dec!(1000000.01), vendor_id("1")).is_err());
+    }
+
+    #[test]
+    fn accepts_valid_item_amounts() {
+        for amount in [dec!(0.01), dec!(10.50), dec!(999999.99)] {
+            assert!(PurchaseItem::new(amount, vendor_id("1")).is_ok());
         }
+    }
+
+    #[test]
+    fn rejects_empty_purchase() {
+        assert!(Purchase::new(BoothId::new(), Vec::new()).is_err());
+    }
+
+    #[test]
+    fn rejects_purchase_total_overflow() {
+        let items: Vec<PurchaseItem> = (0..11)
+            .map(|idx| PurchaseItem::new(dec!(1000000.00), vendor_id(&idx.to_string())).unwrap())
+            .collect();
+        assert!(Purchase::new(BoothId::new(), items).is_err());
+    }
+
+    #[test]
+    fn creates_valid_purchase() {
+        let items = vec![
+            PurchaseItem::new(dec!(100.00), vendor_id("1")).unwrap(),
+            PurchaseItem::new(dec!(250.50), vendor_id("2")).unwrap(),
+        ];
+
+        let purchase = Purchase::new(BoothId::new(), items).unwrap();
+        assert_eq!(purchase.total_amount(), dec!(350.50));
+        assert_eq!(purchase.items.len(), 2);
     }
 }

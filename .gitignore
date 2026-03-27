@@ -19,3 +19,6 @@ pkg/
 
 # OpenCode session data
 .opencode/
+
+# Local browser driver cache
+.local/
