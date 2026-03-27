@@ -66,17 +66,27 @@ pub fn provide_selected_booth_context() -> RwSignal<Option<Booth>> {
 }
 
 pub fn use_selected_booth() -> RwSignal<Option<Booth>> {
-    use_context::<SelectedBoothContext>()
-        .expect("SelectedBoothContext not found. Did you call provide_selected_booth_context() at the root?")
-        .0
+    if let Some(context) = use_context::<SelectedBoothContext>() {
+        context.0
+    } else {
+        web_sys::console::warn_1(
+            &"SelectedBoothContext not found. Falling back to empty booth selection.".into(),
+        );
+        create_rw_signal(None)
+    }
 }
 
 /// Get the booth list version signal to trigger or react to booth list changes
 /// Increment this signal when booths are created, updated, or deleted
 pub fn use_booth_list_version() -> RwSignal<u32> {
-    use_context::<BoothListVersionContext>()
-        .expect("BoothListVersionContext not found. Did you call provide_selected_booth_context() at the root?")
-        .0
+    if let Some(context) = use_context::<BoothListVersionContext>() {
+        context.0
+    } else {
+        web_sys::console::warn_1(
+            &"BoothListVersionContext not found. Falling back to static version signal.".into(),
+        );
+        create_rw_signal(0)
+    }
 }
 
 #[component]

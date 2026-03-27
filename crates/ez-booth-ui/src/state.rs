@@ -71,6 +71,19 @@ pub fn provide_app_state() -> Resource<(), Result<AppState, String>> {
 
 /// Use app state from context
 pub fn use_app_state() -> Resource<(), Result<AppState, String>> {
-    use_context::<Resource<(), Result<AppState, String>>>()
-        .expect("AppState context not found. Make sure provide_app_state() is called in a parent component.")
+    if let Some(app_state) = use_context::<Resource<(), Result<AppState, String>>>() {
+        app_state
+    } else {
+        web_sys::console::warn_1(
+            &"AppState context not found. Returning fallback error resource.".into(),
+        );
+        create_local_resource(
+            || (),
+            |_| async {
+                Err(
+                    "AppState context not found. Make sure provide_app_state() is called in a parent component.".to_string(),
+                )
+            },
+        )
+    }
 }

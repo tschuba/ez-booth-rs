@@ -208,13 +208,26 @@ pub fn provide_i18n() {
 
 /// Get current locale from context
 pub fn use_locale() -> RwSignal<Locale> {
-    use_context::<RwSignal<Locale>>().expect("Locale context not found. Did you call provide_i18n?")
+    if let Some(locale) = use_context::<RwSignal<Locale>>() {
+        locale
+    } else {
+        web_sys::console::warn_1(
+            &"Locale context not found. Falling back to German locale.".into(),
+        );
+        create_rw_signal(Locale::De)
+    }
 }
 
 /// Get translations from context
 pub fn use_translations() -> Memo<Translations> {
-    use_context::<Memo<Translations>>()
-        .expect("Translations context not found. Did you call provide_i18n?")
+    if let Some(translations) = use_context::<Memo<Translations>>() {
+        translations
+    } else {
+        web_sys::console::warn_1(
+            &"Translations context not found. Falling back to German translations.".into(),
+        );
+        create_memo(|_| load_translations(Locale::De))
+    }
 }
 
 /// Macro for easy translation access
