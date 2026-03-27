@@ -4,7 +4,7 @@ use domain::{
     PurchaseRepository, VendorId,
 };
 use js_sys;
-use log::info;
+use log::{error, info, warn};
 use rexie::TransactionMode;
 use rust_decimal::Decimal;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -21,6 +21,50 @@ pub struct IndexedDbPurchaseRepository {
 impl IndexedDbPurchaseRepository {
     pub fn new(db: Arc<Database>) -> Self {
         Self { db }
+    }
+
+    pub async fn find_by_booth_with_diagnostics(
+        &self,
+        booth_id: &BoothId,
+    ) -> Result<(Vec<Purchase>, Vec<String>), StorageError> {
+        let transaction = self
+            .db
+            .transaction(&["purchases"], TransactionMode::ReadOnly)
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+
+        let store = transaction
+            .store("purchases")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        let index = store
+            .index("booth_id")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        let key = JsValue::from_str(&booth_id.as_str());
+        let values = index
+            .get_all(
+                Some(rexie::KeyRange::only(&key).map_err(StorageError::from)?),
+                None,
+            )
+            .await
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        let mut purchases = Vec::new();
+        let mut errors = Vec::new();
+
+        for (index, value) in values.into_iter().enumerate() {
+            match from_value::<Purchase>(value) {
+                Ok(purchase) => purchases.push(purchase),
+                Err(e) => {
+                    let detail = format!("Record index {}: {}", index, e);
+                    error!("Failed to deserialize purchase: {}", detail);
+                    errors.push(detail);
+                }
+            }
+        }
+
+        purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok((purchases, errors))
     }
 }
 
@@ -108,10 +152,27 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        let purchases: Vec<Purchase> = values
-            .into_iter()
-            .filter_map(|value| from_value(value).ok())
-            .collect();
+        let mut purchases = Vec::new();
+        let mut deserialization_errors = Vec::new();
+
+        for (index, value) in values.into_iter().enumerate() {
+            match from_value::<Purchase>(value) {
+                Ok(purchase) => purchases.push(purchase),
+                Err(e) => {
+                    let detail = format!("Record index {}: {}", index, e);
+                    error!("Failed to deserialize purchase: {}", detail);
+                    deserialization_errors.push(detail);
+                }
+            }
+        }
+
+        if !deserialization_errors.is_empty() {
+            warn!(
+                "Found {} corrupted purchase records in booth {}",
+                deserialization_errors.len(),
+                booth_id
+            );
+        }
 
         info!(
             "IndexedDbPurchaseRepository::find_by_booth returning {} purchases",
@@ -189,10 +250,26 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        let purchases: Vec<Purchase> = values
-            .into_iter()
-            .filter_map(|value| from_value(value).ok())
-            .collect();
+        let mut purchases = Vec::new();
+        let mut deserialization_errors = Vec::new();
+
+        for (index, value) in values.into_iter().enumerate() {
+            match from_value::<Purchase>(value) {
+                Ok(purchase) => purchases.push(purchase),
+                Err(e) => {
+                    let detail = format!("Record index {}: {}", index, e);
+                    error!("Failed to deserialize purchase: {}", detail);
+                    deserialization_errors.push(detail);
+                }
+            }
+        }
+
+        if !deserialization_errors.is_empty() {
+            warn!(
+                "Found {} corrupted purchase records while loading all purchases",
+                deserialization_errors.len()
+            );
+        }
 
         Ok(purchases)
     }

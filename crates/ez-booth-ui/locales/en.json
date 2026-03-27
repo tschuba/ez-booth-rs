@@ -155,6 +155,10 @@
       "success": "Vendor {vendor_id} deleted",
       "error": "Failed to delete vendor: {error}"
     },
+    "errors": {
+      "no_booth_selected": "Please select an event first",
+      "invalid_delete_state": "Cannot delete vendor: invalid state"
+    },
     "pagination": {
       "first": "First",
       "previous": "Previous",
@@ -208,8 +212,13 @@
       "load_booths_failed": "Failed to load events: {error}",
       "save_purchase_failed": "Failed to save purchase: {error}",
       "delete_purchase_failed": "Failed to delete purchase: {error}",
-      "load_totals_failed": "Failed to load totals: {error}"
+      "load_totals_failed": "Failed to load totals: {error}",
+      "no_booth_selected": "Please select an event first",
+      "invalid_delete_state": "Cannot delete: invalid state",
+      "validation_failed": "Validation failed: {error}"
     },
+    "draft_save_failed": "Failed to save draft: browser storage may be full. Your progress is not being saved automatically.",
+    "draft_corrupted": "Corrupted draft data was found and cleared.",
     "pagination": {
       "first": "First",
       "previous": "Previous",

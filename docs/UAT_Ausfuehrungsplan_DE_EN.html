@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAT Ausfuehrungsplan / UAT Execution Plan</title>
+  <style>
+    :root {
+      --bg: #f5efe3;
+      --panel: #fffaf2;
+      --panel-strong: #f1e6d3;
+      --ink: #1f1a14;
+      --muted: #5f5649;
+      --accent: #8c4f24;
+      --accent-soft: #d9bda2;
+      --critical: #8d2d1f;
+      --ok: #315c2b;
+      --border: #cfbea8;
+      --shadow: rgba(31, 26, 20, 0.08);
+      --font-body: Georgia, "Times New Roman", serif;
+      --font-ui: "Avenir Next", "Helvetica Neue", Helvetica, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(217, 189, 162, 0.45), transparent 30%),
+        linear-gradient(180deg, #f8f3ea 0%, var(--bg) 100%);
+    }
+
+    html[lang="de"] [lang="en"],
+    html[lang="en"] [lang="de"] {
+      display: none !important;
+    }
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    .hero,
+    .panel,
+    .module {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 12px 32px var(--shadow);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -120px -120px auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(140, 79, 36, 0.16), transparent 68%);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-family: var(--font-ui);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--accent);
+      background: var(--panel-strong);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: #ead9c5;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin-top: 0;
+      color: var(--ink);
+    }
+
+    h1 {
+      font-size: clamp(2rem, 3vw, 3rem);
+      margin-bottom: 10px;
+      line-height: 1.05;
+    }
+
+    .hero p {
+      max-width: 70ch;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .hero-meta {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric {
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(140, 79, 36, 0.16);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-family: var(--font-ui);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-top: 4px;
+    }
+
+    .panel {
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .session-grid,
+    .module-selector-grid,
+    .summary-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    label.field,
+    .module-pick,
+    .status-group label,
+    .checklist label {
+      display: block;
+      font-family: var(--font-ui);
+    }
+
+    label.field span,
+    .hint {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px 12px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .module-pick {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .module-pick.critical {
+      border-color: rgba(141, 45, 31, 0.45);
+      background: rgba(141, 45, 31, 0.06);
+    }
+
+    .module {
+      padding: 22px;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .module.selected {
+      display: block;
+    }
+
+    .module-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-family: var(--font-ui);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+    }
+
+    .badge.critical {
+      color: var(--critical);
+      border-color: rgba(141, 45, 31, 0.45);
+      background: rgba(141, 45, 31, 0.08);
+    }
+
+    .test-case {
+      padding: 16px;
+      border: 1px solid rgba(140, 79, 36, 0.14);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.55);
+      margin-bottom: 16px;
+    }
+
+    .test-case h4 {
+      margin-bottom: 10px;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .checklist label {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      line-height: 1.35;
+    }
+
+    .status-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 14px 0;
+      font-family: var(--font-ui);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--panel-strong);
+    }
+
+    .summary-grid .metric {
+      min-height: 100px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-family: var(--font-ui);
+    }
+
+    .no-print {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 14px 12px 90px;
+      }
+
+      .hero,
+      .panel,
+      .module {
+        border-radius: 16px;
+      }
+
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+
+      .hero,
+      .panel,
+      .module {
+        box-shadow: none;
+        border-radius: 0;
+        border: 1px solid #bbb;
+      }
+
+      .module-selector,
+      .no-print,
+      .toolbar {
+        display: none !important;
+      }
+
+      .module {
+        display: none !important;
+        page-break-inside: avoid;
+      }
+
+      .module.selected {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button type="button" onclick="setLanguage('de')">Deutsch</button>
+          <button type="button" onclick="setLanguage('en')">English</button>
+        </div>
+        <div class="toolbar-group">
+          <button type="button" onclick="saveProgress()">
+            <span lang="de">Fortschritt speichern</span>
+            <span lang="en">Save progress</span>
+          </button>
+          <button type="button" onclick="window.print()">
+            <span lang="de">Drucken</span>
+            <span lang="en">Print</span>
+          </button>
+        </div>
+      </div>
+      <h1>
+        <span lang="de">Benutzerakzeptanztest - Ausfuehrungsplan</span>
+        <span lang="en">User Acceptance Test - Execution Plan</span>
+      </h1>
+      <p lang="de">Wiederverwendbarer Testplan fuer Onboarding, Zuverlaessigkeitspruefungen und Freigabeentscheidungen. Waehlen Sie nur die Module aus, die fuer die aktuelle Testsitzung relevant sind.</p>
+      <p lang="en">Reusable test plan for onboarding, reliability checks, and release decisions. Select only the modules relevant for the current test session.</p>
+      <div class="hero-meta">
+        <div class="metric">
+          <span lang="de">Kritische Module</span>
+          <span lang="en">Critical modules</span>
+          <strong>C, D</strong>
+        </div>
+        <div class="metric">
+          <span lang="de">Geschätzte Gesamtdauer</span>
+          <span lang="en">Estimated full duration</span>
+          <strong><span id="estimatedTime">0</span> <span lang="de">Minuten</span><span lang="en">minutes</span></strong>
+        </div>
+        <div class="metric">
+          <span lang="de">Sprachen</span>
+          <span lang="en">Languages</span>
+          <strong>DE / EN</strong>
+        </div>
+      </div>
+    </section>
+
+    <form id="uatForm">
+      <section class="panel">
+        <h2>
+          <span lang="de">Test-Sitzungsinformationen</span>
+          <span lang="en">Test Session Information</span>
+        </h2>
+        <div class="session-grid">
+          <label class="field">
+            <span lang="de">Tester</span>
+            <span lang="en">Tester</span>
+            <input type="text" name="tester">
+          </label>
+          <label class="field">
+            <span lang="de">Datum</span>
+            <span lang="en">Date</span>
+            <input type="date" name="test_date">
+          </label>
+          <label class="field">
+            <span lang="de">Branch / Version</span>
+            <span lang="en">Branch / version</span>
+            <input type="text" name="branch_version">
+          </label>
+          <label class="field">
+            <span lang="de">Testziel</span>
+            <span lang="en">Test objective</span>
+            <input type="text" name="objective" placeholder="Onboarding / Release / Reliability">
+          </label>
+        </div>
+      </section>
+
+      <section class="panel module-selector">
+        <h2>
+          <span lang="de">Modulauswahl</span>
+          <span lang="en">Module Selection</span>
+        </h2>
+        <p class="hint" lang="de">Waehlen Sie die Module fuer diese Testsitzung. Die Auswahl steuert auch die Druckansicht.</p>
+        <p class="hint" lang="en">Select the modules for this test session. The selection also controls the print view.</p>
+        <div class="module-selector-grid">
+          <label class="module-pick" data-label-de="Modul A" data-label-en="Module A">
+            <input type="checkbox" id="select_moduleA" data-minutes="10" onchange="toggleModule('moduleA')">
+            <strong><span lang="de">Modul A: Standverwaltung</span><span lang="en">Module A: Booth Management</span></strong>
+            <div class="hint"><span lang="de">ca. 10 Minuten</span><span lang="en">about 10 minutes</span></div>
+          </label>
+          <label class="module-pick" data-label-de="Modul B" data-label-en="Module B">
+            <input type="checkbox" id="select_moduleB" data-minutes="5" onchange="toggleModule('moduleB')">
+            <strong><span lang="de">Modul B: Verkaeuferverwaltung</span><span lang="en">Module B: Vendor Management</span></strong>
+            <div class="hint"><span lang="de">ca. 5 Minuten</span><span lang="en">about 5 minutes</span></div>
+          </label>
+          <label class="module-pick critical" data-label-de="Modul C" data-label-en="Module C">
+            <input type="checkbox" id="select_moduleC" data-minutes="15" onchange="toggleModule('moduleC')">
+            <strong><span lang="de">Modul C: Checkout-Ablauf</span><span lang="en">Module C: Checkout Flow</span></strong>
+            <div class="hint"><span lang="de">kritisch, ca. 15 Minuten</span><span lang="en">critical, about 15 minutes</span></div>
+          </label>
+          <label class="module-pick critical" data-label-de="Modul D" data-label-en="Module D">
+            <input type="checkbox" id="select_moduleD" data-minutes="15" onchange="toggleModule('moduleD')">
+            <strong><span lang="de">Modul D: Berichte &amp; Berechnungen</span><span lang="en">Module D: Reports &amp; Calculations</span></strong>
+            <div class="hint"><span lang="de">kritisch, ca. 15 Minuten</span><span lang="en">critical, about 15 minutes</span></div>
+          </label>
+          <label class="module-pick" data-label-de="Modul E" data-label-en="Module E">
+            <input type="checkbox" id="select_moduleE" data-minutes="10" onchange="toggleModule('moduleE')">
+            <strong><span lang="de">Modul E: Datenpersistenz</span><span lang="en">Module E: Data Persistence</span></strong>
+            <div class="hint"><span lang="de">ca. 10 Minuten</span><span lang="en">about 10 minutes</span></div>
+          </label>
+          <label class="module-pick" data-label-de="Modul F" data-label-en="Module F">
+            <input type="checkbox" id="select_moduleF" data-minutes="10" onchange="toggleModule('moduleF')">
+            <strong><span lang="de">Modul F: Fehlerbehandlung</span><span lang="en">Module F: Error Handling</span></strong>
+            <div class="hint"><span lang="de">ca. 10 Minuten</span><span lang="en">about 10 minutes</span></div>
+          </label>
+          <label class="module-pick" data-label-de="Modul G" data-label-en="Module G">
+            <input type="checkbox" id="select_moduleG" data-minutes="5" onchange="toggleModule('moduleG')">
+            <strong><span lang="de">Modul G: Lokalisierung</span><span lang="en">Module G: Localization</span></strong>
+            <div class="hint"><span lang="de">ca. 5 Minuten</span><span lang="en">about 5 minutes</span></div>
+          </label>
+        </div>
+      </section>
+
+      <section id="moduleA" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul A: Standverwaltung</span><span lang="en">Module A: Booth Management</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">10 Minuten</span><span lang="en">10 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">A.1 Stand anlegen und erneut laden</span><span lang="en">A.1 Create booth and reload</span></h4>
+          <div class="columns">
+            <div>
+              <strong lang="de">Schritte</strong><strong lang="en">Steps</strong>
+              <ol>
+                <li lang="de">Stand mit gueltigen Gebuehren anlegen</li>
+                <li lang="en">Create booth with valid fees</li>
+                <li lang="de">Seite neu laden</li>
+                <li lang="en">Reload the page</li>
+              </ol>
+            </div>
+            <div>
+              <strong lang="de">Erwartet</strong><strong lang="en">Expected</strong>
+              <ul>
+                <li lang="de">Stand bleibt sichtbar</li>
+                <li lang="en">Booth remains visible</li>
+                <li lang="de">Keine Konsolenfehler</li>
+                <li lang="en">No console errors</li>
+              </ul>
+            </div>
+          </div>
+          <div class="checklist">
+            <label><input type="checkbox" name="a1_visible"><span lang="de">Stand sichtbar nach Reload</span><span lang="en">Booth visible after reload</span></label>
+            <label><input type="checkbox" name="a1_console"><span lang="de">Keine Konsolenfehler</span><span lang="en">No console errors</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="a1_actual"></textarea></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">A.2 Stand bearbeiten und loeschen</span><span lang="en">A.2 Edit and delete booth</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="a2_edit"><span lang="de">Bearbeitung gespeichert</span><span lang="en">Edit saved successfully</span></label>
+            <label><input type="checkbox" name="a2_delete"><span lang="de">Loeschung erfolgreich</span><span lang="en">Delete succeeded</span></label>
+          </div>
+          <label class="field"><span lang="de">Hinweise</span><span lang="en">Notes</span><textarea name="a2_notes"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleA_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleA_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleB" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul B: Verkaeuferverwaltung</span><span lang="en">Module B: Vendor Management</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">5 Minuten</span><span lang="en">5 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">B.1 Verkaeufer anlegen und sortieren</span><span lang="en">B.1 Create vendors and verify sorting</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="b1_create"><span lang="de">Verkaeufer 1, 2, 10 korrekt angelegt</span><span lang="en">Vendors 1, 2, 10 created correctly</span></label>
+            <label><input type="checkbox" name="b1_sort"><span lang="de">Numerische Sortierung korrekt</span><span lang="en">Numeric sorting is correct</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="b1_actual"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleB_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleB_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleC" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul C: Checkout-Ablauf</span><span lang="en">Module C: Checkout Flow</span></h2>
+          <div class="badges"><span class="badge critical"><span lang="de">Kritisch</span><span lang="en">Critical</span></span><span class="badge"><span lang="de">15 Minuten</span><span lang="en">15 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">C.1 Einfacher Checkout</span><span lang="en">C.1 Simple checkout</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="c1_saved"><span lang="de">Checkout gespeichert</span><span lang="en">Checkout saved</span></label>
+            <label><input type="checkbox" name="c1_total"><span lang="de">Laufende Summe korrekt</span><span lang="en">Running total correct</span></label>
+            <label><input type="checkbox" name="c1_console"><span lang="de">Keine Konsolenfehler</span><span lang="en">No console errors</span></label>
+          </div>
+          <label class="field"><span lang="de">Checkout-Zeit (ms)</span><span lang="en">Checkout time (ms)</span><input type="number" name="c1_ms"></label>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="c1_actual"></textarea></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">C.2 Mehrere Checkouts mit Performance-Beobachtung</span><span lang="en">C.2 Multiple checkouts with performance observation</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th><span lang="de">Verkaeufer</span><span lang="en">Vendor</span></th>
+                <th><span lang="de">Betrag</span><span lang="en">Amount</span></th>
+                <th><span lang="de">Checkout korrekt</span><span lang="en">Checkout correct</span></th>
+                <th><span lang="de">Notizen</span><span lang="en">Notes</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td><span class="amount" data-value="100">100.00</span></td>
+                <td><input type="checkbox" name="c2_vendor1"></td>
+                <td><input type="text" name="c2_vendor1_notes"></td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td><span class="amount" data-value="518.11">518.11</span></td>
+                <td><input type="checkbox" name="c2_vendor2"></td>
+                <td><input type="text" name="c2_vendor2_notes"></td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td><span class="amount" data-value="75.25">75.25</span></td>
+                <td><input type="checkbox" name="c2_vendor3"></td>
+                <td><input type="text" name="c2_vendor3_notes"></td>
+              </tr>
+            </tbody>
+          </table>
+          <label class="field"><span lang="de">Durchschnittliche Checkout-Zeit</span><span lang="en">Average checkout time</span><input type="text" name="c2_avg_time"></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">C.3 Entwurfswiederherstellung</span><span lang="en">C.3 Draft recovery</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="c3_restore"><span lang="de">Entwurf nach Reload wiederhergestellt</span><span lang="en">Draft restored after reload</span></label>
+            <label><input type="checkbox" name="c3_clear"><span lang="de">Entwurf nach erfolgreichem Checkout geloescht</span><span lang="en">Draft cleared after successful checkout</span></label>
+          </div>
+          <label class="field"><span lang="de">Hinweise</span><span lang="en">Notes</span><textarea name="c3_notes"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleC_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleC_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleD" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul D: Berichte &amp; Berechnungen</span><span lang="en">Module D: Reports &amp; Calculations</span></h2>
+          <div class="badges"><span class="badge critical"><span lang="de">Kritisch</span><span lang="en">Critical</span></span><span class="badge"><span lang="de">15 Minuten</span><span lang="en">15 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">D.1 Referenzberechnungen vergleichen</span><span lang="en">D.1 Compare reference calculations</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th><span lang="de">Verkaeufer</span><span lang="en">Vendor</span></th>
+                <th><span lang="de">Betrag</span><span lang="en">Amount</span></th>
+                <th><span lang="de">Erwartete Verkaufsgebuehr</span><span lang="en">Expected sales fee</span></th>
+                <th><span lang="de">Tatsaechliche Verkaufsgebuehr</span><span lang="en">Actual sales fee</span></th>
+                <th><span lang="de">Payout erwartet</span><span lang="en">Expected payout</span></th>
+                <th><span lang="de">Payout tatsaechlich</span><span lang="en">Actual payout</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td><span class="amount" data-value="100">100.00</span></td>
+                <td><span class="amount" data-value="15">15.00</span></td>
+                <td><input type="text" name="d1_fee_1"></td>
+                <td><span class="amount" data-value="75">75.00</span></td>
+                <td><input type="text" name="d1_payout_1"></td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td><span class="amount" data-value="518.11">518.11</span></td>
+                <td><span class="amount" data-value="77.5">77.50</span></td>
+                <td><input type="text" name="d1_fee_2"></td>
+                <td><span class="amount" data-value="430.61">430.61</span></td>
+                <td><input type="text" name="d1_payout_2"></td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td><span class="amount" data-value="75.25">75.25</span></td>
+                <td><span class="amount" data-value="11.5">11.50</span></td>
+                <td><input type="text" name="d1_fee_3"></td>
+                <td><span class="amount" data-value="53.75">53.75</span></td>
+                <td><input type="text" name="d1_payout_3"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">D.2 Standzusammenfassung</span><span lang="en">D.2 Booth summary</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th><span lang="de">Kennzahl</span><span lang="en">Metric</span></th>
+                <th><span lang="de">Erwartet</span><span lang="en">Expected</span></th>
+                <th><span lang="de">Tatsaechlich</span><span lang="en">Actual</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span lang="de">Gesamtumsatz</span><span lang="en">Total sales</span></td>
+                <td><span class="amount" data-value="693.36">693.36</span></td>
+                <td><input type="text" name="d2_sales"></td>
+              </tr>
+              <tr>
+                <td><span lang="de">Teilnahmegebuehren</span><span lang="en">Participation fees</span></td>
+                <td><span class="amount" data-value="30">30.00</span></td>
+                <td><input type="text" name="d2_participation"></td>
+              </tr>
+              <tr>
+                <td><span lang="de">Verkaufsgebuehren</span><span lang="en">Sales fees</span></td>
+                <td><span class="amount" data-value="104">104.00</span></td>
+                <td><input type="text" name="d2_sales_fees"></td>
+              </tr>
+              <tr>
+                <td><span lang="de">Standumsatz</span><span lang="en">Booth revenue</span></td>
+                <td><span class="amount" data-value="134">134.00</span></td>
+                <td><input type="text" name="d2_revenue"></td>
+              </tr>
+            </tbody>
+          </table>
+          <label class="field"><span lang="de">Berichtserzeugungszeit</span><span lang="en">Report generation time</span><input type="text" name="d2_time"></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">D.3 Druckansicht</span><span lang="en">D.3 Print view</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="d3_vendor_print"><span lang="de">Verkaeuferbericht entspricht Bildschirm</span><span lang="en">Vendor report matches on-screen values</span></label>
+            <label><input type="checkbox" name="d3_booth_print"><span lang="de">Standbericht entspricht Bildschirm</span><span lang="en">Booth report matches on-screen values</span></label>
+            <label><input type="checkbox" name="d3_layout"><span lang="de">Drucklayout bleibt lesbar</span><span lang="en">Print layout stays readable</span></label>
+          </div>
+          <label class="field"><span lang="de">Notizen</span><span lang="en">Notes</span><textarea name="d3_notes"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleD_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleD_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleE" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul E: Datenpersistenz</span><span lang="en">Module E: Data Persistence</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">10 Minuten</span><span lang="en">10 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">E.1 Daten bleiben nach Reload erhalten</span><span lang="en">E.1 Data remains after reload</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="e1_booths"><span lang="de">Staende bleiben erhalten</span><span lang="en">Booths persist</span></label>
+            <label><input type="checkbox" name="e1_purchases"><span lang="de">Checkouts bleiben erhalten</span><span lang="en">Purchases persist</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="e1_actual"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleE_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleE_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleF" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul F: Fehlerbehandlung</span><span lang="en">Module F: Error Handling</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">10 Minuten</span><span lang="en">10 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">F.1 Ungueltige Betraege werden abgefangen</span><span lang="en">F.1 Invalid amounts are rejected</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th><span lang="de">Eingabe</span><span lang="en">Input</span></th>
+                <th><span lang="de">Erwartet</span><span lang="en">Expected</span></th>
+                <th><span lang="de">Tatsaechlich</span><span lang="en">Actual</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>10.123</td><td><span lang="de">Abgelehnt</span><span lang="en">Rejected</span></td><td><input type="text" name="f1_precision"></td></tr>
+              <tr><td>-5.00</td><td><span lang="de">Abgelehnt</span><span lang="en">Rejected</span></td><td><input type="text" name="f1_negative"></td></tr>
+              <tr><td>0.00</td><td><span lang="de">Abgelehnt</span><span lang="en">Rejected</span></td><td><input type="text" name="f1_zero"></td></tr>
+            </tbody>
+          </table>
+          <div class="checklist">
+            <label><input type="checkbox" name="f1_no_invalid_save"><span lang="de">Keine ungueltigen Daten gespeichert</span><span lang="en">No invalid data saved</span></label>
+          </div>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleF_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleF_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleG" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul G: Lokalisierung</span><span lang="en">Module G: Localization</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">5 Minuten</span><span lang="en">5 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">G.1 Sprachumschaltung und Zahlenformat</span><span lang="en">G.1 Language toggle and number formatting</span></h4>
+          <div class="checklist">
+            <label><input type="checkbox" name="g1_lang"><span lang="de">DE/EN Umschaltung funktioniert</span><span lang="en">DE/EN toggle works</span></label>
+            <label><input type="checkbox" name="g1_amounts"><span lang="de">Zahlenformat folgt der Sprache</span><span lang="en">Number formatting follows language</span></label>
+          </div>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleG_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleG_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2><span lang="de">Zusammenfassung &amp; Freigabe</span><span lang="en">Summary &amp; Sign-off</span></h2>
+        <div class="summary-grid">
+          <div class="metric">
+            <span lang="de">Ausgewaehlte Module</span>
+            <span lang="en">Selected modules</span>
+            <strong id="selectedModules">-</strong>
+          </div>
+          <div class="metric">
+            <span lang="de">Letzte automatische Speicherung</span>
+            <span lang="en">Last autosave</span>
+            <strong id="lastSaved">-</strong>
+          </div>
+        </div>
+        <label class="field">
+          <span lang="de">Gesamtergebnis</span>
+          <span lang="en">Overall result</span>
+          <select name="overall_result">
+            <option value=""></option>
+            <option value="pass">PASS</option>
+            <option value="fail">FAIL</option>
+          </select>
+        </label>
+        <label class="field">
+          <span lang="de">Gefundene Probleme / Follow-ups</span>
+          <span lang="en">Issues found / follow-ups</span>
+          <textarea name="overall_issues"></textarea>
+        </label>
+        <div class="session-grid">
+          <label class="field">
+            <span lang="de">Unterschrift / Name</span>
+            <span lang="en">Signature / name</span>
+            <input type="text" name="signoff_name">
+          </label>
+          <label class="field">
+            <span lang="de">Abschlussdatum</span>
+            <span lang="en">Completion date</span>
+            <input type="date" name="signoff_date">
+          </label>
+          <label class="field">
+            <span lang="de">Gesamtdauer</span>
+            <span lang="en">Total duration</span>
+            <input type="text" name="total_duration" placeholder="45 min / 45 minutes">
+          </label>
+        </div>
+        <p class="footer-note" lang="de">Hinweis: Diese Datei speichert Fortschritt lokal im Browser und merkt sich die gewaehlt Sprache. Fuer eine neue Sitzung kann der Browser-Speicher geloescht oder ueberschrieben werden.</p>
+        <p class="footer-note" lang="en">Note: this file saves progress locally in the browser and remembers the selected language. For a fresh session, clear or overwrite the browser storage.</p>
+      </section>
+    </form>
+  </div>
+
+  <div class="no-print">
+    <button type="button" onclick="clearProgress()"><span lang="de">Zuruecksetzen</span><span lang="en">Reset</span></button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'ez-booth-uat-progress';
+    const LANG_KEY = 'ez-booth-uat-lang';
+
+    function formatAmount(value, lang) {
+      const number = Number(value);
+      if (Number.isNaN(number)) {
+        return value;
+      }
+      const fixed = number.toFixed(2);
+      if (lang === 'de') {
+        return fixed.replace('.', ',') + ' €';
+      }
+      return '€' + fixed;
+    }
+
+    function updateAmounts(lang) {
+      document.querySelectorAll('.amount').forEach((node) => {
+        node.textContent = formatAmount(node.dataset.value, lang);
+      });
+    }
+
+    function setLanguage(lang) {
+      document.documentElement.lang = lang;
+      localStorage.setItem(LANG_KEY, lang);
+      updateAmounts(lang);
+    }
+
+    function toggleModule(moduleId) {
+      const checkbox = document.getElementById('select_' + moduleId);
+      const section = document.getElementById(moduleId);
+      if (!checkbox || !section) {
+        return;
+      }
+      section.classList.toggle('selected', checkbox.checked);
+      section.style.display = checkbox.checked ? 'block' : 'none';
+      updateEstimatedTime();
+      updateSelectedModules();
+      saveProgress();
+    }
+
+    function updateEstimatedTime() {
+      let total = 0;
+      document.querySelectorAll('.module-selector input[type="checkbox"]').forEach((node) => {
+        if (node.checked) {
+          total += Number(node.dataset.minutes || '0');
+        }
+      });
+      document.getElementById('estimatedTime').textContent = total;
+    }
+
+    function updateSelectedModules() {
+      const labels = [];
+      const lang = document.documentElement.lang || 'de';
+      document.querySelectorAll('.module-selector input[type="checkbox"]').forEach((node) => {
+        if (node.checked) {
+          const parent = node.parentElement;
+          if (parent && parent.dataset) {
+            labels.push(lang === 'de' ? parent.dataset.labelDe : parent.dataset.labelEn);
+          }
+        }
+      });
+      document.getElementById('selectedModules').textContent = labels.length ? labels.join(', ') : '-';
+    }
+
+    function saveProgress() {
+      const form = document.getElementById('uatForm');
+      const data = {};
+      form.querySelectorAll('input, textarea, select').forEach((node) => {
+        if (!node.name && !node.id) {
+          return;
+        }
+        const key = node.name || node.id;
+        if (node.type === 'checkbox') {
+          data[key] = node.checked;
+        } else if (node.type === 'radio') {
+          if (node.checked) {
+            data[key] = node.value;
+          }
+        } else {
+          data[key] = node.value;
+        }
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      document.getElementById('lastSaved').textContent = new Date().toLocaleTimeString();
+    }
+
+    function restoreProgress() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        document.querySelectorAll('input, textarea, select').forEach((node) => {
+          const key = node.name || node.id;
+          if (!key || !(key in data)) {
+            return;
+          }
+          if (node.type === 'checkbox') {
+            node.checked = Boolean(data[key]);
+          } else if (node.type === 'radio') {
+            node.checked = data[key] === node.value;
+          } else {
+            node.value = data[key];
+          }
+        });
+      } catch (_error) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function clearProgress() {
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const lang = localStorage.getItem(LANG_KEY) || 'de';
+      setLanguage(lang);
+      restoreProgress();
+      document.querySelectorAll('.module-selector input[type="checkbox"]').forEach((node) => {
+        toggleModule(node.id.replace('select_', ''));
+      });
+      updateEstimatedTime();
+      updateSelectedModules();
+      setInterval(saveProgress, 120000);
+    });
+  </script>
+</body>
+</html>

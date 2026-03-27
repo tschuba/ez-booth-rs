@@ -155,6 +155,10 @@
       "success": "Verkäufer {vendor_id} gelöscht",
       "error": "Verkäufer konnte nicht gelöscht werden: {error}"
     },
+    "errors": {
+      "no_booth_selected": "Bitte wählen Sie zuerst eine Veranstaltung aus",
+      "invalid_delete_state": "Anbieter kann nicht gelöscht werden: ungültiger Status"
+    },
     "pagination": {
       "first": "Erste",
       "previous": "Zurück",
@@ -208,8 +212,13 @@
       "load_booths_failed": "Fehler beim Laden der Veranstaltungen: {error}",
       "save_purchase_failed": "Fehler beim Speichern des Kaufs: {error}",
       "delete_purchase_failed": "Fehler beim Löschen des Kaufs: {error}",
-      "load_totals_failed": "Fehler beim Laden der Summen: {error}"
+      "load_totals_failed": "Fehler beim Laden der Summen: {error}",
+      "no_booth_selected": "Bitte wählen Sie zuerst eine Veranstaltung aus",
+      "invalid_delete_state": "Löschen nicht möglich: ungültiger Status",
+      "validation_failed": "Validierung fehlgeschlagen: {error}"
     },
+    "draft_save_failed": "Entwurf konnte nicht gespeichert werden: Browser-Speicher möglicherweise voll. Ihr Fortschritt wird nicht automatisch gespeichert.",
+    "draft_corrupted": "Beschädigte Entwurfsdaten wurden gefunden und gelöscht.",
     "pagination": {
       "first": "Erste",
       "previous": "Zurück",

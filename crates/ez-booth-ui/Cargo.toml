@@ -42,3 +42,8 @@ regex = "1.12.3"
 # Logging
 log = "0.4"
 wasm-logger = "0.2"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+rust_decimal_macros = "1.40"
+js-sys = "0.3"

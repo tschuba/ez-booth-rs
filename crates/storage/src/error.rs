@@ -17,6 +17,9 @@ pub enum StorageError {
 
     #[error("JS error: {0}")]
     JsError(String),
+
+    #[error("Corrupted data detected: {count} records could not be loaded")]
+    CorruptedData { count: usize, details: Vec<String> },
 }
 
 impl From<JsValue> for StorageError {

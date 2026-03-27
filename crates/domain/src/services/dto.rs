@@ -89,6 +89,10 @@ impl ChargingConfig {
         rounded * self.rounding_step
     }
 
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use calculate_payout() for consistent fee calculations"
+    )]
     pub fn calculate_fees(&self, value: Decimal) -> ChargedFees {
         let sales_fee_raw = self.sales_fee * value / dec!(100);
         let sales_fee = self.round_to_step(sales_fee_raw);
@@ -255,6 +259,52 @@ mod tests {
         // 15% of 27.00 = 4.05 -> should round to 4.00
         let fees = config.calculate_fees(dec!(27.00));
         assert_eq!(fees.sales_fee, dec!(4.00));
+    }
+
+    #[test]
+    fn test_calculate_fees_vs_calculate_payout_consistency() {
+        let config = ChargingConfig {
+            participation_fee: dec!(10.00),
+            sales_fee: dec!(15.0),
+            rounding_step: dec!(0.50),
+        };
+
+        for gross_sales in [
+            dec!(100.00),
+            dec!(518.11),
+            dec!(1234.56),
+            dec!(0.50),
+            dec!(99999.99),
+        ] {
+            #[allow(deprecated)]
+            let fees = config.calculate_fees(gross_sales);
+            let payout = config.calculate_payout(gross_sales);
+            let sales_fee_from_payout = payout.fees_due - config.participation_fee;
+            let diff = (fees.sales_fee - sales_fee_from_payout).abs();
+            assert!(diff <= config.rounding_step);
+        }
+    }
+
+    #[test]
+    fn test_vendor_fee_sum_matches_components() {
+        let config = ChargingConfig {
+            participation_fee: dec!(10.00),
+            sales_fee: dec!(15.0),
+            rounding_step: dec!(0.50),
+        };
+
+        let mut total_fees_due = Decimal::ZERO;
+        let mut total_participation = Decimal::ZERO;
+        let mut total_sales_fees = Decimal::ZERO;
+
+        for sales in [dec!(100.00), dec!(250.50), dec!(518.11), dec!(75.25)] {
+            let payout = config.calculate_payout(sales);
+            total_fees_due += payout.fees_due;
+            total_participation += config.participation_fee;
+            total_sales_fees += payout.fees_due - config.participation_fee;
+        }
+
+        assert_eq!(total_fees_due, total_participation + total_sales_fees);
     }
 
     #[test]
