@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::audio::play_error_sound;
 use crate::error_translator::translate_domain_error;
 use crate::formatting::{
     decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
@@ -24,6 +25,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use web_sys::js_sys::Date;
 use web_sys::window;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +68,7 @@ struct StoredCheckoutForm {
 const CHECKOUT_DRAFT_STORAGE_KEY: &str = "ez-booth-checkout-draft";
 const CHECKOUT_KEYBOARD_VISIBLE_STORAGE_KEY: &str = "ez-booth-checkout-keyboard-visible";
 const CHECKOUT_AMOUNT_INPUT_MODE_STORAGE_KEY: &str = "ez-booth-checkout-amount-input-mode";
+const CHECKOUT_ERROR_SOUND_ENABLED_STORAGE_KEY: &str = "ez-booth-checkout-error-sound-enabled";
 const MAX_ITEM_AMOUNT: Decimal = Decimal::from_parts(1_000_000, 0, 0, false, 0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -363,6 +366,18 @@ fn load_amount_input_mode_preference() -> AmountInputMode {
         .unwrap_or_default()
 }
 
+fn load_error_sound_enabled_preference() -> bool {
+    get_local_storage()
+        .and_then(|storage| {
+            storage
+                .get_item(CHECKOUT_ERROR_SOUND_ENABLED_STORAGE_KEY)
+                .ok()
+                .flatten()
+        })
+        .and_then(|value| value.parse::<bool>().ok())
+        .unwrap_or(true)
+}
+
 fn persist_amount_input_mode_preference(mode: AmountInputMode) {
     if let Some(storage) = get_local_storage() {
         let value = match mode {
@@ -373,10 +388,68 @@ fn persist_amount_input_mode_preference(mode: AmountInputMode) {
     }
 }
 
+fn persist_error_sound_enabled_preference(is_enabled: bool) {
+    if let Some(storage) = get_local_storage() {
+        let _ = storage.set_item(
+            CHECKOUT_ERROR_SOUND_ENABLED_STORAGE_KEY,
+            if is_enabled { "true" } else { "false" },
+        );
+    }
+}
+
+fn play_checkout_error_sound_if_enabled(
+    is_enabled: ReadSignal<bool>,
+    last_played_at: RwSignal<u128>,
+) {
+    if !is_enabled.get_untracked() {
+        return;
+    }
+
+    let now = Date::now() as u128;
+    let last_played = last_played_at.get_untracked();
+
+    if last_played > now {
+        last_played_at.set(0);
+    } else if now.saturating_sub(last_played) < 700 {
+        return;
+    }
+
+    last_played_at.set(now);
+
+    if let Err(err) = play_error_sound() {
+        warn!("Failed to play checkout error sound: {:?}", err);
+    }
+}
+
+fn should_play_inline_error(previous_error: &Option<String>, next_error: &Option<String>) -> bool {
+    next_error.is_some() && previous_error.as_ref() != next_error.as_ref()
+}
+
+fn validate_inline_amount(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    match parse_decimal_input(trimmed) {
+        Ok(amount) => {
+            if amount > MAX_ITEM_AMOUNT {
+                Some(t!("checkout.errors.amount_too_large")())
+            } else {
+                None
+            }
+        }
+        Err(_) => Some(t!("checkout.errors.amount_invalid")()),
+    }
+}
+
 fn update_vendor_input(
     set_form_data: WriteSignal<CheckoutFormData>,
     value: String,
     vendor_validation_rule: Option<VendorIdValidation>,
+    error_sound_enabled: ReadSignal<bool>,
+    last_error_sound_at: RwSignal<u128>,
 ) {
     let trimmed = value.trim().to_string();
     let vendor_error = if trimmed.is_empty() {
@@ -384,22 +457,42 @@ fn update_vendor_input(
     } else if let Some(rule) = vendor_validation_rule {
         validate_vendor_id(&trimmed, &rule)
             .err()
-            .map(|err| err.to_string())
+            .map(|err| translate_domain_error(&err))
     } else {
         None
     };
 
+    let mut should_play_sound = false;
+
     set_form_data.update(|data| {
+        should_play_sound = should_play_inline_error(&data.vendor_error, &vendor_error);
         data.vendor_id = value.clone();
         data.vendor_error = vendor_error.clone();
     });
+
+    if should_play_sound {
+        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+    }
 }
 
-fn update_amount_input(set_form_data: WriteSignal<CheckoutFormData>, value: String) {
+fn update_amount_input(
+    set_form_data: WriteSignal<CheckoutFormData>,
+    value: String,
+    error_sound_enabled: ReadSignal<bool>,
+    last_error_sound_at: RwSignal<u128>,
+) {
+    let amount_error = validate_inline_amount(&value);
+    let mut should_play_sound = false;
+
     set_form_data.update(|data| {
+        should_play_sound = should_play_inline_error(&data.amount_error, &amount_error);
         data.current_amount = value;
-        data.amount_error = None;
+        data.amount_error = amount_error.clone();
     });
+
+    if should_play_sound {
+        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+    }
 }
 
 fn get_local_storage() -> Option<web_sys::Storage> {
@@ -556,6 +649,9 @@ pub fn CheckoutPage() -> impl IntoView {
     let (keyboard_visible, set_keyboard_visible) =
         create_signal(load_keyboard_visible_preference());
     let (amount_input_mode, set_amount_input_mode) = create_signal(initial_amount_input_mode);
+    let (error_sound_enabled, set_error_sound_enabled) =
+        create_signal(load_error_sound_enabled_preference());
+    let last_error_sound_at = create_rw_signal(0_u128);
     let (active_input, set_active_input) = create_signal(ActiveInput::VendorId);
     let (draft_notice_pending, set_draft_notice_pending) = create_signal(initial_draft_notice);
 
@@ -599,6 +695,7 @@ pub fn CheckoutPage() -> impl IntoView {
             if let Err(err) = persist_form_data(booth_id, &data) {
                 error!("Checkout draft persistence failed: {}", err);
                 toast.error(&t!("checkout.draft_save_failed")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             }
         });
     }
@@ -630,6 +727,10 @@ pub fn CheckoutPage() -> impl IntoView {
 
     create_effect(move |_| {
         persist_amount_input_mode_preference(amount_input_mode.get());
+    });
+
+    create_effect(move |_| {
+        persist_error_sound_enabled_preference(error_sound_enabled.get());
     });
 
     create_effect(move |_| {
@@ -767,6 +868,7 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
+                        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                         set_purchases.set(Vec::new());
                         set_total_count.set(0);
                         set_running_totals.set((Decimal::ZERO, 0, 0));
@@ -810,6 +912,7 @@ pub fn CheckoutPage() -> impl IntoView {
             if let Err(e) = validate_vendor_id(&vendor_id_for_item, &rule) {
                 let error_msg = translate_domain_error(&e);
                 set_form_data.update(|form| form.vendor_error = Some(error_msg));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 focus_and_select_input(&vendor_input_ref_for_add);
                 return;
             }
@@ -882,6 +985,7 @@ pub fn CheckoutPage() -> impl IntoView {
             Err(_) => {
                 let message = t!("checkout.errors.amount_invalid")();
                 toast.error(&message);
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 set_form_data.update(|form| form.amount_error = Some(message));
                 focus_and_select_input(&amount_input_ref_for_add);
             }
@@ -958,6 +1062,8 @@ pub fn CheckoutPage() -> impl IntoView {
                     set_form_data,
                     next.clone(),
                     vendor_validation_rule.get_untracked(),
+                    error_sound_enabled,
+                    last_error_sound_at,
                 );
                 if let Some(input) = vendor_input_ref.get() {
                     input.set_value(&next);
@@ -993,7 +1099,12 @@ pub fn CheckoutPage() -> impl IntoView {
                         }
                     },
                 };
-                update_amount_input(set_form_data, next.clone());
+                update_amount_input(
+                    set_form_data,
+                    next.clone(),
+                    error_sound_enabled,
+                    last_error_sound_at,
+                );
                 if let Some(input) = amount_input_ref.get() {
                     input.set_value(&next);
                 }
@@ -1018,6 +1129,7 @@ pub fn CheckoutPage() -> impl IntoView {
             if let Err(err) = persist_form_data(booth_id, &empty_form) {
                 error!("Failed to clear checkout draft: {}", err);
                 toast.error(&t!("checkout.draft_save_failed")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             }
         }
     };
@@ -1075,6 +1187,7 @@ pub fn CheckoutPage() -> impl IntoView {
             ) {
                 error!("Failed to persist checkout draft after cancel: {}", err);
                 toast.error(&t!("checkout.draft_save_failed")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             }
 
             // Set focus appropriately
@@ -1098,6 +1211,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
         let Some(booth) = booth else {
             toast.error(&t!("checkout.errors.no_booth_selected")());
+            play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             return;
         };
 
@@ -1133,6 +1247,7 @@ pub fn CheckoutPage() -> impl IntoView {
             Ok(items) => items,
             Err(err @ DomainError::Validation(_)) => {
                 toast.error(&translate_domain_error(&err));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
             Err(err) => {
@@ -1140,6 +1255,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     "checkout.errors.validation_failed",
                     HashMap::from([("error", err.to_string())]),
                 ));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
         };
@@ -1148,6 +1264,7 @@ pub fn CheckoutPage() -> impl IntoView {
             Ok(purchase) => purchase,
             Err(err @ DomainError::Validation(_)) => {
                 toast.error(&translate_domain_error(&err));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
             Err(err) => {
@@ -1155,6 +1272,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     "checkout.errors.validation_failed",
                     HashMap::from([("error", err.to_string())]),
                 ));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
         };
@@ -1196,6 +1314,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                 HashMap::from([("error", format_error_message(&e))]),
                             );
                             toast.error(&error_msg);
+                            play_checkout_error_sound_if_enabled(
+                                error_sound_enabled,
+                                last_error_sound_at,
+                            );
                             return;
                         }
                     }
@@ -1231,6 +1353,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                 err
                             );
                             toast.error(&t!("checkout.draft_save_failed")());
+                            play_checkout_error_sound_if_enabled(
+                                error_sound_enabled,
+                                last_error_sound_at,
+                            );
                         }
                     }
                     Err(e) => {
@@ -1239,6 +1365,7 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
+                        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                     }
                 }
             });
@@ -1313,6 +1440,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let Some(purchase_id) = pending.purchase_id else {
                 warn!("perform_delete_purchase called but pending purchase id missing");
                 toast.error(&t!("checkout.errors.invalid_delete_state")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             };
             let booth_id_opt = selected_booth.get().map(|b| b.id.clone());
@@ -1320,11 +1448,13 @@ pub fn CheckoutPage() -> impl IntoView {
             if booth_id_opt.is_none() {
                 warn!("No booth selected, cannot delete purchase");
                 toast.error(&t!("checkout.errors.no_booth_selected")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
 
             let Some(booth_id) = booth_id_opt else {
                 toast.error(&t!("checkout.errors.no_booth_selected")());
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             };
             info!(
@@ -1368,6 +1498,10 @@ pub fn CheckoutPage() -> impl IntoView {
                                 HashMap::from([("error", format_error_message(&e))]),
                             );
                             toast.error(&error_msg);
+                            play_checkout_error_sound_if_enabled(
+                                error_sound_enabled,
+                                last_error_sound_at,
+                            );
                         }
                     }
                 });
@@ -1404,22 +1538,31 @@ pub fn CheckoutPage() -> impl IntoView {
                 <div class="flex flex-col gap-6 lg:flex-row">
                     <div class="flex-1 space-y-6">
                         <Card>
-                            <div class="mb-4 flex items-start justify-between gap-4">
+                            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <h2 class="text-xl font-semibold">{t!("checkout.title")}</h2>
-                                <Button
-                                    variant=ButtonVariant::Ghost
-                                    class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm backdrop-blur".to_string()
-                                    aria_label={(move || if keyboard_visible.get() {
-                                        t!("checkout.keyboard_toggle_hide")()
-                                    } else {
-                                        t!("checkout.keyboard_toggle_show")()
-                                    })()}
-                                    aria_pressed=keyboard_visible.get()
-                                    on_click=Box::new(move || {
-                                        set_keyboard_visible.update(|value| *value = !*value);
-                                    })
-                                >
-                                    <span class="inline-flex items-center gap-2 text-sm font-semibold">
+                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        aria-label=move || {
+                                            if keyboard_visible.get() {
+                                                t!("checkout.keyboard_toggle_hide")()
+                                            } else {
+                                                t!("checkout.keyboard_toggle_show")()
+                                            }
+                                        }
+                                        title=move || {
+                                            if keyboard_visible.get() {
+                                                t!("checkout.keyboard_toggle_hide")()
+                                            } else {
+                                                t!("checkout.keyboard_toggle_show")()
+                                            }
+                                        }
+                                        aria-pressed=move || if keyboard_visible.get() { "true" } else { "false" }
+                                        on:click=move |_| {
+                                            set_keyboard_visible.update(|value| *value = !*value);
+                                        }
+                                    >
                                         <svg
                                             class="h-5 w-5"
                                             viewBox="0 0 20 20"
@@ -1429,13 +1572,14 @@ pub fn CheckoutPage() -> impl IntoView {
                                         >
                                             <path d="M6 0H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm5 0h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zM6 5H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zm5 0h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM6 10H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm0 6H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm5-6h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1z" />
                                         </svg>
-                                        {move || if keyboard_visible.get() {
-                                            t!("checkout.keyboard_toggle_hide")()
-                                        } else {
-                                            t!("checkout.keyboard_toggle_show")()
-                                        }}
-                                    </span>
-                                </Button>
+                                    </button>
+                                    <SoundToggle
+                                        enabled=Signal::derive(move || error_sound_enabled.get())
+                                        on_toggle=Callback::new(move |_| {
+                                            set_error_sound_enabled.update(|value| *value = !*value);
+                                        })
+                                    />
+                                </div>
                             </div>
                             <Show
                                 when=move || selected_booth.get().is_none()
@@ -1473,6 +1617,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 set_form_data,
                                                                 value,
                                                                 vendor_validation_rule.get(),
+                                                                error_sound_enabled,
+                                                                last_error_sound_at,
                                                             );
                                                         }
                                                         on:keydown=move |ev: web_sys::KeyboardEvent| {
@@ -1523,6 +1669,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                                 set_form_data.update(|data| {
                                                                                     data.vendor_error = Some(error_msg);
                                                                                 });
+                                                                                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                                                                             }
                                                                         }
                                                                         if let Some(input) = vendor_input_ref.get() {
@@ -1623,7 +1770,12 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         }
                                                                     }
                                                                 };
-                                                                update_amount_input(set_form_data, next);
+                                                                update_amount_input(
+                                                                    set_form_data,
+                                                                    next,
+                                                                    error_sound_enabled,
+                                                                    last_error_sound_at,
+                                                                );
                                                             }
                                                             on:keydown=move |ev: web_sys::KeyboardEvent| {
                                                                 let key = ev.key();
