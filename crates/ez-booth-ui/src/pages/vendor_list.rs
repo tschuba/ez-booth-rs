@@ -693,13 +693,11 @@ pub fn VendorListPage() -> impl IntoView {
 
                                                                      view! {
                                                                         <div class="space-y-4">
-                                                                            {/* Two-column responsive grid layout */}
-                                                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {/* Responsive grid layout with wider transaction list */}
+                                                                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                                                                                 {/* Left column: Fee breakdown with sum visualization */}
-                                                                                <div class="space-y-3">
-                                                                                    <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                                                                                        {t!("vendor.financial_summary")()}
-                                                                                    </h4>
+                                                                                <div class="space-y-3 md:col-span-2">
+                                                                                    <h4 class="sr-only">{t!("vendor.financial_summary")()}</h4>
                                                                                     <div class="space-y-3">
                                                                                         {/* Individual fees side-by-side with plus indicator */}
                                                                                         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
@@ -738,13 +736,8 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                 </div>
 
                                                                                 {/* Right column: Transactions */}
-                                                                                <div class="space-y-3">
-                                                                                    <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                                                                                        {t!("vendor.transaction_id")()}
-                                                                                        {" "}
-                                                                                        {format!("({} {})", report.items.len(), t!("vendor.items")())}
-                                                                                    </h4>
-
+                                                                                <div class="space-y-3 md:col-span-3">
+                                                                                    <h4 class="sr-only">{t!("vendor.transaction_id")()}</h4>
                                                                                     {/* Transactions list */}
                                                                                     <div class="bg-white p-3 rounded shadow-sm max-h-96 overflow-y-auto">
                                                                                         <div class="text-xs text-gray-600 space-y-2">
@@ -1037,7 +1030,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
 
                             // Financial summary - reduced spacing
                             <div class="mb-3">
-                                <h2 class="text-lg font-bold mb-2">{t!("vendor.financial_summary")}</h2>
+                                <h2 class="sr-only">{t!("vendor.financial_summary")}</h2>
                                 <div class="border border-gray-400 p-2">
                                     <div class="flex justify-between py-1">
                                         <span class="font-medium">{t!("vendor.gross_sales")}{"："}</span>
@@ -1061,6 +1054,7 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                             // Sales details - compact grid layout
                             <div class="print-sales-section">
                                 <h2 class="text-lg font-bold mb-0">{t!("vendor.sales_details")}" ("{items.len()}" "{t!("vendor.items")}")"</h2>
+                                <p class="text-xs text-gray-600 mt-1 mb-2">{t!("vendor.transaction_grouping_explanation")}</p>
                                 <div class="print-transactions-container">
                                     {transactions
                                         .into_iter()
