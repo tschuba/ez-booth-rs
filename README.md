@@ -27,11 +27,25 @@ Delivered:
 - Chrome and Safari browser validation support
 - reusable manual validation assets for Safari and UAT execution
 
+### Phase 2 Progress
+
+Phase 2 shifts the project toward product readiness, lower warning noise, and more confident operator workflows.
+
+Delivered so far:
+- Milestone 1: warning reduction and active-crate cleanup
+- Milestone 2: clearer correction and deletion workflows
+- Milestone 3: refreshed onboarding, branch strategy, and validation documentation
+
+Still open:
+- optional Milestone 4 UX and reporting refinements
+- retroactive manual execution of the prepared Milestone 2 validation template, if formal sign-off is needed later
+
 ### Current Product Capabilities
 
 - booth management with fee configuration and status handling
 - vendor management with smart numeric/alphanumeric sorting
 - checkout flow with validation, draft persistence, and recovery guidance
+- correction and deletion flows with operator-facing recalculation and aftercare messaging
 - vendor and booth reporting with consistent payout-derived totals
 - German primary / English fallback translations
 - IndexedDB persistence through repository abstractions
@@ -46,13 +60,22 @@ Delivered:
 Manual validation assets:
 - `docs/SAFARI_VALIDATION_CHECKLIST.md`
 - `docs/UAT_Ausfuehrungsplan_DE_EN.html`
+- `docs/PHASE2_M2_VALIDATION_RESULTS.md` as an example milestone sign-off template
+
+How to use them:
+- use `docs/SAFARI_VALIDATION_CHECKLIST.md` for focused Safari and operator-flow regression checks
+- use `docs/UAT_Ausfuehrungsplan_DE_EN.html` for guided bilingual acceptance sessions
+- use a milestone result file when a change needs a durable manual sign-off record
+
+See `docs/VALIDATION_WORKFLOW.md` for the full validation workflow and artifact guidance.
 
 ### Next Focus
 
-The next planned phase is product-readiness cleanup and maintainability work:
-- reduce warning noise in active crates
-- refresh onboarding and technical documentation
-- polish operator-facing recovery and correction workflows
+The current cleanup track has completed Phase 2 Milestones 1 through 3.
+
+Next up:
+- optional Phase 2 Milestone 4 UX and reporting refinements
+- any retroactive manual validation needed to formally close Milestone 2
 
 See `docs/PHASE2_PROPOSAL.md` for the concrete follow-up plan.
 
@@ -127,6 +150,8 @@ cargo test -p domain
 - **[Fee Calculation Guide](docs/FEE_CALCULATION.md)** - Detailed explanation of how vendor fees and payouts are calculated (Bilingual: DE/EN)
 - **[Safari Validation Checklist](docs/SAFARI_VALIDATION_CHECKLIST.md)** - Manual Safari validation for checkout, recovery, and reporting
 - **[Bilingual UAT Execution Plan](docs/UAT_Ausfuehrungsplan_DE_EN.html)** - Reusable on-screen / printable UAT guide
+- **[Validation Workflow](docs/VALIDATION_WORKFLOW.md)** - When to run automated checks, Safari validation, UAT, and milestone sign-off docs
+- **[Branch Strategy](docs/BRANCH_STRATEGY.md)** - Branch naming, PR workflow, and squash-merge policy used in this repository
 
 ### Technical Documentation
 
@@ -137,9 +162,18 @@ See the `docs/redesign/` folder for detailed architecture and implementation doc
 - `02_ARCHITECTURE.md` - System architecture
 - `03_IMPROVEMENTS.md` - Planned improvements
 - `04_IMPLEMENTATION.md` - Implementation guide with code examples
-- `05_STATUS.md` - **Current implementation progress (33% complete)**
+- `05_STATUS.md` - Current implementation and cleanup-track status
 - `PHASE1_M2_PREPARATION.md` - Milestone 2 safety/recovery planning reference
 - `PHASE2_PROPOSAL.md` - Proposed next phase for cleanup, maintainability, and operator polish
+
+## Contributing
+
+- create short-lived branches from `main`; use `feature/...` for most work and `fix/...` for focused bug fixes
+- open a pull request for all changes and summarize the why, validation run, and any deferred follow-up
+- prefer squash merges so `main` keeps one reviewed commit per completed change
+- update validation artifacts in `docs/` when operator-facing behavior or acceptance coverage changes
+
+See `docs/BRANCH_STRATEGY.md` for the repository workflow and `docs/VALIDATION_WORKFLOW.md` for expected validation evidence.
 
 ## License
 

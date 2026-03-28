@@ -1,10 +1,22 @@
 # Implementation Status
 
-**Last Updated:** 2026-03-23
+**Last Updated:** 2026-03-28
 
 ## Overview
 
 This document tracks the progress of implementing the ez-booth-rs redesign as outlined in the implementation plan.
+
+## Clarification On Phase Naming
+
+This file primarily tracks the original redesign roadmap (`Phase 1` through `Phase 5`).
+
+Later cleanup and product-readiness follow-up work is tracked separately in `docs/PHASE2_PROPOSAL.md` under a newer milestone-based plan:
+- Milestone 1: Warning Reduction And Codebase Cleanup
+- Milestone 2: Operator Workflow Polish
+- Milestone 3: Documentation And Onboarding Refresh
+- Milestone 4: Optional UX / Reporting Refinement
+
+Both naming systems are valid in the repository history. The roadmap below remains useful for implementation history, while the added Phase 2 milestone section records the current cleanup track.
 
 ## Phase 1: Foundation & Core Architecture
 
@@ -166,6 +178,60 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 - ✅ All components compile cleanly and build successfully
 - ⚠️  Component API documentation deferred (components are self-documenting via doc comments)
 - ⚠️  Focus trapping in modals not implemented (nice-to-have, not critical for MVP)
+
+## Phase 2: Product Readiness, UX Cleanup, And Maintainability
+
+This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOSAL.md`.
+
+### Milestone 1: Warning Reduction And Codebase Cleanup ✅ COMPLETE
+
+- [x] Reduced warning noise in active crates
+- [x] Refreshed active documentation references
+- [x] Softened or removed noisy UI edge cases that distracted from real regressions
+
+**Status:** Complete  
+**Completed:** 2026-03-28  
+**Notes:**
+- ✅ Delivered through PR `#30`
+- ✅ `feature/phase2-cleanup-and-operator-polish` was squash-merged into `main`
+- ✅ Established the current Phase 2 cleanup track on top of the validated Phase 1 baseline
+
+### Milestone 2: Operator Workflow Polish ✅ COMPLETE
+
+- [x] Clarified correction and deletion workflows in the UI
+- [x] Kept recovery guidance visible during operator review
+- [x] Added reusable validation artifacts for correction and deletion scenarios
+
+**Status:** Complete  
+**Completed:** 2026-03-28  
+**Notes:**
+- ✅ Delivered through PR `#31`
+- ✅ Added Module H to `docs/UAT_Ausfuehrungsplan_DE_EN.html`
+- ✅ Extended `docs/SAFARI_VALIDATION_CHECKLIST.md` for correction workflow validation
+- ✅ Added `docs/PHASE2_M2_VALIDATION_RESULTS.md` as a reusable sign-off template
+- ⚠️  Manual validation artifacts were prepared, but the results template was intentionally left unfilled when the work was merged
+
+### Milestone 3: Documentation And Onboarding Refresh
+
+- [x] Update `README.md` to reflect the current repository state
+- [x] Document validation workflow explicitly
+- [x] Document branch strategy and pull request flow
+- [x] Explain the reusable validation artifacts in `docs/`
+
+**Status:** Complete  
+**Completed:** 2026-03-28  
+**Notes:**
+- Added onboarding references so new contributors can understand how to run, validate, and extend the app without relying on stale roadmap text
+- Keeps repository-level docs aligned with the post-Milestone-2 state on `main`
+
+### Milestone 4: Optional UX / Reporting Refinement
+
+- [ ] Improve report readability further
+- [ ] Strengthen empty and loading states where useful
+- [ ] Refine reporting and transaction-detail ergonomics
+
+**Status:** Not Started  
+**Target:** TBD
 
 ### 2.3 Error Handling System (P0)
 - [ ] Implement global error boundary
@@ -362,7 +428,13 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 ## Recent Updates
 
-- ### 2026-03-23 (Afternoon)
+### 2026-03-28
+- ✅ Phase 2 Milestone 1 and Milestone 2 are complete on `main` through PRs `#30` and `#31`
+- ✅ Phase 2 Milestone 3 documentation and onboarding refresh is complete on `feature/phase2-m3-documentation-refresh`
+- Added a dedicated cleanup-track section to this status document to reconcile the original roadmap with the newer milestone-based Phase 2 plan
+- Refreshed repository onboarding docs so contributors can find the branch strategy, validation workflow, and current project status from `README.md`
+
+### 2026-03-23 (Afternoon)
 - ✅ Checkout running total, fee summary, and transaction history now live (Phase 3.2)
 - Implemented keyboard-first checkout UI with inline validation: vendor ID trim/normalize, decimal parsing w/ comma support, immediate focus management
 - Added IndexedDB-backed persistence for purchases; history view displays localized timestamps with tooltips
@@ -483,10 +555,10 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 ## Next Steps
 
-1. Begin implementation of domain models (Phase 1.2)
-2. Set up comprehensive test framework
-3. Implement storage layer with migration support
-4. Create business logic services
+1. Decide whether to execute retroactive manual validation for Phase 2 Milestone 2 and fill `docs/PHASE2_M2_VALIDATION_RESULTS.md`
+2. Prioritize whether Phase 2 Milestone 4 UX and reporting refinement should happen before broader roadmap work
+3. Continue Phase 3.2 checkout completion work, especially vendor auto-creation and reporting integration
+4. Keep repository docs aligned with milestone progress as future work lands
 
 ---
 
