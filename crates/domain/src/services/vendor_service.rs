@@ -394,7 +394,9 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DomainError::Validation(crate::error_code::ValidationError::VendorIdDigitsOnly)) => {}
+            Err(DomainError::Validation(
+                crate::error_code::ValidationError::VendorIdDigitsOnly,
+            )) => {}
             _ => panic!("Expected Validation error"),
         }
     }

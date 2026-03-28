@@ -1,5 +1,5 @@
-pub mod error_code;
 pub mod error;
+pub mod error_code;
 pub mod models;
 pub mod repositories;
 pub mod services;
