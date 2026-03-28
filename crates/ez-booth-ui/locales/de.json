@@ -212,6 +212,9 @@
     "total": "Gesamt",
     "confirm": "Abschließen",
     "add_item": "Artikel hinzufügen",
+    "add_item_success": "Artikel hinzugefügt",
+    "repeat_item": "Wiederholen",
+    "repeat_item_success": "Letzter Artikel wurde wiederholt",
     "current_items": "Aktuelle Positionen",
     "no_items": "Noch keine Artikel hinzugefügt",
     "item_label": "Position",
@@ -251,6 +254,8 @@
     "draft_save_failed": "Entwurf konnte nicht gespeichert werden: Browser-Speicher möglicherweise voll. Ihr Fortschritt wird nicht automatisch gespeichert.",
     "draft_restored": "Gespeicherter Entwurf wiederhergestellt.",
     "draft_corrupted": "Beschädigte Entwurfsdaten wurden gefunden und gelöscht.",
+    "repeat_error_no_items": "Kein Artikel zum Wiederholen vorhanden.",
+    "repeat_error_vendor_mismatch": "Vendor ID muss zum zuletzt erfassten Artikel passen.",
     "recovery": {
       "partial_data_title": "Wiederherstellung mit übersprungenen Kassiervorgängen",
       "partial_data_warning": "Einige Kassiervorgänge konnten nicht geladen werden und wurden übersprungen ({count}). Die sichtbaren Summen enthalten nur wiederherstellbare Daten. Bitte Summen vor dem Fortfahren prüfen.",

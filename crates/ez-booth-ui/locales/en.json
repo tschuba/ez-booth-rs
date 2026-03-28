@@ -212,6 +212,9 @@
     "total": "Total",
     "confirm": "Complete",
     "add_item": "Add Item",
+    "add_item_success": "Item added",
+    "repeat_item": "Repeat",
+    "repeat_item_success": "Last item was repeated",
     "current_items": "Current Items",
     "no_items": "No items added yet",
     "item_label": "Item",
@@ -251,6 +254,8 @@
     "draft_save_failed": "Failed to save draft: browser storage may be full. Your progress is not being saved automatically.",
     "draft_restored": "Saved draft restored.",
     "draft_corrupted": "Corrupted draft data was found and cleared.",
+    "repeat_error_no_items": "No item available to repeat.",
+    "repeat_error_vendor_mismatch": "Vendor ID must match the last captured item.",
     "recovery": {
       "partial_data_title": "Recovered with skipped purchases",
       "partial_data_warning": "Some purchases could not be loaded and were skipped ({count}). Visible totals only include recoverable data. Review totals before continuing.",

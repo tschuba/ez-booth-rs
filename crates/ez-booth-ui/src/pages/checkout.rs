@@ -22,6 +22,8 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
 use web_sys::window;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -174,6 +176,18 @@ fn focus_and_select_input(input_ref: &NodeRef<html::Input>) {
         let _ = input.focus();
         let _ = input.select();
     }
+}
+
+fn is_repeat_focus_active(
+    vendor_input_ref: &NodeRef<html::Input>,
+    amount_input_ref: &NodeRef<html::Input>,
+) -> bool {
+    vendor_input_ref
+        .get()
+        .is_some_and(|input| input.matches(":focus").ok().unwrap_or(false))
+        || amount_input_ref
+            .get()
+            .is_some_and(|input| input.matches(":focus").ok().unwrap_or(false))
 }
 
 fn utf16_index_to_byte_index(value: &str, utf16_index: u32) -> usize {
@@ -592,6 +606,23 @@ pub fn CheckoutPage() -> impl IntoView {
     // Input references for focus management
     let vendor_input_ref = create_node_ref::<html::Input>();
     let amount_input_ref = create_node_ref::<html::Input>();
+    let vendor_input_ref_for_repeat = vendor_input_ref.clone();
+    let amount_input_ref_for_repeat = amount_input_ref.clone();
+    let vendor_input_ref_for_repeat_button = vendor_input_ref.clone();
+    let amount_input_ref_for_repeat_button = amount_input_ref.clone();
+
+    let can_repeat = create_memo(move |_| {
+        let data = form_data.get();
+        let Some(last_item) = data.items.first() else {
+            return false;
+        };
+
+        data.vendor_id.trim() == last_item.vendor_id
+            && is_repeat_focus_active(
+                &vendor_input_ref_for_repeat_button,
+                &amount_input_ref_for_repeat_button,
+            )
+    });
 
     create_effect(move |_| {
         persist_keyboard_visible_preference(keyboard_visible.get());
@@ -845,6 +876,8 @@ pub fn CheckoutPage() -> impl IntoView {
                 if let Some(amount_input) = amount_input_ref_for_add.get() {
                     let _ = amount_input.set_value(&default_amount_for_mode(mode, locale));
                 }
+
+                toast.info(&t!("checkout.add_item_success")());
             }
             Err(_) => {
                 let message = t!("checkout.errors.amount_invalid")();
@@ -853,6 +886,39 @@ pub fn CheckoutPage() -> impl IntoView {
                 focus_and_select_input(&amount_input_ref_for_add);
             }
         }
+    };
+
+    let repeat_last_item = move || {
+        let data = form_data.get();
+
+        let Some(last_item) = data.items.first().cloned() else {
+            toast.warning(&t!("checkout.repeat_error_no_items")());
+            return;
+        };
+
+        if !is_repeat_focus_active(&vendor_input_ref_for_repeat, &amount_input_ref_for_repeat) {
+            return;
+        }
+
+        if data.vendor_id.trim() != last_item.vendor_id {
+            toast.warning(&t!("checkout.repeat_error_vendor_mismatch")());
+            return;
+        }
+
+        item_delete_signal.set(None);
+        set_purchase_to_delete.set(None);
+        set_form_data.update(|form| {
+            form.items.insert(
+                0,
+                CheckoutItem {
+                    amount: last_item.amount,
+                    vendor_id: last_item.vendor_id,
+                    added_at: Utc::now(),
+                },
+            );
+        });
+
+        toast.info(&t!("checkout.repeat_item_success")());
     };
 
     let handle_keyboard_key = {
@@ -955,6 +1021,28 @@ pub fn CheckoutPage() -> impl IntoView {
             }
         }
     };
+
+    {
+        let repeat_last_item = repeat_last_item.clone();
+        let vendor_input_ref = vendor_input_ref.clone();
+        let amount_input_ref = amount_input_ref.clone();
+
+        if let Some(document) = window().and_then(|win| win.document()) {
+            let handler = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+                if event.key() == "+"
+                    && is_repeat_focus_active(&vendor_input_ref, &amount_input_ref)
+                {
+                    event.prevent_default();
+                    repeat_last_item();
+                }
+            }) as Box<dyn Fn(_)>);
+
+            let _ = document
+                .add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref());
+
+            handler.forget();
+        }
+    }
 
     let handle_cancel_confirm = {
         let set_form_data = set_form_data.clone();
@@ -1620,21 +1708,84 @@ pub fn CheckoutPage() -> impl IntoView {
 
                                                 {/* Action buttons - side by side on desktop, stacked on mobile */}
                                                 <div class="flex flex-col sm:flex-row gap-4">
-                                                    <Button
-                                                        variant=ButtonVariant::Secondary
-                                                        class="sm:flex-[3]".to_string()
-                                                        on_click=Box::new(move || {
+                                                    <button
+                                                        type="button"
+                                                        on:click=move |_| {
                                                             item_delete_signal.set(None);
                                                             set_purchase_to_delete.set(None);
                                                             add_item();
-                                                        })
+                                                        }
+                                                        title={t!("checkout.add_item")}
+                                                        aria-label={t!("checkout.add_item")}
+                                                        class="inline-flex items-center justify-center rounded-lg bg-gray-200 px-4 py-2 text-base font-medium text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-300 sm:flex-[1]"
                                                     >
-                                                        {t!("checkout.add_item")}
-                                                    </Button>
+                                                        <svg
+                                                            class="w-8 h-8"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            aria-hidden="true"
+                                                        >
+                                                            <path
+                                                                d="M12 5V19M5 12H19"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                            />
+                                                        </svg>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        disabled=move || !can_repeat.get()
+                                                        on:mousedown=move |ev| ev.prevent_default()
+                                                        on:click=move |_| repeat_last_item()
+                                                        title={t!("checkout.repeat_item")}
+                                                        aria-label={t!("checkout.repeat_item")}
+                                                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-base font-medium text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-[1]"
+                                                    >
+                                                        <svg
+                                                            class="w-8 h-8"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            aria-hidden="true"
+                                                        >
+                                                            <defs>
+                                                                <mask id="repeat-copy-plus-mask">
+                                                                    <rect x="0" y="0" width="24" height="24" fill="white" />
+                                                                    <rect x="10.5" y="6.5" width="11" height="12" rx="0.5" fill="black" />
+                                                                </mask>
+                                                            </defs>
+                                                            <g mask="url(#repeat-copy-plus-mask)">
+                                                                <rect
+                                                                    x="4"
+                                                                    y="8"
+                                                                    width="12"
+                                                                    height="12"
+                                                                    rx="2"
+                                                                    stroke="currentColor"
+                                                                    stroke-width="2"
+                                                                />
+                                                                <path
+                                                                    d="M8 4H16C17.1046 4 18 4.89543 18 6V16"
+                                                                    stroke="currentColor"
+                                                                    stroke-width="2"
+                                                                    stroke-linecap="round"
+                                                                />
+                                                            </g>
+                                                            <path
+                                                                d="M16 8V16M12 12H20"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                            />
+                                                        </svg>
+                                                    </button>
 
                                                     <Button
                                                         variant=ButtonVariant::Success
-                                                        class="sm:flex-[7] shadow-lg ring-2 ring-green-300/50".to_string()
+                                                        class="sm:flex-[3] shadow-lg ring-2 ring-green-300/50".to_string()
                                                         on_click=Box::new(move || {
                                                             item_delete_signal.set(None);
                                                             set_purchase_to_delete.set(None);
