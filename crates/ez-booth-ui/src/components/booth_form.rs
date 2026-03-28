@@ -177,24 +177,24 @@ fn parse_u32_input(value: &str) -> Option<u32> {
     value.trim().parse::<u32>().ok()
 }
 
-fn omission_rule_label(rule: &OmissionRule) -> String {
+fn omission_rule_type_label(rule: &OmissionRule) -> String {
     match rule {
-        OmissionRule::Exact(value) => {
-            t!("booth.vendor_omission_display_exact")().replace("{value}", value)
+        OmissionRule::Exact(_) => t!("booth.vendor_omission_type_exact")(),
+        OmissionRule::Wildcard(_) => t!("booth.vendor_omission_type_wildcard")(),
+        OmissionRule::Regex(_) => t!("booth.vendor_omission_type_regex")(),
+        OmissionRule::Range { .. } | OmissionRule::RangeWithStep { .. } => {
+            t!("booth.vendor_omission_type_range")()
         }
-        OmissionRule::Wildcard(pattern) => {
-            t!("booth.vendor_omission_display_wildcard")().replace("{pattern}", pattern)
-        }
-        OmissionRule::Regex(pattern) => {
-            t!("booth.vendor_omission_display_regex")().replace("{pattern}", pattern)
-        }
-        OmissionRule::Range { start, end } => t!("booth.vendor_omission_display_range")()
-            .replace("{range}", &format!("{start}-{end}")),
-        OmissionRule::RangeWithStep { start, end, step } => {
-            t!("booth.vendor_omission_display_range_step")()
-                .replace("{range}", &format!("{start}-{end}"))
-                .replace("{step}", &step.to_string())
-        }
+    }
+}
+
+fn omission_rule_value(rule: &OmissionRule) -> String {
+    match rule {
+        OmissionRule::Exact(value) => value.clone(),
+        OmissionRule::Wildcard(pattern) => pattern.clone(),
+        OmissionRule::Regex(pattern) => pattern.clone(),
+        OmissionRule::Range { start, end } => format!("{start}-{end}"),
+        OmissionRule::RangeWithStep { start, end, step } => format!("{start}-{end} (step {step})"),
     }
 }
 
@@ -709,17 +709,23 @@ pub fn BoothForm(
                                     each=move || vendor_omission_rules.get().rules.into_iter().enumerate()
                                     key=|(index, _)| *index
                                     children=move |(index, rule)| {
-                                        let label = omission_rule_label(&rule);
+                                        let type_label = omission_rule_type_label(&rule);
+                                        let value_label = omission_rule_value(&rule);
 
                                         view! {
                                             <div class="flex h-full flex-col justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-                                                <div class="min-h-[3.5rem]">
+                                                <div class="min-h-[4.5rem] space-y-1">
                                                     <p
-                                                        class="text-sm font-medium text-gray-700"
-                                                        title=label.clone()
+                                                        class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500"
+                                                    >
+                                                        {type_label}
+                                                    </p>
+                                                    <p
+                                                        class="text-sm font-medium text-gray-800"
+                                                        title=value_label.clone()
                                                         style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;"
                                                     >
-                                                        {label}
+                                                        {value_label}
                                                     </p>
                                                 </div>
 
