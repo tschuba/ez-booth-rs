@@ -50,7 +50,9 @@ pub fn BoothListPage() -> impl IntoView {
                 };
                 format!("{}. {}", day, month)
             }
-            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => date.format("%b %d").to_string(),
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
+                date.format("%b %d").to_string()
+            }
         }
     };
 
@@ -275,7 +277,13 @@ pub fn BoothListPage() -> impl IntoView {
                 .get()
                 .into_iter()
                 .find(|booth| booth.id == booth_id)
-                .map(|booth| format!("{} - {}", booth.description, t!("report.booth_summary_report")()))
+                .map(|booth| {
+                    format!(
+                        "{} - {}",
+                        booth.description,
+                        t!("report.booth_summary_report")()
+                    )
+                })
         })
     };
 

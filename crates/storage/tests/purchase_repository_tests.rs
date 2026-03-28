@@ -34,7 +34,9 @@ async fn test_find_by_booth_with_diagnostics_detects_corruption() {
     let purchase = create_test_purchase(&booth_id, rust_decimal_macros::dec!(100.00));
     repo.save(&purchase).await.unwrap();
 
-    let transaction = db.transaction(&["purchases"], TransactionMode::ReadWrite).unwrap();
+    let transaction = db
+        .transaction(&["purchases"], TransactionMode::ReadWrite)
+        .unwrap();
     let store = transaction.store("purchases").unwrap();
 
     let corrupted = js_sys::Object::new();
@@ -50,13 +52,13 @@ async fn test_find_by_booth_with_diagnostics_detects_corruption() {
         &JsValue::from_str("corrupted"),
     )
     .unwrap();
-    store
-        .add(&corrupted, None)
-        .await
-        .unwrap();
+    store.add(&corrupted, None).await.unwrap();
     transaction.done().await.unwrap();
 
-    let (purchases, errors) = repo.find_by_booth_with_diagnostics(&booth_id).await.unwrap();
+    let (purchases, errors) = repo
+        .find_by_booth_with_diagnostics(&booth_id)
+        .await
+        .unwrap();
     assert_eq!(purchases.len(), 1);
     assert_eq!(purchases[0].id, purchase.id);
     assert!(!errors.is_empty());
@@ -86,7 +88,9 @@ async fn test_delete_from_booth_preserves_purchase_for_wrong_booth_key() {
     let purchase = create_test_purchase(&booth_id, rust_decimal_macros::dec!(42.00));
     repo.save(&purchase).await.unwrap();
 
-    repo.delete_from_booth(&wrong_booth_id, &purchase.id).await.unwrap();
+    repo.delete_from_booth(&wrong_booth_id, &purchase.id)
+        .await
+        .unwrap();
 
     let loaded = repo.find_by_id(&purchase.id).await.unwrap();
     assert!(loaded.is_some());

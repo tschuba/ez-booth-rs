@@ -34,7 +34,11 @@ fn current_browser_is_safari() -> bool {
         .unwrap_or(false)
 }
 
-fn create_purchase(booth_id: BoothId, vendor_suffix: &str, amount: rust_decimal::Decimal) -> Purchase {
+fn create_purchase(
+    booth_id: BoothId,
+    vendor_suffix: &str,
+    amount: rust_decimal::Decimal,
+) -> Purchase {
     Purchase::new(
         booth_id,
         vec![PurchaseItem::new(amount, VendorId::new(vendor_suffix.to_string())).unwrap()],
@@ -48,7 +52,11 @@ async fn safari_handles_large_local_storage_draft_payloads_without_truncation() 
     let browser_is_safari = current_browser_is_safari();
     let large_payload = format!(
         "{{\"browser\":\"{}\",\"payload\":\"{}\"}}",
-        if browser_is_safari { "safari" } else { "non-safari" },
+        if browser_is_safari {
+            "safari"
+        } else {
+            "non-safari"
+        },
         "x".repeat(512 * 1024)
     );
 
@@ -64,7 +72,10 @@ async fn safari_handles_large_local_storage_draft_payloads_without_truncation() 
             assert_eq!(restored, large_payload);
         }
         Err(_) => {
-            assert!(browser_is_safari, "non-Safari browsers should store this payload size");
+            assert!(
+                browser_is_safari,
+                "non-Safari browsers should store this payload size"
+            );
         }
     }
 

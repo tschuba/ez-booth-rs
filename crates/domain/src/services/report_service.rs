@@ -845,7 +845,10 @@ mod tests {
         );
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
-        let summary = service.generate_booth_summary(&booth.id, None).await.unwrap();
+        let summary = service
+            .generate_booth_summary(&booth.id, None)
+            .await
+            .unwrap();
 
         let sum_vendor_fees: Decimal = summary.vendor_summaries.iter().map(|v| v.fees_due).sum();
         assert_eq!(sum_vendor_fees, summary.total_booth_revenue);
