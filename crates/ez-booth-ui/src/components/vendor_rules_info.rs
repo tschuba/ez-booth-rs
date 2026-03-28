@@ -19,19 +19,18 @@ fn format_validation_rule(rule: &VendorIdValidation) -> String {
 fn format_omission_rule(rule: &OmissionRule) -> String {
     match rule {
         OmissionRule::Exact(value) => {
-            t!("vendor_omission_display_exact")().replace("{value}", value)
+            t!("booth.vendor_omission_display_exact")().replace("{value}", value)
         }
         OmissionRule::Wildcard(pattern) => {
-            t!("vendor_omission_display_wildcard")().replace("{pattern}", pattern)
+            t!("booth.vendor_omission_display_wildcard")().replace("{pattern}", pattern)
         }
         OmissionRule::Regex(pattern) => {
-            t!("vendor_omission_display_regex")().replace("{pattern}", pattern)
+            t!("booth.vendor_omission_display_regex")().replace("{pattern}", pattern)
         }
-        OmissionRule::Range { start, end } => {
-            t!("vendor_omission_display_range")().replace("{range}", &format!("{start}-{end}"))
-        }
+        OmissionRule::Range { start, end } => t!("booth.vendor_omission_display_range")()
+            .replace("{range}", &format!("{start}-{end}")),
         OmissionRule::RangeWithStep { start, end, step } => {
-            t!("vendor_omission_display_range_step")()
+            t!("booth.vendor_omission_display_range_step")()
                 .replace("{range}", &format!("{start}-{end}"))
                 .replace("{step}", &step.to_string())
         }
