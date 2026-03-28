@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::super::booth_form::BoothFormData;
+    use super::super::booth_form::{parse_exact_omission_values, BoothFormData};
     use crate::i18n::Locale;
     use chrono::NaiveDate;
     use domain::error::DomainError;
@@ -374,5 +374,26 @@ mod tests {
         let result = form.update_booth(&mut booth, Locale::En);
         assert!(result.is_err());
         assert!(matches!(result, Err(DomainError::Validation(_))));
+    }
+
+    #[test]
+    fn test_parse_exact_omission_values_splits_and_trims() {
+        let values = parse_exact_omission_values(" 56, 62 ,68 , TEST ");
+
+        assert_eq!(values, vec!["56", "62", "68", "TEST"]);
+    }
+
+    #[test]
+    fn test_parse_exact_omission_values_deduplicates_preserving_order() {
+        let values = parse_exact_omission_values("56, 56, 62, TEST, 62, TEST");
+
+        assert_eq!(values, vec!["56", "62", "TEST"]);
+    }
+
+    #[test]
+    fn test_parse_exact_omission_values_ignores_empty_entries() {
+        let values = parse_exact_omission_values(" , 56, , , TEST ,, ");
+
+        assert_eq!(values, vec!["56", "TEST"]);
     }
 }

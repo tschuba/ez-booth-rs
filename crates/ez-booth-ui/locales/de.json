@@ -81,7 +81,7 @@
     "vendor_omission_type_regex": "Regex-Muster",
     "vendor_omission_type_range": "Zahlenbereich",
     "vendor_omission_value_label": "Wert",
-    "vendor_omission_value_placeholder": "z. B. 56 oder TEST",
+    "vendor_omission_value_placeholder": "z. B. 56, 62, 68 oder TEST, ABC",
     "vendor_omission_pattern_label": "Muster",
     "vendor_omission_pattern_wildcard_placeholder": "z. B. TEST*",
     "vendor_omission_pattern_regex_placeholder": "z. B. ^TEST\\d+$",

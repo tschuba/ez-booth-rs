@@ -81,7 +81,7 @@
     "vendor_omission_type_regex": "Regex pattern",
     "vendor_omission_type_range": "Numeric range",
     "vendor_omission_value_label": "Value",
-    "vendor_omission_value_placeholder": "e.g., 56 or TEST",
+    "vendor_omission_value_placeholder": "e.g., 56, 62, 68 or TEST, ABC",
     "vendor_omission_pattern_label": "Pattern",
     "vendor_omission_pattern_wildcard_placeholder": "e.g., TEST*",
     "vendor_omission_pattern_regex_placeholder": "e.g., ^TEST\\d+$",

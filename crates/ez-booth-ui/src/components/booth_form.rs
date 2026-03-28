@@ -12,6 +12,7 @@ use domain::models::booth::{
 use domain::validation::validate_regex_pattern;
 use leptos::*;
 use rust_decimal::Decimal;
+use std::collections::HashSet;
 
 /// Form data for creating/editing a booth
 #[derive(Clone, Debug)]
@@ -175,6 +176,18 @@ impl BoothFormData {
 
 fn parse_u32_input(value: &str) -> Option<u32> {
     value.trim().parse::<u32>().ok()
+}
+
+pub(crate) fn parse_exact_omission_values(input: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+
+    input
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .filter(|value| seen.insert((*value).to_string()))
+        .map(str::to_string)
+        .collect()
 }
 
 fn omission_rule_type_label(rule: &OmissionRule) -> String {
@@ -598,16 +611,19 @@ pub fn BoothForm(
                             on_click=Box::new(move || {
                                 set_vendor_omission_error.set(None);
 
-                                let next_rule = match new_omission_rule_type.get().as_str() {
+                                let next_rules = match new_omission_rule_type.get().as_str() {
                                     "exact" => {
-                                        let value = new_omission_value.get().trim().to_string();
-                                        if value.is_empty() {
+                                        let values = parse_exact_omission_values(&new_omission_value.get());
+                                        if values.is_empty() {
                                             set_vendor_omission_error.set(Some(
                                                 t!("booth.form_errors.vendor_omission_value_required")(),
                                             ));
                                             return;
                                         }
-                                        OmissionRule::Exact(value)
+                                        values
+                                            .into_iter()
+                                            .map(OmissionRule::Exact)
+                                            .collect::<Vec<_>>()
                                     }
                                     "wildcard" => {
                                         let pattern = new_omission_pattern.get().trim().to_string();
@@ -617,7 +633,7 @@ pub fn BoothForm(
                                             ));
                                             return;
                                         }
-                                        OmissionRule::Wildcard(pattern)
+                                        vec![OmissionRule::Wildcard(pattern)]
                                     }
                                     "regex" => {
                                         let pattern = new_omission_pattern.get().trim().to_string();
@@ -626,7 +642,7 @@ pub fn BoothForm(
                                                 .set(Some(translate_domain_error(&err)));
                                             return;
                                         }
-                                        OmissionRule::Regex(pattern)
+                                        vec![OmissionRule::Regex(pattern)]
                                     }
                                     "range" => {
                                         let Some(start) = parse_u32_input(&new_omission_range_start.get()) else {
@@ -651,7 +667,7 @@ pub fn BoothForm(
                                         let step_input = step_input.trim();
 
                                         if step_input.is_empty() {
-                                            OmissionRule::Range { start, end }
+                                            vec![OmissionRule::Range { start, end }]
                                         } else {
                                             let Some(step) = parse_u32_input(step_input) else {
                                                 set_vendor_omission_error.set(Some(
@@ -665,22 +681,25 @@ pub fn BoothForm(
                                                 ));
                                                 return;
                                             }
-                                            OmissionRule::RangeWithStep { start, end, step }
+                                            vec![OmissionRule::RangeWithStep { start, end, step }]
                                         }
                                     }
                                     _ => {
-                                        let value = new_omission_value.get().trim().to_string();
-                                        if value.is_empty() {
+                                        let values = parse_exact_omission_values(&new_omission_value.get());
+                                        if values.is_empty() {
                                             set_vendor_omission_error.set(Some(
                                                 t!("booth.form_errors.vendor_omission_value_required")(),
                                             ));
                                             return;
                                         }
-                                        OmissionRule::Exact(value)
+                                        values
+                                            .into_iter()
+                                            .map(OmissionRule::Exact)
+                                            .collect::<Vec<_>>()
                                     }
                                 };
 
-                                vendor_omission_rules.update(|rules| rules.rules.push(next_rule));
+                                vendor_omission_rules.update(|rules| rules.rules.extend(next_rules));
                                 new_omission_value.set(String::new());
                                 new_omission_pattern.set(String::new());
                                 new_omission_range_start.set(String::new());
