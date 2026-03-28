@@ -9,6 +9,10 @@ mod tests {
     use std::str::FromStr;
 
     fn default_rules() -> VendorIdOmissionRules {
+        VendorIdOmissionRules::recommended()
+    }
+
+    fn empty_rules() -> VendorIdOmissionRules {
         VendorIdOmissionRules::default()
     }
 
@@ -56,6 +60,24 @@ mod tests {
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("0.50").unwrap());
         assert_eq!(booth.vendor_id_omission_rules, default_rules());
+    }
+
+    #[test]
+    fn test_booth_new_defaults_to_empty_omission_rules() {
+        let fees = FeeConfig {
+            participation_fee: Decimal::from_str("10.00").unwrap(),
+            sales_fee_percent: Decimal::from_str("15.00").unwrap(),
+            rounding_step: Decimal::from_str("0.50").unwrap(),
+        };
+
+        let booth = Booth::new(
+            "Test Booth".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            fees,
+        )
+        .unwrap();
+
+        assert_eq!(booth.vendor_id_omission_rules, empty_rules());
     }
 
     #[test]
@@ -314,6 +336,7 @@ mod tests {
         .unwrap();
 
         let custom_rules = VendorIdOmissionRules {
+            version: 1,
             rules: vec![OmissionRule::Exact("999".to_string())],
         };
 

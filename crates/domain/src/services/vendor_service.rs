@@ -36,7 +36,7 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
         // Validate vendor ID
         validate_vendor_id(&vendor_id_str, &booth.vendor_id_validation)?;
 
-        if booth.vendor_id_omission_rules.is_omitted(&vendor_id_str) {
+        if booth.vendor_id_omission_rules.is_omitted(&vendor_id_str)? {
             return Err(DomainError::Validation(ValidationError::VendorIdOmitted {
                 value: vendor_id_str,
             }));
@@ -480,6 +480,7 @@ mod tests {
 
         let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
         booth.vendor_id_omission_rules = VendorIdOmissionRules {
+            version: 1,
             rules: vec![OmissionRule::RangeWithStep {
                 start: 56,
                 end: 182,
@@ -508,6 +509,7 @@ mod tests {
 
         let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
         booth.vendor_id_omission_rules = VendorIdOmissionRules {
+            version: 1,
             rules: vec![OmissionRule::RangeWithStep {
                 start: 56,
                 end: 182,

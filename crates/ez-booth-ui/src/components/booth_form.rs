@@ -48,7 +48,7 @@ impl BoothFormData {
             rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
-            vendor_omission_rules: VendorIdOmissionRules::default(),
+            vendor_omission_rules: VendorIdOmissionRules::recommended(),
         }
     }
 
@@ -117,6 +117,7 @@ impl BoothFormData {
 
         // Create Booth (this validates the fee ranges)
         let mut booth = Booth::new(self.description.clone(), date, fees)?;
+        self.vendor_omission_rules.validate()?;
         booth.vendor_id_validation = vendor_id_validation;
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
 
@@ -164,6 +165,7 @@ impl BoothFormData {
         };
 
         // Update booth fields
+        self.vendor_omission_rules.validate()?;
         booth.update_description(self.description.clone());
         booth.date = date;
         booth.update_fees(fees);
@@ -204,11 +206,19 @@ fn omission_rule_type_label(rule: &OmissionRule) -> String {
 fn omission_rule_value(rule: &OmissionRule) -> String {
     match rule {
         OmissionRule::Exact(value) => value.clone(),
-        OmissionRule::Wildcard(pattern) => pattern.clone(),
-        OmissionRule::Regex(pattern) => pattern.clone(),
+        OmissionRule::Wildcard(pattern) => pattern.as_str().to_string(),
+        OmissionRule::Regex(pattern) => pattern.as_str().to_string(),
         OmissionRule::Range { start, end } => format!("{start}-{end}"),
         OmissionRule::RangeWithStep { start, end, step } => format!("{start}-{end} (step {step})"),
     }
+}
+
+fn omission_rule_key(index: usize, rule: &OmissionRule) -> String {
+    format!(
+        "{index}:{}:{}",
+        omission_rule_type_label(rule),
+        omission_rule_value(rule)
+    )
 }
 
 /// Booth form component for creating and editing booths
@@ -399,6 +409,11 @@ pub fn BoothForm(
                     has_errors = true;
                 }
             }
+        }
+
+        if let Err(err) = vendor_omission_rules.get().validate() {
+            set_vendor_omission_error.set(Some(translate_domain_error(&err)));
+            has_errors = true;
         }
 
         if !has_errors {
@@ -637,7 +652,13 @@ pub fn BoothForm(
                                             ));
                                             return;
                                         }
-                                        vec![OmissionRule::Wildcard(pattern)]
+                                        if pattern.len() > 100 {
+                                            set_vendor_omission_error.set(Some(
+                                                t!("booth.form_errors.vendor_omission_pattern_too_long")(),
+                                            ));
+                                            return;
+                                        }
+                                        vec![OmissionRule::Wildcard(pattern.into())]
                                     }
                                     "regex" => {
                                         let pattern = new_omission_pattern.get().trim().to_string();
@@ -646,7 +667,7 @@ pub fn BoothForm(
                                                 .set(Some(translate_domain_error(&err)));
                                             return;
                                         }
-                                        vec![OmissionRule::Regex(pattern)]
+                                        vec![OmissionRule::Regex(pattern.into())]
                                     }
                                     "range" => {
                                         let Some(start) = parse_u32_input(&new_omission_range_start.get()) else {
@@ -703,7 +724,15 @@ pub fn BoothForm(
                                     }
                                 };
 
-                                vendor_omission_rules.update(|rules| rules.rules.extend(next_rules));
+                                let mut updated_rules = vendor_omission_rules.get();
+                                updated_rules.rules.extend(next_rules);
+
+                                if let Err(err) = updated_rules.validate() {
+                                    set_vendor_omission_error.set(Some(translate_domain_error(&err)));
+                                    return;
+                                }
+
+                                vendor_omission_rules.set(updated_rules);
                                 new_omission_value.set(String::new());
                                 new_omission_pattern.set(String::new());
                                 new_omission_range_start.set(String::new());
@@ -729,9 +758,19 @@ pub fn BoothForm(
                         >
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 <For
-                                    each=move || vendor_omission_rules.get().rules.into_iter().enumerate()
-                                    key=|(index, _)| *index
-                                    children=move |(index, rule)| {
+                                    each=move || {
+                                        vendor_omission_rules
+                                            .get()
+                                            .rules
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(|(index, rule)| {
+                                                let key = omission_rule_key(index, &rule);
+                                                (index, key, rule)
+                                            })
+                                    }
+                                    key=|(_, key, _)| key.clone()
+                                    children=move |(_, rule_key, rule)| {
                                         let type_label = omission_rule_type_label(&rule);
                                         let value_label = omission_rule_value(&rule);
 
@@ -757,7 +796,15 @@ pub fn BoothForm(
                                                     class="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-800"
                                                     on:click=move |_| {
                                                         vendor_omission_rules.update(|rules| {
-                                                            if index < rules.rules.len() {
+                                                            if let Some(index) = rules
+                                                                .rules
+                                                                .iter()
+                                                                .enumerate()
+                                                                .find_map(|(index, existing_rule)| {
+                                                                    (omission_rule_key(index, existing_rule) == rule_key)
+                                                                        .then_some(index)
+                                                                })
+                                                            {
                                                                 rules.rules.remove(index);
                                                             }
                                                         });

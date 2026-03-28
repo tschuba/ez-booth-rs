@@ -22,10 +22,10 @@ fn format_omission_rule(rule: &OmissionRule) -> String {
             t!("booth.vendor_omission_display_exact")().replace("{value}", value)
         }
         OmissionRule::Wildcard(pattern) => {
-            t!("booth.vendor_omission_display_wildcard")().replace("{pattern}", pattern)
+            t!("booth.vendor_omission_display_wildcard")().replace("{pattern}", pattern.as_str())
         }
         OmissionRule::Regex(pattern) => {
-            t!("booth.vendor_omission_display_regex")().replace("{pattern}", pattern)
+            t!("booth.vendor_omission_display_regex")().replace("{pattern}", pattern.as_str())
         }
         OmissionRule::Range { start, end } => t!("booth.vendor_omission_display_range")()
             .replace("{range}", &format!("{start}-{end}")),
@@ -82,9 +82,9 @@ pub fn VendorRulesInfoModal(
                     >
                         <ul class="mt-2 space-y-2 text-sm text-slate-700">
                             <For
-                                each=move || omission_summaries.get().into_iter().enumerate()
-                                key=|(index, _)| *index
-                                children=move |(_, summary)| {
+                                each=move || omission_summaries.get().into_iter()
+                                key=|summary| summary.clone()
+                                children=move |summary| {
                                     view! {
                                         <li class="rounded-md bg-slate-50 px-3 py-2">{summary}</li>
                                     }

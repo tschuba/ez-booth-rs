@@ -456,14 +456,23 @@ fn update_vendor_input(
     let trimmed = value.trim().to_string();
     let vendor_error = if trimmed.is_empty() {
         None
+    } else if let Err(err) = vendor_omission_rules.validate() {
+        Some(translate_domain_error(&err))
     } else if let Some(rule) = vendor_validation_rule {
         match validate_vendor_id(&trimmed, &rule) {
             Err(err) => Some(translate_domain_error(&err)),
-            Ok(()) if vendor_omission_rules.is_omitted(&trimmed) => Some(translate_domain_error(
-                &DomainError::Validation(ValidationError::VendorIdOmitted { value: trimmed }),
-            )),
-            Ok(()) => None,
+            Ok(()) => match vendor_omission_rules.is_omitted(&trimmed) {
+                Ok(true) => Some(translate_domain_error(&DomainError::Validation(
+                    ValidationError::VendorIdOmitted { value: trimmed },
+                ))),
+                Ok(false) => None,
+                Err(err) => Some(translate_domain_error(&err)),
+            },
         }
+    } else if let Ok(true) = vendor_omission_rules.is_omitted(&trimmed) {
+        Some(translate_domain_error(&DomainError::Validation(
+            ValidationError::VendorIdOmitted { value: trimmed },
+        )))
     } else {
         None
     };
@@ -933,16 +942,36 @@ pub fn CheckoutPage() -> impl IntoView {
             }
         }
 
-        if vendor_omission_rules.get().is_omitted(&vendor_id_for_item) {
-            let error_msg = translate_domain_error(&DomainError::Validation(
-                ValidationError::VendorIdOmitted {
-                    value: vendor_id_for_item.clone(),
-                },
-            ));
+        let omission_rules = vendor_omission_rules.get();
+
+        if let Err(err) = omission_rules.validate() {
+            let error_msg = translate_domain_error(&err);
             set_form_data.update(|form| form.vendor_error = Some(error_msg));
             play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             focus_and_select_input(&vendor_input_ref_for_add);
             return;
+        }
+
+        match omission_rules.is_omitted(&vendor_id_for_item) {
+            Ok(true) => {
+                let error_msg = translate_domain_error(&DomainError::Validation(
+                    ValidationError::VendorIdOmitted {
+                        value: vendor_id_for_item.clone(),
+                    },
+                ));
+                set_form_data.update(|form| form.vendor_error = Some(error_msg));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
+            Ok(false) => {}
+            Err(err) => {
+                let error_msg = translate_domain_error(&err);
+                set_form_data.update(|form| form.vendor_error = Some(error_msg));
+                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
         }
         // If no booth selected, defer validation to server
 
@@ -1260,16 +1289,36 @@ pub fn CheckoutPage() -> impl IntoView {
             return;
         }
 
-        if vendor_omission_rules.get().is_omitted(&data.vendor_id) {
-            let message = translate_domain_error(&DomainError::Validation(
-                ValidationError::VendorIdOmitted {
-                    value: data.vendor_id.clone(),
-                },
-            ));
+        let omission_rules = vendor_omission_rules.get();
+
+        if let Err(err) = omission_rules.validate() {
+            let message = translate_domain_error(&err);
             toast.warning(&message);
             set_form_data.update(|form| form.vendor_error = Some(message));
             focus_and_select_input(&vendor_input_ref_for_add);
             return;
+        }
+
+        match omission_rules.is_omitted(&data.vendor_id) {
+            Ok(true) => {
+                let message = translate_domain_error(&DomainError::Validation(
+                    ValidationError::VendorIdOmitted {
+                        value: data.vendor_id.clone(),
+                    },
+                ));
+                toast.warning(&message);
+                set_form_data.update(|form| form.vendor_error = Some(message));
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
+            Ok(false) => {}
+            Err(err) => {
+                let message = translate_domain_error(&err);
+                toast.warning(&message);
+                set_form_data.update(|form| form.vendor_error = Some(message));
+                focus_and_select_input(&vendor_input_ref_for_add);
+                return;
+            }
         }
 
         if data.items.is_empty() {
@@ -1711,9 +1760,13 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     }
                                                                 } else {
                                                                     // Validate against booth rules before advancing
+                                                                    let omission_check = vendor_omission_rules.get().is_omitted(&trimmed);
                                                                     let is_valid = if let Some(rule) = vendor_validation_rule.get() {
                                                                         validate_vendor_id(&trimmed, &rule).is_ok()
-                                                                            && !vendor_omission_rules.get().is_omitted(&trimmed)
+                                                                            && omission_check
+                                                                                .as_ref()
+                                                                                .map(|is_omitted| !*is_omitted)
+                                                                                .unwrap_or(false)
                                                                     } else {
                                                                         // No booth selected - treat as invalid
                                                                         false
@@ -1735,12 +1788,18 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                                     data.vendor_error = Some(error_msg);
                                                                                 });
                                                                                 play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
-                                                                            } else if vendor_omission_rules.get().is_omitted(&trimmed) {
+                                                                            } else if let Ok(true) = omission_check {
                                                                                 let error_msg = translate_domain_error(&DomainError::Validation(
                                                                                     ValidationError::VendorIdOmitted {
                                                                                         value: trimmed.clone(),
                                                                                     },
                                                                                 ));
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                                                                            } else if let Err(err) = omission_check {
+                                                                                let error_msg = translate_domain_error(&err);
                                                                                 set_form_data.update(|data| {
                                                                                     data.vendor_error = Some(error_msg);
                                                                                 });
@@ -1773,17 +1832,26 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             } else if let Some(rule) = vendor_validation_rule.get() {
                                                                 match validate_vendor_id(&trimmed, &rule) {
                                                                     Ok(()) => {
-                                                                        if vendor_omission_rules.get().is_omitted(&trimmed) {
-                                                                            let error_msg = translate_domain_error(&DomainError::Validation(
-                                                                                ValidationError::VendorIdOmitted {
-                                                                                    value: trimmed.clone(),
-                                                                                },
-                                                                            ));
-                                                                            set_form_data.update(|data| {
-                                                                                data.vendor_error = Some(error_msg);
-                                                                            });
-                                                                        } else {
-                                                                            set_form_data.update(|data| data.vendor_error = None);
+                                                                        match vendor_omission_rules.get().is_omitted(&trimmed) {
+                                                                            Ok(true) => {
+                                                                                let error_msg = translate_domain_error(&DomainError::Validation(
+                                                                                    ValidationError::VendorIdOmitted {
+                                                                                        value: trimmed.clone(),
+                                                                                    },
+                                                                                ));
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                            }
+                                                                            Ok(false) => {
+                                                                                set_form_data.update(|data| data.vendor_error = None);
+                                                                            }
+                                                                            Err(err) => {
+                                                                                let error_msg = translate_domain_error(&err);
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                            }
                                                                         }
                                                                     }
                                                                     Err(e) => {
