@@ -1754,7 +1754,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             <defs>
                                                                 <mask id="repeat-copy-plus-mask">
                                                                     <rect x="0" y="0" width="24" height="24" fill="white" />
-                                                                    <rect x="12.5" y="8.5" width="8" height="8" rx="0.5" fill="black" />
+                                                                    <rect x="10.5" y="6.5" width="11" height="12" rx="0.5" fill="black" />
                                                                 </mask>
                                                             </defs>
                                                             <g mask="url(#repeat-copy-plus-mask)">
@@ -1775,7 +1775,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 />
                                                             </g>
                                                             <path
-                                                                d="M16 9.5V14.5M13.5 12H18.5"
+                                                                d="M16 8V16M12 12H20"
                                                                 stroke="currentColor"
                                                                 stroke-width="2"
                                                                 stroke-linecap="round"
