@@ -8,6 +8,11 @@ pub enum ValidationError {
     VendorIdDigitsOnly,
     VendorIdPatternMismatch { value: String },
     VendorIdInvalidRegex,
+    VendorIdOmitted { value: String },
+    VendorOmissionPatternTooLong,
+    VendorOmissionRangeInvalid,
+    VendorOmissionStepInvalid,
+    VendorOmissionRulesTooMany,
     BoothNameEmpty,
     BoothNameTooLong,
     ParticipationFeeNegative,
@@ -41,6 +46,11 @@ impl ValidationError {
             Self::VendorIdDigitsOnly => "validation.vendor_id_digits_only",
             Self::VendorIdPatternMismatch { .. } => "validation.vendor_id_pattern_mismatch",
             Self::VendorIdInvalidRegex => "validation.vendor_id_invalid_regex",
+            Self::VendorIdOmitted { .. } => "validation.vendor_id_omitted",
+            Self::VendorOmissionPatternTooLong => "validation.vendor_omission_pattern_too_long",
+            Self::VendorOmissionRangeInvalid => "validation.vendor_omission_range_invalid",
+            Self::VendorOmissionStepInvalid => "validation.vendor_omission_step_invalid",
+            Self::VendorOmissionRulesTooMany => "validation.vendor_omission_rules_too_many",
             Self::BoothNameEmpty => "validation.booth_name_empty",
             Self::BoothNameTooLong => "validation.booth_name_too_long",
             Self::ParticipationFeeNegative => "validation.participation_fee_negative",
@@ -70,6 +80,7 @@ impl ValidationError {
     pub fn params(&self) -> Vec<(&'static str, String)> {
         match self {
             Self::VendorIdPatternMismatch { value } => vec![("value", value.clone())],
+            Self::VendorIdOmitted { value } => vec![("value", value.clone())],
             Self::QuickAmountInvalid { value } => vec![("value", value.clone())],
             _ => Vec::new(),
         }

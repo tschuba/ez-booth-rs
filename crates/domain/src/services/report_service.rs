@@ -507,6 +507,7 @@ mod tests {
             },
             status: BoothStatus::Open,
             vendor_id_validation: crate::models::VendorIdValidation::default(),
+            vendor_id_omission_rules: crate::models::VendorIdOmissionRules::empty(),
             keyboard_config: crate::models::CheckoutKeyboardConfig::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),

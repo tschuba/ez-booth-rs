@@ -2,6 +2,8 @@ use crate::error::DomainError;
 use crate::error_code::ValidationError;
 use crate::models::VendorIdValidation;
 
+const SAFE_REGEX_SIZE_LIMIT: usize = 10 * (1 << 20);
+
 /// Validate a vendor ID against the booth's validation rules
 ///
 /// # Arguments
@@ -29,7 +31,7 @@ pub fn validate_vendor_id(value: &str, rule: &VendorIdValidation) -> Result<(), 
             if value.is_empty() {
                 return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
             }
-            match regex::Regex::new(pattern) {
+            match build_safe_regex(pattern) {
                 Ok(re) => {
                     if re.is_match(value) {
                         Ok(())
@@ -68,10 +70,17 @@ pub fn validate_regex_pattern(pattern: &str) -> Result<(), DomainError> {
         ));
     }
 
-    regex::Regex::new(pattern)
+    build_safe_regex(pattern)
         .map_err(|_| DomainError::Validation(ValidationError::RegexPatternInvalid))?;
 
     Ok(())
+}
+
+pub fn build_safe_regex(pattern: &str) -> Result<regex::Regex, ValidationError> {
+    regex::RegexBuilder::new(pattern)
+        .size_limit(SAFE_REGEX_SIZE_LIMIT)
+        .build()
+        .map_err(|_| ValidationError::RegexPatternInvalid)
 }
 
 #[cfg(test)]

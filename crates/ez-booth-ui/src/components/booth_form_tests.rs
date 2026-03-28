@@ -1,18 +1,25 @@
 #[cfg(test)]
 mod tests {
-    use super::super::booth_form::BoothFormData;
+    use super::super::booth_form::{parse_exact_omission_values, BoothFormData};
     use crate::i18n::Locale;
     use chrono::NaiveDate;
     use domain::error::DomainError;
-    use domain::models::booth::{Booth, FeeConfig};
+    use domain::models::booth::{Booth, FeeConfig, OmissionRule, VendorIdOmissionRules};
     use rust_decimal::Decimal;
     use std::str::FromStr;
+
+    fn default_rules() -> VendorIdOmissionRules {
+        VendorIdOmissionRules::recommended()
+    }
+
+    fn empty_rules() -> VendorIdOmissionRules {
+        VendorIdOmissionRules::default()
+    }
 
     #[test]
     fn test_default_form_data() {
         let form = BoothFormData::default();
 
-        // Get today's date to compare
         let today = chrono::Local::now().date_naive();
         let expected_date = today.format("%Y-%m-%d").to_string();
 
@@ -21,10 +28,7 @@ mod tests {
         assert_eq!(form.participation_fee, "1.00");
         assert_eq!(form.sales_fee_percent, "15.00");
         assert_eq!(form.rounding_step, "0.50");
-        assert_eq!(
-            form.keyboard_quick_amounts,
-            "0.50, 1.00, 5.00, 10.00, 15.00"
-        );
+        assert_eq!(form.vendor_omission_rules, default_rules());
     }
 
     #[test]
@@ -37,7 +41,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let booth = form.to_booth(Locale::En);
@@ -55,16 +59,25 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("0.50").unwrap());
-        assert_eq!(
-            booth.keyboard_config.quick_amounts,
-            vec![
-                Decimal::from_str("0.50").unwrap(),
-                Decimal::from_str("1.00").unwrap(),
-                Decimal::from_str("5.00").unwrap(),
-                Decimal::from_str("10.00").unwrap(),
-                Decimal::from_str("15.00").unwrap(),
-            ]
-        );
+        assert_eq!(booth.vendor_id_omission_rules, default_rules());
+    }
+
+    #[test]
+    fn test_booth_new_defaults_to_empty_omission_rules() {
+        let fees = FeeConfig {
+            participation_fee: Decimal::from_str("10.00").unwrap(),
+            sales_fee_percent: Decimal::from_str("15.00").unwrap(),
+            rounding_step: Decimal::from_str("0.50").unwrap(),
+        };
+
+        let booth = Booth::new(
+            "Test Booth".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            fees,
+        )
+        .unwrap();
+
+        assert_eq!(booth.vendor_id_omission_rules, empty_rules());
     }
 
     #[test]
@@ -77,7 +90,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -95,7 +108,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -113,7 +126,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -131,7 +144,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -145,11 +158,11 @@ mod tests {
             description: "Test Booth".to_string(),
             date: "2026-03-25".to_string(),
             participation_fee: "10.00".to_string(),
-            sales_fee_percent: "150.00".to_string(), // > 100%
+            sales_fee_percent: "150.00".to_string(),
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -167,7 +180,7 @@ mod tests {
             rounding_step: "invalid".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -185,7 +198,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -215,10 +228,7 @@ mod tests {
         assert_eq!(form.participation_fee, "25.50");
         assert_eq!(form.sales_fee_percent, "12.50");
         assert_eq!(form.rounding_step, "0.10");
-        assert_eq!(
-            form.keyboard_quick_amounts,
-            "0.50, 1.00, 5.00, 10.00, 15.00"
-        );
+        assert_eq!(form.vendor_omission_rules, booth.vendor_id_omission_rules);
     }
 
     #[test]
@@ -236,13 +246,11 @@ mod tests {
         )
         .unwrap();
 
-        // Test English locale (dot as decimal separator)
         let form_en = BoothFormData::from_booth(&booth, Locale::En);
         assert_eq!(form_en.participation_fee, "10.50");
         assert_eq!(form_en.sales_fee_percent, "15.00");
         assert_eq!(form_en.rounding_step, "0.50");
 
-        // Test German locale (comma as decimal separator)
         let form_de = BoothFormData::from_booth(&booth, Locale::De);
         assert_eq!(form_de.participation_fee, "10,50");
         assert_eq!(form_de.sales_fee_percent, "15,00");
@@ -251,9 +259,6 @@ mod tests {
 
     #[test]
     fn test_to_booth_flexible_parsing() {
-        // Test that both comma and dot work regardless of locale
-
-        // Using dot as decimal separator
         let form_dot = BoothFormData {
             description: "Test Booth".to_string(),
             date: "2026-03-25".to_string(),
@@ -262,7 +267,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let booth_dot = form_dot.to_booth(Locale::En).unwrap();
@@ -279,7 +284,6 @@ mod tests {
             Decimal::from_str("0.50").unwrap()
         );
 
-        // Using comma as decimal separator
         let form_comma = BoothFormData {
             description: "Test Booth".to_string(),
             date: "2026-03-25".to_string(),
@@ -288,7 +292,7 @@ mod tests {
             rounding_step: "0,50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let booth_comma = form_comma.to_booth(Locale::De).unwrap();
@@ -305,7 +309,6 @@ mod tests {
             Decimal::from_str("0.50").unwrap()
         );
 
-        // Both should produce the same result
         assert_eq!(
             booth_dot.fees.participation_fee,
             booth_comma.fees.participation_fee
@@ -332,6 +335,11 @@ mod tests {
         )
         .unwrap();
 
+        let custom_rules = VendorIdOmissionRules {
+            version: 1,
+            rules: vec![OmissionRule::Exact("999".to_string())],
+        };
+
         let form = BoothFormData {
             description: "Updated Booth".to_string(),
             date: "2026-03-25".to_string(),
@@ -340,7 +348,7 @@ mod tests {
             rounding_step: "1.00".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: custom_rules.clone(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -357,14 +365,7 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("1.00").unwrap());
-        assert_eq!(
-            booth.keyboard_config.quick_amounts,
-            vec![
-                Decimal::from_str("0.50").unwrap(),
-                Decimal::from_str("1.00").unwrap(),
-                Decimal::from_str("5.00").unwrap(),
-            ]
-        );
+        assert_eq!(booth.vendor_id_omission_rules, custom_rules);
     }
 
     #[test]
@@ -390,7 +391,7 @@ mod tests {
             rounding_step: "1.00".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
+            vendor_omission_rules: default_rules(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -399,20 +400,23 @@ mod tests {
     }
 
     #[test]
-    fn test_to_booth_invalid_quick_amounts() {
-        let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            keyboard_quick_amounts: "0.50, nope, 5.00".to_string(),
-        };
+    fn test_parse_exact_omission_values_splits_and_trims() {
+        let values = parse_exact_omission_values(" 56, 62 ,68 , TEST ");
 
-        let result = form.to_booth(Locale::En);
-        assert!(result.is_err());
-        assert!(matches!(result, Err(DomainError::Validation(_))));
+        assert_eq!(values, vec!["56", "62", "68", "TEST"]);
+    }
+
+    #[test]
+    fn test_parse_exact_omission_values_deduplicates_preserving_order() {
+        let values = parse_exact_omission_values("56, 56, 62, TEST, 62, TEST");
+
+        assert_eq!(values, vec!["56", "62", "TEST"]);
+    }
+
+    #[test]
+    fn test_parse_exact_omission_values_ignores_empty_entries() {
+        let values = parse_exact_omission_values(" , 56, , , TEST ,, ");
+
+        assert_eq!(values, vec!["56", "TEST"]);
     }
 }
