@@ -228,6 +228,13 @@ pub fn BoothForm(
     let new_omission_range_start = create_rw_signal(String::new());
     let new_omission_range_end = create_rw_signal(String::new());
     let new_omission_range_step = create_rw_signal(String::new());
+    let omission_help_text = Signal::derive(move || match new_omission_rule_type.get().as_str() {
+        "exact" => t!("booth.vendor_omission_help_exact")(),
+        "wildcard" => t!("booth.vendor_omission_help_wildcard")(),
+        "regex" => t!("booth.vendor_omission_help_regex")(),
+        "range" => t!("booth.vendor_omission_help_range")(),
+        _ => t!("booth.vendor_omission_help")(),
+    });
 
     // Validation errors
     let (description_error, set_description_error) = create_signal(None::<String>);
@@ -586,7 +593,7 @@ pub fn BoothForm(
                     }}
 
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-600">{t!("booth.vendor_omission_help")()}</p>
+                        <p class="text-sm text-gray-600">{move || omission_help_text.get()}</p>
                         <Button
                             on_click=Box::new(move || {
                                 set_vendor_omission_error.set(None);
