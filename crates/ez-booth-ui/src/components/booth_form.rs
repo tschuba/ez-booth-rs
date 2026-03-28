@@ -558,7 +558,7 @@ pub fn BoothForm(
                                 />
                             }.into_view(),
                             "range" => view! {
-                                <div class="grid gap-4 md:grid-cols-3">
+                                <div class="grid grid-cols-3 gap-4">
                                     <Input
                                         value=new_omission_range_start
                                         label=t!("booth.vendor_omission_start_label")()
