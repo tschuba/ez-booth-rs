@@ -146,6 +146,7 @@
     "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus",
     "vendors_without_purchases_heading": "Verkäufer ohne Umsätze",
     "vendors_without_purchases_help": "Klicken Sie auf eine Verkäuferkarte, um sie zu löschen",
+    "vendors_without_purchases_safe_delete_note": "Hier erscheinen nur Verkäufer ohne Umsätze, daher verändert das Löschen keine bestehenden Berichte.",
     "delete": {
       "arm_prompt": "Unwiderruflich löschen?",
       "aria_label": "Verkäufer löschen",
@@ -153,6 +154,7 @@
       "modal_message": "Sind Sie sicher, dass Sie den Verkäufer {vendor_id} dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "modal_confirm": "Verkäufer löschen",
       "success": "Verkäufer {vendor_id} gelöscht",
+      "aftercare": "Hier können nur Verkäufer ohne Umsätze gelöscht werden. Bestehende Berichte bleiben unverändert.",
       "error": "Verkäufer konnte nicht gelöscht werden: {error}"
     },
     "errors": {
@@ -253,7 +255,12 @@
       "title": "Kassiervorgang löschen",
       "instructions": "Geben Sie {token} ein, um diesen Kassiervorgang dauerhaft zu löschen.",
       "placeholder": "Bestätigungscode eingeben",
-      "confirm": "Kassiervorgang löschen"
+      "confirm": "Kassiervorgang löschen",
+      "success": "Kassiervorgang gelöscht. Laufende Summen und Berichte wurden neu berechnet."
+    },
+    "delete_guidance": {
+      "title": "Korrekturablauf",
+      "body": "Das Löschen eines Kassiervorgangs aktualisiert laufende Summen und spätere Berichte für diese Veranstaltung sofort. Prüfen Sie nach jeder Korrektur die aktualisierten Summen."
     },
     "time": {
       "seconds": "{count} Sekunden",

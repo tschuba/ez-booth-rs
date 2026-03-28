@@ -43,12 +43,22 @@ Focused manual validation for checkout reliability, data consistency, and report
 
 Performance notes: ________________________________________________
 
-## Scenario 2: Booth Summary Consistency
+## Scenario 2: Booth Summary Consistency And Correction Workflow
 
 - [ ] Open booth summary / report view
 - [ ] Verify the booth report totals match the sum of vendor fees
 - [ ] Print the booth summary
 - [ ] Verify printed values match the on-screen values
+- [ ] Delete one checkout and verify the success message states that totals and reports were recalculated
+- [ ] Verify the updated totals match the remaining recoverable purchases
+- [ ] Open vendor report and verify it only includes remaining purchases
+- [ ] Open booth summary and verify totals are correct for remaining purchases
+- [ ] Create a new vendor without purchases (for example vendor `99`)
+- [ ] Open vendor deletion view and verify only vendors without purchases appear in the list
+- [ ] Verify the safe-delete hint is visible
+- [ ] Delete the vendor without purchases
+- [ ] Verify aftercare toast explains the deletion policy clearly
+- [ ] Verify vendor reports remain unchanged after vendor deletion
 
 ### Expected Totals
 
@@ -60,6 +70,20 @@ Performance notes: ________________________________________________
 | Total booth revenue | 134.00 | __________ | [ ] |
 
 Calculation note: `vendor fees sum = 25.00 + 87.50 + 21.50 = 134.00`
+
+### Correction Workflow Results
+
+| Check | Expected | Actual | Match |
+|-------|----------|--------|-------|
+| Deletion success toast shown | Yes | __________ | [ ] |
+| Deletion message mentions recalculation | Yes | __________ | [ ] |
+| Running totals update after deletion | Yes | __________ | [ ] |
+| Vendor report excludes deleted purchase | Yes | __________ | [ ] |
+| Booth summary correct after deletion | Yes | __________ | [ ] |
+| Only vendors without purchases in delete list | Yes | __________ | [ ] |
+| Safe-delete hint visible | Yes | __________ | [ ] |
+| Aftercare toast after vendor deletion | Yes | __________ | [ ] |
+| Vendor reports unchanged after vendor deletion | Yes | __________ | [ ] |
 
 Performance notes: ________________________________________________
 
@@ -108,6 +132,7 @@ Performance notes: ________________________________________________
 - [ ] Verify visible totals only reflect recoverable purchases
 - [ ] Verify the warning remains visible while reviewing totals and recent transactions
 - [ ] Review totals before continuing and note whether operator guidance is clear enough
+- [ ] Verify the operator guidance explains what to do next clearly enough without console inspection
 
 ### Result Comparison
 
@@ -159,6 +184,7 @@ Notes: _____________________________________________________________
 | Data consistency | [ ] Pass / [ ] Fail | |
 | Report accuracy | [ ] Pass / [ ] Fail | |
 | Recovery guidance | [ ] Pass / [ ] Fail | |
+| Correction workflows | [ ] Pass / [ ] Fail | |
 | Performance | [ ] Pass / [ ] Fail | |
 
 Overall outcome: [ ] PASS / [ ] FAIL
