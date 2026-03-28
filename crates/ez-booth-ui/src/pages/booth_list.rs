@@ -445,7 +445,7 @@ pub fn BoothListPage() -> impl IntoView {
                                 <Modal
                                     show=Signal::derive(move || expanded_booth_id.get().is_some())
                                     on_close=close_report_modal
-                                    title=modal_title
+                                    title=Signal::derive(move || modal_title.clone())
                                     header_actions=print_header_action()
                                     size=ModalSize::XLarge
                                 >
@@ -482,7 +482,7 @@ pub fn BoothListPage() -> impl IntoView {
                     <Modal
                         show=show_create_modal
                         on_close=move || set_show_create_modal.set(false)
-                        title=create_booth_title()
+                        title=Signal::derive(move || create_booth_title())
                         size=ModalSize::Large
                     >
                         {move || {
@@ -509,7 +509,7 @@ pub fn BoothListPage() -> impl IntoView {
                             set_show_edit_modal.set(false);
                             set_editing_booth.set(None);
                         }
-                        title=edit_booth_title()
+                        title=Signal::derive(move || edit_booth_title())
                         size=ModalSize::Large
                     >
                         {move || editing_booth.get().map(|booth| {
@@ -535,10 +535,10 @@ pub fn BoothListPage() -> impl IntoView {
                             set_deleting_booth.set(None);
                         }
                         on_confirm=handle_delete_booth
-                        title=t!("booth.delete")()
+                        title=Signal::derive(move || t!("booth.delete")())
                         message=Signal::derive(delete_message)
-                        confirm_text=t!("common.delete")()
-                        cancel_text=t!("common.cancel")()
+                        confirm_text=Signal::derive(move || t!("common.delete")())
+                        cancel_text=Signal::derive(move || t!("common.cancel")())
                         is_destructive=true
                     />
                 </Container>

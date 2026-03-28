@@ -84,7 +84,7 @@ pub fn App() -> impl IntoView {
                                             };
                                             locale.set(new_locale);
                                         }
-                                        title={move || t!("settings.language")}
+                                        title=move || t!("settings.language")()
                                     >
                                         // Globe SVG icon
                                         <svg

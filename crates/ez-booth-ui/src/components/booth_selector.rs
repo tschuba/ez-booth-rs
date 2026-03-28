@@ -69,10 +69,15 @@ pub fn BoothSelector() -> impl IntoView {
                         "keydown",
                         closure.as_ref().unchecked_ref(),
                     );
+
+                    on_cleanup(move || {
+                        let _ = document.remove_event_listener_with_callback(
+                            "keydown",
+                            closure.as_ref().unchecked_ref(),
+                        );
+                    });
                 }
             }
-
-            closure.forget();
         }
     });
 
@@ -134,7 +139,7 @@ pub fn BoothSelector() -> impl IntoView {
                 }}
                 on:click=move |_| set_is_open.update(|open| *open = !*open)
                 aria-expanded=move || is_open.get()
-                aria-label={t!("booth.selector_aria_label")()}
+                aria-label=move || t!("booth.selector_aria_label")()
             >
                 {move || {
                     if let Some(booth) = selected_booth.get() {
