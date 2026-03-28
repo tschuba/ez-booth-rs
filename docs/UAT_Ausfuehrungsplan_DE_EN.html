@@ -503,6 +503,11 @@
             <strong><span lang="de">Modul G: Lokalisierung</span><span lang="en">Module G: Localization</span></strong>
             <div class="hint"><span lang="de">ca. 5 Minuten</span><span lang="en">about 5 minutes</span></div>
           </label>
+          <label class="module-pick" data-label-de="Modul H" data-label-en="Module H">
+            <input type="checkbox" id="select_moduleH" data-minutes="10" onchange="toggleModule('moduleH')">
+            <strong><span lang="de">Modul H: Korrektur- und Loeschungsablaeufe</span><span lang="en">Module H: Correction and Deletion Workflows</span></strong>
+            <div class="hint"><span lang="de">ca. 10 Minuten</span><span lang="en">about 10 minutes</span></div>
+          </label>
         </div>
       </section>
 
@@ -796,6 +801,113 @@
         <div class="status-group">
           <label><input type="radio" name="moduleG_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
           <label><input type="radio" name="moduleG_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleH" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul H: Korrektur- und Loeschungsablaeufe</span><span lang="en">Module H: Correction and Deletion Workflows</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">10 Minuten</span><span lang="en">10 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">H.1 Purchase-Loeschung und Neuberechnung</span><span lang="en">H.1 Purchase deletion and recalculation</span></h4>
+          <div class="columns">
+            <div>
+              <strong lang="de">Schritte</strong><strong lang="en">Steps</strong>
+              <ol>
+                <li lang="de">Stand mit drei Verkaeufern anlegen</li>
+                <li lang="en">Create a booth with three vendors</li>
+                <li lang="de">Drei Checkouts durchfuehren</li>
+                <li lang="en">Perform three checkouts</li>
+                <li lang="de">Laufende Summen vor der Loeschung notieren</li>
+                <li lang="en">Note the running totals before deletion</li>
+                <li lang="de">Einen Checkout loeschen</li>
+                <li lang="en">Delete one checkout</li>
+                <li lang="de">Erfolgstoast pruefen</li>
+                <li lang="en">Verify the success toast</li>
+                <li lang="de">Neue Summen verifizieren</li>
+                <li lang="en">Verify the updated totals</li>
+                <li lang="de">Vendor-Report und Standzusammenfassung pruefen</li>
+                <li lang="en">Check the vendor report and booth summary</li>
+              </ol>
+            </div>
+            <div>
+              <strong lang="de">Erwartet</strong><strong lang="en">Expected</strong>
+              <ul>
+                <li lang="de">Erfolgstoast bestaetigt die Neuberechnung von Summen und Berichten</li>
+                <li lang="en">Success toast confirms recalculation of totals and reports</li>
+                <li lang="de">Laufende Summen aktualisieren sich sofort</li>
+                <li lang="en">Running totals update immediately</li>
+                <li lang="de">Vendor-Report zeigt nur verbleibende Checkouts</li>
+                <li lang="en">Vendor report shows only remaining checkouts</li>
+                <li lang="de">Standzusammenfassung bleibt konsistent</li>
+                <li lang="en">Booth summary remains consistent</li>
+                <li lang="de">Keine Konsolenfehler</li>
+                <li lang="en">No console errors</li>
+              </ul>
+            </div>
+          </div>
+          <div class="checklist">
+            <label><input type="checkbox" name="h1_toast"><span lang="de">Erfolgstoast mit Hinweis auf Neuberechnung sichtbar</span><span lang="en">Success toast mentions recalculation</span></label>
+            <label><input type="checkbox" name="h1_totals"><span lang="de">Laufende Summen sofort aktualisiert</span><span lang="en">Running totals updated immediately</span></label>
+            <label><input type="checkbox" name="h1_vendor_report"><span lang="de">Vendor-Report zeigt nur verbleibende Checkouts</span><span lang="en">Vendor report shows only remaining checkouts</span></label>
+            <label><input type="checkbox" name="h1_booth_report"><span lang="de">Standzusammenfassung nach Loeschung korrekt</span><span lang="en">Booth summary correct after deletion</span></label>
+            <label><input type="checkbox" name="h1_console"><span lang="de">Keine Konsolenfehler</span><span lang="en">No console errors</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="h1_actual"></textarea></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">H.2 Verkaeufer-Loeschung und Aftercare-Hinweise</span><span lang="en">H.2 Vendor deletion and aftercare guidance</span></h4>
+          <div class="columns">
+            <div>
+              <strong lang="de">Schritte</strong><strong lang="en">Steps</strong>
+              <ol>
+                <li lang="de">Zwei Verkaeufer anlegen, z. B. 1 und 99</li>
+                <li lang="en">Create two vendors, for example 1 and 99</li>
+                <li lang="de">Einen Checkout fuer Verkaeufer 1 durchfuehren</li>
+                <li lang="en">Perform one checkout for vendor 1</li>
+                <li lang="de">Die Verkaeuferverwaltung oeffnen</li>
+                <li lang="en">Open vendor management</li>
+                <li lang="de">Den Safe-Delete-Hinweis pruefen</li>
+                <li lang="en">Verify the safe-delete hint</li>
+                <li lang="de">Pruefen, dass nur Verkaeufer ohne Checkouts in der Loeschliste stehen</li>
+                <li lang="en">Verify that only vendors without checkouts appear in the delete list</li>
+                <li lang="de">Verkaeufer 99 loeschen</li>
+                <li lang="en">Delete vendor 99</li>
+                <li lang="de">Aftercare-Toast pruefen</li>
+                <li lang="en">Verify the aftercare toast</li>
+                <li lang="de">Vendor-Reports auf unveraenderte Daten pruefen</li>
+                <li lang="en">Check that vendor reports remain unchanged</li>
+              </ol>
+            </div>
+            <div>
+              <strong lang="de">Erwartet</strong><strong lang="en">Expected</strong>
+              <ul>
+                <li lang="de">Safe-Delete-Hinweis ist sichtbar</li>
+                <li lang="en">Safe-delete hint is visible</li>
+                <li lang="de">Nur Verkaeufer ohne Checkouts erscheinen in der Loeschliste</li>
+                <li lang="en">Only vendors without checkouts appear in the delete list</li>
+                <li lang="de">Aftercare-Toast erklaert die Loeschrichtlinie klar</li>
+                <li lang="en">Aftercare toast explains the deletion policy clearly</li>
+                <li lang="de">Vendor-Reports bleiben unveraendert</li>
+                <li lang="en">Vendor reports remain unchanged</li>
+                <li lang="de">Keine Konsolenfehler</li>
+                <li lang="en">No console errors</li>
+              </ul>
+            </div>
+          </div>
+          <div class="checklist">
+            <label><input type="checkbox" name="h2_hint"><span lang="de">Safe-Delete-Hinweis sichtbar</span><span lang="en">Safe-delete hint visible</span></label>
+            <label><input type="checkbox" name="h2_filter"><span lang="de">Nur Verkaeufer ohne Checkouts in der Loeschliste</span><span lang="en">Only vendors without checkouts in delete list</span></label>
+            <label><input type="checkbox" name="h2_toast"><span lang="de">Aftercare-Toast nach Loeschung sichtbar</span><span lang="en">Aftercare toast shown after deletion</span></label>
+            <label><input type="checkbox" name="h2_reports"><span lang="de">Vendor-Reports bleiben unveraendert</span><span lang="en">Vendor reports remain unchanged</span></label>
+            <label><input type="checkbox" name="h2_console"><span lang="de">Keine Konsolenfehler</span><span lang="en">No console errors</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="h2_actual"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleH_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleH_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
         </div>
       </section>
 
