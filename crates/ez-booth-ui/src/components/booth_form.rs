@@ -704,30 +704,43 @@ pub fn BoothForm(
                                 <p class="text-sm text-gray-500">{t!("booth.vendor_omission_empty")()}</p>
                             }
                         >
-                            <For
-                                each=move || vendor_omission_rules.get().rules.into_iter().enumerate()
-                                key=|(index, _)| *index
-                                children=move |(index, rule)| {
-                                    view! {
-                                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                                            <span class="text-sm text-gray-700">{omission_rule_label(&rule)}</span>
-                                            <button
-                                                type="button"
-                                                class="text-sm font-medium text-red-600 hover:text-red-800"
-                                                on:click=move |_| {
-                                                    vendor_omission_rules.update(|rules| {
-                                                        if index < rules.rules.len() {
-                                                            rules.rules.remove(index);
-                                                        }
-                                                    });
-                                                }
-                                            >
-                                                {t!("common.delete")()}
-                                            </button>
-                                        </div>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                <For
+                                    each=move || vendor_omission_rules.get().rules.into_iter().enumerate()
+                                    key=|(index, _)| *index
+                                    children=move |(index, rule)| {
+                                        let label = omission_rule_label(&rule);
+
+                                        view! {
+                                            <div class="flex h-full flex-col justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                                                <div class="min-h-[3.5rem]">
+                                                    <p
+                                                        class="text-sm font-medium text-gray-700"
+                                                        title=label.clone()
+                                                        style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;"
+                                                    >
+                                                        {label}
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-800"
+                                                    on:click=move |_| {
+                                                        vendor_omission_rules.update(|rules| {
+                                                            if index < rules.rules.len() {
+                                                                rules.rules.remove(index);
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    {t!("common.delete")()}
+                                                </button>
+                                            </div>
+                                        }
                                     }
-                                }
-                            />
+                                />
+                            </div>
                         </Show>
                     </div>
                 </div>
