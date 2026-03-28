@@ -21,6 +21,10 @@ mod tests {
         assert_eq!(form.participation_fee, "1.00");
         assert_eq!(form.sales_fee_percent, "15.00");
         assert_eq!(form.rounding_step, "0.50");
+        assert_eq!(
+            form.keyboard_quick_amounts,
+            "0.50, 1.00, 5.00, 10.00, 15.00"
+        );
     }
 
     #[test]
@@ -33,6 +37,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
         };
 
         let booth = form.to_booth(Locale::En);
@@ -50,6 +55,16 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("0.50").unwrap());
+        assert_eq!(
+            booth.keyboard_config.quick_amounts,
+            vec![
+                Decimal::from_str("0.50").unwrap(),
+                Decimal::from_str("1.00").unwrap(),
+                Decimal::from_str("5.00").unwrap(),
+                Decimal::from_str("10.00").unwrap(),
+                Decimal::from_str("15.00").unwrap(),
+            ]
+        );
     }
 
     #[test]
@@ -62,6 +77,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -79,6 +95,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -96,6 +113,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -113,6 +131,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -130,6 +149,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -147,6 +167,7 @@ mod tests {
             rounding_step: "invalid".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -164,6 +185,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.to_booth(Locale::En);
@@ -193,6 +215,10 @@ mod tests {
         assert_eq!(form.participation_fee, "25.50");
         assert_eq!(form.sales_fee_percent, "12.50");
         assert_eq!(form.rounding_step, "0.10");
+        assert_eq!(
+            form.keyboard_quick_amounts,
+            "0.50, 1.00, 5.00, 10.00, 15.00"
+        );
     }
 
     #[test]
@@ -236,6 +262,7 @@ mod tests {
             rounding_step: "0.50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
         };
 
         let booth_dot = form_dot.to_booth(Locale::En).unwrap();
@@ -261,6 +288,7 @@ mod tests {
             rounding_step: "0,50".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00, 10.00, 15.00".to_string(),
         };
 
         let booth_comma = form_comma.to_booth(Locale::De).unwrap();
@@ -312,6 +340,7 @@ mod tests {
             rounding_step: "1.00".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -328,6 +357,14 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("1.00").unwrap());
+        assert_eq!(
+            booth.keyboard_config.quick_amounts,
+            vec![
+                Decimal::from_str("0.50").unwrap(),
+                Decimal::from_str("1.00").unwrap(),
+                Decimal::from_str("5.00").unwrap(),
+            ]
+        );
     }
 
     #[test]
@@ -353,9 +390,28 @@ mod tests {
             rounding_step: "1.00".to_string(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, 1.00, 5.00".to_string(),
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(DomainError::Validation(_))));
+    }
+
+    #[test]
+    fn test_to_booth_invalid_quick_amounts() {
+        let form = BoothFormData {
+            description: "Test Booth".to_string(),
+            date: "2026-03-25".to_string(),
+            participation_fee: "10.00".to_string(),
+            sales_fee_percent: "15.00".to_string(),
+            rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: "0.50, nope, 5.00".to_string(),
+        };
+
+        let result = form.to_booth(Locale::En);
         assert!(result.is_err());
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }

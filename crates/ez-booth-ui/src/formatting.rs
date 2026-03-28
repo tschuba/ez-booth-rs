@@ -120,6 +120,45 @@ pub fn decimal_separator(locale: Locale) -> char {
     }
 }
 
+pub fn is_valid_amount_char(ch: char, current_value: &str, decimal_sep: char) -> bool {
+    ch.is_ascii_digit() || (ch == decimal_sep && !current_value.contains(decimal_sep))
+}
+
+pub fn sanitize_amount_input(input: &str, decimal_sep: char) -> String {
+    let mut result = String::new();
+    let mut seen_decimal = false;
+
+    for ch in input.chars() {
+        if ch.is_ascii_digit() {
+            result.push(ch);
+        } else if ch == decimal_sep && !seen_decimal {
+            result.push(ch);
+            seen_decimal = true;
+        }
+    }
+
+    result
+}
+
+pub fn is_allowed_amount_key(key: &str, current_value: &str, decimal_sep: char) -> bool {
+    matches!(
+        key,
+        "Backspace"
+            | "Delete"
+            | "ArrowLeft"
+            | "ArrowRight"
+            | "ArrowUp"
+            | "ArrowDown"
+            | "Home"
+            | "End"
+            | "Tab"
+    ) || (key.len() == 1
+        && key
+            .chars()
+            .next()
+            .is_some_and(|ch| is_valid_amount_char(ch, current_value, decimal_sep)))
+}
+
 /// Get thousands separator for locale
 pub fn thousands_separator(locale: Locale) -> char {
     match locale {
@@ -534,6 +573,34 @@ mod tests {
             format_decimal_for_input(Decimal::from_str("-10.5").unwrap(), Locale::De, 2),
             "-10,50"
         );
+    }
+
+    #[test]
+    fn test_is_valid_amount_char() {
+        assert!(is_valid_amount_char('1', "", ','));
+        assert!(is_valid_amount_char(',', "12", ','));
+        assert!(!is_valid_amount_char(',', "12,3", ','));
+        assert!(!is_valid_amount_char('.', "12", ','));
+        assert!(!is_valid_amount_char('a', "12", ','));
+    }
+
+    #[test]
+    fn test_sanitize_amount_input() {
+        assert_eq!(sanitize_amount_input("12a,3b", ','), "12,3");
+        assert_eq!(sanitize_amount_input("1,2,3", ','), "1,23");
+        assert_eq!(sanitize_amount_input("00.75", '.'), "00.75");
+        assert_eq!(sanitize_amount_input("1😀2#3", '.'), "123");
+    }
+
+    #[test]
+    fn test_is_allowed_amount_key() {
+        assert!(is_allowed_amount_key("1", "", '.'));
+        assert!(is_allowed_amount_key(".", "12", '.'));
+        assert!(!is_allowed_amount_key(".", "12.3", '.'));
+        assert!(is_allowed_amount_key("Backspace", "12.3", '.'));
+        assert!(is_allowed_amount_key("Tab", "12.3", '.'));
+        assert!(!is_allowed_amount_key("a", "12.3", '.'));
+        assert!(!is_allowed_amount_key("v", "12.3", '.'));
     }
 
     #[test]

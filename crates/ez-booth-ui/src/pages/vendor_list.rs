@@ -262,26 +262,26 @@ pub fn VendorListPage() -> impl IntoView {
     // First click: arm the vendor for deletion (show red overlay)
     // Second click (on overlay): open confirmation modal
     let handle_vendor_delete_click = move |vendor_id: VendorId| {
-            if vendor_delete_signal.get() == Some(vendor_id.clone()) {
-                log::info!(
-                    "Opening vendor deletion modal for vendor_id: {:?}",
+        if vendor_delete_signal.get() == Some(vendor_id.clone()) {
+            log::info!(
+                "Opening vendor deletion modal for vendor_id: {:?}",
+                vendor_id
+            );
+            let vendors = vendors_without_purchases.get();
+            if let Some(vendor) = vendors.iter().find(|v| v.vendor_id == vendor_id) {
+                set_pending_vendor_deletion.set(Some(vendor.clone()));
+                set_show_delete_modal.set(true);
+            } else {
+                log::warn!(
+                    "Could not find vendor with id {:?} in vendors_without_purchases",
                     vendor_id
                 );
-                let vendors = vendors_without_purchases.get();
-                if let Some(vendor) = vendors.iter().find(|v| v.vendor_id == vendor_id) {
-                    set_pending_vendor_deletion.set(Some(vendor.clone()));
-                    set_show_delete_modal.set(true);
-                } else {
-                    log::warn!(
-                        "Could not find vendor with id {:?} in vendors_without_purchases",
-                        vendor_id
-                    );
-                }
-            } else {
-                log::info!("Arming vendor for deletion: {:?}", vendor_id);
-                vendor_delete_signal.set(Some(vendor_id));
             }
-        };
+        } else {
+            log::info!("Arming vendor for deletion: {:?}", vendor_id);
+            vendor_delete_signal.set(Some(vendor_id));
+        }
+    };
 
     // Perform actual vendor deletion
     let perform_vendor_delete = {
@@ -389,7 +389,7 @@ pub fn VendorListPage() -> impl IntoView {
             >
                 {move || aria_announcement.get()}
             </div>
-            
+
             // Screen-only UI (hidden during print)
             <div class="print:hidden" on:click=move |_| cancel_vendor_delete()>
                 <Container>

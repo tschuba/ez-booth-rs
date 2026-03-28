@@ -145,11 +145,7 @@ async fn fee_reports_remain_consistent_across_storage_backed_services() {
             .unwrap();
     }
 
-    for (vendor_id, amount) in [
-        ("1", dec!(100.00)),
-        ("2", dec!(518.11)),
-        ("3", dec!(75.25)),
-    ] {
+    for (vendor_id, amount) in [("1", dec!(100.00)), ("2", dec!(518.11)), ("3", dec!(75.25))] {
         let purchase = Purchase::new(
             booth.id,
             vec![PurchaseItem::new(amount, VendorId::new((*vendor_id).to_string())).unwrap()],
@@ -164,7 +160,10 @@ async fn fee_reports_remain_consistent_across_storage_backed_services() {
         IndexedDbVendorRepository::new(db.clone()),
     );
 
-    let summary = report_service.generate_booth_summary(&booth.id, None).await.unwrap();
+    let summary = report_service
+        .generate_booth_summary(&booth.id, None)
+        .await
+        .unwrap();
     let vendor_reports = report_service
         .generate_vendor_reports(
             &booth.id,
@@ -184,7 +183,10 @@ async fn fee_reports_remain_consistent_across_storage_backed_services() {
         .sum();
 
     assert_eq!(total_vendor_fees, summary.total_booth_revenue);
-    assert_eq!(summary.total_booth_revenue, summary.total_participation_fees + summary.total_sales_fees);
+    assert_eq!(
+        summary.total_booth_revenue,
+        summary.total_participation_fees + summary.total_sales_fees
+    );
 }
 
 #[wasm_bindgen_test]
@@ -236,18 +238,17 @@ async fn deleting_a_purchase_recalculates_running_totals_and_reports() {
         IndexedDbVendorRepository::new(db.clone()),
     );
 
-    let summary = report_service.generate_booth_summary(&booth.id, None).await.unwrap();
+    let summary = report_service
+        .generate_booth_summary(&booth.id, None)
+        .await
+        .unwrap();
     assert_eq!(summary.total_revenue, dec!(50.00));
     assert_eq!(summary.unique_vendors, 1);
     assert_eq!(summary.vendor_summaries.len(), 1);
     assert_eq!(summary.vendor_summaries[0].vendor_id.as_str(), "2");
 
     let vendor_reports = report_service
-        .generate_vendor_reports(
-            &booth.id,
-            vec![VendorId::new("2".to_string())],
-            None,
-        )
+        .generate_vendor_reports(&booth.id, vec![VendorId::new("2".to_string())], None)
         .await
         .unwrap();
     assert_eq!(vendor_reports.len(), 1);
