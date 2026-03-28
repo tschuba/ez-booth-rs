@@ -35,8 +35,8 @@ pub fn Modal(
     /// Callback when modal should close
     on_close: impl Fn() + 'static + Clone,
     /// Modal title
-    #[prop(optional)]
-    title: Option<String>,
+    #[prop(optional, into)]
+    title: Option<Signal<String>>,
     /// Optional actions rendered in the header
     #[prop(optional)]
     header_actions: Option<View>,
@@ -71,10 +71,16 @@ pub fn Modal(
                 }
             }) as Box<dyn Fn(_)>);
 
-            let _ = window()
+            let window = window();
+            let _ = window
                 .add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
 
-            closure.forget();
+            on_cleanup(move || {
+                let _ = window.remove_event_listener_with_callback(
+                    "keydown",
+                    closure.as_ref().unchecked_ref(),
+                );
+            });
         }
     });
 
@@ -130,7 +136,12 @@ pub fn Modal(
                                         id="modal-title"
                                         class="text-lg font-semibold text-gray-900"
                                     >
-                                        {title_stored.get_value().unwrap_or_default()}
+                                        {move || {
+                                            title_stored
+                                                .get_value()
+                                                .map(|title| title.get())
+                                                .unwrap_or_default()
+                                        }}
                                     </h3>
                                 </Show>
                                 <div class="flex items-center gap-2">
@@ -185,16 +196,17 @@ pub fn ConfirmModal(
     /// Callback when confirmed
     on_confirm: impl Fn() + 'static + Clone,
     /// Modal title
-    title: String,
+    #[prop(into)]
+    title: Signal<String>,
     /// Confirmation message (can be a signal or string)
     #[prop(into)]
     message: Signal<String>,
     /// Confirm button text
-    #[prop(default = "Confirm".to_string())]
-    confirm_text: String,
+    #[prop(default = Signal::derive(|| "Confirm".to_string()), into)]
+    confirm_text: Signal<String>,
     /// Cancel button text
-    #[prop(default = "Cancel".to_string())]
-    cancel_text: String,
+    #[prop(default = Signal::derive(|| "Cancel".to_string()), into)]
+    cancel_text: Signal<String>,
     /// Whether confirm action is destructive (uses danger styling)
     #[prop(default = false)]
     is_destructive: bool,
@@ -233,14 +245,14 @@ pub fn ConfirmModal(
                         class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                         on:click=on_cancel_click
                     >
-                        {cancel_text}
+                        {move || cancel_text.get()}
                     </button>
                     <button
                         type="button"
                         class=confirm_button_class
                         on:click=on_confirm_click
                     >
-                        {confirm_text}
+                        {move || confirm_text.get()}
                     </button>
                 </div>
             </div>

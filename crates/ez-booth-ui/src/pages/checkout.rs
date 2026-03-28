@@ -1603,7 +1603,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 "border-gray-300"
                                                             }
                                                         )}
-                                                        placeholder={t!("checkout.vendor_placeholder")}
+                                                        placeholder=move || t!("checkout.vendor_placeholder")()
                                                         value=move || form_data.get().vendor_id
                                                         node_ref=vendor_input_ref
                                                         on:focus=move |_| {
@@ -1729,7 +1729,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     "border-gray-300"
                                                                 }
                                                             )}
-                                                            placeholder={t!("checkout.amount_placeholder")}
+                                                            placeholder=move || t!("checkout.amount_placeholder")()
                                                             inputmode="decimal"
                                                             value=move || form_data.get().current_amount
                                                             node_ref=amount_input_ref
@@ -1867,8 +1867,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             set_purchase_to_delete.set(None);
                                                             add_item();
                                                         }
-                                                        title={t!("checkout.add_item")}
-                                                        aria-label={t!("checkout.add_item")}
+                                                        title=move || t!("checkout.add_item")()
+                                                        aria-label=move || t!("checkout.add_item")()
                                                         class="inline-flex items-center justify-center rounded-lg bg-gray-200 px-4 py-2 text-base font-medium text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-300 sm:flex-[1]"
                                                     >
                                                         <svg
@@ -1892,8 +1892,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         disabled=move || !can_repeat.get()
                                                         on:mousedown=move |ev| ev.prevent_default()
                                                         on:click=move |_| repeat_last_item()
-                                                        title={t!("checkout.repeat_item")}
-                                                        aria-label={t!("checkout.repeat_item")}
+                                                        title=move || t!("checkout.repeat_item")()
+                                                        aria-label=move || t!("checkout.repeat_item")()
                                                         class="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-base font-medium text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-[1]"
                                                     >
                                                         <svg
@@ -2320,7 +2320,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 e.stop_propagation();
                                                                 handle_purchase_click(purchase_id);
                                                             }
-                                                            aria-label={t!("checkout.confirm_cancel_confirm")}
+                                                            aria-label=move || t!("checkout.confirm_cancel_confirm")()
                                                         >
                                                             {/* Vertical separator */}
                                                             <div class="h-full w-px bg-gray-300"></div>
@@ -2356,7 +2356,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     handle_purchase_click(purchase_id)
                                                                 }
                                                                 role="alertdialog"
-                                                                aria-label={t!("checkout.remove_transaction_confirm")}
+                                                                aria-label=move || t!("checkout.remove_transaction_confirm")()
                                                             >
                                                                 <div class="flex items-center justify-center gap-3 h-full">
                                                                     {/* Trash icon */}
@@ -2428,17 +2428,17 @@ pub fn CheckoutPage() -> impl IntoView {
             show=show_cancel_modal
             on_close=move || set_show_cancel_modal.set(false)
             on_confirm=handle_cancel_confirm.clone()
-            title=t!("checkout.confirm_cancel_title")()
+            title=Signal::derive(move || t!("checkout.confirm_cancel_title")())
             message=Signal::derive(|| t!("checkout.confirm_cancel")())
-            confirm_text=t!("checkout.confirm_cancel_confirm")()
-            cancel_text=t!("common.cancel")()
+            confirm_text=Signal::derive(move || t!("checkout.confirm_cancel_confirm")())
+            cancel_text=Signal::derive(move || t!("common.cancel")())
             is_destructive=true
         />
 
         <Modal
             show=Signal::derive(move || pending_deletion.get().purchase_id.is_some())
             on_close=cancel_delete_purchase.clone()
-            title=t!("checkout.delete_modal.title")()
+            title=Signal::derive(move || t!("checkout.delete_modal.title")())
             size=ModalSize::Medium
         >
             <Show when=move || pending_deletion.get().purchase_id.is_some()>

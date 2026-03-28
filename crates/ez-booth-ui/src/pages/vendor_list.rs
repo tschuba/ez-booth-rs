@@ -943,7 +943,7 @@ pub fn VendorListPage() -> impl IntoView {
         <Modal
             show=show_delete_modal
             on_close=cancel_vendor_delete.clone()
-            title={t!("vendor.delete.modal_title")()}
+            title=Signal::derive(move || t!("vendor.delete.modal_title")())
             size=ModalSize::Medium
         >
             <Show when=move || pending_vendor_deletion.get().is_some()>

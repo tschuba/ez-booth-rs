@@ -16,6 +16,8 @@ Thumbs.db
 *.wasm
 dist/
 pkg/
+crates/ez-booth-app/node_modules/
+crates/ez-booth-app/styles/app.css
 
 # OpenCode session data
 .opencode/
