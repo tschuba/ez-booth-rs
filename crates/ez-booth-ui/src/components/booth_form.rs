@@ -445,39 +445,43 @@ pub fn BoothForm(
                 <h3 class="text-lg font-semibold mb-4">{t!("booth.fee_configuration_title")()}</h3>
 
                 <div class="space-y-4">
-                    // Participation Fee
-                    <NumberInput
-                        value=participation_fee
-                        label={
-                            let locale_val = locale.get();
-                            let currency = currency_symbol_for_label(locale_val);
-                            t!("booth.participation_fee")().replace("{currency}", currency)
-                        }
-                        placeholder=t!("common.placeholders.decimal_zero")()
-                        required=true
-                        error=participation_fee_error
-                    />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        // Participation Fee
+                        <NumberInput
+                            value=participation_fee
+                            label={
+                                let locale_val = locale.get();
+                                let currency = currency_symbol_for_label(locale_val);
+                                t!("booth.participation_fee")().replace("{currency}", currency)
+                            }
+                            placeholder=t!("common.placeholders.decimal_zero")()
+                            required=true
+                            error=participation_fee_error
+                        />
 
-                    // Sales Fee Percent
-                    <NumberInput
-                        value=sales_fee_percent
-                        label=t!("booth.sales_fee_percent")()
-                        placeholder=t!("common.placeholders.decimal_zero")()
-                        required=true
-                        error=sales_fee_percent_error
-                    />
+                        // Sales Fee Percent
+                        <NumberInput
+                            value=sales_fee_percent
+                            label=t!("booth.sales_fee_percent")()
+                            placeholder=t!("common.placeholders.decimal_zero")()
+                            required=true
+                            error=sales_fee_percent_error
+                        />
+                    </div>
 
                     // Rounding Step
-                    <NumberInput
-                        value=rounding_step
-                        label=t!("booth.rounding_step")()
-                        placeholder=t!("common.placeholders.decimal_half")()
-                        required=true
-                        error=rounding_step_error
-                    />
-                    <p class="text-sm text-gray-600 mt-1">
-                        {t!("booth.rounding_step_help")()}
-                    </p>
+                    <div>
+                        <NumberInput
+                            value=rounding_step
+                            label=t!("booth.rounding_step")()
+                            placeholder=t!("common.placeholders.decimal_half")()
+                            required=true
+                            error=rounding_step_error
+                        />
+                        <p class="mt-1 text-sm text-gray-600">
+                            {t!("booth.rounding_step_help")()}
+                        </p>
+                    </div>
                 </div>
             </div>
 
