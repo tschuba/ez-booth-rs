@@ -1,4 +1,5 @@
 use crate::error::{DomainError, DomainResult};
+use crate::error_code::ValidationError;
 use crate::models::*;
 use rust_decimal::Decimal;
 
@@ -8,14 +9,10 @@ pub struct BoothValidator;
 impl BoothValidator {
     pub fn validate_name(name: &str) -> DomainResult<()> {
         if name.trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Booth name cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::BoothNameEmpty));
         }
         if name.len() > 200 {
-            return Err(DomainError::Validation(
-                "Booth name too long (max 200 characters)".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::BoothNameTooLong));
         }
         Ok(())
     }
@@ -27,14 +24,10 @@ pub struct VendorValidator;
 impl VendorValidator {
     pub fn validate_vendor_id(vendor_id: &VendorId) -> DomainResult<()> {
         if vendor_id.as_str().trim().is_empty() {
-            return Err(DomainError::Validation(
-                "Vendor ID cannot be empty".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
         }
         if vendor_id.as_str().len() > 50 {
-            return Err(DomainError::Validation(
-                "Vendor ID too long (max 50 characters)".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::VendorIdTooLong));
         }
         Ok(())
     }
@@ -52,7 +45,7 @@ impl PurchaseValidator {
     pub fn validate_amount(amount: &Decimal) -> DomainResult<()> {
         if amount.is_sign_negative() {
             return Err(DomainError::Validation(
-                "Purchase amount cannot be negative".to_string(),
+                ValidationError::PurchaseAmountNegative,
             ));
         }
 
@@ -60,7 +53,7 @@ impl PurchaseValidator {
         let max_amount = Decimal::new(1_000_000, 0);
         if *amount > max_amount {
             return Err(DomainError::Validation(
-                "Purchase amount too large (max €1,000,000)".to_string(),
+                ValidationError::PurchaseAmountTooLarge,
             ));
         }
 

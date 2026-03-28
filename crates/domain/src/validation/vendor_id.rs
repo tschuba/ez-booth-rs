@@ -1,4 +1,5 @@
 use crate::error::DomainError;
+use crate::error_code::ValidationError;
 use crate::models::VendorIdValidation;
 
 /// Validate a vendor ID against the booth's validation rules
@@ -16,37 +17,32 @@ pub fn validate_vendor_id(value: &str, rule: &VendorIdValidation) -> Result<(), 
         VendorIdValidation::Unrestricted => Ok(()),
         VendorIdValidation::DigitsOnly => {
             if value.is_empty() {
-                return Err(DomainError::Validation(
-                    "Vendor ID cannot be empty".to_string(),
-                ));
+                return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
             }
             if value.chars().all(|c| c.is_ascii_digit()) {
                 Ok(())
             } else {
-                Err(DomainError::Validation(
-                    "Vendor ID must contain only digits (0-9)".to_string(),
-                ))
+                Err(DomainError::Validation(ValidationError::VendorIdDigitsOnly))
             }
         }
         VendorIdValidation::Regex(pattern) => {
             if value.is_empty() {
-                return Err(DomainError::Validation(
-                    "Vendor ID cannot be empty".to_string(),
-                ));
+                return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
             }
             match regex::Regex::new(pattern) {
                 Ok(re) => {
                     if re.is_match(value) {
                         Ok(())
                     } else {
-                        Err(DomainError::Validation(format!(
-                            "Vendor ID '{}' does not match the required pattern",
-                            value
-                        )))
+                        Err(DomainError::Validation(
+                            ValidationError::VendorIdPatternMismatch {
+                                value: value.to_string(),
+                            },
+                        ))
                     }
                 }
                 Err(_) => Err(DomainError::Validation(
-                    "Invalid regex pattern configured for vendor ID validation".to_string(),
+                    ValidationError::VendorIdInvalidRegex,
                 )),
             }
         }
@@ -63,19 +59,17 @@ pub fn validate_vendor_id(value: &str, rule: &VendorIdValidation) -> Result<(), 
 /// Returns `DomainError::Validation` if the pattern is invalid
 pub fn validate_regex_pattern(pattern: &str) -> Result<(), DomainError> {
     if pattern.is_empty() {
-        return Err(DomainError::Validation(
-            "Regex pattern cannot be empty".to_string(),
-        ));
+        return Err(DomainError::Validation(ValidationError::RegexPatternEmpty));
     }
 
     if pattern.len() > 256 {
         return Err(DomainError::Validation(
-            "Regex pattern is too long (max 256 characters)".to_string(),
+            ValidationError::RegexPatternTooLong,
         ));
     }
 
     regex::Regex::new(pattern)
-        .map_err(|e| DomainError::Validation(format!("Invalid regex pattern: {}", e)))?;
+        .map_err(|_| DomainError::Validation(ValidationError::RegexPatternInvalid))?;
 
     Ok(())
 }

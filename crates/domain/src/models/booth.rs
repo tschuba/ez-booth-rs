@@ -1,10 +1,10 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 
 use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
+use crate::error_code::ValidationError;
 
 /// Vendor ID validation rules for a booth
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -20,16 +20,14 @@ pub enum VendorIdValidation {
 }
 
 /// Represents a bazaar booth/event
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Booth {
     pub id: BoothId,
 
-    #[validate(length(min = 1, max = 200))]
     pub description: String,
 
     pub date: NaiveDate,
 
-    #[validate(nested)]
     pub fees: FeeConfig,
 
     pub status: BoothStatus,
@@ -67,7 +65,7 @@ impl Default for CheckoutKeyboardConfig {
 ///
 /// Note: The validator crate doesn't support range validation for rust_decimal::Decimal.
 /// Range validation is performed via the `validate_ranges()` method.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FeeConfig {
     /// Fixed participation fee per vendor
     pub participation_fee: Decimal,
@@ -90,25 +88,25 @@ impl FeeConfig {
     pub fn validate_ranges(&self) -> Result<(), DomainError> {
         if self.participation_fee.is_sign_negative() {
             return Err(DomainError::Validation(
-                "Participation fee cannot be negative".to_string(),
+                ValidationError::ParticipationFeeNegative,
             ));
         }
 
         if self.sales_fee_percent.is_sign_negative() {
             return Err(DomainError::Validation(
-                "Sales fee percent cannot be negative".to_string(),
+                ValidationError::SalesFeePercentNegative,
             ));
         }
 
         if self.sales_fee_percent > Decimal::new(100, 0) {
             return Err(DomainError::Validation(
-                "Sales fee percent cannot exceed 100%".to_string(),
+                ValidationError::SalesFeePercentTooLarge,
             ));
         }
 
         if self.rounding_step.is_sign_negative() {
             return Err(DomainError::Validation(
-                "Rounding step cannot be negative".to_string(),
+                ValidationError::RoundingStepNegative,
             ));
         }
 
@@ -132,6 +130,13 @@ impl Booth {
     /// - Description is empty or longer than 200 characters
     /// - Fee configuration is invalid
     pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Result<Self, DomainError> {
+        if description.trim().is_empty() {
+            return Err(DomainError::Validation(ValidationError::BoothNameEmpty));
+        }
+        if description.len() > 200 {
+            return Err(DomainError::Validation(ValidationError::BoothNameTooLong));
+        }
+
         // Validate fee configuration
         fees.validate_ranges()?;
 
@@ -147,11 +152,6 @@ impl Booth {
             created_at: now,
             updated_at: now,
         };
-
-        // Validate the booth (includes description length validation)
-        booth
-            .validate()
-            .map_err(|e| DomainError::Validation(format!("Invalid booth: {}", e)))?;
 
         Ok(booth)
     }

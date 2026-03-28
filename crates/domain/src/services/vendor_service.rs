@@ -394,9 +394,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DomainError::Validation(msg)) => {
-                assert!(msg.contains("only digits"));
-            }
+            Err(DomainError::Validation(crate::error_code::ValidationError::VendorIdDigitsOnly)) => {}
             _ => panic!("Expected Validation error"),
         }
     }
@@ -439,9 +437,9 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DomainError::Validation(msg)) => {
-                assert!(msg.contains("does not match"));
-            }
+            Err(DomainError::Validation(
+                crate::error_code::ValidationError::VendorIdPatternMismatch { .. },
+            )) => {}
             _ => panic!("Expected Validation error"),
         }
     }

@@ -1,4 +1,5 @@
 use crate::error::{DomainError, DomainResult};
+use crate::error_code::ValidationError;
 use crate::models::{BoothId, Purchase, PurchaseId, PurchaseItem, VendorId};
 use crate::repositories::PurchaseRepository;
 use crate::services::dto::{ChargingConfig, VendorPayout};
@@ -22,9 +23,7 @@ impl<R: PurchaseRepository> TransactionService<R> {
         item_amounts: Vec<Decimal>,
     ) -> DomainResult<Purchase> {
         if item_amounts.is_empty() {
-            return Err(DomainError::Validation(
-                "Cannot checkout with empty items".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::PurchaseEmpty));
         }
 
         let purchase_items: Vec<PurchaseItem> = item_amounts

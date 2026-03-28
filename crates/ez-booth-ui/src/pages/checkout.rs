@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::error_translator::translate_domain_error;
 use crate::formatting::{
     decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
     parse_decimal_input, sanitize_amount_input,
@@ -776,7 +777,7 @@ pub fn CheckoutPage() -> impl IntoView {
         // Validate vendor ID against booth rules (if booth selected)
         if let Some(rule) = vendor_validation_rule.get() {
             if let Err(e) = validate_vendor_id(&vendor_id_for_item, &rule) {
-                let error_msg = format!("{}", e);
+                let error_msg = translate_domain_error(&e);
                 set_form_data.update(|form| form.vendor_error = Some(error_msg));
                 focus_and_select_input(&vendor_input_ref_for_add);
                 return;
@@ -1042,11 +1043,8 @@ pub fn CheckoutPage() -> impl IntoView {
             .collect::<Result<Vec<_>, _>>()
         {
             Ok(items) => items,
-            Err(DomainError::Validation(message)) => {
-                toast.error(&translate_with_params(
-                    "checkout.errors.validation_failed",
-                    HashMap::from([("error", message)]),
-                ));
+            Err(err @ DomainError::Validation(_)) => {
+                toast.error(&translate_domain_error(&err));
                 return;
             }
             Err(err) => {
@@ -1060,11 +1058,8 @@ pub fn CheckoutPage() -> impl IntoView {
 
         let purchase = match Purchase::new(booth.id.clone(), purchase_items) {
             Ok(purchase) => purchase,
-            Err(DomainError::Validation(message)) => {
-                toast.error(&translate_with_params(
-                    "checkout.errors.validation_failed",
-                    HashMap::from([("error", message)]),
-                ));
+            Err(err @ DomainError::Validation(_)) => {
+                toast.error(&translate_domain_error(&err));
                 return;
             }
             Err(err) => {
@@ -1436,7 +1431,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         // Invalid: keep focus on vendor, select text, ensure error is set
                                                                         if let Some(rule) = vendor_validation_rule.get() {
                                                                             if let Err(e) = validate_vendor_id(&trimmed, &rule) {
-                                                                                let error_msg = format!("{}", e);
+                                                                                let error_msg = translate_domain_error(&e);
                                                                                 set_form_data.update(|data| {
                                                                                     data.vendor_error = Some(error_msg);
                                                                                 });
@@ -1471,7 +1466,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         set_form_data.update(|data| data.vendor_error = None);
                                                                     }
                                                                     Err(e) => {
-                                                                        let error_msg = format!("{}", e);
+                                                                        let error_msg = translate_domain_error(&e);
                                                                         set_form_data.update(|data| {
                                                                             data.vendor_error = Some(error_msg);
                                                                         });

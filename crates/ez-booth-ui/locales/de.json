@@ -14,7 +14,12 @@
     "success": "Erfolg",
     "loading": "Lädt...",
     "select": "-- Auswählen --",
-    "clear": "Löschen"
+    "clear": "Löschen",
+    "placeholders": {
+      "decimal_zero": "0,00",
+      "decimal_half": "0,50",
+      "quick_amounts_example": "0,50, 1,00, 5,00, 10,00, 15,00"
+    }
   },
   "app": {
     "copyright": "Copyright © 2026 EZ Booth",
@@ -143,6 +148,7 @@
     "vendor_deselected": "Verkäufer {id} abgewählt",
     "vendor_details_expanded": "Details für Verkäufer {id} geöffnet",
     "vendor_details_collapsed": "Details für Verkäufer {id} geschlossen",
+    "vendor_details": "Details für Verkäufer {id}",
     "report_title": "Verkäuferabrechnung",
     "financial_summary": "Finanzübersicht",
     "sales_details": "Umsatzdetails",
@@ -165,7 +171,11 @@
     },
     "errors": {
       "no_booth_selected": "Bitte wählen Sie zuerst eine Veranstaltung aus",
-      "invalid_delete_state": "Anbieter kann nicht gelöscht werden: ungültiger Status"
+      "invalid_delete_state": "Anbieter kann nicht gelöscht werden: ungültiger Status",
+      "load_reports_failed": "Fehler beim Laden der Verkäuferberichte",
+      "load_vendors_failed": "Fehler beim Laden der Verkäufer",
+      "load_active_vendors_failed": "Fehler beim Laden der aktiven Verkäufer",
+      "generate_reports_failed": "Fehler beim Erstellen der Berichte"
     },
     "pagination": {
       "first": "Erste",
@@ -403,6 +413,36 @@
     "not_found": "Nicht gefunden",
     "validation": "Validierungsfehler",
     "storage": "Speicherfehler"
+  },
+  "validation": {
+    "vendor_id_empty": "Verkäufer-ID darf nicht leer sein",
+    "vendor_id_too_long": "Verkäufer-ID ist zu lang (maximal 50 Zeichen)",
+    "vendor_id_digits_only": "Verkäufer-ID darf nur Ziffern (0-9) enthalten",
+    "vendor_id_pattern_mismatch": "Verkäufer-ID '{value}' entspricht nicht dem erforderlichen Muster",
+    "vendor_id_invalid_regex": "Ungültiges Regex-Muster für die Verkäufer-ID-Validierung",
+    "booth_name_empty": "Veranstaltungsname darf nicht leer sein",
+    "booth_name_too_long": "Veranstaltungsname ist zu lang (maximal 200 Zeichen)",
+    "participation_fee_negative": "Teilnahmegebühr darf nicht negativ sein",
+    "sales_fee_percent_negative": "Umsatzbeteiligung darf nicht negativ sein",
+    "sales_fee_percent_too_large": "Umsatzbeteiligung darf 100% nicht überschreiten",
+    "rounding_step_negative": "Rundungsschritt darf nicht negativ sein",
+    "purchase_amount_negative": "Betrag darf nicht negativ sein",
+    "purchase_amount_too_large": "Betrag ist zu groß (Maximum 1.000.000,00)",
+    "purchase_empty": "Kauf muss mindestens einen Artikel enthalten",
+    "purchase_total_too_large": "Kaufsumme ist zu groß",
+    "item_amount_not_positive": "Artikelbetrag muss positiv sein",
+    "item_amount_too_many_decimals": "Artikelbetrag darf nicht mehr als 2 Dezimalstellen haben",
+    "item_amount_too_large": "Artikelbetrag ist zu groß",
+    "regex_pattern_empty": "Regex-Muster darf nicht leer sein",
+    "regex_pattern_too_long": "Regex-Muster ist zu lang (maximal 256 Zeichen)",
+    "regex_pattern_invalid": "Ungültiges Regex-Muster",
+    "date_invalid": "Ungültiges Datumsformat",
+    "participation_fee_invalid": "Ungültige Teilnahmegebühr",
+    "sales_fee_percent_invalid": "Ungültige Umsatzbeteiligung",
+    "rounding_step_invalid": "Ungültiger Rundungsschritt",
+    "quick_amount_invalid": "Ungültiger Schnellbetrag '{value}'",
+    "quick_amounts_empty": "Mindestens ein Schnellbetrag ist erforderlich",
+    "quick_amounts_non_positive": "Schnellbeträge müssen größer als Null sein"
   },
   "home": {
     "error_loading_booths": "Veranstaltungen können nicht geladen werden. Bitte manuell navigieren."
