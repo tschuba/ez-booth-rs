@@ -1,10 +1,8 @@
-use crate::formatting::{decimal_separator, format_decimal_for_input};
+use crate::formatting::decimal_separator;
 use crate::i18n::Locale;
 use crate::t;
 use leptos::*;
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AmountInputMode {
@@ -14,7 +12,7 @@ pub enum AmountInputMode {
 
 impl Default for AmountInputMode {
     fn default() -> Self {
-        Self::RightToLeft
+        Self::Regular
     }
 }
 
@@ -24,7 +22,6 @@ pub enum KeyboardKey {
     Decimal,
     Backspace,
     Clear,
-    QuickAmount(Decimal),
 }
 
 #[component]
@@ -32,53 +29,20 @@ pub fn OnScreenKeyboard(
     #[prop(into)] is_visible: Signal<bool>,
     on_key: Callback<KeyboardKey>,
     on_mode_change: Callback<()>,
-    quick_amounts: Vec<Decimal>,
     #[prop(into)] current_mode: Signal<AmountInputMode>,
     locale: Locale,
 ) -> impl IntoView {
     let decimal = decimal_separator(locale).to_string();
-    let quick_amounts_label = t!("checkout.keyboard_quick_amounts");
     let backspace_label = t!("checkout.keyboard_backspace");
     let decimal_label = t!("checkout.keyboard_decimal");
     let clear_label = t!("common.clear");
     let keyboard_mode_aria = t!("checkout.keyboard_mode_aria");
     let keyboard_mode_tooltip_rtl = t!("checkout.keyboard_mode_tooltip_rtl");
     let keyboard_mode_tooltip_regular = t!("checkout.keyboard_mode_tooltip_regular");
-    let quick_amounts_source = Rc::new(quick_amounts);
     view! {
         <Show when=move || is_visible.get()>
             <div class="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-4 shadow-xl ring-1 ring-slate-200/60">
                 <div class="space-y-4">
-                    <div class="space-y-2">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            {quick_amounts_label}
-                        </p>
-                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                            {let quick_amounts_source = quick_amounts_source.clone(); move || {
-                                quick_amounts_source
-                                    .iter()
-                                    .copied()
-                                    .map(|amount| {
-                                        let label = format_decimal_for_input(amount, locale, 2);
-                                        view! {
-                                            <button
-                                                type="button"
-                                                class="min-h-12 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900 transition hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                                aria-label=label.clone()
-                                                on:click={
-                                                    let on_key = on_key.clone();
-                                                    move |_| on_key.call(KeyboardKey::QuickAmount(amount))
-                                                }
-                                            >
-                                                {label}
-                                            </button>
-                                        }
-                                    })
-                                    .collect_view()
-                            }}
-                        </div>
-                    </div>
-
                     <div class="grid grid-cols-4 gap-2">
                         <button
                             type="button"

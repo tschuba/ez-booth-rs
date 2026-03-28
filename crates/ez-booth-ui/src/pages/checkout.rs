@@ -9,7 +9,7 @@ use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
 use domain::error::DomainError;
-use domain::models::booth::{CheckoutKeyboardConfig, VendorIdValidation};
+use domain::models::booth::VendorIdValidation;
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
 use domain::validation::validate_vendor_id;
@@ -220,9 +220,11 @@ fn backspace_input_range(value: &str, start: u32, end: u32) -> String {
 fn input_selection_range(input_ref: &NodeRef<html::Input>, fallback: &str) -> (String, u32, u32) {
     if let Some(input) = input_ref.get() {
         let value = input.value();
-        let start = input.selection_start().ok().flatten().unwrap_or_else(|| {
-            value.encode_utf16().count() as u32
-        });
+        let start = input
+            .selection_start()
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| value.encode_utf16().count() as u32);
         let end = input.selection_end().ok().flatten().unwrap_or(start);
         (value, start, end)
     } else {
@@ -341,7 +343,7 @@ fn load_amount_input_mode_preference() -> AmountInputMode {
         })
         .map(|value| match value.as_str() {
             "regular" => AmountInputMode::Regular,
-            _ => AmountInputMode::RightToLeft,
+            _ => AmountInputMode::Regular,
         })
         .unwrap_or_default()
 }
@@ -619,13 +621,6 @@ pub fn CheckoutPage() -> impl IntoView {
             .map(|booth| booth.vendor_id_validation.clone())
     });
 
-    let booth_keyboard_config = create_memo(move |_| {
-        selected_booth
-            .get()
-            .map(|booth| booth.keyboard_config.clone())
-            .unwrap_or_else(CheckoutKeyboardConfig::default)
-    });
-
     // Focus vendor input when view is ready and data is loaded
     {
         let vendor_input_ref = vendor_input_ref.clone();
@@ -634,10 +629,16 @@ pub fn CheckoutPage() -> impl IntoView {
 
         create_effect(move |_| {
             if !is_loading.get() && selected_booth.get().is_some() {
-                if let Some(input) = vendor_input_ref.get() {
-                    let _ = input.focus();
-                    let _ = input.select();
-                }
+                let vendor_input_ref = vendor_input_ref.clone();
+                set_timeout(
+                    move || {
+                        if let Some(input) = vendor_input_ref.get() {
+                            let _ = input.focus();
+                            let _ = input.select();
+                        }
+                    },
+                    std::time::Duration::from_millis(0),
+                );
             }
         });
     }
@@ -906,9 +907,6 @@ pub fn CheckoutPage() -> impl IntoView {
                         KeyboardKey::Clear => {
                             default_amount_for_mode(AmountInputMode::RightToLeft, locale_value)
                         }
-                        KeyboardKey::QuickAmount(amount) => {
-                            format_decimal_for_input(amount, locale_value, 2)
-                        }
                         KeyboardKey::Decimal => current,
                     },
                     AmountInputMode::Regular => match key {
@@ -919,9 +917,6 @@ pub fn CheckoutPage() -> impl IntoView {
                             chars.into_iter().collect::<String>()
                         }
                         KeyboardKey::Clear => String::new(),
-                        KeyboardKey::QuickAmount(amount) => {
-                            format_decimal_for_input(amount, locale_value, 2)
-                        }
                         KeyboardKey::Decimal => {
                             if current.contains(decimal_separator(locale_value)) {
                                 current
@@ -1367,7 +1362,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                         when=move || is_loading.get()
                                         fallback=move || view! {
                                             <div class="space-y-6">
-                                                <div>
+                                                <div class="grid gap-6 md:grid-cols-2 md:items-start">
+                                                    <div>
                                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                                         {t!("checkout.vendor_id")}
                                                     </label>
@@ -1487,9 +1483,9 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     <Show when=move || form_data.get().vendor_error.is_some()>
                                                         <p class="mt-1 text-sm text-red-600">{move || form_data.get().vendor_error.clone().unwrap_or_default()}</p>
                                                     </Show>
-                                                </div>
+                                                    </div>
 
-                                                <div>
+                                                    <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">
                                                         {t!("checkout.amount")}
                                                     </label>
@@ -1585,6 +1581,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             <p class="text-sm text-red-600">{move || form_data.get().amount_error.clone().unwrap_or_default()}</p>
                                                         </Show>
                                                     </div>
+                                                    </div>
                                                 </div>
 
                                                 <Show when=move || keyboard_visible.get()>
@@ -1621,7 +1618,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 }
                                                             }
                                                         })
-                                                        quick_amounts=booth_keyboard_config.get().quick_amounts
                                                         current_mode=Signal::derive(move || amount_input_mode.get())
                                                         locale=locale.get()
                                                     />
@@ -2256,6 +2252,30 @@ mod tests {
             default_amount_for_mode(AmountInputMode::Regular, Locale::En),
             ""
         );
+        assert_eq!(
+            default_amount_for_mode(AmountInputMode::Regular, Locale::De),
+            ""
+        );
+    }
+
+    #[test]
+    fn amount_input_mode_defaults_to_regular() {
+        assert_eq!(AmountInputMode::default(), AmountInputMode::Regular);
+    }
+
+    #[test]
+    fn normalize_form_data_preserves_regular_mode_text() {
+        let form_data = CheckoutFormData {
+            vendor_id: "12".to_string(),
+            current_amount: "12,34".to_string(),
+            ..Default::default()
+        };
+
+        let normalized =
+            normalize_form_data_for_mode(form_data, AmountInputMode::Regular, Locale::De);
+
+        assert_eq!(normalized.vendor_id, "12");
+        assert_eq!(normalized.current_amount, "12,34");
     }
 
     #[test]
@@ -2281,7 +2301,8 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = normalize_form_data_for_mode(form_data, AmountInputMode::RightToLeft, Locale::De);
+        let normalized =
+            normalize_form_data_for_mode(form_data, AmountInputMode::RightToLeft, Locale::De);
 
         assert_eq!(normalized.vendor_id, "12");
         assert_eq!(normalized.current_amount, "5,50");
