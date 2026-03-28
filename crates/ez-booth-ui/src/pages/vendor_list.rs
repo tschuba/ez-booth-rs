@@ -68,6 +68,10 @@ pub fn VendorListPage() -> impl IntoView {
 
     let toast = use_toast();
 
+    let vendor_message = |key: &'static str, vendor_id: &VendorId| {
+        translate_with_params(key, HashMap::from([("id", vendor_id.as_str().to_string())]))
+    };
+
     // Reset to first page when vendor_reports or page_size changes
     create_effect(move |_| {
         let _ = vendor_reports.get();
@@ -127,8 +131,8 @@ pub fn VendorListPage() -> impl IntoView {
                                         .collect();
                                     set_vendors_without_purchases.set(vendors_without);
                                 }
-                                Err(e) => {
-                                    toast.error(&format!("Failed to load vendor reports: {:?}", e));
+                                Err(_) => {
+                                    toast.error(&t!("vendor.errors.load_reports_failed")());
                                 }
                             }
                         } else {
@@ -137,11 +141,11 @@ pub fn VendorListPage() -> impl IntoView {
                             set_vendors_without_purchases.set(all_vendors);
                         }
                     }
-                    (Err(e), _) => {
-                        toast.error(&format!("Failed to load vendors: {:?}", e));
+                    (Err(_), _) => {
+                        toast.error(&t!("vendor.errors.load_vendors_failed")());
                     }
-                    (_, Err(e)) => {
-                        toast.error(&format!("Failed to load active vendors: {:?}", e));
+                    (_, Err(_)) => {
+                        toast.error(&t!("vendor.errors.load_active_vendors_failed")());
                     }
                 }
 
@@ -199,15 +203,15 @@ pub fn VendorListPage() -> impl IntoView {
                                         std::time::Duration::from_millis(100),
                                     );
                                 }
-                                Err(e) => {
-                                    toast.error(&format!("Failed to generate reports: {:?}", e));
+                                Err(_) => {
+                                    toast.error(&t!("vendor.errors.generate_reports_failed")());
                                 }
                             }
                             set_is_loading.set(false);
                         }
                     }
-                    Err(e) => {
-                        toast.error(&format!("Failed to get active vendors: {:?}", e));
+                    Err(_) => {
+                        toast.error(&t!("vendor.errors.load_active_vendors_failed")());
                         set_is_loading.set(false);
                     }
                 }
@@ -248,8 +252,8 @@ pub fn VendorListPage() -> impl IntoView {
                             std::time::Duration::from_millis(100),
                         );
                     }
-                    Err(e) => {
-                        toast.error(&format!("Failed to generate reports: {:?}", e));
+                    Err(_) => {
+                        toast.error(&t!("vendor.errors.generate_reports_failed")());
                     }
                 }
                 set_is_loading.set(false);
@@ -515,9 +519,9 @@ pub fn VendorListPage() -> impl IntoView {
                                                             on:click=move |_| {
                                                                 toggle_vendor_selection(vendor_id_for_select.clone());
                                                                 let msg = if selected_vendor_ids.get().contains(&vendor_id_for_select) {
-                                                                    format!("Vendor {} selected", vendor_id_for_select.as_str())
+                                                                    vendor_message("vendor.vendor_selected", &vendor_id_for_select)
                                                                 } else {
-                                                                    format!("Vendor {} deselected", vendor_id_for_select.as_str())
+                                                                    vendor_message("vendor.vendor_deselected", &vendor_id_for_select)
                                                                 };
                                                                 set_aria_announcement.set(msg);
                                                             }
@@ -527,9 +531,9 @@ pub fn VendorListPage() -> impl IntoView {
                                                                         e.prevent_default();
                                                                         toggle_vendor_selection(vendor_id_for_select_key.clone());
                                                                         let msg = if selected_vendor_ids.get().contains(&vendor_id_for_select_key) {
-                                                                            format!("Vendor {} selected", vendor_id_for_select_key.as_str())
+                                                                            vendor_message("vendor.vendor_selected", &vendor_id_for_select_key)
                                                                         } else {
-                                                                            format!("Vendor {} deselected", vendor_id_for_select_key.as_str())
+                                                                            vendor_message("vendor.vendor_deselected", &vendor_id_for_select_key)
                                                                         };
                                                                         set_aria_announcement.set(msg);
                                                                     }
@@ -621,9 +625,15 @@ pub fn VendorListPage() -> impl IntoView {
                                                                             Some(vendor_id_for_details_btn.clone())
                                                                         };
                                                                         let msg = if was_expanded {
-                                                                            format!("Details collapsed for Vendor {}", vendor_id_for_details_btn.as_str())
+                                                                            vendor_message(
+                                                                                "vendor.vendor_details_collapsed",
+                                                                                &vendor_id_for_details_btn,
+                                                                            )
                                                                         } else {
-                                                                            format!("Details expanded for Vendor {}", vendor_id_for_details_btn.as_str())
+                                                                            vendor_message(
+                                                                                "vendor.vendor_details_expanded",
+                                                                                &vendor_id_for_details_btn,
+                                                                            )
                                                                         };
                                                                         set_aria_announcement.set(msg);
                                                                     });
@@ -634,13 +644,13 @@ pub fn VendorListPage() -> impl IntoView {
                                                                             e.prevent_default();
                                                                             e.stop_propagation();
                                                                             set_expanded_vendor_id.set(Some(vendor_id_for_keydown.clone()));
-                                                                            set_aria_announcement.set(format!("Details expanded for Vendor {}", vendor_id_for_keydown.as_str()));
+                                                                            set_aria_announcement.set(vendor_message("vendor.vendor_details_expanded", &vendor_id_for_keydown));
                                                                         }
                                                                         "ArrowLeft" => {
                                                                             e.prevent_default();
                                                                             e.stop_propagation();
                                                                             set_expanded_vendor_id.set(None);
-                                                                            set_aria_announcement.set(format!("Details collapsed for Vendor {}", vendor_id_for_keydown.as_str()));
+                                                                            set_aria_announcement.set(vendor_message("vendor.vendor_details_collapsed", &vendor_id_for_keydown));
                                                                         }
                                                                         _ => {}
                                                                     }
@@ -667,7 +677,10 @@ pub fn VendorListPage() -> impl IntoView {
                                                         <div
                                                             id=format!("vendor-details-{}", vendor_id_str.clone())
                                                             role="region"
-                                                            aria-label=format!("Vendor {} details", vendor_id_str.clone())
+                                                            aria-label=translate_with_params(
+                                                                "vendor.vendor_details",
+                                                                HashMap::from([("id", vendor_id_str.clone())]),
+                                                            )
                                                             class=move || format!(
                                                                 "overflow-hidden transition-all duration-200 {}",
                                                                 if is_expanded.get() { "max-h-[1000px] opacity-100" } else { "max-h-0 opacity-0" }

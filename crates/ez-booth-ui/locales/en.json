@@ -14,7 +14,12 @@
     "success": "Success",
     "loading": "Loading...",
     "select": "-- Select --",
-    "clear": "Clear"
+    "clear": "Clear",
+    "placeholders": {
+      "decimal_zero": "0.00",
+      "decimal_half": "0.50",
+      "quick_amounts_example": "0.50, 1.00, 5.00, 10.00, 15.00"
+    }
   },
   "app": {
     "copyright": "Copyright © 2026 EZ Booth",
@@ -143,6 +148,7 @@
     "vendor_deselected": "Vendor {id} deselected",
     "vendor_details_expanded": "Details expanded for Vendor {id}",
     "vendor_details_collapsed": "Details collapsed for Vendor {id}",
+    "vendor_details": "Vendor {id} details",
     "report_title": "Vendor Report",
     "financial_summary": "Financial Summary",
     "sales_details": "Sales Details",
@@ -165,7 +171,11 @@
     },
     "errors": {
       "no_booth_selected": "Please select an event first",
-      "invalid_delete_state": "Cannot delete vendor: invalid state"
+      "invalid_delete_state": "Cannot delete vendor: invalid state",
+      "load_reports_failed": "Failed to load vendor reports",
+      "load_vendors_failed": "Failed to load vendors",
+      "load_active_vendors_failed": "Failed to load active vendors",
+      "generate_reports_failed": "Failed to generate reports"
     },
     "pagination": {
       "first": "First",
@@ -403,6 +413,36 @@
     "not_found": "Not found",
     "validation": "Validation error",
     "storage": "Storage error"
+  },
+  "validation": {
+    "vendor_id_empty": "Vendor ID cannot be empty",
+    "vendor_id_too_long": "Vendor ID is too long (maximum 50 characters)",
+    "vendor_id_digits_only": "Vendor ID must contain only digits (0-9)",
+    "vendor_id_pattern_mismatch": "Vendor ID '{value}' does not match the required pattern",
+    "vendor_id_invalid_regex": "Invalid regex pattern configured for vendor ID validation",
+    "booth_name_empty": "Event name cannot be empty",
+    "booth_name_too_long": "Event name is too long (maximum 200 characters)",
+    "participation_fee_negative": "Participation fee cannot be negative",
+    "sales_fee_percent_negative": "Revenue share cannot be negative",
+    "sales_fee_percent_too_large": "Revenue share cannot exceed 100%",
+    "rounding_step_negative": "Rounding step cannot be negative",
+    "purchase_amount_negative": "Amount cannot be negative",
+    "purchase_amount_too_large": "Amount is too large (maximum 1,000,000.00)",
+    "purchase_empty": "Purchase must contain at least one item",
+    "purchase_total_too_large": "Purchase total is too large",
+    "item_amount_not_positive": "Item amount must be positive",
+    "item_amount_too_many_decimals": "Item amount cannot have more than 2 decimal places",
+    "item_amount_too_large": "Item amount is too large",
+    "regex_pattern_empty": "Regex pattern cannot be empty",
+    "regex_pattern_too_long": "Regex pattern is too long (maximum 256 characters)",
+    "regex_pattern_invalid": "Invalid regex pattern",
+    "date_invalid": "Invalid date format",
+    "participation_fee_invalid": "Invalid participation fee",
+    "sales_fee_percent_invalid": "Invalid revenue share",
+    "rounding_step_invalid": "Invalid rounding step",
+    "quick_amount_invalid": "Invalid quick amount '{value}'",
+    "quick_amounts_empty": "At least one quick amount is required",
+    "quick_amounts_non_positive": "Quick amounts must be greater than zero"
   },
   "home": {
     "are_you_sure": "Are you sure?",

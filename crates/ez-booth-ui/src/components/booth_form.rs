@@ -1,9 +1,11 @@
 use crate::components::*;
+use crate::error_translator::translate_domain_error;
 use crate::formatting::{currency_symbol_for_label, format_decimal_for_input, parse_decimal_input};
 use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
 use domain::error::DomainError;
+use domain::error_code::ValidationError;
 use domain::models::booth::{Booth, CheckoutKeyboardConfig, FeeConfig, VendorIdValidation};
 use domain::validation::validate_regex_pattern;
 use leptos::*;
@@ -82,17 +84,17 @@ impl BoothFormData {
     pub fn to_booth(&self, _locale: Locale) -> Result<Booth, DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
-            .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::DateInvalid))?;
 
         // Parse fee values using flexible parsing (accepts both comma and dot)
         let participation_fee = parse_decimal_input(&self.participation_fee)
-            .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::ParticipationFeeInvalid))?;
 
         let sales_fee_percent = parse_decimal_input(&self.sales_fee_percent)
-            .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::SalesFeePercentInvalid))?;
 
         let rounding_step = parse_decimal_input(&self.rounding_step)
-            .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::RoundingStepInvalid))?;
 
         // Create FeeConfig
         let fees = FeeConfig {
@@ -133,17 +135,17 @@ impl BoothFormData {
     pub fn update_booth(&self, booth: &mut Booth, _locale: Locale) -> Result<(), DomainError> {
         // Parse date
         let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
-            .map_err(|e| DomainError::Validation(format!("Invalid date format: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::DateInvalid))?;
 
         // Parse fee values using flexible parsing (accepts both comma and dot)
         let participation_fee = parse_decimal_input(&self.participation_fee)
-            .map_err(|e| DomainError::Validation(format!("Invalid participation fee: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::ParticipationFeeInvalid))?;
 
         let sales_fee_percent = parse_decimal_input(&self.sales_fee_percent)
-            .map_err(|e| DomainError::Validation(format!("Invalid sales fee percent: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::SalesFeePercentInvalid))?;
 
         let rounding_step = parse_decimal_input(&self.rounding_step)
-            .map_err(|e| DomainError::Validation(format!("Invalid rounding step: {}", e)))?;
+            .map_err(|_| DomainError::Validation(ValidationError::RoundingStepInvalid))?;
 
         // Create and validate FeeConfig
         let fees = FeeConfig {
@@ -199,20 +201,21 @@ fn parse_quick_amounts_input(input: &str) -> Result<Vec<Decimal>, DomainError> {
         .filter(|value| !value.is_empty())
         .map(|value| {
             parse_decimal_input(value).map_err(|err| {
-                DomainError::Validation(format!("Invalid quick amount '{value}': {err}"))
+                let _ = err;
+                DomainError::Validation(ValidationError::QuickAmountInvalid {
+                    value: value.to_string(),
+                })
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     if values.is_empty() {
-        return Err(DomainError::Validation(
-            "At least one quick amount is required".to_string(),
-        ));
+        return Err(DomainError::Validation(ValidationError::QuickAmountsEmpty));
     }
 
     if values.iter().any(|value| *value <= Decimal::ZERO) {
         return Err(DomainError::Validation(
-            "Quick amounts must be greater than zero".to_string(),
+            ValidationError::QuickAmountsNonPositive,
         ));
     }
 
@@ -390,7 +393,7 @@ pub fn BoothForm(
             } else {
                 // Validate the regex pattern
                 if let Err(e) = validate_regex_pattern(&regex_pattern) {
-                    set_vendor_validation_regex_error.set(Some(format!("{}", e)));
+                    set_vendor_validation_regex_error.set(Some(translate_domain_error(&e)));
                     has_errors = true;
                 }
             }
@@ -398,7 +401,7 @@ pub fn BoothForm(
 
         let quick_amounts = keyboard_quick_amounts.get();
         if let Err(err) = parse_quick_amounts_input(&quick_amounts) {
-            set_keyboard_quick_amounts_error.set(Some(format!("{}", err)));
+            set_keyboard_quick_amounts_error.set(Some(translate_domain_error(&err)));
             has_errors = true;
         }
 
@@ -454,7 +457,7 @@ pub fn BoothForm(
                             let currency = currency_symbol_for_label(locale_val);
                             t!("booth.participation_fee")().replace("{currency}", currency)
                         }
-                        placeholder="0.00".to_string()
+                        placeholder=t!("common.placeholders.decimal_zero")()
                         required=true
                         error=participation_fee_error
                     />
@@ -463,7 +466,7 @@ pub fn BoothForm(
                     <NumberInput
                         value=sales_fee_percent
                         label=t!("booth.sales_fee_percent")()
-                        placeholder="0.00".to_string()
+                        placeholder=t!("common.placeholders.decimal_zero")()
                         required=true
                         error=sales_fee_percent_error
                     />
@@ -472,7 +475,7 @@ pub fn BoothForm(
                     <NumberInput
                         value=rounding_step
                         label=t!("booth.rounding_step")()
-                        placeholder="0.50".to_string()
+                        placeholder=t!("common.placeholders.decimal_half")()
                         required=true
                         error=rounding_step_error
                     />
@@ -537,7 +540,7 @@ pub fn BoothForm(
                 <Input
                     value=keyboard_quick_amounts
                     label=t!("booth.keyboard_quick_amounts_label")()
-                    placeholder="0.50, 1.00, 5.00, 10.00, 15.00".to_string()
+                    placeholder=t!("common.placeholders.quick_amounts_example")()
                     required=true
                     error=keyboard_quick_amounts_error
                 />

@@ -1,4 +1,5 @@
 use crate::error::{DomainError, DomainResult};
+use crate::error_code::ValidationError;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -27,15 +28,13 @@ pub struct PurchaseItem {
 impl Purchase {
     pub fn new(booth_id: BoothId, items: Vec<PurchaseItem>) -> DomainResult<Self> {
         if items.is_empty() {
-            return Err(DomainError::Validation(
-                "Purchase must contain at least one item".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::PurchaseEmpty));
         }
 
         let total: Decimal = items.iter().map(|item| item.amount).sum();
         if total > dec!(10000000) {
             return Err(DomainError::Validation(
-                "Purchase total too large (maximum: 10000000)".to_string(),
+                ValidationError::PurchaseTotalTooLarge,
             ));
         }
 
@@ -90,20 +89,18 @@ impl PurchaseItem {
     pub fn new(amount: Decimal, vendor_id: VendorId) -> DomainResult<Self> {
         if amount <= Decimal::ZERO {
             return Err(DomainError::Validation(
-                "Item amount must be positive".to_string(),
+                ValidationError::ItemAmountNotPositive,
             ));
         }
 
         if amount.scale() > 2 {
             return Err(DomainError::Validation(
-                "Item amount cannot have more than 2 decimal places".to_string(),
+                ValidationError::ItemAmountTooManyDecimals,
             ));
         }
 
         if amount > dec!(1000000) {
-            return Err(DomainError::Validation(
-                "Item amount too large (maximum: 1000000)".to_string(),
-            ));
+            return Err(DomainError::Validation(ValidationError::ItemAmountTooLarge));
         }
 
         Ok(Self {

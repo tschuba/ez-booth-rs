@@ -1,9 +1,11 @@
 use thiserror::Error;
 
+use crate::error_code::ValidationError;
+
 #[derive(Debug, Error)]
 pub enum DomainError {
     #[error("Validation error: {0}")]
-    Validation(String),
+    Validation(ValidationError),
 
     #[error("Entity not found: {0}")]
     NotFound(String),

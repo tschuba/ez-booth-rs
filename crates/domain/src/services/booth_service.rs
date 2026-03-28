@@ -280,9 +280,7 @@ mod tests {
         let result = service.update_booth(booth).await;
         assert!(result.is_err());
         match result {
-            Err(DomainError::Validation(msg)) => {
-                assert!(msg.contains("Invalid regex pattern"));
-            }
+            Err(DomainError::Validation(crate::error_code::ValidationError::RegexPatternInvalid)) => {}
             _ => panic!("Expected Validation error"),
         }
     }

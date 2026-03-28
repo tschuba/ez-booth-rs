@@ -5,6 +5,7 @@ use leptos_router::*;
 mod booth_ordering;
 mod components;
 mod error;
+mod error_translator;
 mod formatting;
 mod i18n;
 mod pages;
