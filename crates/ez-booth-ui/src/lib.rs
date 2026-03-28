@@ -3,6 +3,7 @@ use leptos_meta::*;
 use leptos_router::*;
 
 mod booth_ordering;
+mod audio;
 mod components;
 mod error;
 mod error_translator;

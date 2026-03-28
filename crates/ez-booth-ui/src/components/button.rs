@@ -71,6 +71,9 @@ pub fn Button(
     /// Whether button is pressed (for toggle buttons)
     #[prop(optional)]
     aria_pressed: Option<bool>,
+    /// Title attribute for native browser tooltip
+    #[prop(optional)]
+    title: Option<String>,
 ) -> impl IntoView {
     let variant = variant.unwrap_or(ButtonVariant::Primary);
     let size = size.unwrap_or(ButtonSize::Medium);
@@ -103,6 +106,7 @@ pub fn Button(
             class=class_list
             disabled=disabled
             aria-label=aria_label
+            title=title
             aria-pressed=aria_pressed.map(|p| if p { "true" } else { "false" })
             aria-disabled=if disabled { Some("true") } else { None }
             on:click=move |_| {
