@@ -876,6 +876,8 @@ pub fn CheckoutPage() -> impl IntoView {
                 if let Some(amount_input) = amount_input_ref_for_add.get() {
                     let _ = amount_input.set_value(&default_amount_for_mode(mode, locale));
                 }
+
+                toast.info(&t!("checkout.add_item_success")());
             }
             Err(_) => {
                 let message = t!("checkout.errors.amount_invalid")();
@@ -915,6 +917,8 @@ pub fn CheckoutPage() -> impl IntoView {
                 },
             );
         });
+
+        toast.info(&t!("checkout.repeat_item_success")());
     };
 
     let handle_keyboard_key = {
