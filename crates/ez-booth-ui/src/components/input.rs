@@ -58,11 +58,15 @@ pub fn Input(
     let required = required.unwrap_or(false);
 
     let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
+    let base_classes = match input_type {
+        InputType::Date => "w-full min-h-[44px] rounded-lg border px-3 py-3 text-base focus:outline-none focus:ring-2",
+        _ => "w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2",
+    };
     let input_classes = move || {
         if has_error() {
-            "w-full px-3 py-2 border border-red-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            format!("{base_classes} border-red-500 focus:ring-red-500")
         } else {
-            "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            format!("{base_classes} border-gray-300 focus:ring-blue-500")
         }
     };
 
