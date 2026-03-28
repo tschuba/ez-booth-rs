@@ -1,6 +1,6 @@
 mod booth_form;
-mod booth_summary_report;
 mod booth_selector;
+mod booth_summary_report;
 mod button;
 mod delete_overlay;
 mod input;
@@ -18,8 +18,8 @@ mod booth_form_tests;
 // Re-export components
 pub use crate::utils::format_error_message;
 pub use booth_form::*;
-pub use booth_summary_report::*;
 pub use booth_selector::*;
+pub use booth_summary_report::*;
 pub use button::*;
 pub use delete_overlay::*;
 pub use input::*;

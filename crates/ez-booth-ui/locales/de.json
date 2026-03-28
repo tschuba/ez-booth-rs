@@ -192,6 +192,8 @@
     "keyboard_mode_cash_register": "Kassenmodus",
     "keyboard_mode_regular": "Normal",
     "keyboard_mode_aria": "Eingabemodus für Betrag umschalten",
+    "keyboard_mode_tooltip_rtl": "Kassenmodus: Ziffern von rechts aufbauen (0,05 -> 5,55). Klicken zum Umschalten.",
+    "keyboard_mode_tooltip_regular": "Normal: Freies Tippen. Klicken zum Umschalten.",
     "keyboard_toggle_aria": "Bildschirmtastatur umschalten",
     "keyboard_quick_amounts": "Schnellbeträge",
     "keyboard_backspace": "Rücktaste",

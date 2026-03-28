@@ -3,13 +3,25 @@ use crate::i18n::Locale;
 use crate::t;
 use leptos::*;
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AmountInputMode {
+    RightToLeft,
+    Regular,
+}
+
+impl Default for AmountInputMode {
+    fn default() -> Self {
+        Self::RightToLeft
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyboardKey {
     Digit(u8),
     Decimal,
-    DoubleZero,
     Backspace,
     Clear,
     QuickAmount(Decimal),
@@ -19,16 +31,19 @@ pub enum KeyboardKey {
 pub fn OnScreenKeyboard(
     #[prop(into)] is_visible: Signal<bool>,
     on_key: Callback<KeyboardKey>,
+    on_mode_change: Callback<()>,
     quick_amounts: Vec<Decimal>,
+    #[prop(into)] current_mode: Signal<AmountInputMode>,
     locale: Locale,
 ) -> impl IntoView {
     let decimal = decimal_separator(locale).to_string();
     let quick_amounts_label = t!("checkout.keyboard_quick_amounts");
     let backspace_label = t!("checkout.keyboard_backspace");
     let decimal_label = t!("checkout.keyboard_decimal");
-    let double_zero_label = t!("checkout.keyboard_double_zero");
     let clear_label = t!("common.clear");
-    let digit_rows = Rc::new(vec![vec![7_u8, 8, 9], vec![4_u8, 5, 6], vec![1_u8, 2, 3]]);
+    let keyboard_mode_aria = t!("checkout.keyboard_mode_aria");
+    let keyboard_mode_tooltip_rtl = t!("checkout.keyboard_mode_tooltip_rtl");
+    let keyboard_mode_tooltip_regular = t!("checkout.keyboard_mode_tooltip_regular");
     let quick_amounts_source = Rc::new(quick_amounts);
     view! {
         <Show when=move || is_visible.get()>
@@ -64,63 +79,128 @@ pub fn OnScreenKeyboard(
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.15fr)] gap-2">
-                        {let digit_rows = digit_rows.clone(); move || {
-                            digit_rows
-                                .iter()
-                                .cloned()
-                                .flat_map(|row| row.into_iter().map(Some).chain(std::iter::once(None)))
-                                .enumerate()
-                                .map(|(index, digit)| match digit {
-                                    Some(value) => {
-                                        let label = value.to_string();
-                                        view! {
-                                            <button
-                                                type="button"
-                                                class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                aria-label=label.clone()
-                                                on:click={
-                                                    let on_key = on_key.clone();
-                                                    move |_| on_key.call(KeyboardKey::Digit(value))
-                                                }
-                                            >
-                                                {label}
-                                            </button>
-                                        }
-                                        .into_view()
-                                    }
-                                    None if index == 3 => view! {
-                                        <button
-                                            type="button"
-                                            class="row-span-2 min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                            aria-label=backspace_label
-                                            on:click={
-                                                let on_key = on_key.clone();
-                                                move |_| on_key.call(KeyboardKey::Backspace)
-                                            }
-                                        >
-                                            "⌫"
-                                        </button>
-                                    }
-                                    .into_view(),
-                                    None => view! {
-                                        <button
-                                            type="button"
-                                            class="row-span-2 min-h-14 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900 transition hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                            aria-label=clear_label
-                                            on:click={
-                                                let on_key = on_key.clone();
-                                                move |_| on_key.call(KeyboardKey::Clear)
-                                            }
-                                        >
-                                            {clear_label}
-                                        </button>
-                                    }
-                                    .into_view(),
-                                })
-                                .collect_view()
-                        }}
-
+                    <div class="grid grid-cols-4 gap-2">
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="7"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(7))
+                            }
+                        >
+                            "7"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="8"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(8))
+                            }
+                        >
+                            "8"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="9"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(9))
+                            }
+                        >
+                            "9"
+                        </button>
+                        <button
+                            type="button"
+                            class="row-span-2 min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            aria-label=backspace_label
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Backspace)
+                            }
+                        >
+                            <span style="font-size: 2rem;">"⌫"</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="4"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(4))
+                            }
+                        >
+                            "4"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="5"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(5))
+                            }
+                        >
+                            "5"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="6"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(6))
+                            }
+                        >
+                            "6"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="1"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(1))
+                            }
+                        >
+                            "1"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="2"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(2))
+                            }
+                        >
+                            "2"
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="3"
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Digit(3))
+                            }
+                        >
+                            "3"
+                        </button>
+                        <button
+                            type="button"
+                            class="row-span-2 min-h-14 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900 transition hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            aria-label=clear_label
+                            on:click={
+                                let on_key = on_key.clone();
+                                move |_| on_key.call(KeyboardKey::Clear)
+                            }
+                        >
+                            {clear_label}
+                        </button>
                         <button
                             type="button"
                             class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -145,14 +225,23 @@ pub fn OnScreenKeyboard(
                         </button>
                         <button
                             type="button"
-                            class="min-h-14 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            aria-label=double_zero_label
+                            class="min-h-14 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-900 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            aria-label=keyboard_mode_aria
+                            title={move || match current_mode.get() {
+                                AmountInputMode::RightToLeft => keyboard_mode_tooltip_rtl(),
+                                AmountInputMode::Regular => keyboard_mode_tooltip_regular(),
+                            }}
                             on:click={
-                                let on_key = on_key.clone();
-                                move |_| on_key.call(KeyboardKey::DoubleZero)
+                                let on_mode_change = on_mode_change.clone();
+                                move |_| on_mode_change.call(())
                             }
                         >
-                            "00"
+                            <span class="flex items-center justify-center text-lg font-mono font-semibold">
+                                {move || match current_mode.get() {
+                                    AmountInputMode::RightToLeft => "0.0_|",
+                                    AmountInputMode::Regular => "_|",
+                                }}
+                            </span>
                         </button>
                     </div>
                 </div>

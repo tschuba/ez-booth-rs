@@ -1,5 +1,8 @@
 use crate::components::*;
-use crate::formatting::{decimal_separator, format_currency, format_decimal_for_input, parse_decimal_input};
+use crate::formatting::{
+    decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
+    parse_decimal_input, sanitize_amount_input,
+};
 use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::selected_booth_context;
 use crate::state::use_app_state;
@@ -60,18 +63,6 @@ struct StoredCheckoutForm {
 const CHECKOUT_DRAFT_STORAGE_KEY: &str = "ez-booth-checkout-draft";
 const CHECKOUT_KEYBOARD_VISIBLE_STORAGE_KEY: &str = "ez-booth-checkout-keyboard-visible";
 const CHECKOUT_AMOUNT_INPUT_MODE_STORAGE_KEY: &str = "ez-booth-checkout-amount-input-mode";
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum AmountInputMode {
-    RightToLeft,
-    Regular,
-}
-
-impl Default for AmountInputMode {
-    fn default() -> Self {
-        Self::RightToLeft
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ActiveInput {
@@ -183,6 +174,66 @@ fn focus_and_select_input(input_ref: &NodeRef<html::Input>) {
     }
 }
 
+fn utf16_index_to_byte_index(value: &str, utf16_index: u32) -> usize {
+    let mut utf16_count = 0;
+
+    for (byte_index, ch) in value.char_indices() {
+        if utf16_count >= utf16_index {
+            return byte_index;
+        }
+        utf16_count += ch.len_utf16() as u32;
+    }
+
+    value.len()
+}
+
+fn replace_input_range(value: &str, start: u32, end: u32, replacement: &str) -> String {
+    let start_byte = utf16_index_to_byte_index(value, start);
+    let end_byte = utf16_index_to_byte_index(value, end);
+
+    format!(
+        "{}{}{}",
+        &value[..start_byte],
+        replacement,
+        &value[end_byte..]
+    )
+}
+
+fn backspace_input_range(value: &str, start: u32, end: u32) -> String {
+    if start != end {
+        return replace_input_range(value, start, end, "");
+    }
+
+    if start == 0 {
+        return value.to_string();
+    }
+
+    let previous_utf16 = start.saturating_sub(1);
+    replace_input_range(value, previous_utf16, start, "")
+}
+
+fn input_selection_range(input_ref: &NodeRef<html::Input>, fallback: &str) -> (String, u32, u32) {
+    if let Some(input) = input_ref.get() {
+        let value = input.value();
+        let start = input.selection_start().ok().flatten().unwrap_or_else(|| {
+            value.encode_utf16().count() as u32
+        });
+        let end = input.selection_end().ok().flatten().unwrap_or(start);
+        (value, start, end)
+    } else {
+        let value = fallback.to_string();
+        let cursor = value.encode_utf16().count() as u32;
+        (value, cursor, cursor)
+    }
+}
+
+fn focus_input_with_cursor(input_ref: &NodeRef<html::Input>, cursor: u32) {
+    if let Some(input) = input_ref.get() {
+        let _ = input.focus();
+        let _ = input.set_selection_range(cursor, cursor);
+    }
+}
+
 fn default_amount_for_mode(mode: AmountInputMode, locale: Locale) -> String {
     match mode {
         AmountInputMode::RightToLeft => format_decimal_for_input(Decimal::ZERO, locale, 2),
@@ -192,7 +243,10 @@ fn default_amount_for_mode(mode: AmountInputMode, locale: Locale) -> String {
 
 fn amount_is_effectively_empty(value: &str) -> bool {
     let trimmed = value.trim();
-    trimmed.is_empty() || parse_decimal_input(trimmed).map(|amount| amount == Decimal::ZERO).unwrap_or(false)
+    trimmed.is_empty()
+        || parse_decimal_input(trimmed)
+            .map(|amount| amount == Decimal::ZERO)
+            .unwrap_or(false)
 }
 
 fn parse_amount_to_cents(input: &str) -> i64 {
@@ -286,7 +340,9 @@ fn update_vendor_input(
     let vendor_error = if trimmed.is_empty() {
         None
     } else if let Some(rule) = vendor_validation_rule {
-        validate_vendor_id(&trimmed, &rule).err().map(|err| err.to_string())
+        validate_vendor_id(&trimmed, &rule)
+            .err()
+            .map(|err| err.to_string())
     } else {
         None
     };
@@ -355,7 +411,10 @@ fn load_saved_form_data() -> DraftLoadOutcome {
     };
 
     match parse_stored_form_data(&raw) {
-        Ok((booth_id, form_data)) => DraftLoadOutcome::Restored { booth_id, form_data },
+        Ok((booth_id, form_data)) => DraftLoadOutcome::Restored {
+            booth_id,
+            form_data,
+        },
         Err(err) => {
             error!("Failed to recover checkout draft: {}", err);
             let _ = storage.remove_item(CHECKOUT_DRAFT_STORAGE_KEY);
@@ -392,8 +451,8 @@ fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) -> Resul
                 .collect(),
         };
 
-        let serialized =
-            serde_json::to_string(&stored).map_err(|err| format!("failed to serialize draft: {err}"))?;
+        let serialized = serde_json::to_string(&stored)
+            .map_err(|err| format!("failed to serialize draft: {err}"))?;
         storage
             .set_item(CHECKOUT_DRAFT_STORAGE_KEY, &serialized)
             .map_err(|err| format!("failed to persist draft: {:?}", err))?;
@@ -440,12 +499,16 @@ pub fn CheckoutPage() -> impl IntoView {
     let initial_form_data = match draft_load_outcome {
         DraftLoadOutcome::Restored { form_data, .. } => form_data,
         DraftLoadOutcome::Empty | DraftLoadOutcome::CorruptedCleared => CheckoutFormData {
-            current_amount: default_amount_for_mode(initial_amount_input_mode, locale.get_untracked()),
+            current_amount: default_amount_for_mode(
+                initial_amount_input_mode,
+                locale.get_untracked(),
+            ),
             ..CheckoutFormData::default()
         },
     };
     let (form_data, set_form_data) = create_signal(initial_form_data);
-    let (keyboard_visible, set_keyboard_visible) = create_signal(load_keyboard_visible_preference());
+    let (keyboard_visible, set_keyboard_visible) =
+        create_signal(load_keyboard_visible_preference());
     let (amount_input_mode, set_amount_input_mode) = create_signal(initial_amount_input_mode);
     let (active_input, set_active_input) = create_signal(ActiveInput::VendorId);
     let (draft_notice_pending, set_draft_notice_pending) = create_signal(initial_draft_notice);
@@ -610,8 +673,10 @@ pub fn CheckoutPage() -> impl IntoView {
                             .iter()
                             .map(|purchase| purchase.total_amount())
                             .sum();
-                        let total_items: usize =
-                            recovered_purchases.iter().map(|purchase| purchase.items.len()).sum();
+                        let total_items: usize = recovered_purchases
+                            .iter()
+                            .map(|purchase| purchase.items.len())
+                            .sum();
 
                         set_purchases.set(paginated_items);
                         set_total_count.set(total_count);
@@ -624,10 +689,7 @@ pub fn CheckoutPage() -> impl IntoView {
                             if already_shown != Some(warning_key.clone()) {
                                 let message = translate_with_params(
                                     "checkout.recovery.partial_data_warning",
-                                    HashMap::from([(
-                                        "count",
-                                        diagnostics.len().to_string(),
-                                    )]),
+                                    HashMap::from([("count", diagnostics.len().to_string())]),
                                 );
                                 toast.warning(&message);
                                 set_last_partial_recovery_warning.set(Some(warning_key));
@@ -755,11 +817,62 @@ pub fn CheckoutPage() -> impl IntoView {
     let handle_keyboard_key = {
         let locale = locale.clone();
         let set_form_data = set_form_data.clone();
-        move |key: KeyboardKey| {
-            match active_input.get_untracked() {
-                ActiveInput::VendorId => {
-                    let current = form_data.get_untracked().vendor_id;
-                    let next = match key {
+        move |key: KeyboardKey| match active_input.get_untracked() {
+            ActiveInput::VendorId => {
+                let current = form_data.get_untracked().vendor_id;
+                let (input_value, selection_start, selection_end) =
+                    input_selection_range(&vendor_input_ref, &current);
+                let next = match key {
+                    KeyboardKey::Digit(digit) => replace_input_range(
+                        &input_value,
+                        selection_start,
+                        selection_end,
+                        &digit.to_string(),
+                    ),
+                    KeyboardKey::Backspace => {
+                        backspace_input_range(&input_value, selection_start, selection_end)
+                    }
+                    KeyboardKey::Clear => String::new(),
+                    _ => input_value.clone(),
+                };
+                let next_cursor = match key {
+                    KeyboardKey::Digit(digit) => selection_start + digit.to_string().len() as u32,
+                    KeyboardKey::Backspace => {
+                        if selection_start != selection_end {
+                            selection_start
+                        } else {
+                            selection_start.saturating_sub(1)
+                        }
+                    }
+                    KeyboardKey::Clear => 0,
+                    _ => selection_end,
+                };
+                update_vendor_input(
+                    set_form_data,
+                    next.clone(),
+                    vendor_validation_rule.get_untracked(),
+                );
+                if let Some(input) = vendor_input_ref.get() {
+                    input.set_value(&next);
+                }
+                focus_input_with_cursor(&vendor_input_ref, next_cursor);
+            }
+            ActiveInput::Amount => {
+                let locale_value = locale.get_untracked();
+                let current = form_data.get_untracked().current_amount;
+                let next = match amount_input_mode.get_untracked() {
+                    AmountInputMode::RightToLeft => match key {
+                        KeyboardKey::Digit(digit) => rtl_add_digit(&current, digit, locale_value),
+                        KeyboardKey::Backspace => rtl_backspace(&current, locale_value),
+                        KeyboardKey::Clear => {
+                            default_amount_for_mode(AmountInputMode::RightToLeft, locale_value)
+                        }
+                        KeyboardKey::QuickAmount(amount) => {
+                            format_decimal_for_input(amount, locale_value, 2)
+                        }
+                        KeyboardKey::Decimal => current,
+                    },
+                    AmountInputMode::Regular => match key {
                         KeyboardKey::Digit(digit) => format!("{}{}", current, digit),
                         KeyboardKey::Backspace => {
                             let mut chars = current.chars().collect::<Vec<_>>();
@@ -767,48 +880,23 @@ pub fn CheckoutPage() -> impl IntoView {
                             chars.into_iter().collect::<String>()
                         }
                         KeyboardKey::Clear => String::new(),
-                        _ => current,
-                    };
-                    update_vendor_input(set_form_data, next, vendor_validation_rule.get_untracked());
-                    focus_and_select_input(&vendor_input_ref);
+                        KeyboardKey::QuickAmount(amount) => {
+                            format_decimal_for_input(amount, locale_value, 2)
+                        }
+                        KeyboardKey::Decimal => {
+                            if current.contains('.') || current.contains(',') {
+                                current
+                            } else {
+                                format!("{}{}", current, decimal_separator(locale_value))
+                            }
+                        }
+                    },
+                };
+                update_amount_input(set_form_data, next.clone());
+                if let Some(input) = amount_input_ref.get() {
+                    input.set_value(&next);
                 }
-                ActiveInput::Amount => {
-                    let locale_value = locale.get_untracked();
-                    let current = form_data.get_untracked().current_amount;
-                    let next = match amount_input_mode.get_untracked() {
-                        AmountInputMode::RightToLeft => match key {
-                            KeyboardKey::Digit(digit) => rtl_add_digit(&current, digit, locale_value),
-                            KeyboardKey::DoubleZero => {
-                                let once = rtl_add_digit(&current, 0, locale_value);
-                                rtl_add_digit(&once, 0, locale_value)
-                            }
-                            KeyboardKey::Backspace => rtl_backspace(&current, locale_value),
-                            KeyboardKey::Clear => default_amount_for_mode(AmountInputMode::RightToLeft, locale_value),
-                            KeyboardKey::QuickAmount(amount) => format_decimal_for_input(amount, locale_value, 2),
-                            KeyboardKey::Decimal => current,
-                        },
-                        AmountInputMode::Regular => match key {
-                            KeyboardKey::Digit(digit) => format!("{}{}", current, digit),
-                            KeyboardKey::DoubleZero => format!("{}00", current),
-                            KeyboardKey::Backspace => {
-                                let mut chars = current.chars().collect::<Vec<_>>();
-                                chars.pop();
-                                chars.into_iter().collect::<String>()
-                            }
-                            KeyboardKey::Clear => String::new(),
-                            KeyboardKey::QuickAmount(amount) => format_decimal_for_input(amount, locale_value, 2),
-                            KeyboardKey::Decimal => {
-                                if current.contains('.') || current.contains(',') {
-                                    current
-                                } else {
-                                    format!("{}{}", current, decimal_separator(locale_value))
-                                }
-                            }
-                        },
-                    };
-                    update_amount_input(set_form_data, next);
-                    focus_and_select_input(&amount_input_ref);
-                }
+                focus_and_select_input(&amount_input_ref);
             }
         }
     };
@@ -1021,7 +1109,10 @@ pub fn CheckoutPage() -> impl IntoView {
                         set_form_data.set(empty_form.clone());
                         let booth_id = selected_booth.get().map(|b| b.id.as_str());
                         if let Err(err) = persist_form_data(booth_id, &empty_form) {
-                            error!("Failed to clear checkout draft after purchase save: {}", err);
+                            error!(
+                                "Failed to clear checkout draft after purchase save: {}",
+                                err
+                            );
                             toast.error(&t!("checkout.draft_save_failed")());
                         }
                     }
@@ -1214,16 +1305,12 @@ pub fn CheckoutPage() -> impl IntoView {
                                     <span class="inline-flex items-center gap-2 text-sm font-semibold">
                                         <svg
                                             class="h-5 w-5"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.8"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                            xmlns="http://www.w3.org/2000/svg"
                                             aria-hidden="true"
                                         >
-                                            <rect x="2" y="5" width="20" height="14" rx="2" />
-                                            <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M6 17h8" />
+                                            <path d="M6 0H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm5 0h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zM6 5H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zm5 0h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM6 10H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm5 0H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm0 6H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1zm5-6h-2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1z" />
                                         </svg>
                                         {move || if keyboard_visible.get() {
                                             t!("checkout.keyboard_toggle_hide")()
@@ -1364,36 +1451,9 @@ pub fn CheckoutPage() -> impl IntoView {
                                                 </div>
 
                                                 <div>
-                                                    <div class="mb-1 flex items-center justify-between gap-3">
-                                                        <label class="block text-sm font-medium text-gray-700">
-                                                            {t!("checkout.amount")}
-                                                        </label>
-                                                        <button
-                                                            type="button"
-                                                            class="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            aria-label={t!("checkout.keyboard_mode_aria")()}
-                                                            on:click=move |_| {
-                                                                let next_mode = match amount_input_mode.get() {
-                                                                    AmountInputMode::RightToLeft => AmountInputMode::Regular,
-                                                                    AmountInputMode::Regular => AmountInputMode::RightToLeft,
-                                                                };
-                                                                let locale_value = locale.get();
-                                                                set_amount_input_mode.set(next_mode);
-                                                                set_form_data.update(|data| {
-                                                                    data.current_amount = default_amount_for_mode(next_mode, locale_value);
-                                                                    data.amount_error = None;
-                                                                });
-                                                                if let Some(amount_input) = amount_input_ref.get() {
-                                                                    amount_input.set_value(&default_amount_for_mode(next_mode, locale_value));
-                                                                }
-                                                            }
-                                                        >
-                                                            {move || match amount_input_mode.get() {
-                                                                AmountInputMode::RightToLeft => t!("checkout.keyboard_mode_cash_register")(),
-                                                                AmountInputMode::Regular => t!("checkout.keyboard_mode_regular")(),
-                                                            }}
-                                                        </button>
-                                                    </div>
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">
+                                                        {t!("checkout.amount")}
+                                                    </label>
                                                     <div class="flex flex-col gap-2">
                                                         <input
                                                             class={move || format!(
@@ -1416,14 +1476,21 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 set_purchase_to_delete.set(None);
                                                                 let value = event_target_value(&ev);
                                                                 let locale_value = locale.get();
+                                                                let sanitized_value =
+                                                                    sanitize_amount_input(
+                                                                        &value,
+                                                                        decimal_separator(
+                                                                            locale_value,
+                                                                        ),
+                                                                    );
                                                                 let previous = form_data.get().current_amount;
                                                                 let next = match amount_input_mode.get() {
-                                                                    AmountInputMode::Regular => value,
+                                                                    AmountInputMode::Regular => sanitized_value.clone(),
                                                                     AmountInputMode::RightToLeft => {
-                                                                        if value.len() < previous.len() {
+                                                                        if sanitized_value.len() < previous.len() {
                                                                             rtl_backspace(&previous, locale_value)
                                                                         } else {
-                                                                            let added_digit = value
+                                                                            let added_digit = sanitized_value
                                                                                 .chars()
                                                                                 .rev()
                                                                                 .find(|ch| ch.is_ascii_digit())
@@ -1441,11 +1508,15 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 update_amount_input(set_form_data, next);
                                                             }
                                                             on:keydown=move |ev: web_sys::KeyboardEvent| {
-                                                                if ev.key() == "Enter" {
+                                                                let key = ev.key();
+
+                                                                if key == "Enter" {
                                                                     ev.prevent_default();
                                                                     add_item();
-                                                                } else if amount_input_mode.get() == AmountInputMode::RightToLeft {
-                                                                    let key = ev.key();
+                                                                    return;
+                                                                }
+
+                                                                if amount_input_mode.get() == AmountInputMode::RightToLeft {
                                                                     if key == "Backspace" {
                                                                         ev.prevent_default();
                                                                         handle_keyboard_key(KeyboardKey::Backspace);
@@ -1456,7 +1527,17 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         if let Some(digit) = key.chars().next().and_then(|ch| ch.to_digit(10)) {
                                                                             ev.prevent_default();
                                                                             handle_keyboard_key(KeyboardKey::Digit(digit as u8));
+                                                                        } else {
+                                                                            ev.prevent_default();
                                                                         }
+                                                                    }
+                                                                } else {
+                                                                    let current_value = form_data.get().current_amount;
+                                                                    let decimal_sep = decimal_separator(locale.get());
+
+                                                                    if !is_allowed_amount_key(&key, &current_value, decimal_sep)
+                                                                    {
+                                                                        ev.prevent_default();
                                                                     }
                                                                 }
                                                             }
@@ -1471,7 +1552,38 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     <OnScreenKeyboard
                                                         is_visible=Signal::derive(move || keyboard_visible.get())
                                                         on_key=Callback::new(handle_keyboard_key)
+                                                        on_mode_change=Callback::new({
+                                                            let amount_input_mode = amount_input_mode;
+                                                            let set_amount_input_mode = set_amount_input_mode;
+                                                            let set_form_data = set_form_data;
+                                                            let form_data = form_data;
+                                                            let amount_input_ref = amount_input_ref;
+                                                            let locale = locale.clone();
+                                                            move |_| {
+                                                                let next_mode = match amount_input_mode.get() {
+                                                                    AmountInputMode::RightToLeft => AmountInputMode::Regular,
+                                                                    AmountInputMode::Regular => AmountInputMode::RightToLeft,
+                                                                };
+                                                                let locale_value = locale.get();
+                                                                let current_amount = form_data.get().current_amount;
+                                                                let normalized_amount = normalize_amount_for_mode(
+                                                                    &current_amount,
+                                                                    next_mode,
+                                                                    locale_value,
+                                                                );
+                                                                set_amount_input_mode.set(next_mode);
+                                                                set_form_data.update(|data| {
+                                                                    data.current_amount = normalized_amount.clone();
+                                                                    data.amount_error = None;
+                                                                });
+                                                                if let Some(amount_input) = amount_input_ref.get() {
+                                                                    amount_input.set_value(&normalized_amount);
+                                                                    let _ = amount_input.focus();
+                                                                }
+                                                            }
+                                                        })
                                                         quick_amounts=booth_keyboard_config.get().quick_amounts
+                                                        current_mode=Signal::derive(move || amount_input_mode.get())
                                                         locale=locale.get()
                                                     />
                                                 </Show>
@@ -2057,7 +2169,10 @@ mod tests {
         assert_eq!(form_data.current_amount, "5.50");
         assert_eq!(form_data.items.len(), 1);
         assert_eq!(form_data.items[0].vendor_id, "12");
-        assert_eq!(form_data.items[0].amount, Decimal::from_str("5.50").unwrap());
+        assert_eq!(
+            form_data.items[0].amount,
+            Decimal::from_str("5.50").unwrap()
+        );
     }
 
     #[test]
@@ -2090,8 +2205,17 @@ mod tests {
 
     #[test]
     fn default_amount_uses_locale_and_mode() {
-        assert_eq!(default_amount_for_mode(AmountInputMode::RightToLeft, Locale::En), "0.00");
-        assert_eq!(default_amount_for_mode(AmountInputMode::RightToLeft, Locale::De), "0,00");
-        assert_eq!(default_amount_for_mode(AmountInputMode::Regular, Locale::En), "");
+        assert_eq!(
+            default_amount_for_mode(AmountInputMode::RightToLeft, Locale::En),
+            "0.00"
+        );
+        assert_eq!(
+            default_amount_for_mode(AmountInputMode::RightToLeft, Locale::De),
+            "0,00"
+        );
+        assert_eq!(
+            default_amount_for_mode(AmountInputMode::Regular, Locale::En),
+            ""
+        );
     }
 }
