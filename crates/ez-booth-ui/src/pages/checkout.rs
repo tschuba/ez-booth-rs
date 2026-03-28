@@ -11,7 +11,8 @@ use crate::state::use_app_state;
 use crate::t;
 use chrono::{DateTime, Local, Utc};
 use domain::error::DomainError;
-use domain::models::booth::VendorIdValidation;
+use domain::error_code::ValidationError;
+use domain::models::booth::{VendorIdOmissionRules, VendorIdValidation};
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
 use domain::validation::validate_vendor_id;
@@ -448,6 +449,7 @@ fn update_vendor_input(
     set_form_data: WriteSignal<CheckoutFormData>,
     value: String,
     vendor_validation_rule: Option<VendorIdValidation>,
+    vendor_omission_rules: VendorIdOmissionRules,
     error_sound_enabled: ReadSignal<bool>,
     last_error_sound_at: RwSignal<u128>,
 ) {
@@ -455,9 +457,13 @@ fn update_vendor_input(
     let vendor_error = if trimmed.is_empty() {
         None
     } else if let Some(rule) = vendor_validation_rule {
-        validate_vendor_id(&trimmed, &rule)
-            .err()
-            .map(|err| translate_domain_error(&err))
+        match validate_vendor_id(&trimmed, &rule) {
+            Err(err) => Some(translate_domain_error(&err)),
+            Ok(()) if vendor_omission_rules.is_omitted(&trimmed) => Some(translate_domain_error(
+                &DomainError::Validation(ValidationError::VendorIdOmitted { value: trimmed }),
+            )),
+            Ok(()) => None,
+        }
     } else {
         None
     };
@@ -754,6 +760,15 @@ pub fn CheckoutPage() -> impl IntoView {
             .map(|booth| booth.vendor_id_validation.clone())
     });
 
+    let vendor_omission_rules = create_memo(move |_| {
+        selected_booth
+            .get()
+            .map(|booth| booth.vendor_id_omission_rules.clone())
+            .unwrap_or_else(VendorIdOmissionRules::empty)
+    });
+
+    let show_rules_modal = create_rw_signal(false);
+
     // Focus vendor input when view is ready and data is loaded
     {
         let vendor_input_ref = vendor_input_ref.clone();
@@ -917,6 +932,18 @@ pub fn CheckoutPage() -> impl IntoView {
                 return;
             }
         }
+
+        if vendor_omission_rules.get().is_omitted(&vendor_id_for_item) {
+            let error_msg = translate_domain_error(&DomainError::Validation(
+                ValidationError::VendorIdOmitted {
+                    value: vendor_id_for_item.clone(),
+                },
+            ));
+            set_form_data.update(|form| form.vendor_error = Some(error_msg));
+            play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+            focus_and_select_input(&vendor_input_ref_for_add);
+            return;
+        }
         // If no booth selected, defer validation to server
 
         if data.current_amount.trim().is_empty() {
@@ -1062,6 +1089,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     set_form_data,
                     next.clone(),
                     vendor_validation_rule.get_untracked(),
+                    vendor_omission_rules.get_untracked(),
                     error_sound_enabled,
                     last_error_sound_at,
                 );
@@ -1226,6 +1254,18 @@ pub fn CheckoutPage() -> impl IntoView {
 
         if data.vendor_id.is_empty() {
             let message = t!("checkout.errors.vendor_required")();
+            toast.warning(&message);
+            set_form_data.update(|form| form.vendor_error = Some(message));
+            focus_and_select_input(&vendor_input_ref_for_add);
+            return;
+        }
+
+        if vendor_omission_rules.get().is_omitted(&data.vendor_id) {
+            let message = translate_domain_error(&DomainError::Validation(
+                ValidationError::VendorIdOmitted {
+                    value: data.vendor_id.clone(),
+                },
+            ));
             toast.warning(&message);
             set_form_data.update(|form| form.vendor_error = Some(message));
             focus_and_select_input(&vendor_input_ref_for_add);
@@ -1579,6 +1619,29 @@ pub fn CheckoutPage() -> impl IntoView {
                                             set_error_sound_enabled.update(|value| *value = !*value);
                                         })
                                     />
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        aria-label=t!("checkout.rules_button_aria")()
+                                        title=t!("checkout.rules_button_title")()
+                                        on:click=move |_| {
+                                            show_rules_modal.set(true);
+                                        }
+                                    >
+                                        <svg
+                                            class="h-5 w-5"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-4a1 1 0 100 2 1 1 0 000-2zm-1 4a1 1 0 000 2v2a1 1 0 102 0v-2a1 1 0 00-1-1H9z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                             <Show
@@ -1617,6 +1680,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 set_form_data,
                                                                 value,
                                                                 vendor_validation_rule.get(),
+                                                                vendor_omission_rules.get(),
                                                                 error_sound_enabled,
                                                                 last_error_sound_at,
                                                             );
@@ -1649,6 +1713,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     // Validate against booth rules before advancing
                                                                     let is_valid = if let Some(rule) = vendor_validation_rule.get() {
                                                                         validate_vendor_id(&trimmed, &rule).is_ok()
+                                                                            && !vendor_omission_rules.get().is_omitted(&trimmed)
                                                                     } else {
                                                                         // No booth selected - treat as invalid
                                                                         false
@@ -1666,6 +1731,16 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                         if let Some(rule) = vendor_validation_rule.get() {
                                                                             if let Err(e) = validate_vendor_id(&trimmed, &rule) {
                                                                                 let error_msg = translate_domain_error(&e);
+                                                                                set_form_data.update(|data| {
+                                                                                    data.vendor_error = Some(error_msg);
+                                                                                });
+                                                                                play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                                                                            } else if vendor_omission_rules.get().is_omitted(&trimmed) {
+                                                                                let error_msg = translate_domain_error(&DomainError::Validation(
+                                                                                    ValidationError::VendorIdOmitted {
+                                                                                        value: trimmed.clone(),
+                                                                                    },
+                                                                                ));
                                                                                 set_form_data.update(|data| {
                                                                                     data.vendor_error = Some(error_msg);
                                                                                 });
@@ -1698,7 +1773,18 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             } else if let Some(rule) = vendor_validation_rule.get() {
                                                                 match validate_vendor_id(&trimmed, &rule) {
                                                                     Ok(()) => {
-                                                                        set_form_data.update(|data| data.vendor_error = None);
+                                                                        if vendor_omission_rules.get().is_omitted(&trimmed) {
+                                                                            let error_msg = translate_domain_error(&DomainError::Validation(
+                                                                                ValidationError::VendorIdOmitted {
+                                                                                    value: trimmed.clone(),
+                                                                                },
+                                                                            ));
+                                                                            set_form_data.update(|data| {
+                                                                                data.vendor_error = Some(error_msg);
+                                                                            });
+                                                                        } else {
+                                                                            set_form_data.update(|data| data.vendor_error = None);
+                                                                        }
                                                                     }
                                                                     Err(e) => {
                                                                         let error_msg = translate_domain_error(&e);
@@ -2485,6 +2571,13 @@ pub fn CheckoutPage() -> impl IntoView {
             </div>
         </Show>
         </Modal>
+
+        <VendorRulesInfoModal
+            show=Signal::derive(move || show_rules_modal.get())
+            on_close=move || show_rules_modal.set(false)
+            vendor_validation_rule=Signal::derive(move || vendor_validation_rule.get())
+            vendor_omission_rules=Signal::derive(move || vendor_omission_rules.get())
+        />
     }
 }
 

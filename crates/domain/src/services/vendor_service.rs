@@ -1,4 +1,5 @@
 use crate::error::{DomainError, DomainResult};
+use crate::error_code::ValidationError;
 use crate::models::{BoothId, Vendor, VendorId};
 use crate::repositories::{BoothRepository, VendorRepository};
 use crate::validation::validate_vendor_id;
@@ -34,6 +35,12 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
 
         // Validate vendor ID
         validate_vendor_id(&vendor_id_str, &booth.vendor_id_validation)?;
+
+        if booth.vendor_id_omission_rules.is_omitted(&vendor_id_str) {
+            return Err(DomainError::Validation(ValidationError::VendorIdOmitted {
+                value: vendor_id_str,
+            }));
+        }
 
         let vendor_id = VendorId::new(vendor_id_str.clone());
 
@@ -96,7 +103,7 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Booth, FeeConfig, VendorIdValidation};
+    use crate::models::{Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation};
     use async_trait::async_trait;
     use chrono::NaiveDate;
     use rust_decimal::Decimal;
@@ -464,5 +471,59 @@ mod tests {
             }
             _ => panic!("Expected NotFound error"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_validation_vendor_id_omitted() {
+        let vendor_repo = MockVendorRepository::new();
+        let booth_repo = MockBoothRepository::new();
+
+        let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        booth.vendor_id_omission_rules = VendorIdOmissionRules {
+            rules: vec![OmissionRule::RangeWithStep {
+                start: 56,
+                end: 182,
+                step: 6,
+            }],
+        };
+        let booth_id = booth.id;
+        booth_repo.add_booth(booth);
+
+        let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
+
+        let result = service.get_or_create(booth_id, "56".to_string()).await;
+
+        match result {
+            Err(DomainError::Validation(ValidationError::VendorIdOmitted { value })) => {
+                assert_eq!(value, "56");
+            }
+            _ => panic!("Expected VendorIdOmitted validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validation_vendor_id_not_omitted() {
+        let vendor_repo = MockVendorRepository::new();
+        let booth_repo = MockBoothRepository::new();
+
+        let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        booth.vendor_id_omission_rules = VendorIdOmissionRules {
+            rules: vec![OmissionRule::RangeWithStep {
+                start: 56,
+                end: 182,
+                step: 6,
+            }],
+        };
+        let booth_id = booth.id;
+        booth_repo.add_booth(booth);
+
+        let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
+
+        let vendor = service
+            .get_or_create(booth_id, "55".to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(vendor.vendor_id.as_str(), "55");
     }
 }

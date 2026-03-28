@@ -6,6 +6,94 @@ use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
 use crate::error_code::ValidationError;
 
+/// Rules for omitting specific vendor IDs during checkout.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VendorIdOmissionRules {
+    pub rules: Vec<OmissionRule>,
+}
+
+impl VendorIdOmissionRules {
+    pub fn empty() -> Self {
+        Self { rules: Vec::new() }
+    }
+
+    pub fn is_omitted(&self, vendor_id: &str) -> bool {
+        self.rules.iter().any(|rule| rule.matches(vendor_id))
+    }
+}
+
+impl Default for VendorIdOmissionRules {
+    fn default() -> Self {
+        Self {
+            rules: vec![OmissionRule::RangeWithStep {
+                start: 56,
+                end: 182,
+                step: 6,
+            }],
+        }
+    }
+}
+
+/// A single omission rule for blocking vendor IDs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum OmissionRule {
+    Exact(String),
+    Wildcard(String),
+    Regex(String),
+    Range { start: u32, end: u32 },
+    RangeWithStep { start: u32, end: u32, step: u32 },
+}
+
+impl OmissionRule {
+    pub fn matches(&self, vendor_id: &str) -> bool {
+        match self {
+            Self::Exact(value) => vendor_id == value,
+            Self::Wildcard(pattern) => wildcard_matches(pattern, vendor_id),
+            Self::Regex(pattern) => regex::Regex::new(pattern)
+                .ok()
+                .map(|re| re.is_match(vendor_id))
+                .unwrap_or(false),
+            Self::Range { start, end } => vendor_id
+                .parse::<u32>()
+                .ok()
+                .map(|value| value >= *start && value <= *end)
+                .unwrap_or(false),
+            Self::RangeWithStep { start, end, step } => {
+                if *step == 0 {
+                    return false;
+                }
+
+                vendor_id
+                    .parse::<u32>()
+                    .ok()
+                    .map(|value| value >= *start && value <= *end && (value - *start) % *step == 0)
+                    .unwrap_or(false)
+            }
+        }
+    }
+}
+
+fn wildcard_matches(pattern: &str, value: &str) -> bool {
+    let mut regex_pattern = String::with_capacity(pattern.len() + 2);
+    regex_pattern.push('^');
+
+    for ch in pattern.chars() {
+        match ch {
+            '*' => regex_pattern.push_str(".*"),
+            '?' => regex_pattern.push('.'),
+            _ => regex_pattern.push_str(&regex::escape(&ch.to_string())),
+        }
+    }
+
+    regex_pattern.push('$');
+
+    regex::Regex::new(&regex_pattern)
+        .ok()
+        .map(|re| re.is_match(value))
+        .unwrap_or(false)
+}
+
 /// Vendor ID validation rules for a booth
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "type", content = "pattern")]
@@ -34,6 +122,9 @@ pub struct Booth {
 
     #[serde(default)]
     pub vendor_id_validation: VendorIdValidation,
+
+    #[serde(default)]
+    pub vendor_id_omission_rules: VendorIdOmissionRules,
 
     #[serde(default)]
     pub keyboard_config: CheckoutKeyboardConfig,
@@ -148,6 +239,7 @@ impl Booth {
             fees,
             status: BoothStatus::Open,
             vendor_id_validation: VendorIdValidation::default(),
+            vendor_id_omission_rules: VendorIdOmissionRules::default(),
             keyboard_config: CheckoutKeyboardConfig::default(),
             created_at: now,
             updated_at: now,
@@ -216,4 +308,56 @@ pub struct VendorBoothSummary {
     pub fees_due: Decimal,
     pub net_payout: Decimal,
     pub item_count: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn omission_rule_exact_matches() {
+        assert!(OmissionRule::Exact("123".to_string()).matches("123"));
+        assert!(!OmissionRule::Exact("123".to_string()).matches("124"));
+    }
+
+    #[test]
+    fn omission_rule_wildcard_matches() {
+        assert!(OmissionRule::Wildcard("12*".to_string()).matches("1234"));
+        assert!(OmissionRule::Wildcard("*34".to_string()).matches("1234"));
+        assert!(OmissionRule::Wildcard("1?34".to_string()).matches("1234"));
+        assert!(!OmissionRule::Wildcard("12*".to_string()).matches("9912"));
+    }
+
+    #[test]
+    fn omission_rule_regex_matches() {
+        assert!(OmissionRule::Regex("^A\\d+$".to_string()).matches("A42"));
+        assert!(!OmissionRule::Regex("^A\\d+$".to_string()).matches("B42"));
+    }
+
+    #[test]
+    fn omission_rule_range_with_step_matches() {
+        let rule = OmissionRule::RangeWithStep {
+            start: 56,
+            end: 182,
+            step: 6,
+        };
+
+        assert!(rule.matches("56"));
+        assert!(rule.matches("62"));
+        assert!(rule.matches("182"));
+        assert!(!rule.matches("60"));
+        assert!(!rule.matches("183"));
+    }
+
+    #[test]
+    fn default_omission_rules_match_expected_values() {
+        let rules = VendorIdOmissionRules::default();
+
+        assert!(rules.is_omitted("56"));
+        assert!(rules.is_omitted("62"));
+        assert!(rules.is_omitted("182"));
+        assert!(!rules.is_omitted("55"));
+        assert!(!rules.is_omitted("60"));
+        assert!(!rules.is_omitted("183"));
+    }
 }
