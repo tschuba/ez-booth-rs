@@ -223,6 +223,7 @@
       "amount_required": "Betrag ist erforderlich",
       "amount_positive": "Betrag muss größer als Null sein",
       "amount_invalid": "Ungültiges Betragsformat",
+      "amount_too_large": "Betrag darf 1.000.000,00 nicht überschreiten",
       "vendor_required": "Verkäufer-ID ist erforderlich",
       "items_required": "Bitte mindestens einen Artikel hinzufügen",
       "booth_required": "Bitte zuerst eine Veranstaltung erstellen",

@@ -63,6 +63,7 @@ struct StoredCheckoutForm {
 const CHECKOUT_DRAFT_STORAGE_KEY: &str = "ez-booth-checkout-draft";
 const CHECKOUT_KEYBOARD_VISIBLE_STORAGE_KEY: &str = "ez-booth-checkout-keyboard-visible";
 const CHECKOUT_AMOUNT_INPUT_MODE_STORAGE_KEY: &str = "ez-booth-checkout-amount-input-mode";
+const MAX_ITEM_AMOUNT: Decimal = Decimal::from_parts(1_000_000, 0, 0, false, 0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ActiveInput {
@@ -178,10 +179,14 @@ fn utf16_index_to_byte_index(value: &str, utf16_index: u32) -> usize {
     let mut utf16_count = 0;
 
     for (byte_index, ch) in value.char_indices() {
-        if utf16_count >= utf16_index {
+        let next_utf16_count = utf16_count + ch.len_utf16() as u32;
+        if utf16_index <= utf16_count {
             return byte_index;
         }
-        utf16_count += ch.len_utf16() as u32;
+        if utf16_index < next_utf16_count {
+            return byte_index;
+        }
+        utf16_count = next_utf16_count;
     }
 
     value.len()
@@ -262,9 +267,20 @@ fn format_cents_to_amount(cents: i64, locale: Locale) -> String {
 
 fn rtl_add_digit(current: &str, digit: u8, locale: Locale) -> String {
     let next_cents = parse_amount_to_cents(current)
-        .saturating_mul(10)
-        .saturating_add(i64::from(digit));
-    format_cents_to_amount(next_cents, locale)
+        .checked_mul(10)
+        .and_then(|value| value.checked_add(i64::from(digit)));
+
+    match next_cents {
+        Some(next_cents) => {
+            let next_amount = Decimal::new(next_cents, 2);
+            if next_amount > MAX_ITEM_AMOUNT {
+                current.to_string()
+            } else {
+                format_decimal_for_input(next_amount, locale, 2)
+            }
+        }
+        None => current.to_string(),
+    }
 }
 
 fn rtl_backspace(current: &str, locale: Locale) -> String {
@@ -283,6 +299,15 @@ fn normalize_amount_for_mode(value: &str, mode: AmountInputMode, locale: Locale)
             .unwrap_or_else(|_| default_amount_for_mode(mode, locale)),
         AmountInputMode::Regular => value.to_string(),
     }
+}
+
+fn normalize_form_data_for_mode(
+    mut form_data: CheckoutFormData,
+    mode: AmountInputMode,
+    locale: Locale,
+) -> CheckoutFormData {
+    form_data.current_amount = normalize_amount_for_mode(&form_data.current_amount, mode, locale);
+    form_data
 }
 
 fn load_keyboard_visible_preference() -> bool {
@@ -497,7 +522,11 @@ pub fn CheckoutPage() -> impl IntoView {
     let locale = use_locale();
     let initial_amount_input_mode = load_amount_input_mode_preference();
     let initial_form_data = match draft_load_outcome {
-        DraftLoadOutcome::Restored { form_data, .. } => form_data,
+        DraftLoadOutcome::Restored { form_data, .. } => normalize_form_data_for_mode(
+            form_data,
+            initial_amount_input_mode,
+            locale.get_untracked(),
+        ),
         DraftLoadOutcome::Empty | DraftLoadOutcome::CorruptedCleared => CheckoutFormData {
             current_amount: default_amount_for_mode(
                 initial_amount_input_mode,
@@ -776,6 +805,16 @@ pub fn CheckoutPage() -> impl IntoView {
                     return;
                 }
 
+                if amount > MAX_ITEM_AMOUNT {
+                    let message = t!("checkout.errors.amount_too_large")();
+                    toast.warning(&message);
+                    set_form_data.update(|form| {
+                        form.amount_error = Some(message.clone());
+                    });
+                    focus_and_select_input(&amount_input_ref_for_add);
+                    return;
+                }
+
                 let mut new_items = data.items.clone();
                 new_items.insert(
                     0,
@@ -884,7 +923,7 @@ pub fn CheckoutPage() -> impl IntoView {
                             format_decimal_for_input(amount, locale_value, 2)
                         }
                         KeyboardKey::Decimal => {
-                            if current.contains('.') || current.contains(',') {
+                            if current.contains(decimal_separator(locale_value)) {
                                 current
                             } else {
                                 format!("{}{}", current, decimal_separator(locale_value))
@@ -2217,5 +2256,53 @@ mod tests {
             default_amount_for_mode(AmountInputMode::Regular, Locale::En),
             ""
         );
+    }
+
+    #[test]
+    fn utf16_index_maps_surrogate_pairs_to_character_boundaries() {
+        let value = "A😀B";
+        assert_eq!(utf16_index_to_byte_index(value, 0), 0);
+        assert_eq!(utf16_index_to_byte_index(value, 1), 1);
+        assert_eq!(utf16_index_to_byte_index(value, 2), 1);
+        assert_eq!(utf16_index_to_byte_index(value, 3), 5);
+        assert_eq!(utf16_index_to_byte_index(value, 4), 6);
+    }
+
+    #[test]
+    fn backspace_removes_entire_surrogate_pair_character() {
+        assert_eq!(backspace_input_range("A😀B", 3, 3), "AB");
+    }
+
+    #[test]
+    fn normalize_form_data_restores_amount_for_selected_mode() {
+        let form_data = CheckoutFormData {
+            vendor_id: "12".to_string(),
+            current_amount: "5.50".to_string(),
+            ..Default::default()
+        };
+
+        let normalized = normalize_form_data_for_mode(form_data, AmountInputMode::RightToLeft, Locale::De);
+
+        assert_eq!(normalized.vendor_id, "12");
+        assert_eq!(normalized.current_amount, "5,50");
+    }
+
+    #[test]
+    fn rtl_digit_entry_stops_at_domain_maximum_amount() {
+        assert_eq!(rtl_add_digit("1000000.00", 1, Locale::En), "1000000.00");
+    }
+
+    #[test]
+    fn regular_mode_decimal_button_respects_locale_specific_separator() {
+        let current = "12.34";
+        let locale = Locale::De;
+
+        let next = if current.contains(decimal_separator(locale)) {
+            current.to_string()
+        } else {
+            format!("{}{}", current, decimal_separator(locale))
+        };
+
+        assert_eq!(next, "12.34,");
     }
 }

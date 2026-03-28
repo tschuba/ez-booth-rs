@@ -223,6 +223,7 @@
       "amount_required": "Amount is required",
       "amount_positive": "Amount must be greater than zero",
       "amount_invalid": "Invalid amount format",
+      "amount_too_large": "Amount must not exceed 1,000,000.00",
       "vendor_required": "Vendor ID is required",
       "items_required": "Please add at least one item",
       "booth_required": "Please create an event first",
