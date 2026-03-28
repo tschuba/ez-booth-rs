@@ -146,6 +146,7 @@
     "no_vendors_selected": "Please select at least one vendor",
     "vendors_without_purchases_heading": "Vendors Without Purchases",
     "vendors_without_purchases_help": "Click on a vendor card to delete it",
+    "vendors_without_purchases_safe_delete_note": "Only vendors without purchases appear here, so deleting them does not change existing reports.",
     "delete": {
       "arm_prompt": "Delete permanently?",
       "aria_label": "Delete vendor",
@@ -153,6 +154,7 @@
       "modal_message": "Are you sure you want to permanently delete vendor {vendor_id}? This action cannot be undone.",
       "modal_confirm": "Delete Vendor",
       "success": "Vendor {vendor_id} deleted",
+      "aftercare": "Only vendors without purchases can be deleted here. Vendor reports stay unchanged.",
       "error": "Failed to delete vendor: {error}"
     },
     "errors": {
@@ -253,7 +255,12 @@
       "title": "Delete Checkout",
       "instructions": "Type {token} to permanently delete this checkout.",
       "placeholder": "Enter confirmation token",
-      "confirm": "Delete Checkout"
+      "confirm": "Delete Checkout",
+      "success": "Checkout deleted. Running totals and reports were recalculated."
+    },
+    "delete_guidance": {
+      "title": "Correction workflow",
+      "body": "Deleting a checkout immediately updates running totals and future reports for this event. Review the updated totals after each correction."
     },
     "time": {
       "seconds": "{count} seconds",

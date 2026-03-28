@@ -887,6 +887,7 @@ pub fn CheckoutPage() -> impl IntoView {
                             // Toggle reload signal to force purchase list refresh
                             set_reload_toggle.update(|v| *v = !*v);
                             info!("Toggled reload signal to refresh purchase list");
+                            toast.success(&t!("checkout.delete_modal.success")());
                         }
                         Err(e) => {
                             error!("Failed to delete purchase_id {:?}: {:?}", purchase_id, e);
@@ -1364,9 +1365,13 @@ pub fn CheckoutPage() -> impl IntoView {
                                 fallback=move || view! {
                                         <div class="space-y-2">
                                         {/* Explanatory hint text */}
-                                        <p class="text-xs text-gray-500 mb-3 px-1">
-                                            {t!("checkout.transactions_hint")}
-                                        </p>
+                                            <p class="text-xs text-gray-500 mb-3 px-1">
+                                                {t!("checkout.transactions_hint")}
+                                            </p>
+                                            <div class="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
+                                                <p class="font-medium text-gray-700">{t!("checkout.delete_guidance.title")()}</p>
+                                                <p class="mt-1">{t!("checkout.delete_guidance.body")()}</p>
+                                            </div>
 
                                             {/* Top pagination controls */}
                                             <Show when=move || {

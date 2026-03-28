@@ -342,6 +342,7 @@ pub fn VendorListPage() -> impl IntoView {
                                 "vendor.delete.success",
                                 HashMap::from([("vendor_id", vendor_id.as_str().to_string())]),
                             ));
+                            toast.info(&t!("vendor.delete.aftercare")());
                         }
                         Err(e) => {
                             log::error!("Failed to delete vendor_id {:?}: {:?}", vendor_id, e);
@@ -810,6 +811,9 @@ pub fn VendorListPage() -> impl IntoView {
                                                     </h2>
                                                     <p class="text-sm text-gray-500 mt-2">
                                                         {t!("vendor.vendors_without_purchases_help")}
+                                                    </p>
+                                                    <p class="mt-2 text-xs text-gray-500">
+                                                        {t!("vendor.vendors_without_purchases_safe_delete_note")}
                                                     </p>
                                                 </div>
                                             </Show>

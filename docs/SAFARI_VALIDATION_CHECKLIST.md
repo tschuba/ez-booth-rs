@@ -49,6 +49,8 @@ Performance notes: ________________________________________________
 - [ ] Verify the booth report totals match the sum of vendor fees
 - [ ] Print the booth summary
 - [ ] Verify printed values match the on-screen values
+- [ ] Delete one checkout and verify the success message states that totals and reports were recalculated
+- [ ] Verify the updated totals match the remaining recoverable purchases
 
 ### Expected Totals
 
@@ -108,6 +110,7 @@ Performance notes: ________________________________________________
 - [ ] Verify visible totals only reflect recoverable purchases
 - [ ] Verify the warning remains visible while reviewing totals and recent transactions
 - [ ] Review totals before continuing and note whether operator guidance is clear enough
+- [ ] Verify the operator guidance explains what to do next clearly enough without console inspection
 
 ### Result Comparison
 
