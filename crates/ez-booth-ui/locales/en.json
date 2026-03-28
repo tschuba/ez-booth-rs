@@ -68,6 +68,10 @@
     "vendor_validation_regex": "Custom pattern (regex)",
     "vendor_validation_regex_pattern": "Regex Pattern",
     "vendor_validation_regex_help": "Enter a regular expression pattern (e.g., ^V\\d{3}$ for V followed by 3 digits)",
+    "keyboard_title": "Checkout Keyboard",
+    "keyboard_description": "Configure quick amount buttons for the on-screen checkout keypad.",
+    "keyboard_quick_amounts_label": "Quick Amounts",
+    "keyboard_quick_amounts_help": "Enter comma-separated amounts, for example 0.50, 1.00, 5.00, 10.00, 15.00",
     "errors": {
       "load_failed": "Failed to load events"
     },
@@ -94,7 +98,9 @@
       "cannot_exceed_100": "Cannot exceed 100%",
       "invalid_number_format": "Invalid number format",
       "max_two_decimals": "Maximum 2 decimal places allowed",
-      "regex_pattern_required": "Regex pattern is required when using custom validation"
+      "regex_pattern_required": "Regex pattern is required when using custom validation",
+      "quick_amounts_required": "At least one quick amount is required",
+      "quick_amounts_positive": "Quick amounts must be greater than zero"
     }
   },
   "vendor": {
@@ -181,6 +187,16 @@
     "vendor_placeholder": "Vendor ID (e.g., 101)",
     "amount": "Amount",
     "amount_placeholder": "0.00",
+    "keyboard_toggle_show": "Show Keyboard",
+    "keyboard_toggle_hide": "Hide Keyboard",
+    "keyboard_mode_cash_register": "Cash Register",
+    "keyboard_mode_regular": "Regular",
+    "keyboard_mode_aria": "Toggle amount input mode",
+    "keyboard_toggle_aria": "Toggle on-screen keyboard",
+    "keyboard_quick_amounts": "Quick amounts",
+    "keyboard_backspace": "Backspace",
+    "keyboard_decimal": "Decimal",
+    "keyboard_double_zero": "Double zero",
     "total": "Total",
     "confirm": "Complete",
     "add_item": "Add Item",

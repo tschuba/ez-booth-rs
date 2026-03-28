@@ -68,6 +68,10 @@
     "vendor_validation_regex": "Benutzerdefiniertes Muster (Regex)",
     "vendor_validation_regex_pattern": "Regex-Muster",
     "vendor_validation_regex_help": "Geben Sie ein reguläres Ausdrucksmuster ein (z.B. ^V\\d{3}$ für V gefolgt von 3 Ziffern)",
+    "keyboard_title": "Kassatur",
+    "keyboard_description": "Konfigurieren Sie Schnellbeträge für die Bildschirmtastatur in der Kasse.",
+    "keyboard_quick_amounts_label": "Schnellbeträge",
+    "keyboard_quick_amounts_help": "Geben Sie kommagetrennte Beträge ein, zum Beispiel 0,50, 1,00, 5,00, 10,00, 15,00",
     "errors": {
       "load_failed": "Fehler beim Laden der Veranstaltungen"
     },
@@ -94,7 +98,9 @@
       "cannot_exceed_100": "Darf 100% nicht überschreiten",
       "invalid_number_format": "Ungültiges Zahlenformat",
       "max_two_decimals": "Maximal 2 Dezimalstellen erlaubt",
-      "regex_pattern_required": "Regex-Muster ist erforderlich bei benutzerdefinierter Validierung"
+      "regex_pattern_required": "Regex-Muster ist erforderlich bei benutzerdefinierter Validierung",
+      "quick_amounts_required": "Mindestens ein Schnellbetrag ist erforderlich",
+      "quick_amounts_positive": "Schnellbeträge müssen größer als Null sein"
     }
   },
   "vendor": {
@@ -181,6 +187,16 @@
     "vendor_placeholder": "Verkäufer-ID (z. B. 101)",
     "amount": "Betrag",
     "amount_placeholder": "0,00",
+    "keyboard_toggle_show": "Tastatur anzeigen",
+    "keyboard_toggle_hide": "Tastatur ausblenden",
+    "keyboard_mode_cash_register": "Kassenmodus",
+    "keyboard_mode_regular": "Normal",
+    "keyboard_mode_aria": "Eingabemodus für Betrag umschalten",
+    "keyboard_toggle_aria": "Bildschirmtastatur umschalten",
+    "keyboard_quick_amounts": "Schnellbeträge",
+    "keyboard_backspace": "Rücktaste",
+    "keyboard_decimal": "Dezimaltrennzeichen",
+    "keyboard_double_zero": "Doppelte Null",
     "total": "Gesamt",
     "confirm": "Abschließen",
     "add_item": "Artikel hinzufügen",

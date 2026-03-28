@@ -37,8 +37,30 @@ pub struct Booth {
     #[serde(default)]
     pub vendor_id_validation: VendorIdValidation,
 
+    #[serde(default)]
+    pub keyboard_config: CheckoutKeyboardConfig,
+
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CheckoutKeyboardConfig {
+    pub quick_amounts: Vec<Decimal>,
+}
+
+impl Default for CheckoutKeyboardConfig {
+    fn default() -> Self {
+        Self {
+            quick_amounts: vec![
+                Decimal::new(5, 1),
+                Decimal::new(1, 0),
+                Decimal::new(5, 0),
+                Decimal::new(10, 0),
+                Decimal::new(15, 0),
+            ],
+        }
+    }
 }
 
 /// Fee configuration for booth charges
@@ -121,6 +143,7 @@ impl Booth {
             fees,
             status: BoothStatus::Open,
             vendor_id_validation: VendorIdValidation::default(),
+            keyboard_config: CheckoutKeyboardConfig::default(),
             created_at: now,
             updated_at: now,
         };
@@ -155,6 +178,11 @@ impl Booth {
 
     pub fn update_fees(&mut self, fees: FeeConfig) {
         self.fees = fees;
+        self.updated_at = Utc::now();
+    }
+
+    pub fn update_keyboard_config(&mut self, keyboard_config: CheckoutKeyboardConfig) {
+        self.keyboard_config = keyboard_config;
         self.updated_at = Utc::now();
     }
 }

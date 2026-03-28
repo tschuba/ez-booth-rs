@@ -45,6 +45,7 @@ Still open:
 - booth management with fee configuration and status handling
 - vendor management with smart numeric/alphanumeric sorting
 - checkout flow with validation, draft persistence, and recovery guidance
+- checkout keypad with booth-configurable quick amounts and persistent amount entry mode
 - correction and deletion flows with operator-facing recalculation and aftercare messaging
 - vendor and booth reporting with consistent payout-derived totals
 - German primary / English fallback translations
@@ -68,6 +69,14 @@ How to use them:
 - use a milestone result file when a change needs a durable manual sign-off record
 
 See `docs/VALIDATION_WORKFLOW.md` for the full validation workflow and artifact guidance.
+
+### Checkout Keyboard
+
+- checkout includes a toggleable on-screen keypad in the top-right of the checkout card
+- keypad quick amounts are configurable per event; defaults are `0.50`, `1.00`, `5.00`, `10.00`, and `15.00`
+- amount entry supports `Cash Register` mode (right-to-left cents filling) and `Regular` mode
+- the selected keypad visibility and amount entry mode persist in browser storage for the next session
+- physical keyboard entry remains available and follows the selected amount entry mode
 
 ### Next Focus
 

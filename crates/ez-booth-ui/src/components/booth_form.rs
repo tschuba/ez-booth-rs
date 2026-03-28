@@ -4,7 +4,7 @@ use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
 use domain::error::DomainError;
-use domain::models::booth::{Booth, FeeConfig, VendorIdValidation};
+use domain::models::booth::{Booth, CheckoutKeyboardConfig, FeeConfig, VendorIdValidation};
 use domain::validation::validate_regex_pattern;
 use leptos::*;
 use rust_decimal::Decimal;
@@ -19,6 +19,7 @@ pub struct BoothFormData {
     pub rounding_step: String,
     pub vendor_validation_type: String, // "unrestricted", "digits_only", or "regex"
     pub vendor_validation_regex: String,
+    pub keyboard_quick_amounts: String,
 }
 
 impl Default for BoothFormData {
@@ -42,6 +43,7 @@ impl BoothFormData {
             rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
+            keyboard_quick_amounts: default_quick_amounts_for_input(locale),
         }
     }
 
@@ -61,6 +63,10 @@ impl BoothFormData {
             rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
             vendor_validation_type: validation_type,
             vendor_validation_regex: validation_regex,
+            keyboard_quick_amounts: format_quick_amounts_for_input(
+                &booth.keyboard_config.quick_amounts,
+                locale,
+            ),
         }
     }
 
@@ -107,9 +113,14 @@ impl BoothFormData {
             _ => VendorIdValidation::DigitsOnly, // Default fallback
         };
 
+        let keyboard_config = CheckoutKeyboardConfig {
+            quick_amounts: parse_quick_amounts_input(&self.keyboard_quick_amounts)?,
+        };
+
         // Create Booth (this validates the fee ranges)
         let mut booth = Booth::new(self.description.clone(), date, fees)?;
         booth.vendor_id_validation = vendor_id_validation;
+        booth.keyboard_config = keyboard_config;
 
         Ok(booth)
     }
@@ -154,14 +165,58 @@ impl BoothFormData {
             _ => VendorIdValidation::DigitsOnly, // Default fallback
         };
 
+        let keyboard_config = CheckoutKeyboardConfig {
+            quick_amounts: parse_quick_amounts_input(&self.keyboard_quick_amounts)?,
+        };
+
         // Update booth fields
         booth.update_description(self.description.clone());
         booth.date = date;
         booth.update_fees(fees);
         booth.vendor_id_validation = vendor_id_validation;
+        booth.update_keyboard_config(keyboard_config);
 
         Ok(())
     }
+}
+
+fn default_quick_amounts_for_input(locale: Locale) -> String {
+    format_quick_amounts_for_input(&CheckoutKeyboardConfig::default().quick_amounts, locale)
+}
+
+fn format_quick_amounts_for_input(amounts: &[Decimal], locale: Locale) -> String {
+    amounts
+        .iter()
+        .map(|amount| format_decimal_for_input(*amount, locale, 2))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn parse_quick_amounts_input(input: &str) -> Result<Vec<Decimal>, DomainError> {
+    let values = input
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            parse_decimal_input(value).map_err(|err| {
+                DomainError::Validation(format!("Invalid quick amount '{value}': {err}"))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if values.is_empty() {
+        return Err(DomainError::Validation(
+            "At least one quick amount is required".to_string(),
+        ));
+    }
+
+    if values.iter().any(|value| *value <= Decimal::ZERO) {
+        return Err(DomainError::Validation(
+            "Quick amounts must be greater than zero".to_string(),
+        ));
+    }
+
+    Ok(values)
 }
 
 /// Booth form component for creating and editing booths
@@ -186,6 +241,7 @@ pub fn BoothForm(
     let vendor_validation_type = create_rw_signal(form_data.get_untracked().vendor_validation_type);
     let vendor_validation_regex =
         create_rw_signal(form_data.get_untracked().vendor_validation_regex);
+    let keyboard_quick_amounts = create_rw_signal(form_data.get_untracked().keyboard_quick_amounts);
 
     // Validation errors
     let (description_error, set_description_error) = create_signal(None::<String>);
@@ -194,6 +250,8 @@ pub fn BoothForm(
     let (sales_fee_percent_error, set_sales_fee_percent_error) = create_signal(None::<String>);
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
     let (vendor_validation_regex_error, set_vendor_validation_regex_error) =
+        create_signal(None::<String>);
+    let (keyboard_quick_amounts_error, set_keyboard_quick_amounts_error) =
         create_signal(None::<String>);
 
     let locale = use_locale();
@@ -222,6 +280,7 @@ pub fn BoothForm(
         set_sales_fee_percent_error.set(None);
         set_rounding_step_error.set(None);
         set_vendor_validation_regex_error.set(None);
+        set_keyboard_quick_amounts_error.set(None);
 
         let mut has_errors = false;
 
@@ -337,6 +396,12 @@ pub fn BoothForm(
             }
         }
 
+        let quick_amounts = keyboard_quick_amounts.get();
+        if let Err(err) = parse_quick_amounts_input(&quick_amounts) {
+            set_keyboard_quick_amounts_error.set(Some(format!("{}", err)));
+            has_errors = true;
+        }
+
         if !has_errors {
             let data = BoothFormData {
                 description: description.get(),
@@ -346,6 +411,7 @@ pub fn BoothForm(
                 rounding_step: rounding_step.get(),
                 vendor_validation_type: vendor_validation_type.get(),
                 vendor_validation_regex: vendor_validation_regex.get(),
+                keyboard_quick_amounts: keyboard_quick_amounts.get(),
             };
             on_submit(data);
         }
@@ -462,6 +528,22 @@ pub fn BoothForm(
                         }
                     }}
                 </div>
+            </div>
+
+            <div class="border-t pt-6">
+                <h3 class="text-lg font-semibold mb-4">{t!("booth.keyboard_title")()}</h3>
+                <p class="text-sm text-gray-600 mb-4">{t!("booth.keyboard_description")()}</p>
+
+                <Input
+                    value=keyboard_quick_amounts
+                    label=t!("booth.keyboard_quick_amounts_label")()
+                    placeholder="0.50, 1.00, 5.00, 10.00, 15.00".to_string()
+                    required=true
+                    error=keyboard_quick_amounts_error
+                />
+                <p class="text-sm text-gray-600 mt-1">
+                    {t!("booth.keyboard_quick_amounts_help")()}
+                </p>
             </div>
 
             // Form Actions
