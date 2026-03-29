@@ -386,7 +386,8 @@ mod tests {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
 
-        let booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        let booth =
+            create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
 
@@ -402,11 +403,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_validation_digits_only_rejects_leading_zeroes() {
+        let vendor_repo = MockVendorRepository::new();
+        let booth_repo = MockBoothRepository::new();
+
+        let booth =
+            create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
+        let booth_id = booth.id;
+        booth_repo.add_booth(booth);
+
+        let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
+
+        let result = service.get_or_create(booth_id, "007".to_string()).await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(
+                ValidationError::VendorIdLeadingZeros
+            ))
+        ));
+    }
+
+    #[tokio::test]
     async fn test_validation_digits_only_failure() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
 
-        let booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        let booth =
+            create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         let booth_id = booth.id;
         booth_repo.add_booth(booth);
 
@@ -494,7 +518,8 @@ mod tests {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
 
-        let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        let mut booth =
+            create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         booth.vendor_id_omission_rules = VendorIdOmissionRules {
             version: 1,
             rules: vec![OmissionRule::RangeWithStep {
@@ -519,11 +544,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_validation_digits_only_respects_numeric_range() {
+        let vendor_repo = MockVendorRepository::new();
+        let booth_repo = MockBoothRepository::new();
+
+        let booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly {
+            min: 50,
+            max: Some(200),
+        });
+        let booth_id = booth.id;
+        booth_repo.add_booth(booth);
+
+        let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
+
+        assert!(service
+            .get_or_create(booth_id, "50".to_string())
+            .await
+            .is_ok());
+
+        let too_small = service.get_or_create(booth_id, "49".to_string()).await;
+        assert!(matches!(
+            too_small,
+            Err(DomainError::Validation(
+                ValidationError::VendorIdValueTooSmall { min: 50, .. }
+            ))
+        ));
+
+        let too_large = service.get_or_create(booth_id, "201".to_string()).await;
+        assert!(matches!(
+            too_large,
+            Err(DomainError::Validation(
+                ValidationError::VendorIdValueTooLarge { max: 200, .. }
+            ))
+        ));
+    }
+
+    #[tokio::test]
     async fn test_validation_vendor_id_not_omitted() {
         let vendor_repo = MockVendorRepository::new();
         let booth_repo = MockBoothRepository::new();
 
-        let mut booth = create_test_booth_with_validation(VendorIdValidation::DigitsOnly);
+        let mut booth =
+            create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         booth.vendor_id_omission_rules = VendorIdOmissionRules {
             version: 1,
             rules: vec![OmissionRule::RangeWithStep {

@@ -4,8 +4,12 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationError {
     VendorIdEmpty,
-    VendorIdTooLong,
+    VendorIdTooShort { min: usize, actual: usize },
+    VendorIdTooLong { max: usize, actual: usize },
+    VendorIdValueTooSmall { min: usize, actual: String },
+    VendorIdValueTooLarge { max: usize, actual: String },
     VendorIdDigitsOnly,
+    VendorIdLeadingZeros,
     VendorIdPatternMismatch { value: String },
     VendorIdInvalidRegex,
     VendorIdOmitted { value: String },
@@ -37,14 +41,20 @@ pub enum ValidationError {
     QuickAmountInvalid { value: String },
     QuickAmountsEmpty,
     QuickAmountsNonPositive,
+    DigitsOnlyMinMaxInvalid { min: usize, max: usize },
+    DigitsOnlyConstraintInvalidNumber,
 }
 
 impl ValidationError {
     pub fn key(&self) -> &'static str {
         match self {
             Self::VendorIdEmpty => "validation.vendor_id_empty",
-            Self::VendorIdTooLong => "validation.vendor_id_too_long",
+            Self::VendorIdTooShort { .. } => "validation.vendor_id_too_short",
+            Self::VendorIdTooLong { .. } => "validation.vendor_id_too_long",
+            Self::VendorIdValueTooSmall { .. } => "validation.vendor_id_value_too_small",
+            Self::VendorIdValueTooLarge { .. } => "validation.vendor_id_value_too_large",
             Self::VendorIdDigitsOnly => "validation.vendor_id_digits_only",
+            Self::VendorIdLeadingZeros => "validation.vendor_id_leading_zeros",
             Self::VendorIdPatternMismatch { .. } => "validation.vendor_id_pattern_mismatch",
             Self::VendorIdInvalidRegex => "validation.vendor_id_invalid_regex",
             Self::VendorIdOmitted { .. } => "validation.vendor_id_omitted",
@@ -76,17 +86,36 @@ impl ValidationError {
             Self::QuickAmountInvalid { .. } => "validation.quick_amount_invalid",
             Self::QuickAmountsEmpty => "validation.quick_amounts_empty",
             Self::QuickAmountsNonPositive => "validation.quick_amounts_non_positive",
+            Self::DigitsOnlyMinMaxInvalid { .. } => "validation.digits_only_min_max_invalid",
+            Self::DigitsOnlyConstraintInvalidNumber => {
+                "validation.digits_only_constraint_invalid_number"
+            }
         }
     }
 
     pub fn params(&self) -> Vec<(&'static str, String)> {
         match self {
+            Self::VendorIdTooShort { min, actual } => {
+                vec![("min", min.to_string()), ("actual", actual.to_string())]
+            }
+            Self::VendorIdTooLong { max, actual } => {
+                vec![("max", max.to_string()), ("actual", actual.to_string())]
+            }
+            Self::VendorIdValueTooSmall { min, actual } => {
+                vec![("min", min.to_string()), ("actual", actual.clone())]
+            }
+            Self::VendorIdValueTooLarge { max, actual } => {
+                vec![("max", max.to_string()), ("actual", actual.clone())]
+            }
             Self::VendorIdPatternMismatch { value } => vec![("value", value.clone())],
             Self::VendorIdOmitted { value } => vec![("value", value.clone())],
             Self::BoothDuplicateNameAndDate { description, date } => {
                 vec![("description", description.clone()), ("date", date.clone())]
             }
             Self::QuickAmountInvalid { value } => vec![("value", value.clone())],
+            Self::DigitsOnlyMinMaxInvalid { min, max } => {
+                vec![("min", min.to_string()), ("max", max.to_string())]
+            }
             _ => Vec::new(),
         }
     }

@@ -12,7 +12,7 @@ use domain::error_code::ValidationError;
 use domain::models::booth::{
     Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
 };
-use domain::validation::validate_regex_pattern;
+use domain::validation::{validate_digits_only_constraints, validate_regex_pattern};
 use leptos::*;
 use rust_decimal::Decimal;
 use std::collections::HashSet;
@@ -27,6 +27,8 @@ pub struct BoothFormData {
     pub rounding_step: String,
     pub vendor_validation_type: String, // "unrestricted", "digits_only", or "regex"
     pub vendor_validation_regex: String,
+    pub vendor_validation_min: String,
+    pub vendor_validation_max: String,
     pub vendor_omission_rules: VendorIdOmissionRules,
 }
 
@@ -38,6 +40,18 @@ impl Default for BoothFormData {
 }
 
 impl BoothFormData {
+    fn parse_digits_only_config(&self) -> Result<(usize, Option<usize>), DomainError> {
+        let min =
+            parse_digits_only_field(&self.vendor_validation_min, false)?.ok_or_else(|| {
+                DomainError::Validation(ValidationError::DigitsOnlyConstraintInvalidNumber)
+            })?;
+        let max = parse_digits_only_field(&self.vendor_validation_max, true)?;
+
+        validate_digits_only_constraints(min, max)?;
+
+        Ok((min, max))
+    }
+
     /// Create default form data with locale-aware formatting
     pub fn default_with_locale(locale: Locale) -> Self {
         let today = chrono::Local::now().date_naive();
@@ -51,17 +65,35 @@ impl BoothFormData {
             rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
+            vendor_validation_min: "1".to_string(),
+            vendor_validation_max: String::new(),
             vendor_omission_rules: VendorIdOmissionRules::recommended(),
         }
     }
 
     /// Create form data from an existing Booth
     pub fn from_booth(booth: &Booth, locale: Locale) -> Self {
-        let (validation_type, validation_regex) = match &booth.vendor_id_validation {
-            VendorIdValidation::Unrestricted => ("unrestricted".to_string(), String::new()),
-            VendorIdValidation::DigitsOnly => ("digits_only".to_string(), String::new()),
-            VendorIdValidation::Regex(pattern) => ("regex".to_string(), pattern.clone()),
-        };
+        let (validation_type, validation_regex, validation_min, validation_max) =
+            match &booth.vendor_id_validation {
+                VendorIdValidation::Unrestricted => (
+                    "unrestricted".to_string(),
+                    String::new(),
+                    "1".to_string(),
+                    String::new(),
+                ),
+                VendorIdValidation::DigitsOnly { min, max } => (
+                    "digits_only".to_string(),
+                    String::new(),
+                    min.to_string(),
+                    max.map(|value| value.to_string()).unwrap_or_default(),
+                ),
+                VendorIdValidation::Regex(pattern) => (
+                    "regex".to_string(),
+                    pattern.clone(),
+                    "1".to_string(),
+                    String::new(),
+                ),
+            };
 
         Self {
             description: booth.description.clone(),
@@ -71,6 +103,8 @@ impl BoothFormData {
             rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
             vendor_validation_type: validation_type,
             vendor_validation_regex: validation_regex,
+            vendor_validation_min: validation_min,
+            vendor_validation_max: validation_max,
             vendor_omission_rules: booth.vendor_id_omission_rules.clone(),
         }
     }
@@ -109,13 +143,16 @@ impl BoothFormData {
         // Parse vendor validation rule
         let vendor_id_validation = match self.vendor_validation_type.as_str() {
             "unrestricted" => VendorIdValidation::Unrestricted,
-            "digits_only" => VendorIdValidation::DigitsOnly,
+            "digits_only" => {
+                let (min, max) = self.parse_digits_only_config()?;
+                VendorIdValidation::DigitsOnly { min, max }
+            }
             "regex" => {
                 // Validate the regex pattern
                 validate_regex_pattern(&self.vendor_validation_regex)?;
                 VendorIdValidation::Regex(self.vendor_validation_regex.clone())
             }
-            _ => VendorIdValidation::DigitsOnly, // Default fallback
+            _ => VendorIdValidation::DigitsOnly { min: 1, max: None }, // Default fallback
         };
 
         // Create Booth (this validates the fee ranges)
@@ -158,13 +195,16 @@ impl BoothFormData {
         // Parse vendor validation rule
         let vendor_id_validation = match self.vendor_validation_type.as_str() {
             "unrestricted" => VendorIdValidation::Unrestricted,
-            "digits_only" => VendorIdValidation::DigitsOnly,
+            "digits_only" => {
+                let (min, max) = self.parse_digits_only_config()?;
+                VendorIdValidation::DigitsOnly { min, max }
+            }
             "regex" => {
                 // Validate the regex pattern
                 validate_regex_pattern(&self.vendor_validation_regex)?;
                 VendorIdValidation::Regex(self.vendor_validation_regex.clone())
             }
-            _ => VendorIdValidation::DigitsOnly, // Default fallback
+            _ => VendorIdValidation::DigitsOnly { min: 1, max: None }, // Default fallback
         };
 
         // Update booth fields
@@ -176,6 +216,84 @@ impl BoothFormData {
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
 
         Ok(())
+    }
+}
+
+pub(crate) fn parse_digits_only_field(
+    value: &str,
+    allow_empty: bool,
+) -> Result<Option<usize>, DomainError> {
+    let trimmed = value.trim();
+
+    if trimmed.is_empty() {
+        return if allow_empty {
+            Ok(None)
+        } else {
+            Err(DomainError::Validation(
+                ValidationError::DigitsOnlyConstraintInvalidNumber,
+            ))
+        };
+    }
+
+    trimmed
+        .parse::<usize>()
+        .map(Some)
+        .map_err(|_| DomainError::Validation(ValidationError::DigitsOnlyConstraintInvalidNumber))
+}
+
+pub(crate) fn sanitize_digits_only_field(value: &str) -> String {
+    value.chars().filter(|c| c.is_ascii_digit()).collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DigitsOnlyFieldValidation {
+    MinInvalid,
+    MaxInvalid,
+    MinGreaterThanMax,
+}
+
+pub(crate) fn validate_digits_only_form_fields(
+    min_input: &str,
+    max_input: &str,
+) -> Option<DigitsOnlyFieldValidation> {
+    let parsed_min = match parse_digits_only_field(min_input, false) {
+        Ok(Some(value)) => value,
+        Ok(None) | Err(_) => return Some(DigitsOnlyFieldValidation::MinInvalid),
+    };
+
+    let parsed_max = match parse_digits_only_field(max_input, true) {
+        Ok(value) => value,
+        Err(_) => return Some(DigitsOnlyFieldValidation::MaxInvalid),
+    };
+
+    if let Err(err) = validate_digits_only_constraints(parsed_min, parsed_max) {
+        debug_assert!(matches!(
+            err,
+            DomainError::Validation(ValidationError::DigitsOnlyMinMaxInvalid { .. })
+        ));
+        return Some(DigitsOnlyFieldValidation::MinGreaterThanMax);
+    }
+
+    None
+}
+
+fn digits_only_form_error_messages(
+    validation: Option<DigitsOnlyFieldValidation>,
+) -> (Option<String>, Option<String>) {
+    match validation {
+        Some(DigitsOnlyFieldValidation::MinInvalid) => (
+            Some(t!("booth.form_errors.positive_number_required")()),
+            None,
+        ),
+        Some(DigitsOnlyFieldValidation::MaxInvalid) => (
+            None,
+            Some(t!("booth.form_errors.positive_number_required")()),
+        ),
+        Some(DigitsOnlyFieldValidation::MinGreaterThanMax) => {
+            let message = t!("validation.digits_only_min_max_invalid")();
+            (Some(message.clone()), Some(message))
+        }
+        None => (None, None),
     }
 }
 
@@ -250,6 +368,8 @@ pub fn BoothForm(
     let vendor_validation_type = create_rw_signal(form_data.get_untracked().vendor_validation_type);
     let vendor_validation_regex =
         create_rw_signal(form_data.get_untracked().vendor_validation_regex);
+    let vendor_validation_min = create_rw_signal(form_data.get_untracked().vendor_validation_min);
+    let vendor_validation_max = create_rw_signal(form_data.get_untracked().vendor_validation_max);
     let vendor_omission_rules = create_rw_signal(form_data.get_untracked().vendor_omission_rules);
 
     let new_omission_rule_type = create_rw_signal("exact".to_string());
@@ -274,6 +394,10 @@ pub fn BoothForm(
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
     let (vendor_validation_regex_error, set_vendor_validation_regex_error) =
         create_signal(None::<String>);
+    let (vendor_validation_min_error, set_vendor_validation_min_error) =
+        create_signal(None::<String>);
+    let (vendor_validation_max_error, set_vendor_validation_max_error) =
+        create_signal(None::<String>);
     let (vendor_omission_error, set_vendor_omission_error) = create_signal(None::<String>);
 
     let locale = use_locale();
@@ -294,6 +418,34 @@ pub fn BoothForm(
     let invalid_number_format_msg = t!("booth.form_errors.invalid_number_format");
     let max_two_decimals_msg = t!("booth.form_errors.max_two_decimals");
 
+    create_effect(move |_| {
+        if vendor_validation_type.get() != "digits_only" {
+            set_vendor_validation_min_error.set(None);
+            set_vendor_validation_max_error.set(None);
+            return;
+        }
+
+        let min_value = vendor_validation_min.get();
+        let min_sanitized = sanitize_digits_only_field(&min_value);
+        if min_value != min_sanitized {
+            vendor_validation_min.set(min_sanitized.clone());
+            return;
+        }
+
+        let max_value = vendor_validation_max.get();
+        let max_sanitized = sanitize_digits_only_field(&max_value);
+        if max_value != max_sanitized {
+            vendor_validation_max.set(max_sanitized.clone());
+            return;
+        }
+
+        let (min_error, max_error) = digits_only_form_error_messages(
+            validate_digits_only_form_fields(&min_sanitized, &max_sanitized),
+        );
+        set_vendor_validation_min_error.set(min_error);
+        set_vendor_validation_max_error.set(max_error);
+    });
+
     let validate_and_submit = move || {
         // Clear previous errors
         set_description_error.set(None);
@@ -302,6 +454,8 @@ pub fn BoothForm(
         set_sales_fee_percent_error.set(None);
         set_rounding_step_error.set(None);
         set_vendor_validation_regex_error.set(None);
+        set_vendor_validation_min_error.set(None);
+        set_vendor_validation_max_error.set(None);
         set_vendor_omission_error.set(None);
 
         let mut has_errors = false;
@@ -403,7 +557,23 @@ pub fn BoothForm(
 
         // Validate vendor ID validation regex pattern if type is "regex"
         let validation_type = vendor_validation_type.get();
-        if validation_type == "regex" {
+        if validation_type == "digits_only" {
+            let (min_error, max_error) =
+                digits_only_form_error_messages(validate_digits_only_form_fields(
+                    &vendor_validation_min.get(),
+                    &vendor_validation_max.get(),
+                ));
+
+            if let Some(message) = min_error {
+                set_vendor_validation_min_error.set(Some(message));
+                has_errors = true;
+            }
+
+            if let Some(message) = max_error {
+                set_vendor_validation_max_error.set(Some(message));
+                has_errors = true;
+            }
+        } else if validation_type == "regex" {
             let regex_pattern = vendor_validation_regex.get();
             if regex_pattern.trim().is_empty() {
                 set_vendor_validation_regex_error
@@ -432,6 +602,8 @@ pub fn BoothForm(
                 rounding_step: rounding_step.get(),
                 vendor_validation_type: vendor_validation_type.get(),
                 vendor_validation_regex: vendor_validation_regex.get(),
+                vendor_validation_min: vendor_validation_min.get(),
+                vendor_validation_max: vendor_validation_max.get(),
                 vendor_omission_rules: vendor_omission_rules.get(),
             };
             on_submit(data);
@@ -531,6 +703,9 @@ pub fn BoothForm(
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             on:change=move |ev| {
                                 vendor_validation_type.set(event_target_value(&ev));
+                                set_vendor_validation_regex_error.set(None);
+                                set_vendor_validation_min_error.set(None);
+                                set_vendor_validation_max_error.set(None);
                             }
                             prop:value=vendor_validation_type
                         >
@@ -542,7 +717,38 @@ pub fn BoothForm(
 
                     // Regex Pattern Input (only shown when type is "regex")
                     {move || {
-                        if vendor_validation_type.get() == "regex" {
+                        if vendor_validation_type.get() == "digits_only" {
+                            view! {
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                        <Input
+                                            value=vendor_validation_min
+                                            input_type=InputType::Number
+                                            label=t!("booth.vendor_validation_min_label")()
+                                            placeholder="1".to_string()
+                                            required=true
+                                            error=vendor_validation_min_error
+                                        />
+                                        <p class="text-sm text-gray-600 mt-1">
+                                            {t!("booth.vendor_validation_min_help")()}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <Input
+                                            value=vendor_validation_max
+                                            input_type=InputType::Number
+                                            label=t!("booth.vendor_validation_max_label")()
+                                            placeholder=t!("booth.vendor_validation_max_placeholder")()
+                                            error=vendor_validation_max_error
+                                        />
+                                        <p class="text-sm text-gray-600 mt-1">
+                                            {t!("booth.vendor_validation_max_help")()}
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                                .into_view()
+                        } else if vendor_validation_type.get() == "regex" {
                             view! {
                                 <div class="space-y-2">
                                     <Input

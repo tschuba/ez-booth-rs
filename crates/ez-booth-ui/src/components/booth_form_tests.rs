@@ -1,12 +1,31 @@
 #[cfg(test)]
 mod tests {
-    use super::super::booth_form::{parse_exact_omission_values, BoothFormData};
+    use super::super::booth_form::{
+        parse_digits_only_field, parse_exact_omission_values, sanitize_digits_only_field,
+        validate_digits_only_form_fields, BoothFormData, DigitsOnlyFieldValidation,
+    };
     use crate::i18n::Locale;
     use chrono::NaiveDate;
     use domain::error::DomainError;
+    use domain::error_code::ValidationError;
     use domain::models::booth::{Booth, FeeConfig, OmissionRule, VendorIdOmissionRules};
     use rust_decimal::Decimal;
     use std::str::FromStr;
+
+    fn booth_form() -> BoothFormData {
+        BoothFormData {
+            description: "Test Booth".to_string(),
+            date: "2026-03-25".to_string(),
+            participation_fee: "10.00".to_string(),
+            sales_fee_percent: "15.00".to_string(),
+            rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
+            vendor_validation_min: "1".to_string(),
+            vendor_validation_max: String::new(),
+            vendor_omission_rules: default_rules(),
+        }
+    }
 
     fn default_rules() -> VendorIdOmissionRules {
         VendorIdOmissionRules::recommended()
@@ -33,16 +52,7 @@ mod tests {
 
     #[test]
     fn test_to_booth_valid_data() {
-        let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
-        };
+        let form = booth_form();
 
         let booth = form.to_booth(Locale::En);
         assert!(booth.is_ok());
@@ -85,12 +95,7 @@ mod tests {
         let form = BoothFormData {
             description: "Test Booth".to_string(),
             date: "invalid-date".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -101,14 +106,8 @@ mod tests {
     #[test]
     fn test_to_booth_invalid_participation_fee() {
         let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
             participation_fee: "invalid".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -119,14 +118,8 @@ mod tests {
     #[test]
     fn test_to_booth_negative_participation_fee() {
         let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
             participation_fee: "-10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -137,14 +130,8 @@ mod tests {
     #[test]
     fn test_to_booth_invalid_sales_fee_percent() {
         let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
             sales_fee_percent: "invalid".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -155,14 +142,8 @@ mod tests {
     #[test]
     fn test_to_booth_sales_fee_percent_out_of_range() {
         let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
             sales_fee_percent: "150.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -173,14 +154,8 @@ mod tests {
     #[test]
     fn test_to_booth_invalid_rounding_step() {
         let form = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
             rounding_step: "invalid".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -192,13 +167,7 @@ mod tests {
     fn test_to_booth_empty_description() {
         let form = BoothFormData {
             description: "".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.to_booth(Locale::En);
@@ -210,13 +179,7 @@ mod tests {
     fn test_to_booth_trims_description() {
         let form = BoothFormData {
             description: "  Test Booth  ".to_string(),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let booth = form.to_booth(Locale::En).unwrap();
@@ -227,13 +190,7 @@ mod tests {
     fn test_to_booth_allows_multibyte_description_up_to_200_characters() {
         let form = BoothFormData {
             description: "ä".repeat(200),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         assert!(form.to_booth(Locale::En).is_ok());
@@ -243,13 +200,7 @@ mod tests {
     fn test_to_booth_rejects_multibyte_description_over_200_characters() {
         let form = BoothFormData {
             description: "ä".repeat(201),
-            date: "2026-03-25".to_string(),
-            participation_fee: "10.00".to_string(),
-            sales_fee_percent: "15.00".to_string(),
-            rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         assert!(matches!(
@@ -312,14 +263,10 @@ mod tests {
     #[test]
     fn test_to_booth_flexible_parsing() {
         let form_dot = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
             participation_fee: "10.50".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let booth_dot = form_dot.to_booth(Locale::En).unwrap();
@@ -337,14 +284,10 @@ mod tests {
         );
 
         let form_comma = BoothFormData {
-            description: "Test Booth".to_string(),
-            date: "2026-03-25".to_string(),
             participation_fee: "10,50".to_string(),
             sales_fee_percent: "15,00".to_string(),
             rounding_step: "0,50".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let booth_comma = form_comma.to_booth(Locale::De).unwrap();
@@ -398,9 +341,8 @@ mod tests {
             participation_fee: "20.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "1.00".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
             vendor_omission_rules: custom_rules.clone(),
+            ..booth_form()
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -441,9 +383,7 @@ mod tests {
             participation_fee: "20.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "1.00".to_string(),
-            vendor_validation_type: "digits_only".to_string(),
-            vendor_validation_regex: String::new(),
-            vendor_omission_rules: default_rules(),
+            ..booth_form()
         };
 
         let result = form.update_booth(&mut booth, Locale::En);
@@ -470,5 +410,78 @@ mod tests {
         let values = parse_exact_omission_values(" , 56, , , TEST ,, ");
 
         assert_eq!(values, vec!["56", "TEST"]);
+    }
+
+    #[test]
+    fn test_parse_digits_only_field_requires_value_for_min() {
+        assert!(matches!(
+            parse_digits_only_field("", false),
+            Err(DomainError::Validation(
+                ValidationError::DigitsOnlyConstraintInvalidNumber
+            ))
+        ));
+    }
+
+    #[test]
+    fn test_parse_digits_only_field_allows_empty_max() {
+        assert_eq!(parse_digits_only_field("", true).unwrap(), None);
+    }
+
+    #[test]
+    fn test_sanitize_digits_only_field_removes_non_digits() {
+        assert_eq!(sanitize_digits_only_field("12e-3abc"), "123");
+    }
+
+    #[test]
+    fn test_validate_digits_only_form_fields_rejects_empty_min() {
+        assert_eq!(
+            validate_digits_only_form_fields("", ""),
+            Some(DigitsOnlyFieldValidation::MinInvalid)
+        );
+    }
+
+    #[test]
+    fn test_validate_digits_only_form_fields_rejects_invalid_max() {
+        assert_eq!(
+            validate_digits_only_form_fields("1", "abc"),
+            Some(DigitsOnlyFieldValidation::MaxInvalid)
+        );
+    }
+
+    #[test]
+    fn test_validate_digits_only_form_fields_rejects_min_greater_than_max() {
+        assert_eq!(
+            validate_digits_only_form_fields("10", "5"),
+            Some(DigitsOnlyFieldValidation::MinGreaterThanMax)
+        );
+    }
+
+    #[test]
+    fn test_validate_digits_only_form_fields_accepts_equal_bounds() {
+        assert_eq!(validate_digits_only_form_fields("42", "42"), None);
+    }
+
+    #[test]
+    fn test_validate_digits_only_form_fields_accepts_zero_min() {
+        assert_eq!(validate_digits_only_form_fields("0", "10"), None);
+    }
+
+    #[test]
+    fn test_to_booth_supports_exact_numeric_value_constraint() {
+        let form = BoothFormData {
+            vendor_validation_min: "42".to_string(),
+            vendor_validation_max: "42".to_string(),
+            ..booth_form()
+        };
+
+        let booth = form.to_booth(Locale::En).unwrap();
+
+        assert_eq!(
+            booth.vendor_id_validation,
+            domain::models::booth::VendorIdValidation::DigitsOnly {
+                min: 42,
+                max: Some(42)
+            }
+        );
     }
 }

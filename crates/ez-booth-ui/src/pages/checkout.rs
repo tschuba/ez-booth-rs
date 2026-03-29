@@ -2853,14 +2853,8 @@ mod tests {
             classify_inline_amount("1,213"),
             InlineAmountValidation::TooManyDecimals
         );
-        assert_eq!(
-            classify_inline_amount(".21"),
-            InlineAmountValidation::Valid
-        );
-        assert_eq!(
-            classify_inline_amount(",21"),
-            InlineAmountValidation::Valid
-        );
+        assert_eq!(classify_inline_amount(".21"), InlineAmountValidation::Valid);
+        assert_eq!(classify_inline_amount(",21"), InlineAmountValidation::Valid);
         assert_eq!(
             classify_inline_amount("0.21"),
             InlineAmountValidation::Valid

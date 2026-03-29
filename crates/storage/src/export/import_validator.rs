@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use domain::validation::validate_regex_pattern;
+use domain::validation::{validate_digits_only_constraints, validate_regex_pattern};
 use domain::{BoothId, Purchase, Vendor, VendorIdValidation};
 use rust_decimal::Decimal;
 
@@ -175,14 +175,26 @@ impl ImportValidator {
                 });
             }
 
-            if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
-                if let Err(err) = validate_regex_pattern(pattern) {
-                    failures.push(ValidationFailure {
-                        record_type: "booth".to_string(),
-                        record_id: booth.id.to_string(),
-                        reason: format!("invalid vendor ID validation: {err}"),
-                    });
+            match &booth.vendor_id_validation {
+                VendorIdValidation::Regex(pattern) => {
+                    if let Err(err) = validate_regex_pattern(pattern) {
+                        failures.push(ValidationFailure {
+                            record_type: "booth".to_string(),
+                            record_id: booth.id.to_string(),
+                            reason: format!("invalid vendor ID validation: {err}"),
+                        });
+                    }
                 }
+                VendorIdValidation::DigitsOnly { min, max } => {
+                    if let Err(err) = validate_digits_only_constraints(*min, *max) {
+                        failures.push(ValidationFailure {
+                            record_type: "booth".to_string(),
+                            record_id: booth.id.to_string(),
+                            reason: format!("invalid vendor ID validation: {err}"),
+                        });
+                    }
+                }
+                VendorIdValidation::Unrestricted => {}
             }
 
             if let Err(err) = booth.vendor_id_omission_rules.validate() {
