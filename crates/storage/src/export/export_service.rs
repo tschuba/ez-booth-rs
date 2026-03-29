@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use domain::{
-    BoothId, BoothRepository, Purchase, PurchaseRepository, Vendor, VendorRepository,
+    BoothId, BoothRepository, Purchase, PurchaseItem, PurchaseRepository, Vendor, VendorId,
+    VendorRepository,
 };
 use log::info;
 
@@ -139,52 +140,66 @@ impl ExportService {
             })
             .collect();
 
-        let vendor_pairs: HashSet<(BoothId, String)> = valid_vendors
+        let vendor_pairs: HashSet<(BoothId, VendorId)> = valid_vendors
             .iter()
-            .map(|vendor| (vendor.booth_id, vendor.vendor_id.as_str().to_string()))
+            .map(|vendor| (vendor.booth_id, vendor.vendor_id.clone()))
             .collect();
 
         let mut skipped_missing_booth_purchase_count = 0;
-        let mut skipped_missing_vendor_purchase_count = 0;
+        let mut skipped_empty_purchase_count = 0;
+        let mut skipped_missing_vendor_item_count = 0;
         let valid_purchases: Vec<Purchase> = purchases
             .into_iter()
-            .filter(|purchase| {
+            .filter_map(|purchase| {
                 if !booth_ids.contains(&purchase.booth_id) {
                     skipped_missing_booth_purchase_count += 1;
                     info!(
                         "Skipping purchase {} during export because booth {} is missing",
                         purchase.id, purchase.booth_id
                     );
-                    return false;
+                    return None;
                 }
 
-                if let Some(item) = purchase.items.iter().find(|item| {
-                    !vendor_pairs
-                        .contains(&(purchase.booth_id, item.vendor_id.as_str().to_string()))
-                }) {
-                    skipped_missing_vendor_purchase_count += 1;
+                let purchase_id = purchase.id;
+                let booth_id = purchase.booth_id;
+                let (purchase, skipped_items) =
+                    Self::filter_purchase_items(purchase, |item| {
+                        vendor_pairs.contains(&(booth_id, item.vendor_id.clone()))
+                    });
+
+                if skipped_items > 0 {
+                    skipped_missing_vendor_item_count += skipped_items;
                     info!(
-                        "Skipping purchase {} during export because item {} references missing vendor {} for booth {}",
-                        purchase.id, item.id, item.vendor_id, purchase.booth_id
+                        "Removed {} orphaned items from purchase {} during export because their vendors are missing for booth {}",
+                        skipped_items, purchase_id, booth_id
                     );
-                    false
+                }
+
+                if let Some(purchase) = purchase {
+                    Some(purchase)
                 } else {
-                    true
+                    skipped_empty_purchase_count += 1;
+                    info!(
+                        "Skipping purchase {} during export because all items reference missing vendors for booth {}",
+                        purchase_id, booth_id
+                    );
+                    None
                 }
             })
             .collect();
 
         let skipped_total = skipped_vendor_count
             + skipped_missing_booth_purchase_count
-            + skipped_missing_vendor_purchase_count;
+            + skipped_empty_purchase_count;
 
-        if skipped_total > 0 {
+        if skipped_total > 0 || skipped_missing_vendor_item_count > 0 {
             info!(
-                "Export skipped {} orphaned records ({} vendors, {} purchases with missing booths, {} purchases with missing vendors)",
+                "Export skipped {} orphaned records and removed {} orphaned items ({} vendors, {} purchases with missing booths, {} emptied purchases)",
                 skipped_total,
+                skipped_missing_vendor_item_count,
                 skipped_vendor_count,
                 skipped_missing_booth_purchase_count,
-                skipped_missing_vendor_purchase_count
+                skipped_empty_purchase_count
             );
         }
 
@@ -196,39 +211,63 @@ impl ExportService {
         vendors: Vec<Vendor>,
         purchases: Vec<Purchase>,
     ) -> (Vec<Vendor>, Vec<Purchase>) {
-        let vendor_ids: HashSet<String> = vendors
+        let vendor_ids: HashSet<VendorId> = vendors
             .iter()
-            .map(|vendor| vendor.vendor_id.as_str().to_string())
+            .map(|vendor| vendor.vendor_id.clone())
             .collect();
 
         let mut skipped_purchase_count = 0;
+        let mut skipped_item_count = 0;
         let valid_purchases: Vec<Purchase> = purchases
             .into_iter()
-            .filter(|purchase| {
-                if let Some(item) = purchase
-                    .items
-                    .iter()
-                    .find(|item| !vendor_ids.contains(item.vendor_id.as_str()))
-                {
+            .filter_map(|purchase| {
+                let purchase_id = purchase.id;
+                let (purchase, skipped_items) =
+                    Self::filter_purchase_items(purchase, |item| vendor_ids.contains(&item.vendor_id));
+
+                if skipped_items > 0 {
+                    skipped_item_count += skipped_items;
+                    info!(
+                        "Removed {} orphaned items from purchase {} during booth export because their vendors are missing for booth {}",
+                        skipped_items, purchase_id, booth_id
+                    );
+                }
+
+                if let Some(purchase) = purchase {
+                    Some(purchase)
+                } else {
                     skipped_purchase_count += 1;
                     info!(
-                        "Skipping purchase {} during booth export because item {} references missing vendor {} for booth {}",
-                        purchase.id, item.id, item.vendor_id, booth_id
+                        "Skipping purchase {} during booth export because all items reference missing vendors for booth {}",
+                        purchase_id, booth_id
                     );
-                    false
-                } else {
-                    true
+                    None
                 }
             })
             .collect();
 
-        if skipped_purchase_count > 0 {
+        if skipped_purchase_count > 0 || skipped_item_count > 0 {
             info!(
-                "Booth export for {} skipped {} purchases with missing vendor references",
-                booth_id, skipped_purchase_count
+                "Booth export for {} skipped {} emptied purchases and removed {} orphaned items",
+                booth_id, skipped_purchase_count, skipped_item_count
             );
         }
 
         (vendors, valid_purchases)
+    }
+
+    fn filter_purchase_items<F>(mut purchase: Purchase, mut keep_item: F) -> (Option<Purchase>, usize)
+    where
+        F: FnMut(&PurchaseItem) -> bool,
+    {
+        let original_len = purchase.items.len();
+        purchase.items.retain(|item| keep_item(item));
+        let skipped_items = original_len.saturating_sub(purchase.items.len());
+
+        if purchase.items.is_empty() {
+            (None, skipped_items)
+        } else {
+            (Some(purchase), skipped_items)
+        }
     }
 }

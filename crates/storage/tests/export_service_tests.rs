@@ -44,6 +44,15 @@ fn create_test_purchase(booth: &Booth, vendor_id: &VendorId) -> Purchase {
     .unwrap()
 }
 
+fn create_test_purchase_with_items(booth_id: BoothId, items: Vec<(&str, rust_decimal::Decimal)>) -> Purchase {
+    let items = items
+        .into_iter()
+        .map(|(vendor_id, amount)| PurchaseItem::new(amount, VendorId::new(vendor_id.to_string())).unwrap())
+        .collect();
+
+    Purchase::new(booth_id, items).unwrap()
+}
+
 #[derive(Clone)]
 struct MockBoothRepository {
     booths: Vec<Booth>,
@@ -390,6 +399,40 @@ async fn test_export_all_skips_purchases_with_missing_vendors() {
 }
 
 #[wasm_bindgen_test]
+async fn test_export_all_removes_only_orphaned_items_from_mixed_purchase() {
+    let booth = create_test_booth("Valid Booth");
+    let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
+    let purchase = create_test_purchase_with_items(
+        booth.id,
+        vec![("1", dec!(10.00)), ("999", dec!(20.00)), ("1", dec!(30.00))],
+    );
+
+    let service = mock_service(vec![booth], vec![valid_vendor], vec![purchase]);
+
+    let backup = service.export_all().await.unwrap();
+
+    assert_eq!(backup.purchases.len(), 1);
+    assert_eq!(backup.purchases[0].items.len(), 2);
+    assert!(backup.purchases[0]
+        .items
+        .iter()
+        .all(|item| item.vendor_id.as_str() == "1"));
+}
+
+#[wasm_bindgen_test]
+async fn test_export_all_skips_purchase_when_all_items_are_orphaned() {
+    let booth = create_test_booth("Valid Booth");
+    let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
+    let purchase = create_test_purchase_with_items(booth.id, vec![("999", dec!(10.00))]);
+
+    let service = mock_service(vec![booth], vec![valid_vendor], vec![purchase]);
+
+    let backup = service.export_all().await.unwrap();
+
+    assert!(backup.purchases.is_empty());
+}
+
+#[wasm_bindgen_test]
 async fn test_export_booth_skips_purchases_with_missing_vendors() {
     let booth = create_test_booth("Booth Export");
     let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
@@ -411,6 +454,40 @@ async fn test_export_booth_skips_purchases_with_missing_vendors() {
     assert_eq!(backup.booth.id, booth.id);
     assert_eq!(backup.vendors, vec![valid_vendor]);
     assert_eq!(backup.purchases, vec![valid_purchase]);
+}
+
+#[wasm_bindgen_test]
+async fn test_export_booth_removes_only_orphaned_items_from_mixed_purchase() {
+    let booth = create_test_booth("Booth Export");
+    let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
+    let purchase = create_test_purchase_with_items(
+        booth.id,
+        vec![("1", dec!(5.00)), ("404", dec!(7.50)), ("1", dec!(8.25))],
+    );
+
+    let service = mock_service(vec![booth.clone()], vec![valid_vendor], vec![purchase]);
+
+    let backup = service.export_booth(&booth.id).await.unwrap();
+
+    assert_eq!(backup.purchases.len(), 1);
+    assert_eq!(backup.purchases[0].items.len(), 2);
+    assert!(backup.purchases[0]
+        .items
+        .iter()
+        .all(|item| item.vendor_id.as_str() == "1"));
+}
+
+#[wasm_bindgen_test]
+async fn test_export_booth_skips_purchase_when_all_items_are_orphaned() {
+    let booth = create_test_booth("Booth Export");
+    let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
+    let purchase = create_test_purchase_with_items(booth.id, vec![("404", dec!(7.50))]);
+
+    let service = mock_service(vec![booth.clone()], vec![valid_vendor], vec![purchase]);
+
+    let backup = service.export_booth(&booth.id).await.unwrap();
+
+    assert!(backup.purchases.is_empty());
 }
 
 #[wasm_bindgen_test]
