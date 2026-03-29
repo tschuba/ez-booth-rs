@@ -1,11 +1,21 @@
 use wasm_bindgen::JsCast;
 use web_sys::{window, Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem};
+use crate::components::{
+    use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem, QrExportModal,
+};
+use crate::components::dropdown_menu::close_all_dropdown_menus;
 use crate::state::use_app_state;
 use crate::t;
 use domain::BoothId;
 use leptos::*;
+
+fn booth_id_for_scope(scope: ExportScope) -> Option<BoothId> {
+    match scope {
+        ExportScope::Booth(id) => Some(id),
+        ExportScope::All => None,
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -25,6 +35,8 @@ pub fn ExportButton(
     let app_state = use_app_state();
     let toast = use_toast();
     let (is_exporting, set_is_exporting) = create_signal(false);
+    let (show_qr_modal, set_show_qr_modal) = create_signal(false);
+    let booth_id = booth_id_for_scope(scope);
 
     let label = move || match scope {
         ExportScope::All => t!("backup.export_all")(),
@@ -54,6 +66,14 @@ pub fn ExportButton(
                 .into_view()
         }
     };
+
+    let qr_menu_icon = view! {
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 14h2m2 0h2m-6 3h6m-6 3h2m2 0h2"></path>
+        </svg>
+    }
+    .into_view();
 
     let handle_export = move || {
         if is_exporting.get_untracked() {
@@ -115,37 +135,91 @@ pub fn ExportButton(
         });
     };
 
+    let open_qr_export = move || {
+        if booth_id.is_some() {
+            set_show_qr_modal.set(true);
+        }
+    };
+
+    let close_qr_export = move || {
+        set_show_qr_modal.set(false);
+        close_all_dropdown_menus();
+    };
+
     if menu_item {
         view! {
-            <DropdownMenuItem
-                on_click=Callback::new(move |_| handle_export())
-                icon=menu_icon()
-            >
-                {move || if is_exporting.get() {
-                    t!("backup.export_in_progress")()
-                } else {
-                    label()
+            <>
+                <DropdownMenuItem
+                    on_click=Callback::new(move |_| handle_export())
+                    icon=menu_icon()
+                >
+                    {move || if is_exporting.get() {
+                        t!("backup.export_in_progress")()
+                    } else {
+                        label()
+                    }}
+                </DropdownMenuItem>
+
+                <Show when=move || matches!(scope, ExportScope::Booth(_))>
+                    <DropdownMenuItem
+                        on_click=Callback::new(move |event: ev::MouseEvent| {
+                            event.stop_propagation();
+                            open_qr_export();
+                        })
+                        icon=qr_menu_icon.clone()
+                        class="js-qr-export-menu-item".to_string()
+                    >
+                        {t!("backup.qr_export_menu")}
+                    </DropdownMenuItem>
+                </Show>
+
+                {move || {
+                    booth_id.map(|booth_id| {
+                        view! {
+                            <QrExportModal
+                                booth_id
+                                show=show_qr_modal
+                                on_close=close_qr_export
+                                on_use_json=handle_export
+                            />
+                        }
+                    })
                 }}
-            </DropdownMenuItem>
+            </>
         }
         .into_view()
     } else {
         view! {
-            <Button
-                on_click=Box::new(handle_export)
-                variant=variant.unwrap_or(ButtonVariant::Primary)
-                size=size.unwrap_or(ButtonSize::Medium)
-                class=class.unwrap_or_default()
-                disabled=is_exporting.get()
-                title=label()
-                aria_label=label()
-            >
-                {move || if is_exporting.get() {
-                    t!("backup.export_in_progress")()
-                } else {
-                    label()
+            <>
+                <Button
+                    on_click=Box::new(handle_export)
+                    variant=variant.unwrap_or(ButtonVariant::Primary)
+                    size=size.unwrap_or(ButtonSize::Medium)
+                    class=class.unwrap_or_default()
+                    disabled=is_exporting.get()
+                    title=label()
+                    aria_label=label()
+                >
+                    {move || if is_exporting.get() {
+                        t!("backup.export_in_progress")()
+                    } else {
+                        label()
+                    }}
+                </Button>
+
+                {move || {
+                    booth_id.map(|booth_id| {
+                        view! {
+                            <QrExportModal
+                                booth_id
+                                show=show_qr_modal
+                                on_close=close_qr_export
+                                on_use_json=handle_export
+                            />
+                        }
+                    })
                 }}
-            </Button>
+            </>
         }
         .into_view()
     }
@@ -188,4 +262,21 @@ fn trigger_download(file_name: &str, contents: &str) -> Result<(), String> {
     Url::revoke_object_url(&url).map_err(|err| format!("failed to revoke object URL: {err:?}"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn booth_scope_returns_booth_id() {
+        let booth_id = BoothId::new();
+
+        assert_eq!(booth_id_for_scope(ExportScope::Booth(booth_id)), Some(booth_id));
+    }
+
+    #[test]
+    fn all_scope_has_no_booth_id() {
+        assert_eq!(booth_id_for_scope(ExportScope::All), None);
+    }
 }

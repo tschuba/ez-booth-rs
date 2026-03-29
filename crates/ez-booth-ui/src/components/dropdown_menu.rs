@@ -32,6 +32,10 @@ fn dispatch_window_event(name: &str) {
     }
 }
 
+pub(crate) fn close_all_dropdown_menus() {
+    dispatch_window_event(CLOSE_ALL_EVENT);
+}
+
 fn set_open_menu_id(window: &web_sys::Window, menu_id: &str) {
     let _ = js_sys::Reflect::set(
         window,

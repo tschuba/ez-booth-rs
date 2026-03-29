@@ -1,6 +1,6 @@
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
 use domain::services::{BoothService, ReportService, VendorService};
-use ez_booth_storage::export::{ExportService, ImportService};
+use ez_booth_storage::export::{ExportService, ImportService, QrExportService};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
     IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
@@ -17,6 +17,7 @@ pub struct AppState {
     pub purchase_repository: Arc<dyn PurchaseRepository>,
     pub indexed_purchase_repository: Arc<IndexedDbPurchaseRepository>,
     pub export_service: Arc<ExportService>,
+    pub qr_export_service: Arc<QrExportService>,
     pub import_service: Arc<ImportService>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository, IndexedDbBoothRepository>>,
     pub report_service: Arc<
@@ -55,6 +56,11 @@ impl AppState {
             vendor_repository.clone(),
             purchase_repository.clone(),
         ));
+        let qr_export_service = Arc::new(QrExportService::new(
+            booth_repository.clone(),
+            vendor_repository.clone(),
+            purchase_repository.clone(),
+        ));
 
         // Create services (use separate instances for service layer)
         let vendor_service = Arc::new(VendorService::new(
@@ -75,6 +81,7 @@ impl AppState {
             purchase_repository,
             indexed_purchase_repository,
             export_service,
+            qr_export_service,
             import_service,
             vendor_service,
             report_service,
