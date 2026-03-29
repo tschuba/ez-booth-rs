@@ -154,3 +154,5 @@ Phase 2 is successful when:
 ## Notes For Future Work
 
 If a later phase introduces exports, imports, migrations, or release automation, those should be treated as separate product-readiness milestones rather than bundled into this cleanup phase.
+
+The currently agreed backup/recovery follow-up is captured in `docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md` so it can be executed as a separate track later.
