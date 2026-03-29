@@ -464,7 +464,24 @@
     "title": "Settings",
     "language": "Language",
     "language_de": "Deutsch",
-    "language_en": "English"
+    "language_en": "English",
+    "backup_title": "Data Backup"
+  },
+  "backup": {
+    "section_label": "Backup & Recovery",
+    "heading": "Export your event data",
+    "storage_explanation": "EZ Booth stores your events, vendors, and purchases locally in this browser.",
+    "recommendation": "Export a backup before clearing browser data, switching devices, or making major browser changes.",
+    "counts_hint": "Current local records:",
+    "count_booths": "events",
+    "count_vendors": "vendors",
+    "count_purchases": "purchases",
+    "export_all": "Export All Data",
+    "export_booth": "Export This Event",
+    "export_in_progress": "Preparing Backup...",
+    "export_success_all": "Backup downloaded",
+    "export_success_booth": "Event backup downloaded",
+    "export_failed": "Backup export failed"
   },
   "data": {
     "export_title": "Export Data",
