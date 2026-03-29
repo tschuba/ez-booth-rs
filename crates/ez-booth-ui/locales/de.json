@@ -49,6 +49,8 @@
     "create_aria_label": "Neue Veranstaltung erstellen",
     "edit": "Veranstaltung bearbeiten",
     "edit_button": "Bearbeiten",
+    "actions_menu": "Aktionen",
+    "actions_menu_aria": "Veranstaltungsaktionen öffnen",
     "copy_title": "Veranstaltung kopieren",
     "copy_button": "Kopieren",
     "copy_confirm": "Veranstaltung kopieren",

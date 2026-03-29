@@ -1,7 +1,9 @@
 use wasm_bindgen::JsCast;
 use web_sys::{window, Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-use crate::components::{use_toast, Button, ButtonSize, ButtonVariant};
+use crate::components::{
+    use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem,
+};
 use crate::state::use_app_state;
 use crate::t;
 use domain::BoothId;
@@ -20,6 +22,7 @@ pub fn ExportButton(
     #[prop(optional)] variant: Option<ButtonVariant>,
     #[prop(optional)] size: Option<ButtonSize>,
     #[prop(optional)] class: Option<String>,
+    #[prop(default = false)] menu_item: bool,
 ) -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
@@ -33,6 +36,25 @@ pub fn ExportButton(
     let success_message = move || match scope {
         ExportScope::All => t!("backup.export_success_all")(),
         ExportScope::Booth(_) => t!("backup.export_success_booth")(),
+    };
+
+    let menu_icon = move || {
+        if is_exporting.get() {
+            view! {
+                <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M12 2a10 10 0 0 1 10 10h-3a7 7 0 0 0-7-7V2z"></path>
+                </svg>
+            }
+                .into_view()
+        } else {
+            view! {
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+            }
+                .into_view()
+        }
     };
 
     let handle_export = move || {
@@ -95,21 +117,39 @@ pub fn ExportButton(
         });
     };
 
-    view! {
-        <Button
-            on_click=Box::new(handle_export)
-            variant=variant.unwrap_or(ButtonVariant::Primary)
-            size=size.unwrap_or(ButtonSize::Medium)
-            class=class.unwrap_or_default()
-            disabled=is_exporting.get()
-            title=label()
-        >
-            {move || if is_exporting.get() {
-                t!("backup.export_in_progress")()
-            } else {
-                label()
-            }}
-        </Button>
+    if menu_item {
+        view! {
+            <DropdownMenuItem
+                on_click=Callback::new(move |_| handle_export())
+                icon=menu_icon()
+            >
+                {move || if is_exporting.get() {
+                    t!("backup.export_in_progress")()
+                } else {
+                    label()
+                }}
+            </DropdownMenuItem>
+        }
+            .into_view()
+    } else {
+        view! {
+            <Button
+                on_click=Box::new(handle_export)
+                variant=variant.unwrap_or(ButtonVariant::Primary)
+                size=size.unwrap_or(ButtonSize::Medium)
+                class=class.unwrap_or_default()
+                disabled=is_exporting.get()
+                title=label()
+                aria_label=label()
+            >
+                {move || if is_exporting.get() {
+                    t!("backup.export_in_progress")()
+                } else {
+                    label()
+                }}
+            </Button>
+        }
+            .into_view()
     }
 }
 
