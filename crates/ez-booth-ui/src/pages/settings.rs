@@ -1,4 +1,4 @@
-use crate::components::{Card, Container, ExportButton, ExportScope};
+use crate::components::{Card, Container, ExportButton, ExportScope, ImportButton};
 use crate::state::use_app_state;
 use crate::t;
 use leptos::*;
@@ -72,6 +72,7 @@ pub fn SettingsPage() -> impl IntoView {
                         </div>
                         <div class="flex flex-wrap gap-3 pt-2">
                             <ExportButton scope=ExportScope::All />
+                            <ImportButton />
                         </div>
                     </div>
                 </Card>

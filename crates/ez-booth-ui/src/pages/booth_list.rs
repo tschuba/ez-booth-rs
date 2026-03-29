@@ -436,6 +436,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     scope=ExportScope::All
                                     variant=ButtonVariant::Secondary
                                 />
+                                <ImportButton variant=ButtonVariant::Secondary />
                                 <Button
                                     on_click=Box::new(move || set_show_create_modal.set(true))
                                     aria_label=t!("booth.create_aria_label")()
