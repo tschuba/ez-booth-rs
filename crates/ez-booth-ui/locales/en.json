@@ -49,6 +49,8 @@
     "create_aria_label": "Create new event",
     "edit": "Edit Event",
     "edit_button": "Edit",
+    "actions_menu": "Actions",
+    "actions_menu_aria": "Open event actions",
     "copy_title": "Copy Event",
     "copy_button": "Copy",
     "copy_confirm": "Copy Event",

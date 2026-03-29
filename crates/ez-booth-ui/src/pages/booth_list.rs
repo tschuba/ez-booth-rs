@@ -61,8 +61,6 @@ pub fn BoothListPage() -> impl IntoView {
     let (expanded_booth_id, set_expanded_booth_id) = create_signal(None::<BoothId>);
     let (expanded_booth_summary, set_expanded_booth_summary) = create_signal(None::<BoothSummary>);
     let (is_loading_report, set_is_loading_report) = create_signal(false);
-    let (selected_booth_for_report, set_selected_booth_for_report) = create_signal(None::<BoothId>);
-
     let deletion_token_matches = create_memo(move |_| {
         let required = delete_confirmation_token.get().trim().to_uppercase();
 
@@ -291,10 +289,6 @@ pub fn BoothListPage() -> impl IntoView {
                                 }
                             }
 
-                            if selected_booth_for_report.get_untracked() == Some(booth.id.clone()) {
-                                set_selected_booth_for_report.set(None);
-                            }
-
                             toast.success(
                                 &t!("booth.success.deleted")()
                                     .replace("{description}", &booth.description),
@@ -409,13 +403,6 @@ pub fn BoothListPage() -> impl IntoView {
         );
     };
 
-    let open_selected_report = move |_| {
-        if let Some(booth_id) = selected_booth_for_report.get() {
-            set_expanded_booth_summary.set(None);
-            set_expanded_booth_id.set(Some(booth_id));
-        }
-    };
-
     let print_header_action = move || {
         view! {
             <button
@@ -468,45 +455,99 @@ pub fn BoothListPage() -> impl IntoView {
                                                             let booth_description = store_value(booth.description.clone());
                                                             let booth_date = booth.date;
                                                             let booth_id = booth.id.clone();
-                                                            let booth_id_for_card_class = booth_id.clone();
-                                                            let booth_id_for_actions = booth_id.clone();
-                                                            let booth_id_for_title = booth_id.clone();
+                                                            let booth_id_for_report = booth_id.clone();
                                                             let booth_for_edit = store_value(booth.clone());
                                                             let booth_for_copy = store_value(booth.clone());
                                                             let booth_for_delete = store_value(booth.clone());
 
                                                             view! {
                                                                 <article
-                                                                    class=move || {
-                                                                        let is_selected = selected_booth_for_report.get()
-                                                                            == Some(booth_id_for_card_class.clone());
-                                                                        if is_selected {
-                                                                            "booth-card group h-full cursor-pointer rounded-lg border-2 border-blue-500 bg-blue-50 p-6 shadow-lg ring-2 ring-blue-500/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-600"
-                                                                        } else {
-                                                                            "booth-card group h-full cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
-                                                                        }
-                                                                    }
+                                                                    class="booth-card group relative h-full rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
                                                                     aria_label=booth_description.get_value()
                                                                     role="region"
                                                                 >
-                                                                        <div
-                                                                            class="flex h-full flex-col gap-4"
-                                                                            on:click=move |_| {
-                                                                                let booth_to_select = booth_for_edit.get_value();
-                                                                                set_selected_booth_for_report.set(Some(booth_to_select.id.clone()));
+                                                                    <div class="absolute right-4 top-4 z-[45]">
+                                                                        <DropdownMenu
+                                                                            trigger=view! {
+                                                                                <Button
+                                                                                    variant=ButtonVariant::Secondary
+                                                                                    class="h-12 w-12 p-0".to_string()
+                                                                                    title=t!("booth.actions_menu")()
+                                                                                    aria_label=t!("booth.actions_menu_aria")()
+                                                                                >
+                                                                                    <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                        <path d="M12 5a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"></path>
+                                                                                    </svg>
+                                                                                </Button>
                                                                             }
                                                                         >
-                                                                        <div class="flex gap-4">
+                                                                            <ExportButton
+                                                                                scope=ExportScope::Booth(booth_id.clone())
+                                                                                menu_item=true
+                                                                            />
+                                                                            <DropdownMenuItem
+                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
+                                                                                    event.stop_propagation();
+                                                                                    set_copying_booth.set(Some(booth_for_copy.get_value()));
+                                                                                    set_show_copy_modal.set(true);
+                                                                                })
+                                                                                icon=view! {
+                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                                                                    </svg>
+                                                                                }.into_view()
+                                                                            >
+                                                                                {t!("booth.copy_button")()}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
+                                                                                    event.stop_propagation();
+                                                                                    set_editing_booth.set(Some(booth_for_edit.get_value()));
+                                                                                    set_show_edit_modal.set(true);
+                                                                                })
+                                                                                icon=view! {
+                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                                                    </svg>
+                                                                                }.into_view()
+                                                                            >
+                                                                                {t!("booth.edit_button")()}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
+                                                                                    event.stop_propagation();
+                                                                                    set_expanded_booth_summary.set(None);
+                                                                                    set_expanded_booth_id.set(Some(booth_id_for_report.clone()));
+                                                                                })
+                                                                                icon=view! {
+                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                                                                    </svg>
+                                                                                }.into_view()
+                                                                            >
+                                                                                {t!("booth.view_report")()}
+                                                                            </DropdownMenuItem>
+                                                                            <div class="my-1 h-px bg-gray-200"></div>
+                                                                            <DropdownMenuItem
+                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
+                                                                                    event.stop_propagation();
+                                                                                    prompt_delete_booth(booth_for_delete.get_value());
+                                                                                })
+                                                                                class="text-red-600 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700".to_string()
+                                                                                icon=view! {
+                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                                                    </svg>
+                                                                                }.into_view()
+                                                                            >
+                                                                                {t!("booth.delete_button")()}
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenu>
+                                                                    </div>
+                                                                    <div class="flex h-full flex-col gap-4">
+                                                                        <div class="flex gap-4 pr-16">
                                                                             <div class="min-w-0 flex-1 space-y-3">
-                                                                                <h3 class=move || {
-                                                                                    let is_selected = selected_booth_for_report.get()
-                                                                                        == Some(booth_id_for_title.clone());
-                                                                                    if is_selected {
-                                                                                        "text-lg font-semibold text-blue-700 transition-colors"
-                                                                                    } else {
-                                                                                        "text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-700"
-                                                                                    }
-                                                                                }>
+                                                                                <h3 class="text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-700">
                                                                                     {booth_description.get_value()}
                                                                                 </h3>
                                                                                 <div class="min-w-0 flex-1">
@@ -515,60 +556,6 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
-                                                                        </div>
-
-                                                                        <div
-                                                                            class=move || {
-                                                                                let is_selected = selected_booth_for_report.get() == Some(booth_id_for_actions.clone());
-                                                                                let visibility = if is_selected {
-                                                                                    "translate-y-0 opacity-100"
-                                                                                } else {
-                                                                                    "pointer-events-none translate-y-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
-                                                                                };
-                                                                                format!("mt-auto flex flex-wrap items-center justify-end gap-3 transition-all duration-200 {visibility}")
-                                                                            }
-                                                                        >
-                                                                            <Button
-                                                                                on_click=Box::new(move || {
-                                                                                    set_copying_booth.set(Some(booth_for_copy.get_value()));
-                                                                                    set_show_copy_modal.set(true);
-                                                                                })
-                                                                                variant=ButtonVariant::Ghost
-                                                                                class="relative z-10 h-12 w-20 p-0".to_string()
-                                                                                title=t!("booth.copy_button")()
-                                                                                aria_label=t!("booth.copy_button")()
-                                                                            >
-                                                                                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                                                                </svg>
-                                                                            </Button>
-                                                                            <Button
-                                                                                on_click=Box::new(move || {
-                                                                                    set_editing_booth.set(Some(booth_for_edit.get_value()));
-                                                                                    set_show_edit_modal.set(true);
-                                                                                })
-                                                                                variant=ButtonVariant::Ghost
-                                                                                class="relative z-10 h-12 w-20 p-0".to_string()
-                                                                                title=t!("booth.edit_button")()
-                                                                                aria_label=t!("booth.edit_button")()
-                                                                            >
-                                                                                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                                                                </svg>
-                                                                            </Button>
-                                                                            <Button
-                                                                                on_click=Box::new(move || {
-                                                                                    prompt_delete_booth(booth_for_delete.get_value());
-                                                                                })
-                                                                                variant=ButtonVariant::Danger
-                                                                                class="relative z-10 ml-6 h-12 w-20 p-0".to_string()
-                                                                                title=t!("booth.delete_button")()
-                                                                                aria_label=t!("booth.delete_button")()
-                                                                            >
-                                                                                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                                                </svg>
-                                                                            </Button>
                                                                         </div>
                                                                     </div>
                                                                 </article>
@@ -655,27 +642,7 @@ pub fn BoothListPage() -> impl IntoView {
                         }}
                     </Show>
 
-                    <div class="fixed bottom-28 right-6 z-50 flex flex-col-reverse items-end gap-3 sm:flex-row print:hidden">
-                        <button
-                            type="button"
-                            class=move || {
-                                if selected_booth_for_report.get().is_some() {
-                                    "inline-flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-xl transition-all hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                } else {
-                                    "inline-flex h-14 items-center gap-2 rounded-full bg-gray-300 px-5 text-gray-500 shadow-lg transition-all cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-                                }
-                            }
-                            on:click=open_selected_report
-                            disabled=move || selected_booth_for_report.get().is_none() || is_loading_report.get()
-                            title={t!("booth.view_report")()}
-                            aria-label={t!("booth.view_report_aria")()}
-                        >
-                            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                            </svg>
-                            <span class="hidden sm:inline">{t!("booth.view_report")}</span>
-                        </button>
-
+                    <div class="fixed bottom-28 right-6 z-50 print:hidden">
                         <button
                             type="button"
                             class="inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-white shadow-xl transition-all hover:scale-105 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
