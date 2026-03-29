@@ -120,10 +120,36 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
 
         web_sys::console::log_1(&"AppState is ready, checking for saved booth...".into());
 
-        // Only proceed if we have a stored booth ID
         let Some(stored_booth_id) = load_selected_booth_id() else {
             web_sys::console::log_1(&"No booth ID in localStorage".into());
-            restored.set(true); // Mark as done even if no booth to restore
+            restored.set(true);
+
+            let booth_repository = state.booth_repository.clone();
+            spawn_local(async move {
+                match booth_repository.find_all().await {
+                    Ok(mut booths) if booths.len() == 1 => {
+                        let booth = booths.pop().expect("single booth exists");
+                        web_sys::console::log_1(
+                            &format!(
+                                "Auto-selecting only booth on startup: {}",
+                                booth.description
+                            )
+                            .into(),
+                        );
+                        booth_signal.set(Some(booth));
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        web_sys::console::log_1(
+                            &format!(
+                                "Error checking single-booth startup auto-selection: {:?}",
+                                e
+                            )
+                            .into(),
+                        );
+                    }
+                }
+            });
             return;
         };
 

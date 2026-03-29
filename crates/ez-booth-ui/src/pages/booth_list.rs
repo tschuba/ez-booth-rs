@@ -48,9 +48,11 @@ pub fn BoothListPage() -> impl IntoView {
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
     let (show_copy_modal, set_show_copy_modal) = create_signal(false);
+    let (show_switch_modal, set_show_switch_modal) = create_signal(false);
     let (show_delete_confirm, set_show_delete_confirm) = create_signal(false);
     let (editing_booth, set_editing_booth) = create_signal(None::<Booth>);
     let (copying_booth, set_copying_booth) = create_signal(None::<Booth>);
+    let (switch_target_booth, set_switch_target_booth) = create_signal(None::<Booth>);
     let (deleting_booth, set_deleting_booth) = create_signal(None::<Booth>);
     let (is_checking_delete_requirements, set_is_checking_delete_requirements) =
         create_signal(false);
@@ -179,13 +181,33 @@ pub fn BoothListPage() -> impl IntoView {
                         .await
                     {
                         Ok(_) => {
-                            toast.success(
-                                &t!("booth.success.created")()
-                                    .replace("{description}", &booth.description),
-                            );
+                            match state.booth_repository.find_all().await {
+                                Ok(mut loaded_booths) => {
+                                    if loaded_booths.len() == 1 {
+                                        selected_booth.set(Some(booth.clone()));
+                                        toast.success(
+                                            &t!("booth.success.created_and_selected")()
+                                                .replace("{description}", &booth.description),
+                                        );
+                                    } else {
+                                        set_switch_target_booth.set(Some(booth.clone()));
+                                        set_show_switch_modal.set(true);
+                                        toast.success(
+                                            &t!("booth.success.created")()
+                                                .replace("{description}", &booth.description),
+                                        );
+                                    }
+
+                                    sort_booths(&mut loaded_booths);
+                                    set_booths.set(loaded_booths);
+                                }
+                                Err(_) => {
+                                    toast.error(&t!("booth.errors.load_failed")());
+                                }
+                            }
+
                             set_show_create_modal.set(false);
                             booth_list_version.update(|v| *v += 1);
-                            refresh_booths(state.clone());
                         }
                         Err(err) => {
                             toast.error(&translate_domain_error(&err));
@@ -250,14 +272,34 @@ pub fn BoothListPage() -> impl IntoView {
                         .await
                     {
                         Ok(copied) => {
-                            toast.success(
-                                &t!("booth.success.copied")()
-                                    .replace("{description}", &copied.description),
-                            );
+                            match state.booth_repository.find_all().await {
+                                Ok(mut loaded_booths) => {
+                                    if loaded_booths.len() == 1 {
+                                        selected_booth.set(Some(copied.clone()));
+                                        toast.success(
+                                            &t!("booth.success.copied_and_selected")()
+                                                .replace("{description}", &copied.description),
+                                        );
+                                    } else {
+                                        set_switch_target_booth.set(Some(copied.clone()));
+                                        set_show_switch_modal.set(true);
+                                        toast.success(
+                                            &t!("booth.success.copied")()
+                                                .replace("{description}", &copied.description),
+                                        );
+                                    }
+
+                                    sort_booths(&mut loaded_booths);
+                                    set_booths.set(loaded_booths);
+                                }
+                                Err(_) => {
+                                    toast.error(&t!("booth.errors.load_failed")());
+                                }
+                            }
+
                             set_show_copy_modal.set(false);
                             set_copying_booth.set(None);
                             booth_list_version.update(|v| *v += 1);
-                            refresh_booths(state.clone());
                         }
                         Err(err) => {
                             toast.error(&translate_domain_error(&err));
@@ -322,6 +364,29 @@ pub fn BoothListPage() -> impl IntoView {
     let translations = crate::i18n::use_translations();
     let create_booth_title = move || translations.with(|t| t.get("booth.create"));
     let edit_booth_title = move || translations.with(|t| t.get("booth.edit"));
+
+    let close_switch_modal = move || {
+        set_show_switch_modal.set(false);
+        set_switch_target_booth.set(None);
+    };
+
+    let handle_switch_to_booth = move || {
+        if let Some(booth) = switch_target_booth.get() {
+            let description = booth.description.clone();
+            selected_booth.set(Some(booth));
+            toast.success(&t!("booth.success.selected")().replace("{description}", &description));
+            close_switch_modal();
+        }
+    };
+
+    let switch_message = move || {
+        switch_target_booth
+            .get()
+            .map(|booth| {
+                t!("booth.switch_modal.message")().replace("{description}", &booth.description)
+            })
+            .unwrap_or_else(|| t!("booth.switch_modal.title")())
+    };
 
     let close_delete_modals = move || {
         set_show_delete_confirm.set(false);
@@ -787,6 +852,16 @@ pub fn BoothListPage() -> impl IntoView {
                             }
                         })}
                     </Modal>
+
+                    <ConfirmModal
+                        show=show_switch_modal
+                        on_close=close_switch_modal
+                        on_confirm=handle_switch_to_booth
+                        title=Signal::derive(move || t!("booth.switch_modal.title")())
+                        message=Signal::derive(switch_message)
+                        confirm_text=Signal::derive(move || t!("booth.switch_modal.confirm")())
+                        cancel_text=Signal::derive(move || t!("booth.switch_modal.cancel")())
+                    />
 
                     <ConfirmModal
                         show=show_delete_confirm
