@@ -472,6 +472,7 @@
     "heading": "Export your event data",
     "storage_explanation": "EZ Booth stores your events, vendors, and purchases locally in this browser.",
     "recommendation": "Export a backup before clearing browser data, switching devices, or making major browser changes.",
+    "booth_list_hint": "Download a full backup here or export a single event from its card.",
     "counts_hint": "Current local records:",
     "count_booths": "events",
     "count_vendors": "vendors",
