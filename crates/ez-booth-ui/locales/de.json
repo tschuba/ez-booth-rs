@@ -61,6 +61,12 @@
     "delete_button": "Löschen",
     "delete_confirm": "Möchten Sie diese Veranstaltung wirklich löschen?",
     "delete_confirm_message": "Möchten Sie '{description}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "switch_modal": {
+      "title": "Aktive Veranstaltung wechseln?",
+      "message": "Möchten Sie zur neu erstellten Veranstaltung '{description}' wechseln?",
+      "confirm": "Veranstaltung wechseln",
+      "cancel": "Hier bleiben"
+    },
     "delete_modal": {
       "title": "Veranstaltung löschen",
       "instructions": "Geben Sie {token} ein, um diese Veranstaltung dauerhaft zu löschen.",
@@ -120,7 +126,10 @@
     },
     "success": {
       "created": "Veranstaltung erstellt: {description}",
+      "created_and_selected": "Veranstaltung erstellt und ausgewählt: {description}",
       "copied": "Veranstaltung kopiert: {description}",
+      "copied_and_selected": "Veranstaltung kopiert und ausgewählt: {description}",
+      "selected": "Aktive Veranstaltung ausgewählt: {description}",
       "updated": "Veranstaltung aktualisiert: {description}",
       "deleted": "Veranstaltung gelöscht: {description}"
     },
