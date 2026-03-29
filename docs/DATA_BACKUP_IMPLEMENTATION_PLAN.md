@@ -251,6 +251,45 @@ Likely artifact updates:
 5. add operator and technical documentation
 6. run browser validation and update validation artifacts
 
+## Branching And Pull Request Strategy
+
+Execute this work through multiple small pull requests per sprint so backend, UI, validation, and docs can be reviewed separately when helpful.
+
+Working rules for this track:
+
+- branch from an up-to-date `main`
+- use focused short-lived branches named `feature/backup-...`
+- prefer one concern per branch, for example export backend, export UI, import validation, or warning copy
+- open a pull request for review before merge
+- use squash merge after review so `main` keeps one clean commit per approved change
+- delete the feature branch after merge and start the next item from refreshed `main`
+
+Suggested branch breakdown:
+
+1. `feature/backup-export-format`
+2. `feature/backup-export-ui`
+3. `feature/backup-import-validation`
+4. `feature/backup-import-ui`
+5. `feature/backup-import-merge`
+6. `feature/backup-booth-actions`
+7. `feature/backup-storage-warning`
+8. `feature/backup-docs-and-validation`
+
+Commit guidance for each branch:
+
+- follow the existing repository style such as `feat: ...`, `fix: ...`, `test: ...`, and `docs: ...`
+- keep commits scoped and readable, even when the pull request will later be squash-merged
+- include validation and documentation updates in the same branch when they are required to make the change reviewable
+- avoid mixing unrelated cleanup into backup branches unless it is necessary for the backup work itself
+
+Pull request guidance for this track:
+
+- explain why the change is needed for backup and recovery, not just which files changed
+- reference this document in the PR summary when relevant
+- note automated validation run, for example `./run-tests.sh`
+- note any manual browser validation completed or still pending in Chrome and Safari
+- call out follow-up branches that depend on the PR being merged
+
 ## Acceptance Criteria
 
 The work is complete when:
@@ -265,12 +304,16 @@ The work is complete when:
 
 ## Open Follow-Up Decisions For Execution
 
-These do not block planning, but should be confirmed during implementation:
+These do not block implementation, but should be finalized while building the import flow:
 
-- where to source `app_version` in backups
-- whether `Merge` should update records only by ID or also use timestamps
-- whether import should be all-or-nothing or allow partial success with a warning summary
-- whether storage usage should be shown if browser APIs are unavailable
+- confirm whether `Merge` should update records only by ID or also use timestamps when both records are valid
+- confirm how storage usage should be presented if browser APIs are unavailable
+
+Decisions already confirmed for execution:
+
+- source `app_version` from the app build/package version
+- use strict validation before import so invalid backups are rejected with a clear error summary
+- keep the storage warning as a dismissible banner rather than a blocking first-visit modal
 
 ## Notes For Future Extensions
 
