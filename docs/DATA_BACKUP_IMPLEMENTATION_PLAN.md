@@ -16,6 +16,54 @@ The work should make it safer to rely on EZ Booth in real event operation where 
 - storage warning strategy: both a first-visit warning and a persistent indicator
 - documentation scope: both an operator guide and a technical guide
 
+## Current Status
+
+As of 2026-03-29, the planned backup and recovery track has been implemented and merged to `main` in focused PRs.
+
+Merged PRs in this track:
+
+- `#45` Export Foundation
+- `#47` Export UI
+- `#49` Booth Export Actions
+- `#50` Import Validation
+- `#51` Import Validation UI
+- `#52` Import Apply Service
+- `#53` Import Apply UI
+- `#54` Storage Warnings
+- `#55` Guides And Validation
+
+Implemented outcomes:
+
+- versioned JSON backup format for full and booth backups
+- export service and import service in `crates/storage/src/export/`
+- strict import validation with structure and relationship checks
+- import conflict handling with `Skip`, `Replace`, and `Merge`
+- settings page and booth-list backup entry points
+- booth-level export actions
+- dismissible global storage warning plus persistent warning surfaces
+- bilingual EN/DE copy for backup and warning flows
+- operator and technical documentation
+- updated Safari and bilingual UAT validation artifacts
+
+## Remaining Work Before Sign-off
+
+The main implementation is complete. The remaining work for this track is now:
+
+1. capture and prioritize any final UX or wording improvements before manual validation
+2. run the documented manual browser validation in Chrome and Safari
+3. record validation evidence and any follow-up fixes in focused PRs
+
+## Next Planned Slice
+
+Before executing the final browser validation pass, use a small follow-up branch for any agreed polish work that improves:
+
+- warning clarity
+- backup/import usability
+- recovery messaging
+- validation ergonomics for operators
+
+The exact improvement scope should be decided before starting the next branch so the follow-up remains small and reviewable.
+
 ## Problem Statement
 
 Today the app stores booth data locally in the browser:
@@ -244,12 +292,19 @@ Likely artifact updates:
 
 ## Recommended Execution Order
 
+Completed:
+
 1. implement the backup format and service layer
 2. add unit and integration coverage for export/import behavior
 3. add settings page and booth-list actions
 4. add first-visit warning and persistent indicator
 5. add operator and technical documentation
-6. run browser validation and update validation artifacts
+6. update validation artifacts
+
+Remaining:
+
+7. apply final pre-validation improvements, if needed
+8. run browser validation and capture results
 
 ## Branching And Pull Request Strategy
 
@@ -274,6 +329,21 @@ Suggested branch breakdown:
 6. `feature/backup-booth-actions`
 7. `feature/backup-storage-warning`
 8. `feature/backup-docs-and-validation`
+
+Completed branch sequence:
+
+1. `feature/backup-export-format`
+2. `feature/backup-export-ui`
+3. `feature/backup-import-validation`
+4. `feature/backup-import-ui`
+5. `feature/backup-import-merge`
+6. `feature/backup-booth-actions`
+7. `feature/backup-storage-warning`
+8. `feature/backup-docs-and-validation`
+
+Recommended next follow-up branch, only if improvement work is approved:
+
+9. `feature/backup-polish`
 
 Commit guidance for each branch:
 
@@ -301,6 +371,8 @@ The work is complete when:
 - English and German translations cover the new flows
 - automated and manual validation prove the workflows in Chrome and Safari
 - the repo contains clear documentation for both operators and developers
+
+Implementation status: all acceptance criteria are implemented in `main`; manual browser validation evidence is the remaining sign-off activity.
 
 ## Open Follow-Up Decisions For Execution
 
