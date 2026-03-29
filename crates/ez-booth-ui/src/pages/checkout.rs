@@ -1641,7 +1641,7 @@ pub fn CheckoutPage() -> impl IntoView {
     };
 
     view! {
-        <Container>
+        <Container class="mt-6">
             <div
                 class="space-y-6"
                 on:click=move |_| {
@@ -2619,6 +2619,25 @@ pub fn CheckoutPage() -> impl IntoView {
             on_close=cancel_delete_purchase.clone()
             title=Signal::derive(move || t!("checkout.delete_modal.title")())
             size=ModalSize::Medium
+            action_bar=
+                view! {
+                    <div class="contents">
+                        <Button
+                            variant=ButtonVariant::Secondary
+                            on_click=Box::new(cancel_delete_purchase.clone())
+                        >
+                            {t!("common.cancel")}
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Danger
+                            disabled=!deletion_token_matches.get()
+                            on_click=Box::new(perform_delete_purchase.clone())
+                        >
+                            {t!("checkout.delete_modal.confirm")}
+                        </Button>
+                    </div>
+                }
+                .into_view()
         >
             <Show when=move || pending_deletion.get().purchase_id.is_some()>
                 <div class="space-y-4">
@@ -2646,21 +2665,6 @@ pub fn CheckoutPage() -> impl IntoView {
                             }
                         }
                     />
-                    <div class="flex justify-end gap-2">
-                    <Button
-                        variant=ButtonVariant::Secondary
-                        on_click=Box::new(cancel_delete_purchase.clone())
-                    >
-                        {t!("common.cancel")}
-                    </Button>
-                    <Button
-                        variant=ButtonVariant::Danger
-                        disabled=!deletion_token_matches.get()
-                        on_click=Box::new(perform_delete_purchase.clone())
-                    >
-                        {t!("checkout.delete_modal.confirm")}
-                    </Button>
-                </div>
             </div>
         </Show>
         </Modal>

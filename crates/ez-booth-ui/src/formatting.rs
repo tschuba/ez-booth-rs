@@ -92,6 +92,27 @@ pub fn format_date(date: NaiveDate, locale: Locale) -> String {
     }
 }
 
+/// Format a NaiveDate for compact UI display and include the year when needed.
+/// German: 25. Mar / 25. Mar 2025
+/// English: Mar 25 / Mar 25, 2025
+pub fn format_date_with_contextual_year(date: NaiveDate, locale: Locale) -> String {
+    let base = format_date(date, locale);
+    let current_year = Local::now().date_naive().year();
+
+    if date.year() == current_year {
+        base
+    } else {
+        match locale {
+            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
+                format!("{} {}", base, date.year())
+            }
+            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
+                format!("{}, {}", base, date.year())
+            }
+        }
+    }
+}
+
 /// Format a decimal value for display in input fields (no thousand separators)
 /// Used for displaying numbers in text input fields with locale-specific decimal separator
 pub fn format_decimal_for_input(amount: Decimal, locale: Locale, decimals: u32) -> String {

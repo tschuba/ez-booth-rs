@@ -75,24 +75,37 @@ pub fn StorageWarningBanner() -> impl IntoView {
 }
 
 #[component]
-pub fn StorageWarningInfo(#[prop(optional)] class: String) -> impl IntoView {
+pub fn StorageWarningInfo(
+    #[prop(optional)] class: String,
+    #[prop(optional)] children: Option<Children>,
+) -> impl IntoView {
     let class = if class.is_empty() {
         "".to_string()
     } else {
         format!(" {class}")
     };
 
+    let actions = store_value(children.map(|children| children().into_view()));
+
     view! {
         <div class=format!(
             "rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 px-4 py-4{}",
             class
         )>
-            <div class="space-y-1 text-sm text-amber-950">
-                <p class="font-semibold uppercase tracking-wide text-amber-800">
-                    {t!("backup.storage_warning_label")}
-                </p>
-                <p>{t!("backup.storage_warning_message")}</p>
-                <p class="text-amber-900/80">{t!("backup.storage_warning_recommendation")}</p>
+            <div class="space-y-4">
+                <div class="space-y-1 text-sm text-amber-950">
+                    <p class="font-semibold uppercase tracking-wide text-amber-800">
+                        {t!("backup.storage_warning_label")}
+                    </p>
+                    <p>{t!("backup.storage_warning_message")}</p>
+                    <p class="text-amber-900/80">{t!("backup.storage_warning_recommendation")}</p>
+                </div>
+
+                <Show when=move || actions.with_value(|actions| actions.is_some())>
+                    <div class="flex flex-wrap items-center gap-3">
+                        {actions.with_value(|actions| actions.clone())}
+                    </div>
+                </Show>
             </div>
         </div>
     }

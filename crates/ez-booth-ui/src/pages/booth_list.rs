@@ -1,7 +1,7 @@
 use crate::booth_ordering::sort_booths;
 use crate::components::*;
 use crate::error_translator::translate_domain_error;
-use crate::formatting::format_date as format_display_date;
+use crate::formatting::format_date_with_contextual_year as format_display_date;
 use crate::i18n::{translate_with_params, use_locale};
 use crate::selected_booth_context::use_selected_booth;
 use crate::state::*;
@@ -61,6 +61,7 @@ pub fn BoothListPage() -> impl IntoView {
     let (expanded_booth_id, set_expanded_booth_id) = create_signal(None::<BoothId>);
     let (expanded_booth_summary, set_expanded_booth_summary) = create_signal(None::<BoothSummary>);
     let (is_loading_report, set_is_loading_report) = create_signal(false);
+    let (selected_booth_for_report, set_selected_booth_for_report) = create_signal(None::<BoothId>);
 
     let deletion_token_matches = create_memo(move |_| {
         let required = delete_confirmation_token.get().trim().to_uppercase();
@@ -290,6 +291,10 @@ pub fn BoothListPage() -> impl IntoView {
                                 }
                             }
 
+                            if selected_booth_for_report.get_untracked() == Some(booth.id.clone()) {
+                                set_selected_booth_for_report.set(None);
+                            }
+
                             toast.success(
                                 &t!("booth.success.deleted")()
                                     .replace("{description}", &booth.description),
@@ -404,6 +409,13 @@ pub fn BoothListPage() -> impl IntoView {
         );
     };
 
+    let open_selected_report = move |_| {
+        if let Some(booth_id) = selected_booth_for_report.get() {
+            set_expanded_booth_summary.set(None);
+            set_expanded_booth_id.set(Some(booth_id));
+        }
+    };
+
     let print_header_action = move || {
         view! {
             <button
@@ -425,31 +437,20 @@ pub fn BoothListPage() -> impl IntoView {
     view! {
         <>
             <div class="print:hidden">
-                <Container>
-                    <div class="py-8">
-                        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
-                                <p class="mt-1 text-sm text-gray-600">{t!("backup.booth_list_hint")}</p>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-3">
-                                <ExportButton
-                                    scope=ExportScope::All
-                                    variant=ButtonVariant::Secondary
-                                />
-                                <ImportButton variant=ButtonVariant::Secondary />
-                                <Button
-                                    on_click=Box::new(move || set_show_create_modal.set(true))
-                                    aria_label=t!("booth.create_aria_label")()
-                                >
-                                    {t!("booth.create")}
-                                </Button>
-                            </div>
-                        </div>
+                <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50 px-4 py-3 sm:px-6 lg:px-8">
+                    <div class="mx-auto max-w-7xl">
+                        <StorageWarningInfo class="border-amber-200/70 bg-gradient-to-r from-amber-50/85 via-orange-50/80 to-amber-100/85 shadow-sm".to_string()>
+                            <ExportButton
+                                scope=ExportScope::All
+                                variant=ButtonVariant::Secondary
+                            />
+                            <ImportButton variant=ButtonVariant::Secondary />
+                        </StorageWarningInfo>
+                    </div>
+                </div>
 
-                        <div class="mb-6">
-                            <StorageWarningInfo />
-                        </div>
+                <Container>
+                    <div class="pb-40 pt-52 sm:pt-48">
 
                         <Show
                             when=move || is_loading.get()
@@ -466,17 +467,46 @@ pub fn BoothListPage() -> impl IntoView {
                                                         children=move |booth| {
                                                             let booth_description = store_value(booth.description.clone());
                                                             let booth_date = booth.date;
-                                                             let booth_id_stored = store_value(booth.id);
-                                                             let booth_for_edit = store_value(booth.clone());
-                                                             let booth_for_copy = store_value(booth.clone());
-                                                             let booth_for_delete = store_value(booth.clone());
+                                                            let booth_id = booth.id.clone();
+                                                            let booth_id_for_card_class = booth_id.clone();
+                                                            let booth_id_for_actions = booth_id.clone();
+                                                            let booth_id_for_title = booth_id.clone();
+                                                            let booth_for_edit = store_value(booth.clone());
+                                                            let booth_for_copy = store_value(booth.clone());
+                                                            let booth_for_delete = store_value(booth.clone());
 
                                                             view! {
-                                                                <Card class="booth-card h-full">
-                                                                    <div class="flex flex-col gap-4 h-full">
+                                                                <article
+                                                                    class=move || {
+                                                                        let is_selected = selected_booth_for_report.get()
+                                                                            == Some(booth_id_for_card_class.clone());
+                                                                        if is_selected {
+                                                                            "booth-card group h-full cursor-pointer rounded-lg border-2 border-blue-500 bg-blue-50 p-6 shadow-lg ring-2 ring-blue-500/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-600"
+                                                                        } else {
+                                                                            "booth-card group h-full cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
+                                                                        }
+                                                                    }
+                                                                    aria_label=booth_description.get_value()
+                                                                    role="region"
+                                                                >
+                                                                        <div
+                                                                            class="flex h-full flex-col gap-4"
+                                                                            on:click=move |_| {
+                                                                                let booth_to_select = booth_for_edit.get_value();
+                                                                                set_selected_booth_for_report.set(Some(booth_to_select.id.clone()));
+                                                                            }
+                                                                        >
                                                                         <div class="flex gap-4">
                                                                             <div class="min-w-0 flex-1 space-y-3">
-                                                                                <h3 class="text-lg font-semibold text-gray-900">
+                                                                                <h3 class=move || {
+                                                                                    let is_selected = selected_booth_for_report.get()
+                                                                                        == Some(booth_id_for_title.clone());
+                                                                                    if is_selected {
+                                                                                        "text-lg font-semibold text-blue-700 transition-colors"
+                                                                                    } else {
+                                                                                        "text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-700"
+                                                                                    }
+                                                                                }>
                                                                                     {booth_description.get_value()}
                                                                                 </h3>
                                                                                 <div class="min-w-0 flex-1">
@@ -485,34 +515,26 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
-                                                                            <button
-                                                                                on:click=move |_| {
-                                                                                    set_expanded_booth_summary.set(None);
-                                                                                    set_expanded_booth_id.set(Some(booth_id_stored.get_value()));
-                                                                                }
-                                                                                disabled=move || is_loading_report.get()
-                                                                                title={t!("booth.view_report")()}
-                                                                                aria-label={t!("booth.view_report_aria")()}
-                                                                                class="inline-flex h-20 w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-blue-600 text-white shadow-sm transition-colors hover:bg-blue-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                            >
-                                                                                <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                                                                                </svg>
-                                                                            </button>
                                                                         </div>
-                                                                        <div class="mt-auto flex flex-wrap items-center justify-end gap-3">
-                                                                            <ExportButton
-                                                                                scope=ExportScope::Booth(booth_id_stored.get_value())
-                                                                                variant=ButtonVariant::Secondary
-                                                                                size=ButtonSize::Small
-                                                                            />
+
+                                                                        <div
+                                                                            class=move || {
+                                                                                let is_selected = selected_booth_for_report.get() == Some(booth_id_for_actions.clone());
+                                                                                let visibility = if is_selected {
+                                                                                    "translate-y-0 opacity-100"
+                                                                                } else {
+                                                                                    "pointer-events-none translate-y-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
+                                                                                };
+                                                                                format!("mt-auto flex flex-wrap items-center justify-end gap-3 transition-all duration-200 {visibility}")
+                                                                            }
+                                                                        >
                                                                             <Button
                                                                                 on_click=Box::new(move || {
                                                                                     set_copying_booth.set(Some(booth_for_copy.get_value()));
                                                                                     set_show_copy_modal.set(true);
                                                                                 })
                                                                                 variant=ButtonVariant::Ghost
-                                                                                class="h-12 w-20 p-0".to_string()
+                                                                                class="relative z-10 h-12 w-20 p-0".to_string()
                                                                                 title=t!("booth.copy_button")()
                                                                                 aria_label=t!("booth.copy_button")()
                                                                             >
@@ -526,7 +548,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                     set_show_edit_modal.set(true);
                                                                                 })
                                                                                 variant=ButtonVariant::Ghost
-                                                                                class="h-12 w-20 p-0".to_string()
+                                                                                class="relative z-10 h-12 w-20 p-0".to_string()
                                                                                 title=t!("booth.edit_button")()
                                                                                 aria_label=t!("booth.edit_button")()
                                                                             >
@@ -539,7 +561,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                     prompt_delete_booth(booth_for_delete.get_value());
                                                                                 })
                                                                                 variant=ButtonVariant::Danger
-                                                                                class="ml-6 h-12 w-20 p-0".to_string()
+                                                                                class="relative z-10 ml-6 h-12 w-20 p-0".to_string()
                                                                                 title=t!("booth.delete_button")()
                                                                                 aria_label=t!("booth.delete_button")()
                                                                             >
@@ -549,7 +571,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                             </Button>
                                                                         </div>
                                                                     </div>
-                                                                </Card>
+                                                                </article>
                                                             }
                                                         }
                                                     />
@@ -633,22 +655,77 @@ pub fn BoothListPage() -> impl IntoView {
                         }}
                     </Show>
 
+                    <div class="fixed bottom-28 right-6 z-50 flex flex-col-reverse items-end gap-3 sm:flex-row print:hidden">
+                        <button
+                            type="button"
+                            class=move || {
+                                if selected_booth_for_report.get().is_some() {
+                                    "inline-flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-xl transition-all hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                } else {
+                                    "inline-flex h-14 items-center gap-2 rounded-full bg-gray-300 px-5 text-gray-500 shadow-lg transition-all cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+                                }
+                            }
+                            on:click=open_selected_report
+                            disabled=move || selected_booth_for_report.get().is_none() || is_loading_report.get()
+                            title={t!("booth.view_report")()}
+                            aria-label={t!("booth.view_report_aria")()}
+                        >
+                            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                            </svg>
+                            <span class="hidden sm:inline">{t!("booth.view_report")}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-white shadow-xl transition-all hover:scale-105 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                            on:click=move |_| set_show_create_modal.set(true)
+                            title={t!("booth.create")()}
+                            aria-label={t!("booth.create_aria_label")()}
+                        >
+                            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span class="hidden sm:inline">{t!("booth.create")}</span>
+                        </button>
+                    </div>
+
                     <Modal
                         show=show_create_modal
                         on_close=move || set_show_create_modal.set(false)
                         title=Signal::derive(move || create_booth_title())
                         size=ModalSize::Large
+                        action_bar=
+                            view! {
+                                <div class="contents">
+                                    <Button
+                                        on_click=Box::new(move || {
+                                            set_show_create_modal.set(false);
+                                        })
+                                        variant=ButtonVariant::Secondary
+                                    >
+                                        {t!("common.cancel")()}
+                                    </Button>
+                                    <Button
+                                        variant=ButtonVariant::Primary
+                                        button_type="submit".to_string()
+                                        form="create-booth-form".to_string()
+                                    >
+                                        {t!("booth.save_button")()}
+                                    </Button>
+                                </div>
+                            }
+                            .into_view()
                     >
                         {move || {
                             if show_create_modal.get() {
                                 let current_locale = locale.get();
                                 Some(view! {
                                     <BoothForm
+                                        form_id="create-booth-form".to_string()
+                                        autofocus_description=true
                                         initial_data=BoothFormData::default_with_locale(current_locale)
                                         on_submit=handle_create_booth
-                                        on_cancel=move || {
-                                            set_show_create_modal.set(false);
-                                        }
                                     />
                                 })
                             } else {
@@ -665,18 +742,37 @@ pub fn BoothListPage() -> impl IntoView {
                         }
                         title=Signal::derive(move || edit_booth_title())
                         size=ModalSize::Large
+                        action_bar=
+                            view! {
+                                <div class="contents">
+                                    <Button
+                                        on_click=Box::new(move || {
+                                            set_show_edit_modal.set(false);
+                                            set_editing_booth.set(None);
+                                        })
+                                        variant=ButtonVariant::Secondary
+                                    >
+                                        {t!("common.cancel")()}
+                                    </Button>
+                                    <Button
+                                        variant=ButtonVariant::Primary
+                                        button_type="submit".to_string()
+                                        form="edit-booth-form".to_string()
+                                    >
+                                        {t!("booth.save_button")()}
+                                    </Button>
+                                </div>
+                            }
+                            .into_view()
                     >
                         {move || editing_booth.get().map(|booth| {
                             let current_locale = locale.get();
                             let initial_data = BoothFormData::from_booth(&booth, current_locale);
                             view! {
                                 <BoothForm
+                                    form_id="edit-booth-form".to_string()
                                     initial_data=initial_data
                                     on_submit=handle_edit_booth
-                                    on_cancel=move || {
-                                        set_show_edit_modal.set(false);
-                                        set_editing_booth.set(None);
-                                    }
                                 />
                             }
                         })}
@@ -690,16 +786,36 @@ pub fn BoothListPage() -> impl IntoView {
                         }
                         title=Signal::derive(move || t!("booth.copy_title")())
                         size=ModalSize::Medium
+                        action_bar=
+                            view! {
+                                <div class="contents">
+                                    <Button
+                                        on_click=Box::new(move || {
+                                            set_show_copy_modal.set(false);
+                                            set_copying_booth.set(None);
+                                        })
+                                        variant=ButtonVariant::Secondary
+                                    >
+                                        {t!("common.cancel")()}
+                                    </Button>
+                                    <Button
+                                        variant=ButtonVariant::Primary
+                                        button_type="submit".to_string()
+                                        form="copy-booth-form".to_string()
+                                    >
+                                        {t!("booth.copy_confirm")()}
+                                    </Button>
+                                </div>
+                            }
+                            .into_view()
                     >
                         {move || copying_booth.get().map(|booth| {
                             view! {
                                 <CopyBoothDialog
                                     source_booth=booth
+                                    form_id="copy-booth-form".to_string()
+                                    autofocus_description=true
                                     on_submit=handle_copy_booth
-                                    on_cancel=move || {
-                                        set_show_copy_modal.set(false);
-                                        set_copying_booth.set(None);
-                                    }
                                 />
                             }
                         })}
@@ -731,6 +847,27 @@ pub fn BoothListPage() -> impl IntoView {
                             }
                         })
                         size=ModalSize::Medium
+                        action_bar=
+                            view! {
+                                <div class="contents">
+                                    <Show when=move || !is_checking_delete_requirements.get()>
+                                        <Button
+                                            variant=ButtonVariant::Secondary
+                                            on_click=Box::new(close_delete_modals)
+                                        >
+                                            {t!("common.cancel")}
+                                        </Button>
+                                        <Button
+                                            variant=ButtonVariant::Danger
+                                            disabled=!deletion_token_matches.get()
+                                            on_click=Box::new(handle_delete_booth)
+                                        >
+                                            {t!("booth.delete_modal.confirm")}
+                                        </Button>
+                                    </Show>
+                                </div>
+                            }
+                            .into_view()
                     >
                         <Show
                             when=move || is_checking_delete_requirements.get()
@@ -765,21 +902,6 @@ pub fn BoothListPage() -> impl IntoView {
                                                     }
                                                 }
                                             />
-                                            <div class="flex justify-end gap-2">
-                                                <Button
-                                                    variant=ButtonVariant::Secondary
-                                                    on_click=Box::new(close_delete_modals)
-                                                >
-                                                    {t!("common.cancel")}
-                                                </Button>
-                                                <Button
-                                                    variant=ButtonVariant::Danger
-                                                    disabled=!deletion_token_matches.get()
-                                                    on_click=Box::new(handle_delete_booth)
-                                                >
-                                                    {t!("booth.delete_modal.confirm")}
-                                                </Button>
-                                            </div>
                                         </div>
                                     </Show>
                                 }

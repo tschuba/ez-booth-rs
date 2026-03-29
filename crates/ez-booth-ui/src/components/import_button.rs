@@ -5,7 +5,9 @@ use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{Event, FileReader, ProgressEvent};
 
-use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
+use crate::components::{
+    use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize,
+};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
@@ -326,6 +328,27 @@ pub fn ImportButton(
                 on_close=move || close_modal_action.with_value(|close| close())
                 title=Signal::derive(move || t!("backup.import_review_title")())
                 size=ModalSize::Large
+                action_bar=
+                    view! {
+                        <div class="contents">
+                            <Button
+                                variant=ButtonVariant::Secondary
+                                on_click=Box::new(move || close_modal_action.with_value(|close| close()))
+                            >
+                                {t!("common.close")}
+                            </Button>
+                            <Show when=move || preview.get().is_some()>
+                                <Button on_click=Box::new(handle_apply_import) disabled=is_importing.get()>
+                                    {move || if is_importing.get() {
+                                        t!("backup.import_in_progress")()
+                                    } else {
+                                        t!("backup.import_apply")()
+                                    }}
+                                </Button>
+                            </Show>
+                        </div>
+                    }
+                    .into_view()
             >
                 <div class="space-y-4 text-gray-700">
                     <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
@@ -432,23 +455,6 @@ pub fn ImportButton(
                         })}
                     </Show>
 
-                    <div class="flex justify-end gap-2">
-                        <Button
-                            variant=ButtonVariant::Secondary
-                            on_click=Box::new(move || close_modal_action.with_value(|close| close()))
-                        >
-                            {t!("common.close")}
-                        </Button>
-                        <Show when=move || preview.get().is_some()>
-                            <Button on_click=Box::new(handle_apply_import) disabled=is_importing.get()>
-                                {move || if is_importing.get() {
-                                    t!("backup.import_in_progress")()
-                                } else {
-                                    t!("backup.import_apply")()
-                                }}
-                            </Button>
-                        </Show>
-                    </div>
                 </div>
             </Modal>
         </>

@@ -74,6 +74,12 @@ pub fn Button(
     /// Title attribute for native browser tooltip
     #[prop(optional)]
     title: Option<String>,
+    /// Native button type attribute
+    #[prop(optional)]
+    button_type: Option<String>,
+    /// Associates button with a form by id
+    #[prop(optional)]
+    form: Option<String>,
 ) -> impl IntoView {
     let variant = variant.unwrap_or(ButtonVariant::Primary);
     let size = size.unwrap_or(ButtonSize::Medium);
@@ -100,11 +106,14 @@ pub fn Button(
         width_class,
         additional_classes
     );
+    let button_type = button_type.unwrap_or_else(|| "button".to_string());
 
     view! {
         <button
+            type=button_type
             class=class_list
             disabled=disabled
+            form=form
             aria-label=aria_label
             title=title
             aria-pressed=aria_pressed.map(|p| if p { "true" } else { "false" })

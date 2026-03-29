@@ -52,10 +52,22 @@ pub fn Input(
     /// ARIA label for accessibility
     #[prop(optional)]
     aria_label: Option<String>,
+    /// Node ref for imperative focus/select behavior
+    #[prop(optional)]
+    node_ref: Option<NodeRef<html::Input>>,
+    /// Whether to focus the input when mounted
+    #[prop(optional)]
+    autofocus: Option<bool>,
+    /// Whether to select the input contents after focusing
+    #[prop(optional)]
+    select_on_focus: Option<bool>,
 ) -> impl IntoView {
     let input_type = input_type.unwrap_or(InputType::Text);
     let disabled = disabled.unwrap_or(false);
     let required = required.unwrap_or(false);
+    let autofocus = autofocus.unwrap_or(false);
+    let select_on_focus = select_on_focus.unwrap_or(false);
+    let input_ref = node_ref.unwrap_or_else(create_node_ref::<html::Input>);
 
     let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
     let input_classes = move || {
@@ -68,6 +80,21 @@ pub fn Input(
 
     let additional_classes = class.unwrap_or("");
     let combined_classes = move || format!("{} {}", input_classes(), additional_classes);
+
+    if autofocus {
+        let node_ref_for_focus = input_ref.clone();
+        set_timeout(
+            move || {
+                if let Some(input) = node_ref_for_focus.get() {
+                    let _ = input.focus();
+                    if select_on_focus {
+                        let _ = input.select();
+                    }
+                }
+            },
+            std::time::Duration::from_millis(0),
+        );
+    }
 
     // Generate unique ID for error message association
     let error_id = move || {
@@ -87,6 +114,7 @@ pub fn Input(
                 </label>
             })}
             <input
+                node_ref=input_ref
                 type=input_type.as_str()
                 class=combined_classes
                 placeholder=placeholder.unwrap_or_default()
