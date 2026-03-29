@@ -202,6 +202,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_create_booth_trims_description() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let booth = service
+            .create_booth(
+                "  Test Booth  ".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                FeeConfig {
+                    participation_fee: dec!(5.0),
+                    sales_fee_percent: dec!(10.0),
+                    rounding_step: dec!(0.50),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(booth.description, "Test Booth");
+    }
+
+    #[tokio::test]
     async fn test_update_booth_with_valid_regex() {
         let repo = MockBoothRepository::new();
         let service = BoothService::new(repo);
@@ -275,6 +296,35 @@ mod tests {
 
         service
             .create_booth("Spring Fair".to_string(), date, fees.clone())
+            .await
+            .unwrap();
+
+        let result = service
+            .create_booth("Spring Fair".to_string(), date, fees)
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(
+                ValidationError::BoothDuplicateNameAndDate { .. }
+            ))
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_booth_rejects_duplicate_name_and_date_after_trimming() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+        let date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        service
+            .create_booth("  Spring Fair  ".to_string(), date, fees.clone())
             .await
             .unwrap();
 

@@ -14,12 +14,11 @@ pub struct CopyBoothFormData {
 
 impl CopyBoothFormData {
     pub fn from_booth(booth: &Booth) -> Self {
+        let today = chrono::Local::now().date_naive();
+
         Self {
-            description: format!("{} - Copy", booth.description),
-            date: chrono::Local::now()
-                .date_naive()
-                .format("%Y-%m-%d")
-                .to_string(),
+            description: format!("{} ({})", booth.description, today.format("%Y-%m-%d")),
+            date: today.format("%Y-%m-%d").to_string(),
         }
     }
 
@@ -54,7 +53,7 @@ pub fn CopyBoothDialog(
         if description_value.trim().is_empty() {
             set_description_error.set(Some(t!("booth.form_errors.description_required")()));
             has_errors = true;
-        } else if description_value.len() > 200 {
+        } else if description_value.chars().count() > 200 {
             set_description_error.set(Some(t!("booth.form_errors.description_length")()));
             has_errors = true;
         }
@@ -118,5 +117,43 @@ pub fn CopyBoothDialog(
                 </div>
             </form>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::models::booth::FeeConfig;
+    use rust_decimal::Decimal;
+
+    fn test_booth(description: &str) -> Booth {
+        Booth::new(
+            description.to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            FeeConfig {
+                participation_fee: Decimal::ZERO,
+                sales_fee_percent: Decimal::ZERO,
+                rounding_step: Decimal::ZERO,
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn copy_form_defaults_use_date_suffix_once() {
+        let booth = test_booth("Spring Fair");
+        let form = CopyBoothFormData::from_booth(&booth);
+
+        assert_eq!(form.date.len(), 10);
+        assert_eq!(form.description, format!("Spring Fair ({})", form.date));
+    }
+
+    #[test]
+    fn copy_form_does_not_append_copy_copy_suffixes() {
+        let booth = test_booth("Spring Fair - Copy");
+        let form = CopyBoothFormData::from_booth(&booth);
+
+        assert!(form.description.starts_with("Spring Fair - Copy ("));
+        assert!(!form.description.contains(" - Copy - Copy"));
     }
 }

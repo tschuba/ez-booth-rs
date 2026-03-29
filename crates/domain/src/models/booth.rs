@@ -396,10 +396,12 @@ impl Booth {
     /// - Description is empty or longer than 200 characters
     /// - Fee configuration is invalid
     pub fn new(description: String, date: NaiveDate, fees: FeeConfig) -> Result<Self, DomainError> {
-        if description.trim().is_empty() {
+        let description = description.trim().to_string();
+
+        if description.is_empty() {
             return Err(DomainError::Validation(ValidationError::BoothNameEmpty));
         }
-        if description.len() > 200 {
+        if description.chars().count() > 200 {
             return Err(DomainError::Validation(ValidationError::BoothNameTooLong));
         }
 
@@ -423,7 +425,7 @@ impl Booth {
     }
 
     pub fn update_description(&mut self, description: String) {
-        self.description = description;
+        self.description = description.trim().to_string();
         self.updated_at = Utc::now();
     }
 
@@ -472,6 +474,14 @@ pub struct VendorBoothSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_fees() -> FeeConfig {
+        FeeConfig {
+            participation_fee: Decimal::ZERO,
+            sales_fee_percent: Decimal::ZERO,
+            rounding_step: Decimal::ZERO,
+        }
+    }
 
     #[test]
     fn omission_rule_exact_matches() {
@@ -604,6 +614,52 @@ mod tests {
             Err(DomainError::Validation(
                 ValidationError::VendorOmissionRulesTooMany,
             ))
+        ));
+    }
+
+    #[test]
+    fn booth_new_trims_description() {
+        let booth = Booth::new(
+            "  Spring Fair  ".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        assert_eq!(booth.description, "Spring Fair");
+    }
+
+    #[test]
+    fn booth_update_description_trims_whitespace() {
+        let mut booth = Booth::new(
+            "Spring Fair".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        booth.update_description("  Updated Fair  ".to_string());
+
+        assert_eq!(booth.description, "Updated Fair");
+    }
+
+    #[test]
+    fn booth_new_limits_description_by_character_count() {
+        let valid = Booth::new(
+            "ä".repeat(200),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        );
+        let invalid = Booth::new(
+            "ä".repeat(201),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        );
+
+        assert!(valid.is_ok());
+        assert!(matches!(
+            invalid,
+            Err(DomainError::Validation(ValidationError::BoothNameTooLong))
         ));
     }
 }

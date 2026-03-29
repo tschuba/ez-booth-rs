@@ -11,7 +11,7 @@ impl BoothValidator {
         if name.trim().is_empty() {
             return Err(DomainError::Validation(ValidationError::BoothNameEmpty));
         }
-        if name.len() > 200 {
+        if name.chars().count() > 200 {
             return Err(DomainError::Validation(ValidationError::BoothNameTooLong));
         }
         Ok(())
@@ -71,6 +71,8 @@ mod tests {
         assert!(BoothValidator::validate_name("").is_err());
         assert!(BoothValidator::validate_name("   ").is_err());
         assert!(BoothValidator::validate_name(&"x".repeat(201)).is_err());
+        assert!(BoothValidator::validate_name(&"ä".repeat(200)).is_ok());
+        assert!(BoothValidator::validate_name(&"ä".repeat(201)).is_err());
     }
 
     #[test]

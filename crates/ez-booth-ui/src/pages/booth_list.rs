@@ -14,11 +14,16 @@ use std::collections::HashMap;
 use web_sys::window;
 
 fn confirmation_token_from_booth(booth_id: &BoothId) -> String {
-    let id = booth_id.as_str();
+    confirmation_token_from_id_str(&booth_id.as_str())
+}
+
+fn confirmation_token_from_id_str(id: &str) -> String {
     let sanitized: String = id.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
 
-    if sanitized.is_empty() {
-        return String::new();
+    const FALLBACK_TOKEN: &str = "DELETE";
+
+    if sanitized.len() < 4 {
+        return FALLBACK_TOKEN.to_string();
     }
 
     let len = sanitized.len();
@@ -795,5 +800,24 @@ pub fn BoothListPage() -> impl IntoView {
                 </Show>
             </div>
         </>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::confirmation_token_from_id_str;
+
+    #[test]
+    fn confirmation_token_uses_last_four_alphanumeric_characters() {
+        assert_eq!(
+            confirmation_token_from_id_str("12345678-1234-1234-1234-1234567890ab"),
+            "90AB"
+        );
+    }
+
+    #[test]
+    fn confirmation_token_falls_back_when_id_has_too_few_alphanumeric_characters() {
+        assert_eq!(confirmation_token_from_id_str("--"), "DELETE");
+        assert_eq!(confirmation_token_from_id_str("a-1"), "DELETE");
     }
 }
