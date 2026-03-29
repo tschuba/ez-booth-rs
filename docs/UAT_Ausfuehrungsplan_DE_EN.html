@@ -508,6 +508,11 @@
             <strong><span lang="de">Modul H: Korrektur- und Loeschungsablaeufe</span><span lang="en">Module H: Correction and Deletion Workflows</span></strong>
             <div class="hint"><span lang="de">ca. 10 Minuten</span><span lang="en">about 10 minutes</span></div>
           </label>
+          <label class="module-pick" data-label-de="Modul I" data-label-en="Module I">
+            <input type="checkbox" id="select_moduleI" data-minutes="12" onchange="toggleModule('moduleI')">
+            <strong><span lang="de">Modul I: Backup und Wiederherstellung</span><span lang="en">Module I: Backup and Recovery</span></strong>
+            <div class="hint"><span lang="de">ca. 12 Minuten</span><span lang="en">about 12 minutes</span></div>
+          </label>
         </div>
       </section>
 
@@ -908,6 +913,101 @@
         <div class="status-group">
           <label><input type="radio" name="moduleH_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
           <label><input type="radio" name="moduleH_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
+        </div>
+      </section>
+
+      <section id="moduleI" class="module">
+        <div class="module-header">
+          <h2><span lang="de">Modul I: Backup und Wiederherstellung</span><span lang="en">Module I: Backup and Recovery</span></h2>
+          <div class="badges"><span class="badge"><span lang="de">12 Minuten</span><span lang="en">12 minutes</span></span></div>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">I.1 Warnhinweise und Export</span><span lang="en">I.1 Storage warnings and export</span></h4>
+          <div class="columns">
+            <div>
+              <strong lang="de">Schritte</strong><strong lang="en">Steps</strong>
+              <ol>
+                <li lang="de">Standliste oeffnen</li>
+                <li lang="en">Open the booth list</li>
+                <li lang="de">Dauerhaften Warnhinweis pruefen</li>
+                <li lang="en">Verify the persistent warning</li>
+                <li lang="de">Einstellungen oeffnen</li>
+                <li lang="en">Open Settings</li>
+                <li lang="de">Warnhinweis im Backup-Bereich pruefen</li>
+                <li lang="en">Verify the warning in the backup section</li>
+                <li lang="de">Gesamt-Backup exportieren</li>
+                <li lang="en">Export a full backup</li>
+                <li lang="de">Stand-Backup exportieren</li>
+                <li lang="en">Export a booth backup</li>
+              </ol>
+            </div>
+            <div>
+              <strong lang="de">Erwartet</strong><strong lang="en">Expected</strong>
+              <ul>
+                <li lang="de">Warnhinweise erklaeren klar, dass Daten browser-lokal gespeichert sind</li>
+                <li lang="en">Warnings clearly explain that data is stored in the browser</li>
+                <li lang="de">Export startet ohne Konsolenfehler</li>
+                <li lang="en">Export starts without console errors</li>
+                <li lang="de">JSON-Dateien werden erfolgreich heruntergeladen</li>
+                <li lang="en">JSON files download successfully</li>
+              </ul>
+            </div>
+          </div>
+          <div class="checklist">
+            <label><input type="checkbox" name="i1_booth_warning"><span lang="de">Warnhinweis in der Standliste sichtbar</span><span lang="en">Warning visible on booth list</span></label>
+            <label><input type="checkbox" name="i1_settings_warning"><span lang="de">Warnhinweis in Einstellungen sichtbar</span><span lang="en">Warning visible in Settings</span></label>
+            <label><input type="checkbox" name="i1_full_export"><span lang="de">Gesamt-Backup erfolgreich exportiert</span><span lang="en">Full backup exported successfully</span></label>
+            <label><input type="checkbox" name="i1_booth_export"><span lang="de">Stand-Backup erfolgreich exportiert</span><span lang="en">Booth backup exported successfully</span></label>
+            <label><input type="checkbox" name="i1_copy_clear"><span lang="de">Warntext fuer Operatoren klar verstaendlich</span><span lang="en">Warning copy is clear for operators</span></label>
+          </div>
+          <label class="field"><span lang="de">Dateinamen / Hinweise</span><span lang="en">Filenames / notes</span><textarea name="i1_notes"></textarea></label>
+        </div>
+        <div class="test-case">
+          <h4><span lang="de">I.2 Import und Wiederherstellung</span><span lang="en">I.2 Import and recovery</span></h4>
+          <div class="columns">
+            <div>
+              <strong lang="de">Schritte</strong><strong lang="en">Steps</strong>
+              <ol>
+                <li lang="de">Vorhandene Testdaten sichern</li>
+                <li lang="en">Back up the existing test data</li>
+                <li lang="de">Einen Stand loeschen</li>
+                <li lang="en">Delete one booth</li>
+                <li lang="de">Passendes Stand-Backup importieren</li>
+                <li lang="en">Import the matching booth backup</li>
+                <li lang="de">Import-Vorschau und Konfliktstrategie pruefen</li>
+                <li lang="en">Review the import preview and conflict strategy</li>
+                <li lang="de">Wiederhergestellten Stand und Daten pruefen</li>
+                <li lang="en">Verify the restored booth and data</li>
+                <li lang="de">Danach ein Gesamt-Backup importieren</li>
+                <li lang="en">Then import a full backup</li>
+              </ol>
+            </div>
+            <div>
+              <strong lang="de">Erwartet</strong><strong lang="en">Expected</strong>
+              <ul>
+                <li lang="de">Geloeschter Stand wird wieder angelegt</li>
+                <li lang="en">Deleted booth is recreated</li>
+                <li lang="de">Standliste aktualisiert sich nach erfolgreichem Import</li>
+                <li lang="en">Booth list refreshes after a successful import</li>
+                <li lang="de">Import-Vorschau zeigt Dateityp und Datensatzanzahl plausibel an</li>
+                <li lang="en">Import preview shows a plausible file type and record count</li>
+                <li lang="de">Konfliktverhalten ist fuer Tester nachvollziehbar</li>
+                <li lang="en">Conflict handling is understandable to the tester</li>
+              </ul>
+            </div>
+          </div>
+          <div class="checklist">
+            <label><input type="checkbox" name="i2_booth_restore"><span lang="de">Geloeschter Stand durch Stand-Backup wiederhergestellt</span><span lang="en">Deleted booth restored from booth backup</span></label>
+            <label><input type="checkbox" name="i2_refresh"><span lang="de">Standliste nach Import aktualisiert</span><span lang="en">Booth list refreshed after import</span></label>
+            <label><input type="checkbox" name="i2_full_import"><span lang="de">Gesamt-Backup erfolgreich importiert</span><span lang="en">Full backup imported successfully</span></label>
+            <label><input type="checkbox" name="i2_strategy"><span lang="de">Konfliktstrategie nachvollziehbar</span><span lang="en">Conflict strategy understandable</span></label>
+            <label><input type="checkbox" name="i2_console"><span lang="de">Keine Konsolenfehler</span><span lang="en">No console errors</span></label>
+          </div>
+          <label class="field"><span lang="de">Tatsaechliches Ergebnis</span><span lang="en">Actual result</span><textarea name="i2_actual"></textarea></label>
+        </div>
+        <div class="status-group">
+          <label><input type="radio" name="moduleI_status" value="pass"><span lang="de">Bestanden</span><span lang="en">Pass</span></label>
+          <label><input type="radio" name="moduleI_status" value="fail"><span lang="de">Nicht bestanden</span><span lang="en">Fail</span></label>
         </div>
       </section>
 
