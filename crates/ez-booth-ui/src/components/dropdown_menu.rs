@@ -46,6 +46,12 @@ fn get_open_menu_id(window: &web_sys::Window) -> Option<String> {
         .and_then(|value| value.as_string())
 }
 
+fn clear_open_menu_id(window: &web_sys::Window, menu_id: &str) {
+    if get_open_menu_id(window).as_deref() == Some(menu_id) {
+        let _ = js_sys::Reflect::delete_property(window, &JsValue::from_str(OPEN_MENU_ID_KEY));
+    }
+}
+
 #[component]
 pub fn DropdownMenu(
     trigger: View,
@@ -58,6 +64,7 @@ pub fn DropdownMenu(
     let (is_open, set_is_open) = create_signal(false);
     let (menu_style, set_menu_style) = create_signal(String::new());
     let menu_id = format!("dropdown-menu-{}", js_sys::Math::random());
+    let menu_id_stored = store_value(menu_id.clone());
     let trigger_ref = create_node_ref::<html::Div>();
     let menu_ref = create_node_ref::<html::Div>();
     let trigger_stored = store_value(trigger);
@@ -115,6 +122,7 @@ pub fn DropdownMenu(
             let max_left = (viewport_width - menu_width - VIEWPORT_PADDING).max(VIEWPORT_PADDING);
             let clamped_left = desired_left.clamp(VIEWPORT_PADDING, max_left);
 
+            // Prefer opening upward only when there is more usable space above the trigger.
             let space_below = (viewport_height - bottom - VIEWPORT_PADDING).max(0.0);
             let space_above = (top - VIEWPORT_PADDING).max(0.0);
             let should_open_upward = menu_height > 0.0 && space_above > space_below;
@@ -139,7 +147,7 @@ pub fn DropdownMenu(
                 "left: {}px; top: {}px; max-width: {}px; max-height: {}px;",
                 clamped_left,
                 clamped_top,
-                (viewport_width - (VIEWPORT_PADDING * 2.0)).max(MIN_MENU_HEIGHT),
+                (viewport_width - (VIEWPORT_PADDING * 2.0)).max(MIN_MENU_WIDTH),
                 max_height
             ));
         }
@@ -198,6 +206,7 @@ pub fn DropdownMenu(
             update_menu_position();
             {
                 let update_menu_position = Rc::clone(&update_menu_position);
+                // Measure once more after mount so fixed positioning can use the real menu size.
                 set_timeout(
                     move || update_menu_position(),
                     std::time::Duration::from_millis(0),
@@ -273,17 +282,6 @@ pub fn DropdownMenu(
         }
     };
 
-    let close_menu = move |_| {
-        set_is_open.set(false);
-    };
-
-    let menu_click = move |event: ev::MouseEvent| {
-        event.stop_propagation();
-        if close_on_item_click {
-            set_is_open.set(false);
-        }
-    };
-
     view! {
         <div node_ref=trigger_ref class=format!("relative {container_class}")>
             <div on:click=toggle_menu aria-expanded=move || is_open.get()>
@@ -293,13 +291,33 @@ pub fn DropdownMenu(
             <Show when=move || is_open.get()>
                 <Portal>
                     <>
-                        <div class="fixed inset-0 z-40" on:click=close_menu></div>
+                        <div
+                            class="fixed inset-0 z-40"
+                            on:click={
+                                move |_| {
+                                    if let Some(window) = web_sys::window() {
+                                        clear_open_menu_id(&window, &menu_id_stored.get_value());
+                                    }
+                                    set_is_open.set(false);
+                                }
+                            }
+                        ></div>
 
                         <div
                             node_ref=menu_ref
                             class=move || menu_classes.get_value()
                             style=move || menu_style.get()
-                            on:click=menu_click
+                            on:click={
+                                move |event: ev::MouseEvent| {
+                                    event.stop_propagation();
+                                    if close_on_item_click {
+                                        if let Some(window) = web_sys::window() {
+                                            clear_open_menu_id(&window, &menu_id_stored.get_value());
+                                        }
+                                        set_is_open.set(false);
+                                    }
+                                }
+                            }
                         >
                             {move || children_stored.get_value()}
                         </div>
