@@ -559,6 +559,7 @@
     "import_qr_complete_hint": "Review the imported booth data before applying it.",
     "import_qr_preview": "Preview Import",
     "import_qr_cancel": "Cancel",
+    "import_qr_use_json": "Use JSON Import",
     "import_qr_try_again": "Try Again",
     "import_ready_label": "Ready For Import",
     "import_invalid_label": "Import Blocked",

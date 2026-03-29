@@ -96,6 +96,7 @@ pub fn QrImportScanner(
     #[prop(into)] show: Signal<bool>,
     on_close: impl Fn() + Clone + 'static,
     on_import_ready: impl Fn(BoothBackupData) + Clone + 'static,
+    on_use_file_import: impl Fn() + Clone + 'static,
 ) -> impl IntoView {
     let video_ref = create_node_ref::<html::Video>();
     let validator = ImportValidator::new();
@@ -137,6 +138,13 @@ pub fn QrImportScanner(
     let close_scanner_for_preview = close_scanner.clone();
     let close_scanner_for_actions = close_scanner.clone();
     let close_scanner_for_modal = close_scanner.clone();
+    let use_file_import = {
+        let on_use_file_import = on_use_file_import.clone();
+        move || {
+            reset_scanner();
+            on_use_file_import();
+        }
+    };
 
     let start_scanner = move || {
         reset_scanner();
@@ -470,6 +478,9 @@ pub fn QrImportScanner(
                     <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
                         {t!("common.close")}
                     </Button>
+                    <Button variant=ButtonVariant::Ghost on_click=Box::new(use_file_import.clone())>
+                        {t!("backup.import_qr_use_json")}
+                    </Button>
                     <Button variant=ButtonVariant::Primary on_click=Box::new(start_scanner.clone())>
                         {t!("backup.import_qr_try_again")}
                     </Button>
@@ -480,8 +491,11 @@ pub fn QrImportScanner(
         ScannerStage::Unsupported => {
             view! {
                 <div class="contents">
-                    <Button variant=ButtonVariant::Primary on_click=Box::new(close_scanner_for_actions.clone())>
+                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
                         {t!("common.close")}
+                    </Button>
+                    <Button variant=ButtonVariant::Primary on_click=Box::new(use_file_import.clone())>
+                        {t!("backup.import_qr_use_json")}
                     </Button>
                 </div>
             }

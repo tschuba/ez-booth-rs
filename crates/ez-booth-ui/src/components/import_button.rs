@@ -93,6 +93,15 @@ pub fn ImportButton(
         }
     };
 
+    let switch_to_file_import = {
+        let open_file_picker = open_file_picker.clone();
+        move || {
+            set_show_qr_scanner.set(false);
+            set_selected_source_name.set(String::new());
+            open_file_picker();
+        }
+    };
+
     let reset_results = {
         let set_preview = set_preview;
         let set_parsed_data = set_parsed_data;
@@ -377,6 +386,7 @@ pub fn ImportButton(
                 show=Signal::derive(move || show_qr_scanner.get())
                 on_close=move || set_show_qr_scanner.set(false)
                 on_import_ready=handle_qr_import_ready
+                on_use_file_import=switch_to_file_import
             />
 
             <Modal
