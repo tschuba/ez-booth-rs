@@ -302,8 +302,6 @@ pub struct Booth {
 
     pub fees: FeeConfig,
 
-    pub status: BoothStatus,
-
     #[serde(default)]
     pub vendor_id_validation: VendorIdValidation,
 
@@ -389,13 +387,6 @@ impl FeeConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "type", content = "data")]
-pub enum BoothStatus {
-    Open,
-    Closed { closed_at: DateTime<Utc> },
-}
-
 impl Booth {
     /// Create a new booth with the given configuration
     ///
@@ -421,7 +412,6 @@ impl Booth {
             description,
             date,
             fees,
-            status: BoothStatus::Open,
             vendor_id_validation: VendorIdValidation::default(),
             vendor_id_omission_rules: VendorIdOmissionRules::empty(),
             keyboard_config: CheckoutKeyboardConfig::default(),
@@ -430,21 +420,6 @@ impl Booth {
         };
 
         Ok(booth)
-    }
-
-    pub fn close(&mut self) {
-        self.status = BoothStatus::Closed {
-            closed_at: Utc::now(),
-        };
-        self.updated_at = Utc::now();
-    }
-
-    pub fn is_open(&self) -> bool {
-        matches!(self.status, BoothStatus::Open)
-    }
-
-    pub fn is_closed(&self) -> bool {
-        matches!(self.status, BoothStatus::Closed { .. })
     }
 
     pub fn update_description(&mut self, description: String) {

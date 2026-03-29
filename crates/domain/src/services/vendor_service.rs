@@ -103,7 +103,9 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation};
+    use crate::models::{
+        Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
+    };
     use async_trait::async_trait;
     use chrono::NaiveDate;
     use rust_decimal::Decimal;

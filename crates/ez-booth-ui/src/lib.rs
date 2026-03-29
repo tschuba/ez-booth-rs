@@ -2,8 +2,8 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-mod booth_ordering;
 mod audio;
+mod booth_ordering;
 mod components;
 mod error;
 mod error_translator;

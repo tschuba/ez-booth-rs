@@ -1,19 +1,19 @@
 mod booth_form;
-mod copy_booth_dialog;
 mod booth_selector;
 mod booth_summary_report;
 mod button;
+mod copy_booth_dialog;
 mod delete_overlay;
 mod input;
 mod layout;
 mod modal;
 mod on_screen_keyboard;
-mod sound_toggle;
-mod vendor_rules_info;
 pub mod pagination;
 pub mod pagination_prefs;
+mod sound_toggle;
 mod toast;
 mod two_step_delete;
+mod vendor_rules_info;
 
 #[cfg(test)]
 mod booth_form_tests;
@@ -21,10 +21,10 @@ mod booth_form_tests;
 // Re-export components
 pub use crate::utils::format_error_message;
 pub use booth_form::*;
-pub use copy_booth_dialog::*;
 pub use booth_selector::*;
 pub use booth_summary_report::*;
 pub use button::*;
+pub use copy_booth_dialog::*;
 pub use delete_overlay::*;
 pub use input::*;
 pub use layout::*;

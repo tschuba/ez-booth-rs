@@ -8,8 +8,8 @@ use crate::state::*;
 use crate::t;
 use domain::models::booth::Booth;
 use domain::models::{BoothId, BoothSummary};
-use leptos::*;
 use leptos::html;
+use leptos::*;
 use std::collections::HashMap;
 use web_sys::window;
 
@@ -85,9 +85,8 @@ pub fn BoothListPage() -> impl IntoView {
         });
     };
 
-    let format_date = move |date: chrono::NaiveDate| -> String {
-        format_display_date(date, locale.get())
-    };
+    let format_date =
+        move |date: chrono::NaiveDate| -> String { format_display_date(date, locale.get()) };
 
     let close_report_modal = move || {
         set_expanded_booth_id.set(None);
@@ -169,7 +168,11 @@ pub fn BoothListPage() -> impl IntoView {
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 match data.to_booth(locale) {
-                    Ok(booth) => match state.booth_service.create_configured_booth(booth.clone()).await {
+                    Ok(booth) => match state
+                        .booth_service
+                        .create_configured_booth(booth.clone())
+                        .await
+                    {
                         Ok(_) => {
                             toast.success(
                                 &t!("booth.success.created")()
@@ -442,7 +445,6 @@ pub fn BoothListPage() -> impl IntoView {
                                                         key=|booth| booth.id.as_str().to_string()
                                                         children=move |booth| {
                                                             let booth_description = store_value(booth.description.clone());
-                                                            let booth_is_open = booth.is_open();
                                                             let booth_date = booth.date;
                                                              let booth_id_stored = store_value(booth.id);
                                                              let booth_for_edit = store_value(booth.clone());
@@ -457,17 +459,9 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                 <h3 class="text-lg font-semibold text-gray-900">
                                                                                     {booth_description.get_value()}
                                                                                 </h3>
-                                                                                <div class="min-w-0 flex-1 space-y-2">
+                                                                                <div class="min-w-0 flex-1">
                                                                                     <p class="text-gray-600">
                                                                                         {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
-                                                                                    </p>
-                                                                                    <p class="text-sm text-gray-500">
-                                                                                        {t!("booth.status_label")} " "
-                                                                                        {move || if booth_is_open {
-                                                                                            t!("booth.status_open")()
-                                                                                        } else {
-                                                                                            t!("booth.status_closed")()
-                                                                                        }}
                                                                                     </p>
                                                                                 </div>
                                                                             </div>

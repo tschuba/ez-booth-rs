@@ -209,7 +209,10 @@ async fn test_find_by_description_and_date() {
     assert_eq!(found.unwrap().id, booth_id);
 
     let missing = repo
-        .find_by_description_and_date("Duplicate Check Booth", &NaiveDate::from_ymd_opt(2026, 3, 26).unwrap())
+        .find_by_description_and_date(
+            "Duplicate Check Booth",
+            &NaiveDate::from_ymd_opt(2026, 3, 26).unwrap(),
+        )
         .await
         .unwrap();
     assert!(missing.is_none());

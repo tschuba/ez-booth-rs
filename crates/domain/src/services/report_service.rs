@@ -286,7 +286,7 @@ impl DateRange {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Booth, BoothStatus, FeeConfig, PurchaseItem, Vendor};
+    use crate::models::{Booth, FeeConfig, PurchaseItem, Vendor};
     use crate::{BoothRunningTotals, PaginatedPurchases};
     use async_trait::async_trait;
     use chrono::NaiveDate;
@@ -517,7 +517,6 @@ mod tests {
                 sales_fee_percent: dec!(10.0),
                 rounding_step: dec!(0.50),
             },
-            status: BoothStatus::Open,
             vendor_id_validation: crate::models::VendorIdValidation::default(),
             vendor_id_omission_rules: crate::models::VendorIdOmissionRules::empty(),
             keyboard_config: crate::models::CheckoutKeyboardConfig::default(),

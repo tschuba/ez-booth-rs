@@ -1,5 +1,5 @@
-use crate::components::*;
 use crate::audio::play_error_sound;
+use crate::components::*;
 use crate::error_translator::translate_domain_error;
 use crate::formatting::{
     decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
@@ -892,7 +892,10 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
-                        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                        play_checkout_error_sound_if_enabled(
+                            error_sound_enabled,
+                            last_error_sound_at,
+                        );
                         set_purchases.set(Vec::new());
                         set_total_count.set(0);
                         set_running_totals.set((Decimal::ZERO, 0, 0));
@@ -1454,7 +1457,10 @@ pub fn CheckoutPage() -> impl IntoView {
                             HashMap::from([("error", format_error_message(&e))]),
                         );
                         toast.error(&error_msg);
-                        play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
+                        play_checkout_error_sound_if_enabled(
+                            error_sound_enabled,
+                            last_error_sound_at,
+                        );
                     }
                 }
             });

@@ -1,6 +1,6 @@
 use crate::error::{DomainError, DomainResult};
 use crate::error_code::ValidationError;
-use crate::models::{Booth, BoothId, BoothStatus, FeeConfig, VendorIdValidation};
+use crate::models::{Booth, BoothId, FeeConfig, VendorIdValidation};
 use crate::repositories::BoothRepository;
 use crate::validation::validate_regex_pattern;
 use chrono::NaiveDate;
@@ -46,15 +46,6 @@ impl<R: BoothRepository> BoothService<R> {
         self.repository.find_all().await
     }
 
-    /// List booths filtered by status
-    pub async fn list_booths_by_status(&self, status: BoothStatus) -> DomainResult<Vec<Booth>> {
-        let all_booths = self.repository.find_all().await?;
-        Ok(all_booths
-            .into_iter()
-            .filter(|b| b.status == status)
-            .collect())
-    }
-
     /// Update an existing booth with validation
     pub async fn update_booth(&self, booth: Booth) -> DomainResult<()> {
         self.validate_booth(&booth)?;
@@ -77,23 +68,6 @@ impl<R: BoothRepository> BoothService<R> {
         booth.keyboard_config = source.keyboard_config.clone();
 
         self.save_booth(&booth).await?;
-        Ok(booth)
-    }
-
-    /// Close a booth (set status to Closed)
-    pub async fn close_booth(&self, id: BoothId) -> DomainResult<Booth> {
-        let mut booth = self.get_booth(id).await?;
-        booth.close();
-        self.repository.save(&booth).await?;
-        Ok(booth)
-    }
-
-    /// Reopen a closed booth
-    pub async fn reopen_booth(&self, id: BoothId) -> DomainResult<Booth> {
-        let mut booth = self.get_booth(id).await?;
-        booth.status = BoothStatus::Open;
-        booth.updated_at = chrono::Utc::now();
-        self.repository.save(&booth).await?;
         Ok(booth)
     }
 
@@ -225,78 +199,6 @@ mod tests {
         assert!(result.is_ok());
         let booth = result.unwrap();
         assert_eq!(booth.description, "Test Booth");
-        assert_eq!(booth.status, BoothStatus::Open);
-    }
-
-    #[tokio::test]
-    async fn test_close_and_reopen_booth() {
-        let repo = MockBoothRepository::new();
-        let service = BoothService::new(repo);
-
-        let fees = FeeConfig {
-            participation_fee: dec!(5.0),
-            sales_fee_percent: dec!(10.0),
-            rounding_step: dec!(0.50),
-        };
-
-        let booth = service
-            .create_booth(
-                "Test Booth".to_string(),
-                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
-                fees,
-            )
-            .await
-            .unwrap();
-
-        // Close booth
-        let closed = service.close_booth(booth.id).await.unwrap();
-        assert!(matches!(closed.status, BoothStatus::Closed { .. }));
-
-        // Reopen booth
-        let reopened = service.reopen_booth(booth.id).await.unwrap();
-        assert_eq!(reopened.status, BoothStatus::Open);
-    }
-
-    #[tokio::test]
-    async fn test_list_booths_by_status() {
-        let repo = MockBoothRepository::new();
-        let service = BoothService::new(repo);
-
-        let fees = FeeConfig {
-            participation_fee: dec!(5.0),
-            sales_fee_percent: dec!(10.0),
-            rounding_step: dec!(0.50),
-        };
-
-        // Create two booths
-        let booth1 = service
-            .create_booth(
-                "Booth 1".to_string(),
-                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
-                fees.clone(),
-            )
-            .await
-            .unwrap();
-
-        let booth2 = service
-            .create_booth(
-                "Booth 2".to_string(),
-                NaiveDate::from_ymd_opt(2026, 3, 23).unwrap(),
-                fees,
-            )
-            .await
-            .unwrap();
-
-        // Close booth1
-        service.close_booth(booth1.id).await.unwrap();
-
-        // List open booths
-        let open_booths = service
-            .list_booths_by_status(BoothStatus::Open)
-            .await
-            .unwrap();
-        assert_eq!(open_booths.len(), 1);
-        assert_eq!(open_booths[0].id, booth2.id);
     }
 
     #[tokio::test]
@@ -453,8 +355,10 @@ mod tests {
         assert_eq!(copied.date, NaiveDate::from_ymd_opt(2026, 3, 29).unwrap());
         assert_eq!(copied.fees, source.fees);
         assert_eq!(copied.vendor_id_validation, source.vendor_id_validation);
-        assert_eq!(copied.vendor_id_omission_rules, source.vendor_id_omission_rules);
+        assert_eq!(
+            copied.vendor_id_omission_rules,
+            source.vendor_id_omission_rules
+        );
         assert_eq!(copied.keyboard_config, source.keyboard_config);
-        assert_eq!(copied.status, BoothStatus::Open);
     }
 }

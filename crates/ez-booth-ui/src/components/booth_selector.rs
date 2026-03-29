@@ -1,11 +1,11 @@
 use crate::booth_ordering::sort_booths;
 use crate::components::toast::use_toast;
-use crate::i18n::{use_locale, Locale};
+use crate::formatting::format_date;
+use crate::i18n::use_locale;
 use crate::selected_booth_context;
 use crate::state::use_app_state;
 use crate::t;
-use chrono::Datelike;
-use domain::models::booth::{Booth, BoothStatus};
+use domain::models::booth::Booth;
 use leptos::*;
 use wasm_bindgen::JsCast;
 
@@ -81,46 +81,6 @@ pub fn BoothSelector() -> impl IntoView {
         }
     });
 
-    // Format date based on locale
-    // German: "24. Mär" or "24. März"
-    // English: "Mar 24" or "March 24"
-    let format_date = move |date: chrono::NaiveDate| -> String {
-        match locale.get() {
-            Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
-                // German format: DD. MMM (e.g., "24. Mär")
-                let day = date.day();
-                let month = match date.month() {
-                    1 => "Jan",
-                    2 => "Feb",
-                    3 => "Mär",
-                    4 => "Apr",
-                    5 => "Mai",
-                    6 => "Jun",
-                    7 => "Jul",
-                    8 => "Aug",
-                    9 => "Sep",
-                    10 => "Okt",
-                    11 => "Nov",
-                    12 => "Dez",
-                    _ => "?",
-                };
-                format!("{}. {}", day, month)
-            }
-            Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
-                // English format: MMM DD (e.g., "Mar 24")
-                date.format("%b %d").to_string()
-            }
-        }
-    };
-
-    // Get status indicator color
-    let status_color = |status: &BoothStatus| -> &'static str {
-        match status {
-            BoothStatus::Open => "bg-green-500",
-            BoothStatus::Closed { .. } => "bg-gray-400",
-        }
-    };
-
     view! {
         <div
             class="relative ml-6"
@@ -143,12 +103,9 @@ pub fn BoothSelector() -> impl IntoView {
             >
                 {move || {
                     if let Some(booth) = selected_booth.get() {
-                        let date_str = format_date(booth.date);
-                        let status_class = status_color(&booth.status);
+                        let date_str = format_date(booth.date, locale.get());
                         view! {
                             <>
-                                // Status indicator dot
-                                <span class={format!("w-2 h-2 rounded-full {}", status_class)} aria-hidden="true"></span>
                                 // Date
                                 <span class="text-sm font-medium">{date_str}</span>
                                 // Separator
@@ -210,12 +167,7 @@ pub fn BoothSelector() -> impl IntoView {
                             booth_list.into_iter().map(|booth| {
                                 let booth_clone = booth.clone();
                                 let is_selected = selected_booth.get().as_ref().map(|b| b.id == booth.id).unwrap_or(false);
-                                let date_str = format_date(booth.date);
-                                let status_class = status_color(&booth.status);
-                                let status_label = match booth.status {
-                                    BoothStatus::Open => t!("booth.status_open")(),
-                                    BoothStatus::Closed { .. } => t!("booth.status_closed")(),
-                                };
+                                let date_str = format_date(booth.date, locale.get());
 
                                 view! {
                                     <button
@@ -233,9 +185,6 @@ pub fn BoothSelector() -> impl IntoView {
                                         }
                                         aria-pressed=is_selected
                                     >
-                                        <div class="flex-shrink-0">
-                                            <span class={format!("w-3 h-3 rounded-full block {}", status_class)} title={status_label.clone()}></span>
-                                        </div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 mb-1">
                                                 <span class="text-sm font-semibold text-gray-900">{booth.description}</span>
@@ -250,14 +199,6 @@ pub fn BoothSelector() -> impl IntoView {
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
                                                 <span>{date_str}</span>
-                                                <span class="text-gray-400">"•"</span>
-                                                <span class={format!(
-                                                    "px-2 py-0.5 rounded-full text-xs font-medium {}",
-                                                    match booth.status {
-                                                        BoothStatus::Open => "bg-green-100 text-green-700",
-                                                        BoothStatus::Closed { .. } => "bg-gray-100 text-gray-600",
-                                                    }
-                                                )}>{status_label}</span>
                                             </div>
                                         </div>
                                     </button>
