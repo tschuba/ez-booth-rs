@@ -85,6 +85,7 @@ The current cleanup track has completed Phase 2 Milestones 1 through 3.
 Next up:
 - optional Phase 2 Milestone 4 UX and reporting refinements
 - any retroactive manual validation needed to formally close Milestone 2
+- planned backup/recovery track captured in `docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md`
 
 See `docs/PHASE2_PROPOSAL.md` for the concrete follow-up plan.
 
@@ -157,6 +158,7 @@ cargo test -p domain
 ### User Documentation
 
 - **[Fee Calculation Guide](docs/FEE_CALCULATION.md)** - Detailed explanation of how vendor fees and payouts are calculated (Bilingual: DE/EN)
+- **[Data Backup Implementation Plan](docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md)** - Agreed execution plan for export/import, browser-storage warnings, and recovery guidance
 - **[Safari Validation Checklist](docs/SAFARI_VALIDATION_CHECKLIST.md)** - Manual Safari validation for checkout, recovery, and reporting
 - **[Bilingual UAT Execution Plan](docs/UAT_Ausfuehrungsplan_DE_EN.html)** - Reusable on-screen / printable UAT guide
 - **[Validation Workflow](docs/VALIDATION_WORKFLOW.md)** - When to run automated checks, Safari validation, UAT, and milestone sign-off docs

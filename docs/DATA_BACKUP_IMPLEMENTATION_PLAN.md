@@ -1,0 +1,282 @@
+# Data Backup And Recovery Implementation Plan
+
+Prepared on 2026-03-29 to capture the agreed follow-up work for export/import, browser-storage warnings, and recovery guidance.
+
+## Goal
+
+Add practical operator-facing backup and recovery support without changing the validated money and reporting logic.
+
+The work should make it safer to rely on EZ Booth in real event operation where browser data may be cleared intentionally or accidentally.
+
+## Decisions Already Made
+
+- export format: pretty-printed JSON only
+- export scope: both full-database export and per-booth export
+- UI placement: both a dedicated settings page and quick actions in the booth list
+- storage warning strategy: both a first-visit warning and a persistent indicator
+- documentation scope: both an operator guide and a technical guide
+
+## Problem Statement
+
+Today the app stores booth data locally in the browser:
+
+- IndexedDB stores booths, vendors, purchases, and metadata
+- `localStorage` stores UI preferences, selected booth state, and checkout draft data
+
+If a user clears browser storage, all locally stored booth data is lost. The current app has recovery safeguards for corruption and draft restore, but it does not yet provide a durable backup/restore workflow.
+
+## Scope
+
+This plan covers:
+
+1. full export/import support for browser-stored data
+2. per-booth export support for operator convenience
+3. clear browser-storage warnings in the UI
+4. operator and developer documentation for backup and recovery
+5. validation coverage for the new workflows
+
+This plan does not cover:
+
+- cloud sync
+- automatic remote backup
+- storage-layer replacement
+- report-format exports such as CSV
+- financial logic changes
+
+## Implementation Shape
+
+### 1. Backup Format
+
+Add a versioned JSON backup format in `crates/storage/src/export/`.
+
+Recommended structures:
+
+```rust
+pub struct BackupData {
+    pub version: u32,
+    pub created_at: DateTime<Utc>,
+    pub app_version: String,
+    pub booths: Vec<Booth>,
+    pub vendors: Vec<Vendor>,
+    pub purchases: Vec<Purchase>,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+pub struct BoothBackupData {
+    pub version: u32,
+    pub created_at: DateTime<Utc>,
+    pub app_version: String,
+    pub booth: Booth,
+    pub vendors: Vec<Vendor>,
+    pub purchases: Vec<Purchase>,
+}
+```
+
+Serialization rules:
+
+- pretty-printed JSON
+- 2-space indentation
+- UTF-8 encoding
+- `.json` file extension
+- filenames include the date and, for booth exports, a sanitized booth description
+
+Examples:
+
+- `ez-booth-backup-2026-03-29.json`
+- `ez-booth-spring-market-2026-03-29.json`
+
+### 2. Export And Import Services
+
+Replace the placeholder export module with a real service layer in `crates/storage/src/export/`.
+
+Suggested files:
+
+- `backup_format.rs`
+- `export_service.rs`
+- `import_service.rs`
+- `error.rs`
+- `mod.rs`
+
+Suggested responsibilities:
+
+- `export_all()` returns a full backup payload
+- `export_booth(booth_id)` returns a single-booth payload
+- `validate_backup(raw)` parses JSON and validates format/version
+- `import_all(data, strategy)` restores a full backup
+- `import_booth(data, strategy)` restores a booth backup
+
+Suggested conflict strategies:
+
+- `Skip`: keep existing records when IDs conflict
+- `Replace`: overwrite existing conflicting records
+- `Merge`: import non-conflicting records and update matching ones when safe
+
+Import validation should cover:
+
+- invalid JSON
+- unsupported backup version
+- invalid or partial record structure
+- orphaned booth/vendor/purchase relationships
+- storage quota failures
+
+### 3. UI Surfaces
+
+#### Settings Page
+
+Add a new page at `/settings` with:
+
+- full export button
+- import button
+- storage explanation
+- backup recommendations
+- optional display of current booth/vendor/purchase counts
+
+Add a settings link to the main header navigation in `crates/ez-booth-ui/src/lib.rs`.
+
+#### Booth List Shortcuts
+
+Update `crates/ez-booth-ui/src/pages/booth_list.rs` to include:
+
+- quick full export action
+- quick import action
+- per-booth export action on each booth card/row
+
+#### Reusable Components
+
+Add components in `crates/ez-booth-ui/src/components/` for:
+
+- export button/download handling
+- import file picker and validation flow
+- import preview modal
+- storage warning banner
+- persistent storage indicator
+- first-visit onboarding modal
+
+## Warning Strategy
+
+### First-Visit Warning
+
+Show a dismissible first-visit message explaining:
+
+- data is stored in this browser
+- clearing browser data removes stored events, vendors, and purchases
+- exporting backups is recommended before browser cleanup or device changes
+
+Persist dismissal in `localStorage` so the warning does not reappear every session.
+
+### Persistent Indicator
+
+Keep a subtle persistent indicator available from the footer or settings area so operators can always find:
+
+- where data is stored
+- why backups matter
+- how to export a backup
+
+## Documentation Deliverables
+
+### Operator Guide
+
+Add `docs/DATA_BACKUP_GUIDE.md` with bilingual or clearly structured operator-facing guidance covering:
+
+- what browser-local storage means
+- what happens when browser data is cleared
+- how to export all data
+- how to export a single booth
+- how to import a backup
+- recommended backup timing
+- where to keep backup files
+- what to do after data loss
+
+### Technical Guide
+
+Add `docs/DATA_STORAGE_ARCHITECTURE.md` covering:
+
+- IndexedDB and `localStorage` responsibilities
+- backup JSON format
+- versioning expectations
+- recovery scenarios
+- quota and browser behavior notes
+- test and validation strategy
+
+## Translation Work
+
+Update both locale files:
+
+- `crates/ez-booth-ui/locales/en.json`
+- `crates/ez-booth-ui/locales/de.json`
+
+Add strings for:
+
+- settings page labels
+- export/import actions
+- import validation and conflict messaging
+- storage warnings and indicators
+- operator guidance text
+
+## Validation Plan
+
+### Automated
+
+Add storage tests for:
+
+- full backup export/import
+- per-booth export/import
+- invalid JSON handling
+- version mismatch handling
+- conflict-strategy behavior
+- large-payload behavior where practical
+
+### Browser Validation
+
+Update the manual artifacts to cover:
+
+- export download in Chrome and Safari
+- import restore in Chrome and Safari
+- first-visit warning behavior
+- persistent storage indicator behavior
+- operator comprehension of the warning copy
+
+Likely artifact updates:
+
+- `docs/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/UAT_Ausfuehrungsplan_DE_EN.html`
+- milestone result file if this work is executed as a named milestone
+
+## Recommended Execution Order
+
+1. implement the backup format and service layer
+2. add unit and integration coverage for export/import behavior
+3. add settings page and booth-list actions
+4. add first-visit warning and persistent indicator
+5. add operator and technical documentation
+6. run browser validation and update validation artifacts
+
+## Acceptance Criteria
+
+The work is complete when:
+
+- operators can export a full backup from the UI
+- operators can export a single booth from the UI
+- operators can import a valid backup with clear conflict handling
+- the app warns users that data is browser-local and can be lost when cleared
+- English and German translations cover the new flows
+- automated and manual validation prove the workflows in Chrome and Safari
+- the repo contains clear documentation for both operators and developers
+
+## Open Follow-Up Decisions For Execution
+
+These do not block planning, but should be confirmed during implementation:
+
+- where to source `app_version` in backups
+- whether `Merge` should update records only by ID or also use timestamps
+- whether import should be all-or-nothing or allow partial success with a warning summary
+- whether storage usage should be shown if browser APIs are unavailable
+
+## Notes For Future Extensions
+
+Future phases may add:
+
+- optional cloud backup/sync
+- scheduled or reminder-based backups
+- report-friendly export formats such as CSV
+- backup migration helpers for future schema changes
