@@ -498,7 +498,14 @@
     "import_validation_summary": "Die Backup-Datei enthält Validierungsfehler und muss vor dem Import korrigiert werden.",
     "import_structure_summary": "Die Struktur der Backup-Datei kann nicht importiert werden.",
     "import_version_error": "Nicht unterstützte Backup-Version {found}. Diese App unterstützt aktuell Version {supported}.",
-    "import_next_step_placeholder": "Anwenden-/Merge-Aktionen für den Import folgen im nächsten Slice. Dieser Schritt validiert die Datei und zeigt, was importiert würde."
+    "import_strategy_label": "Konfliktstrategie",
+    "strategy_skip": "Bestehende Datensätze überspringen",
+    "strategy_replace": "Bestehende Datensätze ersetzen",
+    "strategy_merge": "Neuere Daten zusammenführen",
+    "import_apply_ready": "Wählen Sie aus, wie bestehende Datensätze behandelt werden sollen, und starten Sie dann den Import.",
+    "import_apply": "Import anwenden",
+    "import_apply_success": "Import abgeschlossen: {booths} Veranstaltungen, {vendors} Verkäufer, {purchases} Käufe importiert; {resolved} Konflikte gelöst; {skipped} Datensätze übersprungen.",
+    "import_apply_failed": "Import fehlgeschlagen"
   },
   "data": {
     "export_title": "Daten exportieren",

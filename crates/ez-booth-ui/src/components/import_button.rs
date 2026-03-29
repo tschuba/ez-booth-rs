@@ -6,8 +6,12 @@ use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{Event, FileReader, ProgressEvent};
 
 use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
+use crate::state::use_app_state;
 use crate::t;
-use ez_booth_storage::export::{ImportError, ImportValidator, ValidationFailure};
+use ez_booth_storage::export::{
+    BackupData, BoothBackupData, ConflictStrategy, ImportError, ImportSummary, ImportValidator,
+    ValidationFailure,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ImportPreview {
@@ -23,21 +27,31 @@ enum ImportPreview {
     },
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum ParsedImportData {
+    Full(BackupData),
+    Booth(BoothBackupData),
+}
+
 #[component]
 pub fn ImportButton(
     #[prop(optional)] variant: Option<ButtonVariant>,
     #[prop(optional)] size: Option<ButtonSize>,
     #[prop(optional)] class: Option<String>,
 ) -> impl IntoView {
+    let app_state = use_app_state();
     let toast = use_toast();
     let input_ref = create_node_ref::<html::Input>();
     let (is_reading, set_is_reading) = create_signal(false);
+    let (is_importing, set_is_importing) = create_signal(false);
     let (show_modal, set_show_modal) = create_signal(false);
     let (selected_file_name, set_selected_file_name) = create_signal(String::new());
     let (preview, set_preview) = create_signal(None::<ImportPreview>);
+    let (parsed_data, set_parsed_data) = create_signal(None::<ParsedImportData>);
     let (validation_failures, set_validation_failures) =
         create_signal(Vec::<ValidationFailure>::new());
     let (structure_error, set_structure_error) = create_signal(None::<String>);
+    let (conflict_strategy, set_conflict_strategy) = create_signal(ConflictStrategy::Merge);
 
     let validator = Rc::new(ImportValidator::new());
 
@@ -57,10 +71,12 @@ pub fn ImportButton(
 
     let reset_results = {
         let set_preview = set_preview;
+        let set_parsed_data = set_parsed_data;
         let set_validation_failures = set_validation_failures;
         let set_structure_error = set_structure_error;
         move || {
             set_preview.set(None);
+            set_parsed_data.set(None);
             set_validation_failures.set(Vec::new());
             set_structure_error.set(None);
         }
@@ -110,31 +126,35 @@ pub fn ImportButton(
                     return;
                 };
 
-                let validation =
-                    validator_for_load
-                        .validate_backup(&contents)
-                        .map(|data| ImportPreview::Full {
-                            booths: data.booths.len(),
-                            vendors: data.vendors.len(),
-                            purchases: data.purchases.len(),
-                        });
+                let validation = validator_for_load.validate_backup(&contents).map(|data| {
+                    let preview = ImportPreview::Full {
+                        booths: data.booths.len(),
+                        vendors: data.vendors.len(),
+                        purchases: data.purchases.len(),
+                    };
+                    (preview, ParsedImportData::Full(data))
+                });
 
                 let resolved = match validation {
-                    Ok(preview) => Ok(preview),
+                    Ok(full) => Ok(full),
                     Err(ImportError::InvalidJson(_)) => validator_for_load
                         .validate_booth_backup(&contents)
-                        .map(|data| ImportPreview::Booth {
-                            description: data.booth.description,
-                            vendors: data.vendors.len(),
-                            purchases: data.purchases.len(),
+                        .map(|data| {
+                            let preview = ImportPreview::Booth {
+                                description: data.booth.description.clone(),
+                                vendors: data.vendors.len(),
+                                purchases: data.purchases.len(),
+                            };
+                            (preview, ParsedImportData::Booth(data))
                         }),
                     Err(other) => Err(other),
                 };
 
                 set_is_reading.set(false);
                 match resolved {
-                    Ok(next_preview) => {
+                    Ok((next_preview, next_data)) => {
                         set_preview.set(Some(next_preview));
+                        set_parsed_data.set(Some(next_data));
                         set_show_modal.set(true);
                     }
                     Err(ImportError::ValidationFailed { failures }) => {
@@ -186,9 +206,83 @@ pub fn ImportButton(
     let close_modal = move || {
         set_show_modal.set(false);
         set_preview.set(None);
+        set_parsed_data.set(None);
         set_validation_failures.set(Vec::new());
         set_structure_error.set(None);
+        set_conflict_strategy.set(ConflictStrategy::Merge);
     };
+
+    let close_modal_action = store_value(close_modal);
+
+    let handle_apply_import = move || {
+        if is_importing.get_untracked() {
+            return;
+        }
+
+        let state_result = app_state.get();
+        let parsed = parsed_data.get_untracked();
+        let strategy = conflict_strategy.get_untracked();
+
+        let Some(payload) = parsed else {
+            return;
+        };
+
+        set_is_importing.set(true);
+
+        spawn_local(async move {
+            let result: Result<ImportSummary, String> = async move {
+                let state = match state_result {
+                    Some(Ok(state)) => state,
+                    Some(Err(error)) => return Err(error),
+                    None => return Err(t!("common.loading")()),
+                };
+
+                match payload {
+                    ParsedImportData::Full(data) => state
+                        .import_service
+                        .import_all(data, strategy)
+                        .await
+                        .map_err(|err| err.to_string()),
+                    ParsedImportData::Booth(data) => state
+                        .import_service
+                        .import_booth_backup(data, strategy)
+                        .await
+                        .map_err(|err| err.to_string()),
+                }
+            }
+            .await;
+
+            set_is_importing.set(false);
+
+            match result {
+                Ok(summary) => {
+                    let message = t!("backup.import_apply_success")()
+                        .replace("{booths}", &summary.booths_imported.to_string())
+                        .replace("{vendors}", &summary.vendors_imported.to_string())
+                        .replace("{purchases}", &summary.purchases_imported.to_string())
+                        .replace("{resolved}", &summary.conflicts_resolved.to_string())
+                        .replace("{skipped}", &summary.skipped_records.len().to_string());
+                    toast.success(message);
+                    close_modal_action.with_value(|close| close());
+                }
+                Err(error) => {
+                    toast.error(format!("{}: {}", t!("backup.import_apply_failed")(), error));
+                }
+            }
+        });
+    };
+
+    let on_strategy_change = move |ev: Event| {
+        let value = event_target_value(&ev);
+        let strategy = match value.as_str() {
+            "skip" => ConflictStrategy::Skip,
+            "replace" => ConflictStrategy::Replace,
+            _ => ConflictStrategy::Merge,
+        };
+        set_conflict_strategy.set(strategy);
+    };
+
+    let on_strategy_change_action = store_value(on_strategy_change);
 
     view! {
         <>
@@ -205,10 +299,10 @@ pub fn ImportButton(
                 variant=variant.unwrap_or(ButtonVariant::Secondary)
                 size=size.unwrap_or(ButtonSize::Medium)
                 class=class.unwrap_or_default()
-                disabled=is_reading.get()
+                disabled=is_reading.get() || is_importing.get()
                 title=t!("backup.import")()
             >
-                {move || if is_reading.get() {
+                {move || if is_reading.get() || is_importing.get() {
                     t!("backup.import_in_progress")()
                 } else {
                     t!("backup.import")()
@@ -217,7 +311,7 @@ pub fn ImportButton(
 
             <Modal
                 show=Signal::derive(move || show_modal.get())
-                on_close=close_modal
+                on_close=move || close_modal_action.with_value(|close| close())
                 title=Signal::derive(move || t!("backup.import_review_title")())
                 size=ModalSize::Large
             >
@@ -243,9 +337,18 @@ pub fn ImportButton(
                                                     .replace("{vendors}", &vendors.to_string())
                                                     .replace("{purchases}", &purchases.to_string())}
                                             </p>
-                                            <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                                {t!("backup.import_next_step_placeholder")}
-                                            </p>
+                                            <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                                <p class="font-medium">{t!("backup.import_strategy_label")}</p>
+                                                <select
+                                                    class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
+                                                >
+                                                    <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
+                                                    <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
+                                                    <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
+                                                </select>
+                                                <p>{t!("backup.import_apply_ready")}</p>
+                                            </div>
                                         </div>
                                     }.into_view(),
                                     ImportPreview::Booth { description, vendors, purchases } => view! {
@@ -259,9 +362,18 @@ pub fn ImportButton(
                                                     .replace("{vendors}", &vendors.to_string())
                                                     .replace("{purchases}", &purchases.to_string())}
                                             </p>
-                                            <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                                {t!("backup.import_next_step_placeholder")}
-                                            </p>
+                                            <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                                <p class="font-medium">{t!("backup.import_strategy_label")}</p>
+                                                <select
+                                                    class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
+                                                >
+                                                    <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
+                                                    <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
+                                                    <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
+                                                </select>
+                                                <p>{t!("backup.import_apply_ready")}</p>
+                                            </div>
                                         </div>
                                     }.into_view(),
                                 }
@@ -308,10 +420,22 @@ pub fn ImportButton(
                         })}
                     </Show>
 
-                    <div class="flex justify-end">
-                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_modal)>
+                    <div class="flex justify-end gap-2">
+                        <Button
+                            variant=ButtonVariant::Secondary
+                            on_click=Box::new(move || close_modal_action.with_value(|close| close()))
+                        >
                             {t!("common.close")}
                         </Button>
+                        <Show when=move || preview.get().is_some()>
+                            <Button on_click=Box::new(handle_apply_import) disabled=is_importing.get()>
+                                {move || if is_importing.get() {
+                                    t!("backup.import_in_progress")()
+                                } else {
+                                    t!("backup.import_apply")()
+                                }}
+                            </Button>
+                        </Show>
                     </div>
                 </div>
             </Modal>
