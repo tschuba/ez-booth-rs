@@ -396,8 +396,8 @@ pub fn VendorListPage() -> impl IntoView {
 
             // Screen-only UI (hidden during print)
             <div class="print:hidden" on:click=move |_| cancel_vendor_delete()>
-                <Container>
-                     <div class="py-8">
+                <Container class="mt-6">
+                     <div>
                          <Card>
                             <Show
                                 when=move || !is_loading.get()
@@ -871,7 +871,7 @@ pub fn VendorListPage() -> impl IntoView {
 
                 // Floating action buttons (bottom-right corner)
                 <Show when=move || !vendor_reports.get().is_empty()>
-                    <div class="fixed bottom-6 right-6 z-40 flex flex-col-reverse sm:flex-row items-end gap-3">
+                    <div class="fixed bottom-28 right-6 z-50 flex flex-col-reverse sm:flex-row items-end gap-3">
                         {/* Clear selection button - icon only with improved size and icon */}
                         <button
                             on:click=move |_| set_selected_vendor_ids.set(Vec::new())
@@ -945,6 +945,24 @@ pub fn VendorListPage() -> impl IntoView {
             on_close=cancel_vendor_delete.clone()
             title=Signal::derive(move || t!("vendor.delete.modal_title")())
             size=ModalSize::Medium
+            action_bar=
+                view! {
+                    <div class="contents">
+                        <Button
+                            variant=ButtonVariant::Secondary
+                            on_click=Box::new(cancel_vendor_delete.clone())
+                        >
+                            {t!("common.cancel")}
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Danger
+                            on_click=Box::new(perform_vendor_delete.clone())
+                        >
+                            {t!("vendor.delete.modal_confirm")}
+                        </Button>
+                    </div>
+                }
+                .into_view()
         >
             <Show when=move || pending_vendor_deletion.get().is_some()>
                 <div class="space-y-4">
@@ -961,20 +979,6 @@ pub fn VendorListPage() -> impl IntoView {
                         }}
                     </p>
 
-                    <div class="flex justify-end gap-2">
-                        <Button
-                            variant=ButtonVariant::Secondary
-                            on_click=Box::new(cancel_vendor_delete.clone())
-                        >
-                            {t!("common.cancel")}
-                        </Button>
-                        <Button
-                            variant=ButtonVariant::Danger
-                            on_click=Box::new(perform_vendor_delete.clone())
-                        >
-                            {t!("vendor.delete.modal_confirm")}
-                        </Button>
-                    </div>
                 </div>
             </Show>
         </Modal>

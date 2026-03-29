@@ -49,6 +49,9 @@ pub fn Modal(
     /// Whether clicking overlay closes modal
     #[prop(default = true)]
     close_on_overlay_click: bool,
+    /// Optional actions rendered in a fixed footer
+    #[prop(optional)]
+    action_bar: Option<View>,
     /// Child content
     children: Children,
 ) -> impl IntoView {
@@ -56,6 +59,7 @@ pub fn Modal(
     let on_close_stored = store_value(on_close.clone());
     let title_stored = store_value(title.clone());
     let header_actions_stored = store_value(header_actions.clone());
+    let action_bar_stored = store_value(action_bar.clone());
 
     // Store children view - call it once and store the result
     let children_stored = store_value(children());
@@ -101,7 +105,7 @@ pub fn Modal(
     view! {
         <Show when=move || show.get()>
             <div
-                class="fixed inset-0 z-50 overflow-y-auto print:hidden"
+                class="fixed inset-0 z-[60] overflow-y-auto print:hidden"
                 aria-labelledby="modal-title"
                 role="dialog"
                 aria-modal="true"
@@ -117,7 +121,7 @@ pub fn Modal(
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div
                         class=format!(
-                            "relative bg-white rounded-lg shadow-xl {} w-full max-h-[calc(100vh-2rem)] flex flex-col transform transition-all",
+                            "relative bg-white rounded-lg shadow-xl overflow-hidden {} w-full max-h-[calc(100vh-2rem)] flex flex-col transform transition-all",
                             size.max_width_class()
                         )
                         on:click=content_click
@@ -175,9 +179,17 @@ pub fn Modal(
                         </Show>
 
                         // Body
-                        <div class="p-4 overflow-y-auto min-h-0">
+                        <div class="min-h-0 flex-1 overflow-y-auto p-4">
                             {children_stored.get_value()}
                         </div>
+
+                        <Show when=move || action_bar_stored.get_value().is_some()>
+                            <div class="border-t border-gray-200 bg-white p-4">
+                                <div class="flex justify-end gap-2">
+                                    {move || action_bar_stored.get_value()}
+                                </div>
+                            </div>
+                        </Show>
                     </div>
                 </div>
             </div>
@@ -236,25 +248,29 @@ pub fn ConfirmModal(
             on_close=on_close_for_modal
             title=title
             size=ModalSize::Small
+            action_bar=
+                view! {
+                    <div class="contents">
+                        <button
+                            type="button"
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                            on:click=on_cancel_click
+                        >
+                            {move || cancel_text.get()}
+                        </button>
+                        <button
+                            type="button"
+                            class=confirm_button_class
+                            on:click=on_confirm_click
+                        >
+                            {move || confirm_text.get()}
+                        </button>
+                    </div>
+                }
+                .into_view()
         >
             <div class="space-y-4">
                 <p class="text-gray-700">{move || message.get()}</p>
-                <div class="flex justify-end gap-2">
-                    <button
-                        type="button"
-                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                        on:click=on_cancel_click
-                    >
-                        {move || cancel_text.get()}
-                    </button>
-                    <button
-                        type="button"
-                        class=confirm_button_class
-                        on:click=on_confirm_click
-                    >
-                        {move || confirm_text.get()}
-                    </button>
-                </div>
             </div>
         </Modal>
     }

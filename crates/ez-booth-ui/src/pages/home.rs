@@ -42,16 +42,16 @@ pub fn HomePage() -> impl IntoView {
     }
 
     view! {
-        <Container>
+        <Container class="mt-6">
             <Show
                 when=move || !is_redirecting.get()
                 fallback=move || view! {
-                    <div class="py-12 text-center">
+                    <div class="pb-12 text-center">
                         <p class="text-gray-600">{t!("common.loading")}</p>
                     </div>
                 }
             >
-                <div class="py-12 text-center">
+                <div class="pb-12 text-center">
                     <Card>
                         <h2 class="text-xl font-semibold mb-4">{t!("app.title")}</h2>
                         <p class="text-gray-600 mb-6">

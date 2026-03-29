@@ -37,7 +37,7 @@ pub fn SettingsPage() -> impl IntoView {
     });
 
     view! {
-        <Container max_width="max-w-4xl">
+        <Container max_width="max-w-4xl" class="mt-6">
             <div class="space-y-6">
                 <Card title_view={t!("settings.title").into_view()}>
                     <div class="space-y-4 text-gray-700">

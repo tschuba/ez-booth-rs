@@ -227,15 +227,19 @@ fn omission_rule_key(index: usize, rule: &OmissionRule) -> String {
 /// Booth form component for creating and editing booths
 #[component]
 pub fn BoothForm(
+    /// HTML form id used by modal footer submit button
+    form_id: String,
+    /// Whether to auto-focus the description field
+    #[prop(default = false)]
+    autofocus_description: bool,
     /// Initial form data (for editing)
     #[prop(optional)]
     initial_data: Option<BoothFormData>,
     /// Callback when form is submitted
     on_submit: impl Fn(BoothFormData) + 'static,
-    /// Callback when form is cancelled
-    on_cancel: impl Fn() + 'static,
 ) -> impl IntoView {
     let form_data = create_rw_signal(initial_data.unwrap_or_default());
+    let description_input_ref = create_node_ref::<html::Input>();
 
     // Individual field signals for Input components
     let description = create_rw_signal(form_data.get_untracked().description);
@@ -435,10 +439,19 @@ pub fn BoothForm(
     };
 
     view! {
-        <form class="space-y-6" on:submit=|e| e.prevent_default()>
+        <form
+            id=form_id
+            class="space-y-6"
+            on:submit=move |e| {
+                e.prevent_default();
+                validate_and_submit();
+            }
+        >
             // Description
             <div>
                 <Input
+                    node_ref=description_input_ref
+                    autofocus=autofocus_description
                     value=description
                     label=t!("booth.description_label")()
                     placeholder=t!("booth.description_placeholder")()
@@ -825,21 +838,6 @@ pub fn BoothForm(
                 </div>
             </div>
 
-            // Form Actions
-            <div class="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                    on_click=Box::new(move || on_cancel())
-                    variant=crate::components::ButtonVariant::Secondary
-                >
-                    {t!("common.cancel")()}
-                </Button>
-                <Button
-                    on_click=Box::new(validate_and_submit)
-                    variant=crate::components::ButtonVariant::Primary
-                >
-                    {t!("booth.save_button")()}
-                </Button>
-            </div>
         </form>
     }
 }

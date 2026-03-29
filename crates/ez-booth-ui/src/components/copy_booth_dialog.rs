@@ -1,4 +1,4 @@
-use crate::components::{Button, ButtonVariant, Input, InputType};
+use crate::components::{Input, InputType};
 use crate::formatting::format_date;
 use crate::i18n::use_locale;
 use crate::t;
@@ -30,11 +30,13 @@ impl CopyBoothFormData {
 #[component]
 pub fn CopyBoothDialog(
     source_booth: Booth,
+    form_id: String,
+    #[prop(default = false)] autofocus_description: bool,
     #[prop(optional)] initial_data: Option<CopyBoothFormData>,
     on_submit: impl Fn(CopyBoothFormData) + 'static,
-    on_cancel: impl Fn() + 'static,
 ) -> impl IntoView {
     let locale = use_locale();
+    let description_input_ref = create_node_ref::<html::Input>();
     let form_data = initial_data.unwrap_or_else(|| CopyBoothFormData::from_booth(&source_booth));
     let description = create_rw_signal(form_data.description);
     let date = create_rw_signal(form_data.date);
@@ -84,8 +86,18 @@ pub fn CopyBoothDialog(
                 <p>{t!("booth.date_prefix")} " " {source_date}</p>
             </div>
 
-            <form class="space-y-4" on:submit=|e| e.prevent_default()>
+            <form
+                id=form_id
+                class="space-y-4"
+                on:submit=move |e| {
+                    e.prevent_default();
+                    validate_and_submit();
+                }
+            >
                 <Input
+                    node_ref=description_input_ref
+                    autofocus=autofocus_description
+                    select_on_focus=autofocus_description
                     value=description
                     label=t!("booth.description_label")()
                     placeholder=t!("booth.description_placeholder")()
@@ -100,21 +112,6 @@ pub fn CopyBoothDialog(
                     required=true
                     error=date_error
                 />
-
-                <div class="flex justify-end gap-3 pt-4 border-t">
-                    <Button
-                        on_click=Box::new(move || on_cancel())
-                        variant=ButtonVariant::Secondary
-                    >
-                        {t!("common.cancel")()}
-                    </Button>
-                    <Button
-                        on_click=Box::new(validate_and_submit)
-                        variant=ButtonVariant::Primary
-                    >
-                        {t!("booth.copy_confirm")()}
-                    </Button>
-                </div>
             </form>
         </div>
     }
