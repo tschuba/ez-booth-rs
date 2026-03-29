@@ -13,6 +13,7 @@ use ez_booth_storage::export::{
 
 const SCAN_POLL_INTERVAL_MS: i32 = 350;
 const DUPLICATE_FEEDBACK_COOLDOWN_MS: f64 = 1_200.0;
+const TRANSIENT_SCAN_ERROR_NOTICE_THRESHOLD: u32 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ScannerStage {
@@ -110,6 +111,7 @@ pub fn QrImportScanner(
     let (last_payload_at, set_last_payload_at) = create_signal(0.0_f64);
     let (completed_backup, set_completed_backup) = create_signal(None::<BoothBackupData>);
     let (is_mounted, set_is_mounted) = create_signal(true);
+    let (detect_error_streak, set_detect_error_streak) = create_signal(0_u32);
 
     let stop_stream = move || {
         stop_media_stream(media_stream.get_untracked());
@@ -126,6 +128,7 @@ pub fn QrImportScanner(
         set_last_payload.set(None);
         set_last_payload_at.set(0.0);
         set_completed_backup.set(None);
+        set_detect_error_streak.set(0);
     };
 
     let close_scanner = {
@@ -333,6 +336,7 @@ pub fn QrImportScanner(
 
                 match result {
                     Ok(Some(raw)) => {
+                        set_detect_error_streak.set(0);
                         let now = js_sys::Date::now();
                         if last_payload.get_untracked().as_deref() == Some(raw.as_str())
                             && now - last_payload_at.get_untracked() < DUPLICATE_FEEDBACK_COOLDOWN_MS
@@ -406,9 +410,15 @@ pub fn QrImportScanner(
                             }
                         }
                     }
-                    Ok(None) => {}
+                    Ok(None) => {
+                        set_detect_error_streak.set(0);
+                    }
                     Err(message) => {
-                        set_notice.set(Some((NoticeTone::Error, message)));
+                        let streak = detect_error_streak.get_untracked() + 1;
+                        set_detect_error_streak.set(streak);
+                        if streak >= TRANSIENT_SCAN_ERROR_NOTICE_THRESHOLD {
+                            set_notice.set(Some((NoticeTone::Error, message)));
+                        }
                     }
                 }
             });
@@ -458,60 +468,71 @@ pub fn QrImportScanner(
         }
     };
 
-    let action_bar = move || match stage.get() {
-        ScannerStage::Complete => {
-            view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
-                        {t!("common.close")}
-                    </Button>
-                    <Button variant=ButtonVariant::Primary on_click=Box::new(preview_import.clone())>
-                        {t!("backup.import_qr_preview")}
-                    </Button>
-                </div>
+    let action_bar = view! {
+        {move || match stage.get() {
+            ScannerStage::Complete => {
+                view! {
+                    <div class="contents">
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                            {t!("common.close")}
+                        </Button>
+                        <Button variant=ButtonVariant::Primary on_click=Box::new(preview_import.clone())>
+                            {t!("backup.import_qr_preview")}
+                        </Button>
+                    </div>
+                }
+                    .into_view()
             }
-                .into_view()
-        }
-        ScannerStage::PermissionDenied | ScannerStage::Error => {
-            view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
-                        {t!("common.close")}
-                    </Button>
-                    <Button variant=ButtonVariant::Ghost on_click=Box::new(use_file_import.clone())>
-                        {t!("backup.import_qr_use_json")}
-                    </Button>
-                    <Button variant=ButtonVariant::Primary on_click=Box::new(start_scanner.clone())>
-                        {t!("backup.import_qr_try_again")}
-                    </Button>
-                </div>
+            ScannerStage::PermissionDenied | ScannerStage::Error => {
+                view! {
+                    <div class="contents">
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                            {t!("common.close")}
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Ghost
+                            class="js-import-json-fallback".to_string()
+                            on_click=Box::new(use_file_import.clone())
+                        >
+                            {t!("backup.import_qr_use_json")}
+                        </Button>
+                        <Button variant=ButtonVariant::Primary on_click=Box::new(start_scanner.clone())>
+                            {t!("backup.import_qr_try_again")}
+                        </Button>
+                    </div>
+                }
+                    .into_view()
             }
-                .into_view()
-        }
-        ScannerStage::Unsupported => {
-            view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
-                        {t!("common.close")}
-                    </Button>
-                    <Button variant=ButtonVariant::Primary on_click=Box::new(use_file_import.clone())>
-                        {t!("backup.import_qr_use_json")}
-                    </Button>
-                </div>
+            ScannerStage::Unsupported => {
+                view! {
+                    <div class="contents">
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                            {t!("common.close")}
+                        </Button>
+                        <Button
+                            variant=ButtonVariant::Primary
+                            class="js-import-json-fallback".to_string()
+                            on_click=Box::new(use_file_import.clone())
+                        >
+                            {t!("backup.import_qr_use_json")}
+                        </Button>
+                    </div>
+                }
+                    .into_view()
             }
-                .into_view()
-        }
-        ScannerStage::RequestingCamera | ScannerStage::Scanning => {
-            view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
-                        {t!("backup.import_qr_cancel")}
-                    </Button>
-                </div>
+            ScannerStage::RequestingCamera | ScannerStage::Scanning => {
+                view! {
+                    <div class="contents">
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                            {t!("backup.import_qr_cancel")}
+                        </Button>
+                    </div>
+                }
+                    .into_view()
             }
-                .into_view()
-        }
-    };
+        }}
+    }
+    .into_view();
 
     view! {
         <Modal
@@ -519,7 +540,7 @@ pub fn QrImportScanner(
             on_close=close_scanner_for_modal.clone()
             title=Signal::derive(move || t!("backup.import_qr_title")())
             size=ModalSize::XLarge
-            action_bar=action_bar()
+            action_bar=action_bar
         >
             <div class="space-y-5 text-gray-700">
                 <Show when=move || stage.get() == ScannerStage::RequestingCamera>

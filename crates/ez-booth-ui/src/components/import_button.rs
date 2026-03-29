@@ -355,19 +355,23 @@ pub fn ImportButton(
 
             <DropdownMenu
                 trigger=view! {
-                    <Button
-                        variant=variant.unwrap_or(ButtonVariant::Secondary)
-                        size=size.unwrap_or(ButtonSize::Medium)
-                        class=class.unwrap_or_default()
-                        disabled=is_reading.get() || is_importing.get()
-                        title=t!("backup.import")()
-                    >
-                        {move || if is_reading.get() || is_importing.get() {
-                            t!("backup.import_in_progress")()
-                        } else {
-                            t!("backup.import")()
-                        }}
-                    </Button>
+                    {move || {
+                        view! {
+                            <Button
+                                variant=variant.unwrap_or(ButtonVariant::Secondary)
+                                size=size.unwrap_or(ButtonSize::Medium)
+                                class=class.clone().unwrap_or_default()
+                                disabled=is_reading.get() || is_importing.get()
+                                title=t!("backup.import")()
+                            >
+                                {if is_reading.get() || is_importing.get() {
+                                    t!("backup.import_in_progress")()
+                                } else {
+                                    t!("backup.import")()
+                                }}
+                            </Button>
+                        }
+                    }}
                 }.into_view()
             >
                 <DropdownMenuItem on_click=Callback::new(move |_| open_file_picker()) icon=import_file_icon.clone()>
