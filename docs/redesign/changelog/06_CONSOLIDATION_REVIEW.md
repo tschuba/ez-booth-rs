@@ -204,7 +204,7 @@ Since data is browser-specific:
 
 2. **Before Browser Switch**
    - Can't detect, but provide prominent export button
-   - Export reminder in settings
+   - Export reminder in the booth list
    - One-click export to Downloads folder
 
 3. **Regular Export Reminders**

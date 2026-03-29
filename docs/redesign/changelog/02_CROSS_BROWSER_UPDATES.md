@@ -106,8 +106,8 @@ Cross-browser data portability has been integrated into all three design documen
 4. ❌ Risk of data corruption
 
 **After (Rust - ez-booth-rs):**
-1. Chrome: Settings → Export Data → `ez-booth-export-20260319.json` downloaded
-2. Firefox: Settings → Import Data → Select file → Choose "Merge"
+1. Chrome: Booth list → Export Data → `ez-booth-export-20260319.json` downloaded
+2. Firefox: Booth list → Import Data → Select file → Choose "Merge"
 3. ✅ Done in <5 seconds
 4. ✅ Checksum verified
 5. ✅ All data available in Firefox

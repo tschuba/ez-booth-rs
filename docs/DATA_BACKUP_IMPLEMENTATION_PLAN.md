@@ -12,7 +12,7 @@ The work should make it safer to rely on EZ Booth in real event operation where 
 
 - export format: pretty-printed JSON only
 - export scope: both full-database export and per-booth export
-- UI placement: both a dedicated settings page and quick actions in the booth list
+- UI placement: booth-list backup actions with app-wide warning surfaces
 - storage warning strategy: both a first-visit warning and a persistent indicator
 - documentation scope: both an operator guide and a technical guide
 
@@ -38,7 +38,7 @@ Implemented outcomes:
 - export service and import service in `crates/storage/src/export/`
 - strict import validation with structure and relationship checks
 - import conflict handling with `Skip`, `Replace`, and `Merge`
-- settings page and booth-list backup entry points
+- booth-list backup entry points with app-wide warning surfaces
 - booth-level export actions
 - dismissible global storage warning plus persistent warning surfaces
 - bilingual EN/DE copy for backup and warning flows
@@ -169,19 +169,7 @@ Import validation should cover:
 
 ### 3. UI Surfaces
 
-#### Settings Page
-
-Add a new page at `/settings` with:
-
-- full export button
-- import button
-- storage explanation
-- backup recommendations
-- optional display of current booth/vendor/purchase counts
-
-Add a settings link to the main header navigation in `crates/ez-booth-ui/src/lib.rs`.
-
-#### Booth List Shortcuts
+#### Booth List Backup Access
 
 Update `crates/ez-booth-ui/src/pages/booth_list.rs` to include:
 
@@ -214,7 +202,7 @@ Persist dismissal in `localStorage` so the warning does not reappear every sessi
 
 ### Persistent Indicator
 
-Keep a subtle persistent indicator available from the footer or settings area so operators can always find:
+Keep a subtle persistent indicator available from the footer, banner, or booth list so operators can always find:
 
 - where data is stored
 - why backups matter
@@ -255,7 +243,6 @@ Update both locale files:
 
 Add strings for:
 
-- settings page labels
 - export/import actions
 - import validation and conflict messaging
 - storage warnings and indicators
@@ -296,7 +283,7 @@ Completed:
 
 1. implement the backup format and service layer
 2. add unit and integration coverage for export/import behavior
-3. add settings page and booth-list actions
+3. add booth-list backup actions and app-wide access points
 4. add first-visit warning and persistent indicator
 5. add operator and technical documentation
 6. update validation artifacts

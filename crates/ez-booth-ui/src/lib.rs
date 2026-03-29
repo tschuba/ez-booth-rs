@@ -28,7 +28,6 @@ fn AppViewHeader() -> impl IntoView {
         "/booths" => Some(t!("booth.list_title")()),
         "/vendors" => Some(t!("vendor.list_title")()),
         "/checkout" => Some(t!("checkout.title")()),
-        "/settings" => Some(t!("settings.title")()),
         _ => None,
     });
 
@@ -98,24 +97,17 @@ pub fn App() -> impl IntoView {
                                          <a href="/checkout" class="text-gray-700 hover:text-blue-600">
                                              {t!("checkout.title")}
                                          </a>
-                                         <a href="/settings" class="text-gray-700 hover:text-blue-600">
-                                             {t!("settings.title")}
-                                         </a>
-                                         // Visual separator
-                                         <span class="text-gray-300 mx-2">"|"</span>
-
-                                        // Language switcher with globe icon
-                                        <button
-                                            class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
-                                            on:click=move |_| {
-                                                let new_locale = match locale.get() {
-                                                    Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
-                                                    Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
-                                                };
-                                                locale.set(new_locale);
-                                            }
-                                            title=move || t!("settings.language")()
-                                        >
+                                         // Language switcher with globe icon
+                                         <button
+                                             class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
+                                             on:click=move |_| {
+                                                 let new_locale = match locale.get() {
+                                                     Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
+                                                     Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
+                                                 };
+                                                 locale.set(new_locale);
+                                             }
+                                         >
                                             // Globe SVG icon
                                             <svg
                                                 class="w-4 h-4"
@@ -155,7 +147,6 @@ pub fn App() -> impl IntoView {
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
-                            <Route path="/settings" view=SettingsPage/>
                         </Routes>
                     </main>
 

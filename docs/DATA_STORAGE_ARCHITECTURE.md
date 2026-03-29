@@ -135,7 +135,6 @@ The service returns `ImportSummary` so the UI can report:
 
 Backup and recovery entry points are available in multiple places:
 
-- `crates/ez-booth-ui/src/pages/settings.rs`
 - `crates/ez-booth-ui/src/pages/booth_list.rs`
 - `crates/ez-booth-ui/src/lib.rs`
 
@@ -148,7 +147,7 @@ Relevant UI components:
 The warning strategy has two layers:
 
 - dismissible global banner for first-visit awareness
-- persistent reminder surfaces in the footer, settings, and booth list
+- persistent reminder surfaces in the global banner, footer, and booth list
 
 ## Recovery Scenarios
 

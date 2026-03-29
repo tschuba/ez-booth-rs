@@ -50,7 +50,7 @@ Use a full backup when you want to protect all booths, vendors, and purchases.
 
 Steps:
 
-1. Open `Settings` or the booth list page.
+1. Open the booth list page.
 2. Click `Export All`.
 3. Save the downloaded JSON file to a safe location.
 4. Confirm the file exists outside the browser, for example in `Downloads`, a team folder, or external storage.
@@ -65,7 +65,7 @@ Verwenden Sie ein vollstaendiges Backup, wenn Sie alle Veranstaltungen, Verkaeuf
 
 Schritte:
 
-1. Oeffnen Sie `Einstellungen` oder die Standliste.
+1. Oeffnen Sie die Standliste.
 2. Klicken Sie auf `Alle exportieren`.
 3. Speichern Sie die heruntergeladene JSON-Datei an einem sicheren Ort.
 4. Pruefen Sie, dass die Datei ausserhalb des Browsers vorhanden ist, zum Beispiel in `Downloads`, einem Team-Ordner oder auf einem externen Speichermedium.
@@ -114,7 +114,7 @@ You can import either a full backup or a booth backup.
 
 Steps:
 
-1. Open `Settings` or the booth list page.
+1. Open the booth list page.
 2. Click `Import`.
 3. Select a `.json` backup file.
 4. Review the preview shown by EZ Booth.
@@ -134,7 +134,7 @@ Sie koennen sowohl ein vollstaendiges Backup als auch ein Stand-Backup importier
 
 Schritte:
 
-1. Oeffnen Sie `Einstellungen` oder die Standliste.
+1. Oeffnen Sie die Standliste.
 2. Klicken Sie auf `Importieren`.
 3. Waehlen Sie eine `.json`-Backup-Datei aus.
 4. Pruefen Sie die von EZ Booth angezeigte Vorschau.
@@ -213,7 +213,7 @@ If data is missing:
 1. Stop entering new event data until you know what was lost.
 2. Check whether the issue is only a different browser profile or device.
 3. Locate the newest relevant backup file.
-4. Import the backup from `Settings` or the booth list.
+4. Import the backup from the booth list.
 5. Verify booth counts, vendor lists, and recent purchases.
 6. Create a fresh backup after successful recovery.
 
@@ -224,7 +224,7 @@ Wenn Daten fehlen:
 1. Erfassen Sie keine neuen Veranstaltungsdaten, bis klar ist, was verloren ging.
 2. Pruefen Sie, ob nur ein anderes Browser-Profil oder Geraet verwendet wird.
 3. Suchen Sie die neueste passende Backup-Datei.
-4. Importieren Sie das Backup ueber `Einstellungen` oder die Standliste.
+4. Importieren Sie das Backup ueber die Standliste.
 5. Pruefen Sie Standanzahl, Verkaeuferlisten und aktuelle Kaeufe.
 6. Erstellen Sie nach erfolgreicher Wiederherstellung ein neues Backup.
 

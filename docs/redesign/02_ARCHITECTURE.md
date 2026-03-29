@@ -1559,7 +1559,7 @@ pub fn CrossBrowserBanner() -> impl IntoView {
 Make export easily accessible:
 - Header navigation: "Export" button always visible
 - Dashboard: "Export Data" card with last export date
-- Settings: Export section with one-click download
+- Booth list: Export section with one-click download
 
 **3. Regular Export Reminders**
 
@@ -1652,7 +1652,7 @@ Make export effortless:
 Provide accessible help:
 - FAQ section: "How do I use my data on another device?"
 - Tutorial video: "Exporting and importing your data"
-- Settings page: Clear explanation of browser-based storage
+- Booth list warning area: Clear explanation of browser-based storage
 
 #### Expected User Behavior
 
@@ -1954,7 +1954,7 @@ pub fn FirstTimeWelcome(browser: BrowserInfo) -> impl IntoView {
                 </p>
                 <ol class="text-left list-decimal list-inside space-y-2 mb-4">
                     <li>"Open ez-booth in your other browser"</li>
-                    <li>"Go to Settings → Export Data"</li>
+                    <li>"Open the booth list and choose Export Data"</li>
                     <li>"Download the JSON file"</li>
                     <li>"Come back here and import it"</li>
                 </ol>
@@ -2078,13 +2078,13 @@ pub fn EmptyBoothList() -> impl IntoView {
 }
 ```
 
-**4. Persistent Helper in Settings**
+**4. Persistent Helper in Booth List**
 ```rust
 #[component]
-pub fn SettingsPage() -> impl IntoView {
+pub fn BoothListPage() -> impl IntoView {
     view! {
-        <div class="settings-page">
-            <h1>"Settings"</h1>
+        <div class="booth-list-page">
+            <h1>"Booths"</h1>
             
             // Always show import/export prominently
             <section class="data-portability bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-8">
@@ -2100,7 +2100,7 @@ pub fn SettingsPage() -> impl IntoView {
                 </div>
             </section>
             
-            // ... other settings
+            // ... booth list content
         </div>
     }
 }
@@ -2139,13 +2139,13 @@ browsers cannot access.
 
 ### From Your Old Browser:
 1. Open ez-booth
-2. Go to Settings → Export Data
+2. Open the booth list and choose Export Data
 3. Click "Download Export"
 4. Save the `ez-booth-export-YYYYMMDD.json` file
 
 ### In Your New Browser:
 1. Open ez-booth
-2. Click "Import Data" on the welcome screen (or go to Settings → Import)
+2. Click "Import Data" on the welcome screen (or use the booth list import action)
 3. Select the JSON file you downloaded
 4. Choose "Merge with existing" (recommended)
 5. Click Import
@@ -2157,7 +2157,7 @@ devices!
 ## Troubleshooting
 
 **Q: I don't see the welcome screen**
-A: Go directly to Settings → Export/Import
+A: Go directly to the booth list export/import actions
 
 **Q: Import failed with "Invalid checksum"**
 A: The file may be corrupted. Try exporting again.
@@ -2712,7 +2712,7 @@ share with our team.
 
 ### 12.4 Diagnostic Tools
 
-**System Health Check** (Settings → Diagnostics):
+**System Health Check** (dedicated diagnostics view):
 ```
 System Health
 ─────────────────────────────────────────

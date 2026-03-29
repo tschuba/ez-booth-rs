@@ -408,7 +408,7 @@ Create sample databases:
   - Recommendation: No, require clean import (simpler, less error-prone)
   - Decision: No merging, user must choose to import into empty ez-booth-rs instance
 - [X] Should migration be available only on first use or always accessible?
-  - Recommendation: Always accessible via settings/import menu
+  - Recommendation: Always accessible via import entry points such as the booth list
   - Decision: Always accessible, but prominently offered on first use
 - [X] Should we handle very large database files (>100MB)?
   - Recommendation: Show file size warning and use chunked processing
