@@ -82,21 +82,18 @@ pub fn Input(
     let combined_classes = move || format!("{} {}", input_classes(), additional_classes);
 
     if autofocus {
-        let did_focus = create_rw_signal(false);
         let node_ref_for_focus = input_ref.clone();
-        create_effect(move |_| {
-            if did_focus.get() {
-                return;
-            }
-
-            if let Some(input) = node_ref_for_focus.get() {
-                let _ = input.focus();
-                if select_on_focus {
-                    let _ = input.select();
+        set_timeout(
+            move || {
+                if let Some(input) = node_ref_for_focus.get() {
+                    let _ = input.focus();
+                    if select_on_focus {
+                        let _ = input.select();
+                    }
                 }
-                did_focus.set(true);
-            }
-        });
+            },
+            std::time::Duration::from_millis(0),
+        );
     }
 
     // Generate unique ID for error message association
