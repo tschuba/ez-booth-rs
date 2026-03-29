@@ -1,4 +1,5 @@
 mod booth_form;
+mod copy_booth_dialog;
 mod booth_selector;
 mod booth_summary_report;
 mod button;
@@ -20,6 +21,7 @@ mod booth_form_tests;
 // Re-export components
 pub use crate::utils::format_error_message;
 pub use booth_form::*;
+pub use copy_booth_dialog::*;
 pub use booth_selector::*;
 pub use booth_summary_report::*;
 pub use button::*;

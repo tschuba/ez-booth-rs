@@ -430,6 +430,18 @@ mod tests {
             Ok(booths.values().cloned().collect())
         }
 
+        async fn find_by_description_and_date(
+            &self,
+            description: &str,
+            date: &NaiveDate,
+        ) -> DomainResult<Option<Booth>> {
+            let booths = self.booths.lock().unwrap();
+            Ok(booths
+                .values()
+                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .cloned())
+        }
+
         async fn delete(&self, _id: &BoothId) -> DomainResult<()> {
             Ok(())
         }

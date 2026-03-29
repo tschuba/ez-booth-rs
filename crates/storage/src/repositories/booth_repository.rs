@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use domain::{Booth, BoothId, BoothRepository, DomainResult};
 use rexie::TransactionMode;
 use serde_wasm_bindgen::{from_value, to_value};
@@ -94,6 +95,19 @@ impl BoothRepository for IndexedDbBoothRepository {
             .collect();
 
         Ok(booths)
+    }
+
+    async fn find_by_description_and_date(
+        &self,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<Option<Booth>> {
+        let description = description.trim();
+        let booths = self.find_all().await?;
+
+        Ok(booths
+            .into_iter()
+            .find(|booth| booth.date == *date && booth.description.trim() == description))
     }
 
     async fn delete(&self, id: &BoothId) -> DomainResult<()> {

@@ -6,6 +6,7 @@
 use crate::error::DomainResult;
 use crate::models::{Booth, BoothId, Purchase, PurchaseId, Vendor, VendorId};
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 
 /// Repository trait for booth persistence operations
@@ -19,6 +20,13 @@ pub trait BoothRepository {
 
     /// Find all booths
     async fn find_all(&self) -> DomainResult<Vec<Booth>>;
+
+    /// Find a booth by description and date
+    async fn find_by_description_and_date(
+        &self,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<Option<Booth>>;
 
     /// Delete a booth by ID
     async fn delete(&self, id: &BoothId) -> DomainResult<()>;

@@ -34,6 +34,12 @@
     "select_booth_cta": "Veranstaltung auswählen",
     "no_booths_found": "Noch keine Veranstaltungen",
     "create_first_booth": "Erstelle deine erste Veranstaltung um zu starten",
+    "empty_state": {
+      "heading": "Noch keine Veranstaltungen",
+      "requirement": "Du benötigst mindestens eine Veranstaltung",
+      "features": "um die Kassen- und Berichtsfunktionen zu nutzen.",
+      "get_started": "Erstelle deine erste Veranstaltung, um loszulegen!"
+    },
     "created": "Veranstaltung erstellt.",
     "deleted": "Veranstaltung gelöscht.",
     "saved": "Veranstaltung gespeichert.",
@@ -43,12 +49,22 @@
     "create_aria_label": "Neue Veranstaltung erstellen",
     "edit": "Veranstaltung bearbeiten",
     "edit_button": "Bearbeiten",
+    "copy_title": "Veranstaltung kopieren",
+    "copy_button": "Kopieren",
+    "copy_confirm": "Veranstaltung kopieren",
+    "copy_source_label": "Einstellungen kopieren von",
     "view_report": "Bericht anzeigen",
     "view_report_aria": "Finanzbericht für diese Veranstaltung anzeigen",
     "delete": "Veranstaltung löschen",
     "delete_button": "Löschen",
     "delete_confirm": "Möchten Sie diese Veranstaltung wirklich löschen?",
     "delete_confirm_message": "Möchten Sie '{description}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "delete_modal": {
+      "title": "Stand löschen",
+      "instructions": "Geben Sie {token} ein, um diesen Stand dauerhaft zu löschen.",
+      "placeholder": "Bestätigungscode eingeben",
+      "confirm": "Stand löschen"
+    },
     "name_label": "Name",
     "description_label": "Beschreibung",
     "date_label": "Datum",
@@ -105,6 +121,7 @@
     },
     "success": {
       "created": "Veranstaltung erstellt: {description}",
+      "copied": "Veranstaltung kopiert: {description}",
       "updated": "Veranstaltung aktualisiert: {description}",
       "deleted": "Veranstaltung gelöscht: {description}"
     },
@@ -479,6 +496,7 @@
     "vendor_omission_rules_too_many": "Zu viele Ausschlussregeln konfiguriert (maximal 100)",
     "booth_name_empty": "Veranstaltungsname darf nicht leer sein",
     "booth_name_too_long": "Veranstaltungsname ist zu lang (maximal 200 Zeichen)",
+    "booth_duplicate_name_and_date": "Eine Veranstaltung namens '{description}' existiert bereits am {date}",
     "participation_fee_negative": "Teilnahmegebühr darf nicht negativ sein",
     "sales_fee_percent_negative": "Umsatzbeteiligung darf nicht negativ sein",
     "sales_fee_percent_too_large": "Umsatzbeteiligung darf 100% nicht überschreiten",

@@ -15,6 +15,7 @@ pub enum ValidationError {
     VendorOmissionRulesTooMany,
     BoothNameEmpty,
     BoothNameTooLong,
+    BoothDuplicateNameAndDate { description: String, date: String },
     ParticipationFeeNegative,
     SalesFeePercentNegative,
     SalesFeePercentTooLarge,
@@ -53,6 +54,7 @@ impl ValidationError {
             Self::VendorOmissionRulesTooMany => "validation.vendor_omission_rules_too_many",
             Self::BoothNameEmpty => "validation.booth_name_empty",
             Self::BoothNameTooLong => "validation.booth_name_too_long",
+            Self::BoothDuplicateNameAndDate { .. } => "validation.booth_duplicate_name_and_date",
             Self::ParticipationFeeNegative => "validation.participation_fee_negative",
             Self::SalesFeePercentNegative => "validation.sales_fee_percent_negative",
             Self::SalesFeePercentTooLarge => "validation.sales_fee_percent_too_large",
@@ -81,6 +83,9 @@ impl ValidationError {
         match self {
             Self::VendorIdPatternMismatch { value } => vec![("value", value.clone())],
             Self::VendorIdOmitted { value } => vec![("value", value.clone())],
+            Self::BoothDuplicateNameAndDate { description, date } => {
+                vec![("description", description.clone()), ("date", date.clone())]
+            }
             Self::QuickAmountInvalid { value } => vec![("value", value.clone())],
             _ => Vec::new(),
         }

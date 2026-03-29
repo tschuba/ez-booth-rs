@@ -1,5 +1,5 @@
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
-use domain::services::{ReportService, VendorService};
+use domain::services::{BoothService, ReportService, VendorService};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
     IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
@@ -11,6 +11,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AppState {
     pub booth_repository: Arc<dyn BoothRepository>,
+    pub booth_service: Arc<BoothService<IndexedDbBoothRepository>>,
     pub vendor_repository: Arc<dyn VendorRepository>,
     pub purchase_repository: Arc<dyn PurchaseRepository>,
     pub indexed_purchase_repository: Arc<IndexedDbPurchaseRepository>,
@@ -47,6 +48,7 @@ impl AppState {
             IndexedDbVendorRepository::new(db.clone()),
             IndexedDbBoothRepository::new(db.clone()),
         ));
+        let booth_service = Arc::new(BoothService::new(IndexedDbBoothRepository::new(db.clone())));
         let report_service = Arc::new(ReportService::new(
             IndexedDbPurchaseRepository::new(db.clone()),
             IndexedDbBoothRepository::new(db.clone()),
@@ -55,6 +57,7 @@ impl AppState {
 
         Ok(Self {
             booth_repository,
+            booth_service,
             vendor_repository,
             purchase_repository,
             indexed_purchase_repository,
