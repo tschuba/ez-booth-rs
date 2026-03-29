@@ -464,7 +464,24 @@
     "title": "Einstellungen",
     "language": "Sprache",
     "language_de": "Deutsch",
-    "language_en": "English"
+    "language_en": "English",
+    "backup_title": "Datensicherung"
+  },
+  "backup": {
+    "section_label": "Sicherung & Wiederherstellung",
+    "heading": "Veranstaltungsdaten exportieren",
+    "storage_explanation": "EZ Booth speichert Veranstaltungen, Verkäufer und Käufe lokal in diesem Browser.",
+    "recommendation": "Exportieren Sie ein Backup, bevor Sie Browserdaten löschen, das Gerät wechseln oder größere Browser-Änderungen durchführen.",
+    "counts_hint": "Aktuelle lokale Datensätze:",
+    "count_booths": "Veranstaltungen",
+    "count_vendors": "Verkäufer",
+    "count_purchases": "Käufe",
+    "export_all": "Alle Daten exportieren",
+    "export_booth": "Diese Veranstaltung exportieren",
+    "export_in_progress": "Backup wird vorbereitet...",
+    "export_success_all": "Backup heruntergeladen",
+    "export_success_booth": "Veranstaltungs-Backup heruntergeladen",
+    "export_failed": "Backup-Export fehlgeschlagen"
   },
   "data": {
     "export_title": "Daten exportieren",

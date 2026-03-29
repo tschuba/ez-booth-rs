@@ -68,11 +68,14 @@ pub fn App() -> impl IntoView {
                                     <a href="/vendors" class="text-gray-700 hover:text-blue-600">
                                         {t!("vendor.list_title")}
                                     </a>
-                                    <a href="/checkout" class="text-gray-700 hover:text-blue-600">
-                                        {t!("checkout.title")}
-                                    </a>
-                                    // Visual separator
-                                    <span class="text-gray-300 mx-2">"|"</span>
+                                     <a href="/checkout" class="text-gray-700 hover:text-blue-600">
+                                         {t!("checkout.title")}
+                                     </a>
+                                     <a href="/settings" class="text-gray-700 hover:text-blue-600">
+                                         {t!("settings.title")}
+                                     </a>
+                                     // Visual separator
+                                     <span class="text-gray-300 mx-2">"|"</span>
 
                                     // Language switcher with globe icon
                                     <button
@@ -122,6 +125,7 @@ pub fn App() -> impl IntoView {
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
+                            <Route path="/settings" view=SettingsPage/>
                         </Routes>
                     </main>
 
