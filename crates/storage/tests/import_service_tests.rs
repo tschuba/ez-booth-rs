@@ -324,7 +324,10 @@ async fn import_after_delete_recreates_booth_with_skip_strategy() {
         .delete_from_booth(&booth.id, &purchase.id)
         .await
         .unwrap();
-    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    vendor_repo
+        .delete(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap();
     booth_repo.delete(&booth.id).await.unwrap();
 
     assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
@@ -333,7 +336,11 @@ async fn import_after_delete_recreates_booth_with_skip_strategy() {
         .await
         .unwrap()
         .is_none());
-    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_none());
+    assert!(purchase_repo
+        .find_by_id(&purchase.id)
+        .await
+        .unwrap()
+        .is_none());
 
     let summary = service
         .import_booth_backup(backup, ConflictStrategy::Skip)
@@ -352,7 +359,11 @@ async fn import_after_delete_recreates_booth_with_skip_strategy() {
         .await
         .unwrap()
         .is_some());
-    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+    assert!(purchase_repo
+        .find_by_id(&purchase.id)
+        .await
+        .unwrap()
+        .is_some());
 }
 
 #[wasm_bindgen_test]
@@ -372,7 +383,10 @@ async fn import_after_delete_recreates_booth_with_replace_strategy() {
         .delete_from_booth(&booth.id, &purchase.id)
         .await
         .unwrap();
-    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    vendor_repo
+        .delete(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap();
     booth_repo.delete(&booth.id).await.unwrap();
 
     assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
@@ -393,7 +407,11 @@ async fn import_after_delete_recreates_booth_with_replace_strategy() {
         .await
         .unwrap()
         .is_some());
-    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+    assert!(purchase_repo
+        .find_by_id(&purchase.id)
+        .await
+        .unwrap()
+        .is_some());
 }
 
 #[wasm_bindgen_test]
@@ -413,7 +431,10 @@ async fn import_after_delete_recreates_booth_with_merge_strategy() {
         .delete_from_booth(&booth.id, &purchase.id)
         .await
         .unwrap();
-    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    vendor_repo
+        .delete(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap();
     booth_repo.delete(&booth.id).await.unwrap();
 
     assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
@@ -434,7 +455,11 @@ async fn import_after_delete_recreates_booth_with_merge_strategy() {
         .await
         .unwrap()
         .is_some());
-    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+    assert!(purchase_repo
+        .find_by_id(&purchase.id)
+        .await
+        .unwrap()
+        .is_some());
 }
 
 #[wasm_bindgen_test]
@@ -454,7 +479,10 @@ async fn import_full_backup_after_delete_recreates_records() {
         .delete_from_booth(&booth.id, &purchase.id)
         .await
         .unwrap();
-    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    vendor_repo
+        .delete(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap();
     booth_repo.delete(&booth.id).await.unwrap();
 
     assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
@@ -475,5 +503,9 @@ async fn import_full_backup_after_delete_recreates_records() {
         .await
         .unwrap()
         .is_some());
-    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+    assert!(purchase_repo
+        .find_by_id(&purchase.id)
+        .await
+        .unwrap()
+        .is_some());
 }

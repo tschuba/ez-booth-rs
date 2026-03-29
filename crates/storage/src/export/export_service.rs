@@ -61,7 +61,8 @@ impl ExportService {
         let vendors = self.vendor_repository.find_all().await?;
         let purchases = self.purchase_repository.find_all().await?;
 
-        let (booths, vendors, purchases) = Self::filter_orphaned_records(booths, vendors, purchases);
+        let (booths, vendors, purchases) =
+            Self::filter_orphaned_records(booths, vendors, purchases);
 
         data.booths = booths;
         data.vendors = vendors;
@@ -82,7 +83,8 @@ impl ExportService {
         let vendors = self.vendor_repository.find_by_booth(booth_id).await?;
         let purchases = self.purchase_repository.find_by_booth(booth_id).await?;
 
-        let (vendors, purchases) = Self::filter_booth_orphaned_purchases(*booth_id, vendors, purchases);
+        let (vendors, purchases) =
+            Self::filter_booth_orphaned_purchases(*booth_id, vendors, purchases);
 
         data.vendors = vendors;
         data.purchases = purchases;
@@ -256,7 +258,10 @@ impl ExportService {
         (vendors, valid_purchases)
     }
 
-    fn filter_purchase_items<F>(mut purchase: Purchase, mut keep_item: F) -> (Option<Purchase>, usize)
+    fn filter_purchase_items<F>(
+        mut purchase: Purchase,
+        mut keep_item: F,
+    ) -> (Option<Purchase>, usize)
     where
         F: FnMut(&PurchaseItem) -> bool,
     {

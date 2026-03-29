@@ -7,7 +7,9 @@ use chrono::NaiveDate;
 use domain::repositories::{
     BoothRepository, BoothRunningTotals, PaginatedPurchases, PurchaseRepository, VendorRepository,
 };
-use domain::{Booth, BoothId, DomainResult, FeeConfig, Purchase, PurchaseId, PurchaseItem, Vendor, VendorId};
+use domain::{
+    Booth, BoothId, DomainResult, FeeConfig, Purchase, PurchaseId, PurchaseItem, Vendor, VendorId,
+};
 use ez_booth_storage::export::{ExportError, ExportService, BACKUP_FORMAT_VERSION};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
@@ -44,10 +46,15 @@ fn create_test_purchase(booth: &Booth, vendor_id: &VendorId) -> Purchase {
     .unwrap()
 }
 
-fn create_test_purchase_with_items(booth_id: BoothId, items: Vec<(&str, rust_decimal::Decimal)>) -> Purchase {
+fn create_test_purchase_with_items(
+    booth_id: BoothId,
+    items: Vec<(&str, rust_decimal::Decimal)>,
+) -> Purchase {
     let items = items
         .into_iter()
-        .map(|(vendor_id, amount)| PurchaseItem::new(amount, VendorId::new(vendor_id.to_string())).unwrap())
+        .map(|(vendor_id, amount)| {
+            PurchaseItem::new(amount, VendorId::new(vendor_id.to_string())).unwrap()
+        })
         .collect();
 
     Purchase::new(booth_id, items).unwrap()
@@ -100,7 +107,11 @@ impl VendorRepository for MockVendorRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<Option<Vendor>> {
+    async fn find_by_id(
+        &self,
+        booth_id: &BoothId,
+        vendor_id: &VendorId,
+    ) -> DomainResult<Option<Vendor>> {
         Ok(self
             .vendors
             .iter()
@@ -125,7 +136,11 @@ impl VendorRepository for MockVendorRepository {
         Ok(())
     }
 
-    async fn delete_from_booth(&self, _booth_id: &BoothId, _vendor_id: &VendorId) -> DomainResult<()> {
+    async fn delete_from_booth(
+        &self,
+        _booth_id: &BoothId,
+        _vendor_id: &VendorId,
+    ) -> DomainResult<()> {
         Ok(())
     }
 }
@@ -190,19 +205,29 @@ impl PurchaseRepository for MockPurchaseRepository {
             .collect();
 
         Ok(BoothRunningTotals {
-            total_sales: matching.iter().map(|purchase| purchase.total_amount()).sum(),
+            total_sales: matching
+                .iter()
+                .map(|purchase| purchase.total_amount())
+                .sum(),
             total_items: matching.iter().map(|purchase| purchase.items.len()).sum(),
             total_checkouts: matching.len(),
         })
     }
 
-    async fn find_by_vendor(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<Vec<Purchase>> {
+    async fn find_by_vendor(
+        &self,
+        booth_id: &BoothId,
+        vendor_id: &VendorId,
+    ) -> DomainResult<Vec<Purchase>> {
         Ok(self
             .purchases
             .iter()
             .filter(|purchase| {
                 purchase.booth_id == *booth_id
-                    && purchase.items.iter().any(|item| item.vendor_id == *vendor_id)
+                    && purchase
+                        .items
+                        .iter()
+                        .any(|item| item.vendor_id == *vendor_id)
             })
             .cloned()
             .collect())
@@ -221,7 +246,11 @@ impl PurchaseRepository for MockPurchaseRepository {
     }
 }
 
-fn mock_service(booths: Vec<Booth>, vendors: Vec<Vendor>, purchases: Vec<Purchase>) -> ExportService {
+fn mock_service(
+    booths: Vec<Booth>,
+    vendors: Vec<Vendor>,
+    purchases: Vec<Purchase>,
+) -> ExportService {
     ExportService::with_app_version(
         Arc::new(MockBoothRepository { booths }),
         Arc::new(MockVendorRepository { vendors }),
@@ -343,7 +372,11 @@ async fn test_export_all_skips_vendors_with_missing_booths() {
     let valid_vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
     let orphaned_vendor = Vendor::new(VendorId::new("99".to_string()), BoothId::new());
 
-    let service = mock_service(vec![booth], vec![valid_vendor.clone(), orphaned_vendor], Vec::new());
+    let service = mock_service(
+        vec![booth],
+        vec![valid_vendor.clone(), orphaned_vendor],
+        Vec::new(),
+    );
 
     let backup = service.export_all().await.unwrap();
 
@@ -496,7 +529,11 @@ async fn test_export_all_preserves_clean_data() {
     let vendor = Vendor::new(VendorId::new("1".to_string()), booth.id);
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
-    let service = mock_service(vec![booth.clone()], vec![vendor.clone()], vec![purchase.clone()]);
+    let service = mock_service(
+        vec![booth.clone()],
+        vec![vendor.clone()],
+        vec![purchase.clone()],
+    );
 
     let backup = service.export_all().await.unwrap();
 

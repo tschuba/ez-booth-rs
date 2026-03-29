@@ -5,9 +5,7 @@ use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{Event, FileReader, ProgressEvent};
 
-use crate::components::{
-    use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize,
-};
+use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
@@ -130,16 +128,17 @@ pub fn ImportButton(
                     return;
                 };
 
-                let booth_validation = validator_for_load
-                    .validate_booth_backup(&contents)
-                    .map(|data| {
-                        let preview = ImportPreview::Booth {
-                            description: data.booth.description.clone(),
-                            vendors: data.vendors.len(),
-                            purchases: data.purchases.len(),
-                        };
-                        (preview, ParsedImportData::Booth(data))
-                    });
+                let booth_validation =
+                    validator_for_load
+                        .validate_booth_backup(&contents)
+                        .map(|data| {
+                            let preview = ImportPreview::Booth {
+                                description: data.booth.description.clone(),
+                                vendors: data.vendors.len(),
+                                purchases: data.purchases.len(),
+                            };
+                            (preview, ParsedImportData::Booth(data))
+                        });
 
                 let resolved = match booth_validation {
                     Ok(booth) => Ok(booth),

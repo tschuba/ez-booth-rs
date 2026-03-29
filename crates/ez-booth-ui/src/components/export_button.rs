@@ -1,9 +1,7 @@
 use wasm_bindgen::JsCast;
 use web_sys::{window, Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-use crate::components::{
-    use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem,
-};
+use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem};
 use crate::state::use_app_state;
 use crate::t;
 use domain::BoothId;
@@ -130,7 +128,7 @@ pub fn ExportButton(
                 }}
             </DropdownMenuItem>
         }
-            .into_view()
+        .into_view()
     } else {
         view! {
             <Button
@@ -149,7 +147,7 @@ pub fn ExportButton(
                 }}
             </Button>
         }
-            .into_view()
+        .into_view()
     }
 }
 
