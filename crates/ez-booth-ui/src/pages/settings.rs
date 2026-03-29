@@ -1,4 +1,5 @@
 use crate::components::{Card, Container, ExportButton, ExportScope, ImportButton};
+use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
 use leptos::*;
@@ -6,9 +7,12 @@ use leptos::*;
 #[component]
 pub fn SettingsPage() -> impl IntoView {
     let app_state = use_app_state();
+    let booth_list_version = use_booth_list_version();
     let (counts, set_counts) = create_signal(None::<(usize, usize, usize)>);
 
     create_effect(move |_| {
+        let _ = booth_list_version.get();
+
         let Some(Ok(state)) = app_state.get() else {
             return;
         };

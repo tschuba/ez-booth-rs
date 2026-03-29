@@ -306,3 +306,174 @@ async fn import_booth_backup_saves_only_that_scope() {
         .unwrap()
         .is_some());
 }
+
+#[wasm_bindgen_test]
+async fn import_after_delete_recreates_booth_with_skip_strategy() {
+    let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
+    let booth = create_test_booth("Spring Market 2026");
+    let vendor = create_test_vendor(&booth, "12", Some("Test Vendor"));
+    let purchase = create_test_purchase(&booth, &vendor.vendor_id);
+
+    booth_repo.save(&booth).await.unwrap();
+    vendor_repo.save(&vendor).await.unwrap();
+    purchase_repo.save(&purchase).await.unwrap();
+
+    let backup = booth_backup(booth.clone(), vendor.clone(), purchase.clone());
+
+    purchase_repo
+        .delete_from_booth(&booth.id, &purchase.id)
+        .await
+        .unwrap();
+    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    booth_repo.delete(&booth.id).await.unwrap();
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
+    assert!(vendor_repo
+        .find_by_id(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_none());
+
+    let summary = service
+        .import_booth_backup(backup, ConflictStrategy::Skip)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.skipped_records.len(), 0);
+    assert_eq!(summary.conflicts_resolved, 0);
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_some());
+    assert!(vendor_repo
+        .find_by_id(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+}
+
+#[wasm_bindgen_test]
+async fn import_after_delete_recreates_booth_with_replace_strategy() {
+    let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
+    let booth = create_test_booth("Summer Festival 2026");
+    let vendor = create_test_vendor(&booth, "42", Some("Replaced Vendor"));
+    let purchase = create_test_purchase(&booth, &vendor.vendor_id);
+
+    booth_repo.save(&booth).await.unwrap();
+    vendor_repo.save(&vendor).await.unwrap();
+    purchase_repo.save(&purchase).await.unwrap();
+
+    let backup = booth_backup(booth.clone(), vendor.clone(), purchase.clone());
+
+    purchase_repo
+        .delete_from_booth(&booth.id, &purchase.id)
+        .await
+        .unwrap();
+    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    booth_repo.delete(&booth.id).await.unwrap();
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
+
+    let summary = service
+        .import_booth_backup(backup, ConflictStrategy::Replace)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.conflicts_resolved, 0);
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_some());
+    assert!(vendor_repo
+        .find_by_id(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+}
+
+#[wasm_bindgen_test]
+async fn import_after_delete_recreates_booth_with_merge_strategy() {
+    let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
+    let booth = create_test_booth("Autumn Market 2026");
+    let vendor = create_test_vendor(&booth, "99", Some("Merged Vendor"));
+    let purchase = create_test_purchase(&booth, &vendor.vendor_id);
+
+    booth_repo.save(&booth).await.unwrap();
+    vendor_repo.save(&vendor).await.unwrap();
+    purchase_repo.save(&purchase).await.unwrap();
+
+    let backup = booth_backup(booth.clone(), vendor.clone(), purchase.clone());
+
+    purchase_repo
+        .delete_from_booth(&booth.id, &purchase.id)
+        .await
+        .unwrap();
+    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    booth_repo.delete(&booth.id).await.unwrap();
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
+
+    let summary = service
+        .import_booth_backup(backup, ConflictStrategy::Merge)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.conflicts_resolved, 0);
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_some());
+    assert!(vendor_repo
+        .find_by_id(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+}
+
+#[wasm_bindgen_test]
+async fn import_full_backup_after_delete_recreates_records() {
+    let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
+    let booth = create_test_booth("Winter Festival 2026");
+    let vendor = create_test_vendor(&booth, "77", Some("Full Backup Vendor"));
+    let purchase = create_test_purchase(&booth, &vendor.vendor_id);
+
+    booth_repo.save(&booth).await.unwrap();
+    vendor_repo.save(&vendor).await.unwrap();
+    purchase_repo.save(&purchase).await.unwrap();
+
+    let backup = full_backup(booth.clone(), vendor.clone(), purchase.clone());
+
+    purchase_repo
+        .delete_from_booth(&booth.id, &purchase.id)
+        .await
+        .unwrap();
+    vendor_repo.delete(&booth.id, &vendor.vendor_id).await.unwrap();
+    booth_repo.delete(&booth.id).await.unwrap();
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_none());
+
+    let summary = service
+        .import_all(backup, ConflictStrategy::Skip)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.skipped_records.len(), 0);
+
+    assert!(booth_repo.find_by_id(&booth.id).await.unwrap().is_some());
+    assert!(vendor_repo
+        .find_by_id(&booth.id, &vendor.vendor_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(purchase_repo.find_by_id(&purchase.id).await.unwrap().is_some());
+}

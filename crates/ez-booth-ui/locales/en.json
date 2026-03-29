@@ -498,7 +498,14 @@
     "import_validation_summary": "The backup file contains validation errors that must be fixed before import.",
     "import_structure_summary": "The backup file structure is not importable.",
     "import_version_error": "Unsupported backup version {found}. This app currently supports version {supported}.",
-    "import_next_step_placeholder": "Import apply/merge actions land in the next slice. This step currently validates the file and shows what would be imported."
+    "import_strategy_label": "Conflict strategy",
+    "strategy_skip": "Skip existing records",
+    "strategy_replace": "Replace existing records",
+    "strategy_merge": "Merge using newer data",
+    "import_apply_ready": "Choose how to handle existing records, then apply the import.",
+    "import_apply": "Apply Import",
+    "import_apply_success": "Import complete: {booths} events, {vendors} vendors, {purchases} purchases imported; {resolved} conflicts resolved; {skipped} records skipped.",
+    "import_apply_failed": "Import failed"
   },
   "data": {
     "export_title": "Export Data",

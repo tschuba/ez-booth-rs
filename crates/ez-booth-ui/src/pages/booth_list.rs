@@ -100,6 +100,7 @@ pub fn BoothListPage() -> impl IntoView {
     };
 
     create_effect(move |_| {
+        let _ = booth_list_version.get();
         let state_result = app_state.get();
 
         if let Some(Ok(state)) = state_result {
