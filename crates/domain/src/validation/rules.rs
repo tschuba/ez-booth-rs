@@ -27,7 +27,10 @@ impl VendorValidator {
             return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
         }
         if vendor_id.as_str().len() > 50 {
-            return Err(DomainError::Validation(ValidationError::VendorIdTooLong));
+            return Err(DomainError::Validation(ValidationError::VendorIdTooLong {
+                max: 50,
+                actual: vendor_id.as_str().len(),
+            }));
         }
         Ok(())
     }

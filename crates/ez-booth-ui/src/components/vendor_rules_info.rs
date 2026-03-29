@@ -8,7 +8,28 @@ use std::collections::HashMap;
 fn format_validation_rule(rule: &VendorIdValidation) -> String {
     match rule {
         VendorIdValidation::Unrestricted => t!("checkout.rules_validation_unrestricted")(),
-        VendorIdValidation::DigitsOnly => t!("checkout.rules_validation_digits_only")(),
+        VendorIdValidation::DigitsOnly { min, max } => {
+            let base = t!("checkout.rules_validation_digits_only")();
+            match max {
+                Some(max) => format!(
+                    "{} {}",
+                    base,
+                    translate_with_params(
+                        "checkout.rules_validation_digits_only_range",
+                        HashMap::from([("min", min.to_string()), ("max", max.to_string()),]),
+                    )
+                ),
+                None if *min > 1 => format!(
+                    "{} {}",
+                    base,
+                    translate_with_params(
+                        "checkout.rules_validation_digits_only_min",
+                        HashMap::from([("min", min.to_string())]),
+                    )
+                ),
+                _ => base,
+            }
+        }
         VendorIdValidation::Regex(pattern) => translate_with_params(
             "checkout.rules_validation_regex",
             HashMap::from([("pattern", pattern.clone())]),

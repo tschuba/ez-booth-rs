@@ -6,11 +6,15 @@ use std::sync::{Arc, OnceLock};
 use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
 use crate::error_code::ValidationError;
-use crate::validation::vendor_id::build_safe_regex;
+use crate::validation::vendor_id::{build_safe_regex, validate_digits_only_constraints};
 
 const OMISSION_RULES_VERSION: u8 = 1;
 const MAX_OMISSION_RULES: usize = 100;
 const MAX_WILDCARD_PATTERN_LEN: usize = 100;
+
+fn default_vendor_id_digits_min() -> usize {
+    1
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -159,7 +163,10 @@ impl OmissionRule {
                     return Err(DomainError::Validation(ValidationError::VendorIdEmpty));
                 }
                 if value.len() > 50 {
-                    return Err(DomainError::Validation(ValidationError::VendorIdTooLong));
+                    return Err(DomainError::Validation(ValidationError::VendorIdTooLong {
+                        max: 50,
+                        actual: value.len(),
+                    }));
                 }
                 Ok(())
             }
@@ -278,17 +285,99 @@ fn wildcard_matches(pattern: &CachedPattern, value: &str) -> Result<bool, Domain
         .is_match(value))
 }
 
-/// Vendor ID validation rules for a booth
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct VendorIdDigitsOnlyPattern {
+    #[serde(default = "default_vendor_id_digits_min")]
+    min: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max: Option<usize>,
+}
+
+impl Default for VendorIdDigitsOnlyPattern {
+    fn default() -> Self {
+        Self {
+            min: default_vendor_id_digits_min(),
+            max: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "pattern")]
+enum VendorIdValidationSerde {
+    Unrestricted,
+    DigitsOnly(VendorIdDigitsOnlyPattern),
+    Regex(String),
+}
+
+/// Vendor ID validation rules for a booth
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VendorIdValidation {
     /// No restrictions on vendor ID format
     Unrestricted,
     /// Only ASCII digits (0-9) are allowed
-    #[default]
-    DigitsOnly,
+    DigitsOnly { min: usize, max: Option<usize> },
     /// Custom regular expression pattern
     Regex(String),
+}
+
+impl Default for VendorIdValidation {
+    fn default() -> Self {
+        Self::DigitsOnly {
+            min: default_vendor_id_digits_min(),
+            max: None,
+        }
+    }
+}
+
+impl Serialize for VendorIdValidation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let helper = match self {
+            Self::Unrestricted => VendorIdValidationSerde::Unrestricted,
+            Self::DigitsOnly { min, max } => {
+                VendorIdValidationSerde::DigitsOnly(VendorIdDigitsOnlyPattern {
+                    min: *min,
+                    max: *max,
+                })
+            }
+            Self::Regex(pattern) => VendorIdValidationSerde::Regex(pattern.clone()),
+        };
+
+        helper.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for VendorIdValidation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(tag = "type", content = "pattern")]
+        enum Helper {
+            Unrestricted,
+            #[serde(alias = "digits_only")]
+            DigitsOnly(Option<VendorIdDigitsOnlyPattern>),
+            Regex(String),
+        }
+
+        match Helper::deserialize(deserializer)? {
+            Helper::Unrestricted => Ok(Self::Unrestricted),
+            Helper::DigitsOnly(pattern) => {
+                let pattern = pattern.unwrap_or_default();
+                validate_digits_only_constraints(pattern.min, pattern.max)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(Self::DigitsOnly {
+                    min: pattern.min,
+                    max: pattern.max,
+                })
+            }
+            Helper::Regex(pattern) => Ok(Self::Regex(pattern)),
+        }
+    }
 }
 
 /// Represents a bazaar booth/event
@@ -474,6 +563,7 @@ pub struct VendorBoothSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn test_fees() -> FeeConfig {
         FeeConfig {
@@ -661,5 +751,34 @@ mod tests {
             invalid,
             Err(DomainError::Validation(ValidationError::BoothNameTooLong))
         ));
+    }
+
+    #[test]
+    fn vendor_id_validation_deserializes_legacy_digits_only_shape() {
+        let value = json!({ "type": "DigitsOnly" });
+
+        let validation: VendorIdValidation = serde_json::from_value(value).unwrap();
+
+        assert_eq!(
+            validation,
+            VendorIdValidation::DigitsOnly { min: 1, max: None }
+        );
+    }
+
+    #[test]
+    fn vendor_id_validation_rejects_invalid_digits_only_bounds_during_deserialization() {
+        let value = json!({
+            "type": "DigitsOnly",
+            "pattern": {
+                "min": 10,
+                "max": 5
+            }
+        });
+
+        let error = serde_json::from_value::<VendorIdValidation>(value).unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("validation.digits_only_min_max_invalid"));
     }
 }

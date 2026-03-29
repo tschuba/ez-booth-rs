@@ -2,7 +2,7 @@ use crate::error::{DomainError, DomainResult};
 use crate::error_code::ValidationError;
 use crate::models::{Booth, BoothId, FeeConfig, VendorIdValidation};
 use crate::repositories::BoothRepository;
-use crate::validation::validate_regex_pattern;
+use crate::validation::{validate_digits_only_constraints, validate_regex_pattern};
 use chrono::NaiveDate;
 
 /// Service for booth management operations
@@ -86,8 +86,12 @@ impl<R: BoothRepository> BoothService<R> {
     fn validate_booth(&self, booth: &Booth) -> DomainResult<()> {
         booth.fees.validate_ranges()?;
 
-        if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
-            validate_regex_pattern(pattern)?;
+        match &booth.vendor_id_validation {
+            VendorIdValidation::Regex(pattern) => validate_regex_pattern(pattern)?,
+            VendorIdValidation::DigitsOnly { min, max } => {
+                validate_digits_only_constraints(*min, *max)?;
+            }
+            VendorIdValidation::Unrestricted => {}
         }
 
         Ok(())

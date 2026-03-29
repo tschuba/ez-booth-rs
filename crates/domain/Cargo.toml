@@ -16,3 +16,4 @@ regex = "1.10"
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "rt"] }
+serde_json = "1.0"
