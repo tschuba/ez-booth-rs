@@ -240,7 +240,7 @@
     "prompt_select_booth": "Please select an event above to start checkout.",
     "title": "Checkout",
     "vendor_id": "Vendor ID",
-    "vendor_placeholder": "Vendor ID (e.g., 101)",
+    "vendor_placeholder": "e.g., 101",
     "amount": "Amount",
     "amount_placeholder": "0.00",
     "error_sound_on": "Error Sound On",

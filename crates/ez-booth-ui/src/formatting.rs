@@ -2,6 +2,13 @@ use crate::i18n::Locale;
 use chrono::{DateTime, Datelike, Local, NaiveDate};
 use rust_decimal::Decimal;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DecimalInputParseError {
+    Empty,
+    TooManyDecimalPlaces,
+    InvalidFormat(String),
+}
+
 /// Format a Decimal as currency with locale-aware formatting
 ///
 /// German (DE): €1.234,56
@@ -148,24 +155,106 @@ pub fn decimal_separator(locale: Locale) -> char {
     }
 }
 
-pub fn is_valid_amount_char(ch: char, current_value: &str, decimal_sep: char) -> bool {
-    ch.is_ascii_digit() || (ch == decimal_sep && !current_value.contains(decimal_sep))
+pub fn is_valid_amount_char(ch: char, current_value: &str, _decimal_sep: char) -> bool {
+    ch.is_ascii_digit()
+        || ((ch == '.' || ch == ',')
+            && !current_value.contains('.')
+            && !current_value.contains(','))
+}
+
+fn detect_decimal_separator_index(input: &str, separators: &[(usize, char)]) -> Option<usize> {
+    let has_dot = separators.iter().any(|(_, ch)| *ch == '.');
+    let has_comma = separators.iter().any(|(_, ch)| *ch == ',');
+
+    if has_dot && has_comma {
+        return separators.last().map(|(idx, _)| *idx);
+    }
+
+    if separators.len() == 1 {
+        return separators.first().map(|(idx, _)| *idx);
+    }
+
+    let parts: Vec<&str> = input.split(['.', ',']).collect();
+    let all_digits = |part: &str| part.chars().all(|ch| ch.is_ascii_digit());
+
+    let is_all_grouped = !parts.is_empty()
+        && !parts[0].is_empty()
+        && parts[0].len() <= 3
+        && all_digits(parts[0])
+        && parts[1..]
+            .iter()
+            .all(|part| part.len() == 3 && all_digits(part));
+
+    if is_all_grouped {
+        return None;
+    }
+
+    let last_part = parts.last().copied().unwrap_or_default();
+    let first_part = parts.first().copied().unwrap_or_default();
+    let intermediate_are_groups = parts.len() <= 2
+        || parts[1..parts.len() - 1]
+            .iter()
+            .all(|part| part.len() == 3 && all_digits(part));
+
+    if !first_part.is_empty()
+        && first_part.len() <= 3
+        && all_digits(first_part)
+        && intermediate_are_groups
+        && !last_part.is_empty()
+        && last_part.len() <= 2
+        && all_digits(last_part)
+    {
+        return separators.last().map(|(idx, _)| *idx);
+    }
+
+    separators.first().map(|(idx, _)| *idx)
 }
 
 pub fn sanitize_amount_input(input: &str, decimal_sep: char) -> String {
-    let mut result = String::new();
-    let mut seen_decimal = false;
+    let filtered: String = input
+        .chars()
+        .filter(|ch| ch.is_ascii_digit() || *ch == '.' || *ch == ',')
+        .collect();
 
-    for ch in input.chars() {
-        if ch.is_ascii_digit() {
-            result.push(ch);
-        } else if ch == decimal_sep && !seen_decimal {
-            result.push(ch);
-            seen_decimal = true;
+    if filtered.is_empty() {
+        return String::new();
+    }
+
+    let separators: Vec<(usize, char)> = filtered
+        .char_indices()
+        .filter(|(_, ch)| *ch == '.' || *ch == ',')
+        .collect();
+
+    let decimal_index = detect_decimal_separator_index(&filtered, &separators);
+    let mut integer_part = String::new();
+    let mut fractional_part = String::new();
+
+    for (idx, ch) in filtered.char_indices() {
+        if !ch.is_ascii_digit() {
+            continue;
+        }
+
+        if decimal_index.is_some_and(|decimal_idx| idx > decimal_idx) {
+            fractional_part.push(ch);
+        } else {
+            integer_part.push(ch);
         }
     }
 
-    result
+    if let Some(_) = decimal_index {
+        if integer_part.is_empty() {
+            integer_part.push('0');
+        }
+
+        integer_part.push(decimal_sep);
+        integer_part.push_str(&fractional_part);
+    }
+
+    if decimal_index.is_some() {
+        integer_part
+    } else {
+        filtered.chars().filter(|ch| ch.is_ascii_digit()).collect()
+    }
 }
 
 pub fn is_allowed_amount_key(key: &str, current_value: &str, decimal_sep: char) -> bool {
@@ -268,12 +357,12 @@ fn add_thousand_separators(int_str: &str, locale: Locale) -> String {
 /// Automatically detects which separator is used based on position
 /// Validates that there are no more than 2 digits after the decimal separator
 /// Returns error if the input is not a valid number or has more than 2 decimal places
-pub fn parse_decimal_input(input: &str) -> Result<Decimal, String> {
+pub fn parse_decimal_input(input: &str) -> Result<Decimal, DecimalInputParseError> {
     // Trim whitespace
     let trimmed = input.trim();
 
     if trimmed.is_empty() {
-        return Err("Empty input".to_string());
+        return Err(DecimalInputParseError::Empty);
     }
 
     // Determine which character appears last - that's the decimal separator
@@ -297,7 +386,7 @@ pub fn parse_decimal_input(input: &str) -> Result<Decimal, String> {
             .filter(|c| c.is_ascii_digit())
             .count();
         if digits_after > 2 {
-            return Err("Maximum 2 decimal places allowed".to_string());
+            return Err(DecimalInputParseError::TooManyDecimalPlaces);
         }
     }
 
@@ -318,7 +407,8 @@ pub fn parse_decimal_input(input: &str) -> Result<Decimal, String> {
     };
 
     // Parse using rust_decimal
-    Decimal::from_str_exact(&normalized).map_err(|e| format!("Invalid number format: {}", e))
+    Decimal::from_str_exact(&normalized)
+        .map_err(|e| DecimalInputParseError::InvalidFormat(format!("Invalid number format: {}", e)))
 }
 
 #[cfg(test)]
@@ -519,6 +609,14 @@ mod tests {
             parse_decimal_input("1,5").unwrap(),
             Decimal::from_str("1.5").unwrap()
         );
+        assert_eq!(
+            parse_decimal_input(".5").unwrap(),
+            Decimal::from_str("0.5").unwrap()
+        );
+        assert_eq!(
+            parse_decimal_input(",5").unwrap(),
+            Decimal::from_str("0.5").unwrap()
+        );
 
         // Negative numbers
         assert_eq!(
@@ -531,8 +629,16 @@ mod tests {
         );
 
         // Invalid input
-        assert!(parse_decimal_input("abc").is_err());
-        assert!(parse_decimal_input("").is_err());
+        assert_eq!(
+            parse_decimal_input("abc").unwrap_err(),
+            DecimalInputParseError::InvalidFormat(
+                "Invalid number format: Invalid decimal: unknown character".to_string()
+            )
+        );
+        assert_eq!(
+            parse_decimal_input("").unwrap_err(),
+            DecimalInputParseError::Empty
+        );
     }
 
     #[test]
@@ -560,24 +666,63 @@ mod tests {
         );
 
         // Invalid: 3 decimal places
-        assert!(parse_decimal_input("15.123").is_err());
         assert_eq!(
             parse_decimal_input("15.123").unwrap_err(),
-            "Maximum 2 decimal places allowed"
+            DecimalInputParseError::TooManyDecimalPlaces
         );
 
         // Invalid: 4 decimal places
-        assert!(parse_decimal_input("15,1234").is_err());
         assert_eq!(
             parse_decimal_input("15,1234").unwrap_err(),
-            "Maximum 2 decimal places allowed"
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input(".213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input(",213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input("0.213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input("0,213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input("1.213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+        assert_eq!(
+            parse_decimal_input("1,213").unwrap_err(),
+            DecimalInputParseError::TooManyDecimalPlaces
         );
 
         // Invalid: more than 2 decimals with thousand separator
-        assert!(parse_decimal_input("1.234,567").is_err());
         assert_eq!(
             parse_decimal_input("1.234,567").unwrap_err(),
-            "Maximum 2 decimal places allowed"
+            DecimalInputParseError::TooManyDecimalPlaces
+        );
+
+        // Valid: leading separator or zero with 2 decimal places
+        assert_eq!(
+            parse_decimal_input(".21").unwrap(),
+            Decimal::from_str("0.21").unwrap()
+        );
+        assert_eq!(
+            parse_decimal_input(",21").unwrap(),
+            Decimal::from_str("0.21").unwrap()
+        );
+        assert_eq!(
+            parse_decimal_input("0.21").unwrap(),
+            Decimal::from_str("0.21").unwrap()
+        );
+        assert_eq!(
+            parse_decimal_input("0,21").unwrap(),
+            Decimal::from_str("0.21").unwrap()
         );
     }
 
@@ -623,8 +768,9 @@ mod tests {
     fn test_is_valid_amount_char() {
         assert!(is_valid_amount_char('1', "", ','));
         assert!(is_valid_amount_char(',', "12", ','));
+        assert!(is_valid_amount_char('.', "12", ','));
         assert!(!is_valid_amount_char(',', "12,3", ','));
-        assert!(!is_valid_amount_char('.', "12", ','));
+        assert!(!is_valid_amount_char('.', "12,3", ','));
         assert!(!is_valid_amount_char('a', "12", ','));
     }
 
@@ -633,6 +779,10 @@ mod tests {
         assert_eq!(sanitize_amount_input("12a,3b", ','), "12,3");
         assert_eq!(sanitize_amount_input("1,2,3", ','), "1,23");
         assert_eq!(sanitize_amount_input("00.75", '.'), "00.75");
+        assert_eq!(sanitize_amount_input("0.213", '.'), "0.213");
+        assert_eq!(sanitize_amount_input("0,213", ','), "0,213");
+        assert_eq!(sanitize_amount_input("1.213", '.'), "1.213");
+        assert_eq!(sanitize_amount_input("1,213", ','), "1,213");
         assert_eq!(sanitize_amount_input("1😀2#3", '.'), "123");
     }
 
@@ -640,11 +790,55 @@ mod tests {
     fn test_is_allowed_amount_key() {
         assert!(is_allowed_amount_key("1", "", '.'));
         assert!(is_allowed_amount_key(".", "12", '.'));
+        assert!(is_allowed_amount_key(",", "12", '.'));
         assert!(!is_allowed_amount_key(".", "12.3", '.'));
+        assert!(!is_allowed_amount_key(",", "12.3", '.'));
+        assert!(!is_allowed_amount_key(".", "12,3", '.'));
+        assert!(!is_allowed_amount_key(",", "12,3", '.'));
         assert!(is_allowed_amount_key("Backspace", "12.3", '.'));
         assert!(is_allowed_amount_key("Tab", "12.3", '.'));
         assert!(!is_allowed_amount_key("a", "12.3", '.'));
         assert!(!is_allowed_amount_key("v", "12.3", '.'));
+    }
+
+    #[test]
+    fn test_sanitize_amount_input_accepts_both_separators() {
+        assert_eq!(sanitize_amount_input("12.34", ','), "12,34");
+        assert_eq!(sanitize_amount_input("12,34", ','), "12,34");
+        assert_eq!(sanitize_amount_input(".5", ','), "0,5");
+        assert_eq!(sanitize_amount_input(",5", ','), "0,5");
+        assert_eq!(sanitize_amount_input(".", ','), "0,");
+        assert_eq!(sanitize_amount_input(",", ','), "0,");
+
+        assert_eq!(sanitize_amount_input("12,34", '.'), "12.34");
+        assert_eq!(sanitize_amount_input("12.34", '.'), "12.34");
+        assert_eq!(sanitize_amount_input(".5", '.'), "0.5");
+        assert_eq!(sanitize_amount_input(",5", '.'), "0.5");
+        assert_eq!(sanitize_amount_input(".", '.'), "0.");
+        assert_eq!(sanitize_amount_input(",", '.'), "0.");
+    }
+
+    #[test]
+    fn test_sanitize_amount_input_handles_grouping_separators() {
+        assert_eq!(sanitize_amount_input("1,234.56", '.'), "1234.56");
+        assert_eq!(sanitize_amount_input("1.234,56", ','), "1234,56");
+        assert_eq!(sanitize_amount_input("1,234,567", '.'), "1234567");
+        assert_eq!(sanitize_amount_input("1.234.567", ','), "1234567");
+        assert_eq!(sanitize_amount_input("1,234,56", '.'), "1234.56");
+        assert_eq!(sanitize_amount_input("1.234.56", ','), "1234,56");
+    }
+
+    #[test]
+    fn test_is_valid_amount_char_accepts_both_separators() {
+        assert!(is_valid_amount_char('.', "", '.'));
+        assert!(is_valid_amount_char(',', "", '.'));
+        assert!(is_valid_amount_char('.', "", ','));
+        assert!(is_valid_amount_char(',', "", ','));
+
+        assert!(!is_valid_amount_char('.', "12.3", '.'));
+        assert!(!is_valid_amount_char(',', "12.3", '.'));
+        assert!(!is_valid_amount_char('.', "12,3", ','));
+        assert!(!is_valid_amount_char(',', "12,3", ','));
     }
 
     #[test]

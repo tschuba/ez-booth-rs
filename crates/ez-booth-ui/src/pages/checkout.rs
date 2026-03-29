@@ -3,7 +3,7 @@ use crate::components::*;
 use crate::error_translator::translate_domain_error;
 use crate::formatting::{
     decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
-    parse_decimal_input, sanitize_amount_input,
+    parse_decimal_input, sanitize_amount_input, DecimalInputParseError,
 };
 use crate::i18n::{translate_with_params, use_locale, Locale};
 use crate::selected_booth_context;
@@ -433,15 +433,37 @@ fn validate_inline_amount(value: &str) -> Option<String> {
         return None;
     }
 
-    match parse_decimal_input(trimmed) {
+    match classify_inline_amount(trimmed) {
+        InlineAmountValidation::Valid => None,
+        InlineAmountValidation::TooLarge => Some(t!("checkout.errors.amount_too_large")()),
+        InlineAmountValidation::TooManyDecimals => {
+            Some(t!("booth_form.errors.item_amount_too_many_decimals")())
+        }
+        InlineAmountValidation::Invalid => Some(t!("checkout.errors.amount_invalid")()),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InlineAmountValidation {
+    Valid,
+    TooLarge,
+    TooManyDecimals,
+    Invalid,
+}
+
+fn classify_inline_amount(value: &str) -> InlineAmountValidation {
+    match parse_decimal_input(value) {
         Ok(amount) => {
             if amount > MAX_ITEM_AMOUNT {
-                Some(t!("checkout.errors.amount_too_large")())
+                InlineAmountValidation::TooLarge
             } else {
-                None
+                InlineAmountValidation::Valid
             }
         }
-        Err(_) => Some(t!("checkout.errors.amount_invalid")()),
+        Err(DecimalInputParseError::TooManyDecimalPlaces) => {
+            InlineAmountValidation::TooManyDecimals
+        }
+        Err(_) => InlineAmountValidation::Invalid,
     }
 }
 
@@ -1041,8 +1063,13 @@ pub fn CheckoutPage() -> impl IntoView {
 
                 toast.info(&t!("checkout.add_item_success")());
             }
-            Err(_) => {
-                let message = t!("checkout.errors.amount_invalid")();
+            Err(err) => {
+                let message = match err {
+                    DecimalInputParseError::TooManyDecimalPlaces => {
+                        t!("booth_form.errors.item_amount_too_many_decimals")()
+                    }
+                    _ => t!("checkout.errors.amount_invalid")(),
+                };
                 toast.error(&message);
                 play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 set_form_data.update(|form| form.amount_error = Some(message));
@@ -2782,5 +2809,61 @@ mod tests {
         };
 
         assert_eq!(next, "12.34,");
+    }
+
+    #[test]
+    fn classify_inline_amount_rejects_more_than_two_decimals() {
+        assert_eq!(
+            classify_inline_amount("12.345"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("12,345"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("12.34"),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount(".213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount(",213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("0.213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("0,213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("1.213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount("1,213"),
+            InlineAmountValidation::TooManyDecimals
+        );
+        assert_eq!(
+            classify_inline_amount(".21"),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount(",21"),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount("0.21"),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount("0,21"),
+            InlineAmountValidation::Valid
+        );
     }
 }
