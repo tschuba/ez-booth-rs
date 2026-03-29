@@ -6,7 +6,7 @@ use leptos_router::use_navigate;
 
 #[component]
 pub fn HomePage() -> impl IntoView {
-    // Smart redirect based on booth status
+    // Smart redirect based on booth availability
     let (is_redirecting, set_is_redirecting) = create_signal(true);
 
     {
@@ -21,16 +21,14 @@ pub fn HomePage() -> impl IntoView {
             let navigate = use_navigate();
 
             spawn_local(async move {
-                // Load all booths and check if any are open
+                // Load all booths and check if any exist
                 match booth_repository.find_all().await {
                     Ok(booths) => {
-                        let has_open_booth = booths.iter().any(|b| b.is_open());
+                        let has_booths = !booths.is_empty();
 
-                        if has_open_booth {
-                            // At least one open booth exists - go to checkout
+                        if has_booths {
                             navigate("/checkout", Default::default());
                         } else {
-                            // No open booths - go to booth list
                             navigate("/booths", Default::default());
                         }
                     }

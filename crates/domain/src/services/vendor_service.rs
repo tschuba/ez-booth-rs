@@ -103,7 +103,9 @@ impl<VR: VendorRepository, BR: BoothRepository> VendorService<VR, BR> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation};
+    use crate::models::{
+        Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
+    };
     use async_trait::async_trait;
     use chrono::NaiveDate;
     use rust_decimal::Decimal;
@@ -213,6 +215,20 @@ mod tests {
 
         async fn find_all(&self) -> DomainResult<Vec<Booth>> {
             Ok(self.booths.lock().unwrap().values().cloned().collect())
+        }
+
+        async fn find_by_description_and_date(
+            &self,
+            description: &str,
+            date: &NaiveDate,
+        ) -> DomainResult<Option<Booth>> {
+            Ok(self
+                .booths
+                .lock()
+                .unwrap()
+                .values()
+                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .cloned())
         }
 
         async fn delete(&self, id: &BoothId) -> DomainResult<()> {

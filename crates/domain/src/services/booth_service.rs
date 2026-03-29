@@ -1,5 +1,6 @@
 use crate::error::{DomainError, DomainResult};
-use crate::models::{Booth, BoothId, BoothStatus, FeeConfig, VendorIdValidation};
+use crate::error_code::ValidationError;
+use crate::models::{Booth, BoothId, FeeConfig, VendorIdValidation};
 use crate::repositories::BoothRepository;
 use crate::validation::validate_regex_pattern;
 use chrono::NaiveDate;
@@ -21,10 +22,14 @@ impl<R: BoothRepository> BoothService<R> {
         date: NaiveDate,
         fees: FeeConfig,
     ) -> DomainResult<Booth> {
-        // Booth::new performs validation and returns Result
         let booth = Booth::new(description, date, fees)?;
+        self.save_booth(&booth).await?;
+        Ok(booth)
+    }
 
-        self.repository.save(&booth).await?;
+    /// Create a new booth from a fully configured booth value.
+    pub async fn create_configured_booth(&self, booth: Booth) -> DomainResult<Booth> {
+        self.save_booth(&booth).await?;
         Ok(booth)
     }
 
@@ -41,48 +46,75 @@ impl<R: BoothRepository> BoothService<R> {
         self.repository.find_all().await
     }
 
-    /// List booths filtered by status
-    pub async fn list_booths_by_status(&self, status: BoothStatus) -> DomainResult<Vec<Booth>> {
-        let all_booths = self.repository.find_all().await?;
-        Ok(all_booths
-            .into_iter()
-            .filter(|b| b.status == status)
-            .collect())
-    }
-
     /// Update an existing booth with validation
     pub async fn update_booth(&self, booth: Booth) -> DomainResult<()> {
-        // Validate fees configuration
-        booth.fees.validate_ranges()?;
-
-        // Validate regex pattern if using Regex validation
-        if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
-            validate_regex_pattern(pattern)?;
-        }
-
+        self.validate_booth(&booth)?;
+        self.ensure_unique_name_and_date(Some(booth.id), &booth.description, &booth.date)
+            .await?;
         self.repository.save(&booth).await
     }
 
-    /// Close a booth (set status to Closed)
-    pub async fn close_booth(&self, id: BoothId) -> DomainResult<Booth> {
-        let mut booth = self.get_booth(id).await?;
-        booth.close();
-        self.repository.save(&booth).await?;
-        Ok(booth)
-    }
+    /// Copy an existing booth to a new name and date.
+    pub async fn copy_booth(
+        &self,
+        source_id: BoothId,
+        new_description: String,
+        new_date: NaiveDate,
+    ) -> DomainResult<Booth> {
+        let source = self.get_booth(source_id).await?;
+        let mut booth = Booth::new(new_description, new_date, source.fees.clone())?;
+        booth.vendor_id_validation = source.vendor_id_validation.clone();
+        booth.vendor_id_omission_rules = source.vendor_id_omission_rules.clone();
+        booth.keyboard_config = source.keyboard_config.clone();
 
-    /// Reopen a closed booth
-    pub async fn reopen_booth(&self, id: BoothId) -> DomainResult<Booth> {
-        let mut booth = self.get_booth(id).await?;
-        booth.status = BoothStatus::Open;
-        booth.updated_at = chrono::Utc::now();
-        self.repository.save(&booth).await?;
+        self.save_booth(&booth).await?;
         Ok(booth)
     }
 
     /// Delete a booth
     pub async fn delete_booth(&self, id: BoothId) -> DomainResult<()> {
         self.repository.delete(&id).await
+    }
+
+    async fn save_booth(&self, booth: &Booth) -> DomainResult<()> {
+        self.validate_booth(booth)?;
+        self.ensure_unique_name_and_date(None, &booth.description, &booth.date)
+            .await?;
+        self.repository.save(booth).await
+    }
+
+    fn validate_booth(&self, booth: &Booth) -> DomainResult<()> {
+        booth.fees.validate_ranges()?;
+
+        if let VendorIdValidation::Regex(pattern) = &booth.vendor_id_validation {
+            validate_regex_pattern(pattern)?;
+        }
+
+        Ok(())
+    }
+
+    async fn ensure_unique_name_and_date(
+        &self,
+        current_id: Option<BoothId>,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<()> {
+        if let Some(existing) = self
+            .repository
+            .find_by_description_and_date(description, date)
+            .await?
+        {
+            if current_id != Some(existing.id) {
+                return Err(DomainError::Validation(
+                    ValidationError::BoothDuplicateNameAndDate {
+                        description: description.trim().to_string(),
+                        date: date.format("%Y-%m-%d").to_string(),
+                    },
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -125,6 +157,20 @@ mod tests {
             Ok(self.booths.lock().unwrap().values().cloned().collect())
         }
 
+        async fn find_by_description_and_date(
+            &self,
+            description: &str,
+            date: &NaiveDate,
+        ) -> DomainResult<Option<Booth>> {
+            Ok(self
+                .booths
+                .lock()
+                .unwrap()
+                .values()
+                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .cloned())
+        }
+
         async fn delete(&self, id: &BoothId) -> DomainResult<()> {
             self.booths.lock().unwrap().remove(id);
             Ok(())
@@ -153,78 +199,27 @@ mod tests {
         assert!(result.is_ok());
         let booth = result.unwrap();
         assert_eq!(booth.description, "Test Booth");
-        assert_eq!(booth.status, BoothStatus::Open);
     }
 
     #[tokio::test]
-    async fn test_close_and_reopen_booth() {
+    async fn test_create_booth_trims_description() {
         let repo = MockBoothRepository::new();
         let service = BoothService::new(repo);
-
-        let fees = FeeConfig {
-            participation_fee: dec!(5.0),
-            sales_fee_percent: dec!(10.0),
-            rounding_step: dec!(0.50),
-        };
 
         let booth = service
             .create_booth(
-                "Test Booth".to_string(),
+                "  Test Booth  ".to_string(),
                 NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
-                fees,
+                FeeConfig {
+                    participation_fee: dec!(5.0),
+                    sales_fee_percent: dec!(10.0),
+                    rounding_step: dec!(0.50),
+                },
             )
             .await
             .unwrap();
 
-        // Close booth
-        let closed = service.close_booth(booth.id).await.unwrap();
-        assert!(matches!(closed.status, BoothStatus::Closed { .. }));
-
-        // Reopen booth
-        let reopened = service.reopen_booth(booth.id).await.unwrap();
-        assert_eq!(reopened.status, BoothStatus::Open);
-    }
-
-    #[tokio::test]
-    async fn test_list_booths_by_status() {
-        let repo = MockBoothRepository::new();
-        let service = BoothService::new(repo);
-
-        let fees = FeeConfig {
-            participation_fee: dec!(5.0),
-            sales_fee_percent: dec!(10.0),
-            rounding_step: dec!(0.50),
-        };
-
-        // Create two booths
-        let booth1 = service
-            .create_booth(
-                "Booth 1".to_string(),
-                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
-                fees.clone(),
-            )
-            .await
-            .unwrap();
-
-        let booth2 = service
-            .create_booth(
-                "Booth 2".to_string(),
-                NaiveDate::from_ymd_opt(2026, 3, 23).unwrap(),
-                fees,
-            )
-            .await
-            .unwrap();
-
-        // Close booth1
-        service.close_booth(booth1.id).await.unwrap();
-
-        // List open booths
-        let open_booths = service
-            .list_booths_by_status(BoothStatus::Open)
-            .await
-            .unwrap();
-        assert_eq!(open_booths.len(), 1);
-        assert_eq!(open_booths[0].id, booth2.id);
+        assert_eq!(booth.description, "Test Booth");
     }
 
     #[tokio::test]
@@ -285,5 +280,135 @@ mod tests {
             )) => {}
             _ => panic!("Expected Validation error"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_create_booth_rejects_duplicate_name_and_date() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+        let date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        service
+            .create_booth("Spring Fair".to_string(), date, fees.clone())
+            .await
+            .unwrap();
+
+        let result = service
+            .create_booth("Spring Fair".to_string(), date, fees)
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(
+                ValidationError::BoothDuplicateNameAndDate { .. }
+            ))
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_booth_rejects_duplicate_name_and_date_after_trimming() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+        let date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        service
+            .create_booth("  Spring Fair  ".to_string(), date, fees.clone())
+            .await
+            .unwrap();
+
+        let result = service
+            .create_booth("Spring Fair".to_string(), date, fees)
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(
+                ValidationError::BoothDuplicateNameAndDate { .. }
+            ))
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_update_booth_allows_same_name_and_date_for_same_booth() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let fees = FeeConfig {
+            participation_fee: dec!(5.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        };
+
+        let mut booth = service
+            .create_booth(
+                "Spring Fair".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                fees,
+            )
+            .await
+            .unwrap();
+
+        booth.update_fees(FeeConfig {
+            participation_fee: dec!(6.0),
+            sales_fee_percent: dec!(10.0),
+            rounding_step: dec!(0.50),
+        });
+
+        assert!(service.update_booth(booth).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_copy_booth_copies_configuration_only() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let mut source = service
+            .create_booth(
+                "Spring Fair".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                FeeConfig {
+                    participation_fee: dec!(5.0),
+                    sales_fee_percent: dec!(10.0),
+                    rounding_step: dec!(0.50),
+                },
+            )
+            .await
+            .unwrap();
+        source.vendor_id_validation = VendorIdValidation::Regex(r"^V\d{3}$".to_string());
+        source.vendor_id_omission_rules = crate::models::VendorIdOmissionRules::recommended();
+        source.keyboard_config.quick_amounts = vec![dec!(1.0), dec!(2.5), dec!(5.0)];
+        service.update_booth(source.clone()).await.unwrap();
+
+        let copied = service
+            .copy_booth(
+                source.id,
+                "Spring Fair Copy".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 29).unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_ne!(copied.id, source.id);
+        assert_eq!(copied.description, "Spring Fair Copy");
+        assert_eq!(copied.date, NaiveDate::from_ymd_opt(2026, 3, 29).unwrap());
+        assert_eq!(copied.fees, source.fees);
+        assert_eq!(copied.vendor_id_validation, source.vendor_id_validation);
+        assert_eq!(
+            copied.vendor_id_omission_rules,
+            source.vendor_id_omission_rules
+        );
+        assert_eq!(copied.keyboard_config, source.keyboard_config);
     }
 }

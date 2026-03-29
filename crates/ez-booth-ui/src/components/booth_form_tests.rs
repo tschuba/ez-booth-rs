@@ -207,6 +207,58 @@ mod tests {
     }
 
     #[test]
+    fn test_to_booth_trims_description() {
+        let form = BoothFormData {
+            description: "  Test Booth  ".to_string(),
+            date: "2026-03-25".to_string(),
+            participation_fee: "10.00".to_string(),
+            sales_fee_percent: "15.00".to_string(),
+            rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
+            vendor_omission_rules: default_rules(),
+        };
+
+        let booth = form.to_booth(Locale::En).unwrap();
+        assert_eq!(booth.description, "Test Booth");
+    }
+
+    #[test]
+    fn test_to_booth_allows_multibyte_description_up_to_200_characters() {
+        let form = BoothFormData {
+            description: "ä".repeat(200),
+            date: "2026-03-25".to_string(),
+            participation_fee: "10.00".to_string(),
+            sales_fee_percent: "15.00".to_string(),
+            rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
+            vendor_omission_rules: default_rules(),
+        };
+
+        assert!(form.to_booth(Locale::En).is_ok());
+    }
+
+    #[test]
+    fn test_to_booth_rejects_multibyte_description_over_200_characters() {
+        let form = BoothFormData {
+            description: "ä".repeat(201),
+            date: "2026-03-25".to_string(),
+            participation_fee: "10.00".to_string(),
+            sales_fee_percent: "15.00".to_string(),
+            rounding_step: "0.50".to_string(),
+            vendor_validation_type: "digits_only".to_string(),
+            vendor_validation_regex: String::new(),
+            vendor_omission_rules: default_rules(),
+        };
+
+        assert!(matches!(
+            form.to_booth(Locale::En),
+            Err(DomainError::Validation(_))
+        ));
+    }
+
+    #[test]
     fn test_from_booth() {
         let fees = FeeConfig {
             participation_fee: Decimal::from_str("25.50").unwrap(),

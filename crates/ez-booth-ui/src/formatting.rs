@@ -1,5 +1,5 @@
 use crate::i18n::Locale;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Datelike, Local, NaiveDate};
 use rust_decimal::Decimal;
 
 /// Format a Decimal as currency with locale-aware formatting
@@ -54,6 +54,34 @@ pub fn format_datetime(date: DateTime<Local>, locale: Locale) -> String {
         Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
             date.format("%b %d, %Y %I:%M %p").to_string()
         }
+    }
+}
+
+/// Format a NaiveDate for compact UI display.
+/// German: 25. Mar
+/// English: Mar 25
+pub fn format_date(date: NaiveDate, locale: Locale) -> String {
+    match locale {
+        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
+            let day = date.day();
+            let month = match date.month() {
+                1 => "Jan",
+                2 => "Feb",
+                3 => "Mär",
+                4 => "Apr",
+                5 => "Mai",
+                6 => "Jun",
+                7 => "Jul",
+                8 => "Aug",
+                9 => "Sep",
+                10 => "Okt",
+                11 => "Nov",
+                12 => "Dez",
+                _ => "?",
+            };
+            format!("{}. {}", day, month)
+        }
+        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => date.format("%b %d").to_string(),
     }
 }
 
@@ -432,6 +460,22 @@ mod tests {
             format_percentage_smart(Decimal::from_str("15.50").unwrap(), Locale::En),
             "15.50%"
         );
+    }
+
+    #[test]
+    fn test_format_date_de() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 25).unwrap();
+
+        assert_eq!(format_date(date, Locale::De), "25. Mär");
+        assert_eq!(format_date(date, Locale::DeDE), "25. Mär");
+    }
+
+    #[test]
+    fn test_format_date_en() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 25).unwrap();
+
+        assert_eq!(format_date(date, Locale::En), "Mar 25");
+        assert_eq!(format_date(date, Locale::EnUS), "Mar 25");
     }
 
     #[test]

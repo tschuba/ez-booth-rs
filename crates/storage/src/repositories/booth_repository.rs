@@ -1,5 +1,7 @@
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use domain::{Booth, BoothId, BoothRepository, DomainResult};
+use js_sys;
 use rexie::TransactionMode;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
@@ -7,6 +9,13 @@ use wasm_bindgen::JsValue;
 
 use crate::error::StorageError;
 use crate::indexeddb::Database;
+
+fn description_date_key(description: &str, date: &NaiveDate) -> JsValue {
+    let key_array = js_sys::Array::new();
+    key_array.push(&JsValue::from_str(description.trim()));
+    key_array.push(&JsValue::from_str(&date.format("%Y-%m-%d").to_string()));
+    key_array.into()
+}
 
 #[derive(Clone)]
 pub struct IndexedDbBoothRepository {
@@ -94,6 +103,39 @@ impl BoothRepository for IndexedDbBoothRepository {
             .collect();
 
         Ok(booths)
+    }
+
+    async fn find_by_description_and_date(
+        &self,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<Option<Booth>> {
+        let transaction = self
+            .db
+            .transaction(&["booths"], TransactionMode::ReadOnly)
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+
+        let store = transaction
+            .store("booths")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        let index = store
+            .index("description_date")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        let result = index
+            .get(description_date_key(description, date))
+            .await
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
+        match result {
+            Some(value) => {
+                let booth: Booth = from_value(value)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                Ok(Some(booth))
+            }
+            None => Ok(None),
+        }
     }
 
     async fn delete(&self, id: &BoothId) -> DomainResult<()> {

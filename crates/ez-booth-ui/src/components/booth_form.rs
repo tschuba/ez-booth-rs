@@ -304,7 +304,7 @@ pub fn BoothForm(
         if desc.trim().is_empty() {
             set_description_error.set(Some(description_required_msg()));
             has_errors = true;
-        } else if desc.len() > 200 {
+        } else if desc.chars().count() > 200 {
             set_description_error.set(Some(description_length_msg()));
             has_errors = true;
         }

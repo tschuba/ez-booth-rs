@@ -286,7 +286,7 @@ impl DateRange {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Booth, BoothStatus, FeeConfig, PurchaseItem, Vendor};
+    use crate::models::{Booth, FeeConfig, PurchaseItem, Vendor};
     use crate::{BoothRunningTotals, PaginatedPurchases};
     use async_trait::async_trait;
     use chrono::NaiveDate;
@@ -430,6 +430,18 @@ mod tests {
             Ok(booths.values().cloned().collect())
         }
 
+        async fn find_by_description_and_date(
+            &self,
+            description: &str,
+            date: &NaiveDate,
+        ) -> DomainResult<Option<Booth>> {
+            let booths = self.booths.lock().unwrap();
+            Ok(booths
+                .values()
+                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .cloned())
+        }
+
         async fn delete(&self, _id: &BoothId) -> DomainResult<()> {
             Ok(())
         }
@@ -505,7 +517,6 @@ mod tests {
                 sales_fee_percent: dec!(10.0),
                 rounding_step: dec!(0.50),
             },
-            status: BoothStatus::Open,
             vendor_id_validation: crate::models::VendorIdValidation::default(),
             vendor_id_omission_rules: crate::models::VendorIdOmissionRules::empty(),
             keyboard_config: crate::models::CheckoutKeyboardConfig::default(),
