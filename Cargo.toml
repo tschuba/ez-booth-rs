@@ -60,7 +60,7 @@ leptos_i18n = { version = "0.3", features = ["csr"] }
 
 # WASM
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["Storage", "Window", "Navigator", "Clipboard", "AudioContext", "AudioDestinationNode", "AudioNode", "AudioParam", "AudioScheduledSourceNode", "BaseAudioContext", "GainNode", "OscillatorNode", "OscillatorType", "Blob", "BlobPropertyBag", "Document", "Element", "Event", "File", "FileList", "FileReader", "HtmlAnchorElement", "HtmlElement", "HtmlInputElement", "ProgressEvent", "Url"] }
+web-sys = { version = "0.3", features = ["Storage", "Window", "Navigator", "Clipboard", "AudioContext", "AudioDestinationNode", "AudioNode", "AudioParam", "AudioScheduledSourceNode", "BaseAudioContext", "GainNode", "OscillatorNode", "OscillatorType", "Blob", "BlobPropertyBag", "Document", "Element", "Event", "File", "FileList", "FileReader", "HtmlAnchorElement", "HtmlElement", "HtmlInputElement", "HtmlMediaElement", "HtmlVideoElement", "MediaDevices", "MediaStream", "MediaStreamConstraints", "MediaStreamTrack", "ProgressEvent", "Url"] }
 wasm-bindgen-futures = "0.4"
 gloo-storage = "0.3"
 
