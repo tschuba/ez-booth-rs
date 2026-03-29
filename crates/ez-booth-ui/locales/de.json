@@ -472,6 +472,7 @@
     "heading": "Veranstaltungsdaten exportieren",
     "storage_explanation": "EZ Booth speichert Veranstaltungen, Verkäufer und Käufe lokal in diesem Browser.",
     "recommendation": "Exportieren Sie ein Backup, bevor Sie Browserdaten löschen, das Gerät wechseln oder größere Browser-Änderungen durchführen.",
+    "booth_list_hint": "Laden Sie hier ein vollständiges Backup herunter oder exportieren Sie eine einzelne Veranstaltung direkt aus der Karte.",
     "counts_hint": "Aktuelle lokale Datensätze:",
     "count_booths": "Veranstaltungen",
     "count_vendors": "Verkäufer",

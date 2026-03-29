@@ -426,14 +426,23 @@ pub fn BoothListPage() -> impl IntoView {
             <div class="print:hidden">
                 <Container>
                     <div class="py-8">
-                        <div class="flex justify-between items-center mb-6">
-                            <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
-                            <Button
-                                on_click=Box::new(move || set_show_create_modal.set(true))
-                                aria_label=t!("booth.create_aria_label")()
-                            >
-                                {t!("booth.create")}
-                            </Button>
+                        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h1 class="text-3xl font-bold text-gray-900">{t!("booth.list_title")}</h1>
+                                <p class="mt-1 text-sm text-gray-600">{t!("backup.booth_list_hint")}</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <ExportButton
+                                    scope=ExportScope::All
+                                    variant=ButtonVariant::Secondary
+                                />
+                                <Button
+                                    on_click=Box::new(move || set_show_create_modal.set(true))
+                                    aria_label=t!("booth.create_aria_label")()
+                                >
+                                    {t!("booth.create")}
+                                </Button>
+                            </div>
                         </div>
 
                         <Show
@@ -485,7 +494,12 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                 </svg>
                                                                             </button>
                                                                         </div>
-                                                                        <div class="mt-auto flex items-center justify-end gap-3">
+                                                                        <div class="mt-auto flex flex-wrap items-center justify-end gap-3">
+                                                                            <ExportButton
+                                                                                scope=ExportScope::Booth(booth_id_stored.get_value())
+                                                                                variant=ButtonVariant::Secondary
+                                                                                size=ButtonSize::Small
+                                                                            />
                                                                             <Button
                                                                                 on_click=Box::new(move || {
                                                                                     set_copying_booth.set(Some(booth_for_copy.get_value()));
