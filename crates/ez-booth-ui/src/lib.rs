@@ -55,6 +55,7 @@ pub fn App() -> impl IntoView {
                 <div class="min-h-screen bg-gray-50 print:bg-white">
                     // Header (hidden during print)
                     <header class="bg-white shadow print:hidden">
+                        <StorageWarningBanner />
                         <Container>
                             <div class="flex items-center justify-between py-4">
                                 <a href="/" class="text-2xl font-bold text-blue-600">
@@ -132,8 +133,9 @@ pub fn App() -> impl IntoView {
                     // Footer (hidden during print)
                     <footer class="bg-white border-t mt-auto print:hidden">
                         <Container>
-                            <div class="py-4 text-center text-sm text-gray-600">
-                                {t!("app.copyright")}
+                            <div class="flex flex-col gap-3 py-4 text-center text-sm text-gray-600">
+                                <StorageIndicator />
+                                <div>{t!("app.copyright")}</div>
                             </div>
                         </Container>
                     </footer>

@@ -1,4 +1,6 @@
-use crate::components::{Card, Container, ExportButton, ExportScope, ImportButton};
+use crate::components::{
+    Card, Container, ExportButton, ExportScope, ImportButton, StorageWarningInfo,
+};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
@@ -74,6 +76,7 @@ pub fn SettingsPage() -> impl IntoView {
                                 }}
                             </Show>
                         </div>
+                        <StorageWarningInfo />
                         <div class="flex flex-wrap gap-3 pt-2">
                             <ExportButton scope=ExportScope::All />
                             <ImportButton />

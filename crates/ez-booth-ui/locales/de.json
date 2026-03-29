@@ -505,7 +505,15 @@
     "import_apply_ready": "Wählen Sie aus, wie bestehende Datensätze behandelt werden sollen, und starten Sie dann den Import.",
     "import_apply": "Import anwenden",
     "import_apply_success": "Import abgeschlossen: {booths} Veranstaltungen, {vendors} Verkäufer, {purchases} Käufe importiert; {resolved} Konflikte gelöst; {skipped} Datensätze übersprungen.",
-    "import_apply_failed": "Import fehlgeschlagen"
+    "import_apply_failed": "Import fehlgeschlagen",
+    "storage_warning_label": "Browser-lokale Daten",
+    "storage_warning_message": "EZ Booth speichert Veranstaltungsdaten nur in diesem Browser. Das Löschen von Browserdaten kann Veranstaltungen, Verkäufer und Käufe entfernen.",
+    "storage_warning_recommendation": "Erstellen Sie ein Backup vor Browser-Bereinigungen, Profilwechseln, Gerätewechseln oder größeren Browser-Updates.",
+    "storage_warning_cta": "Backup-Einstellungen öffnen",
+    "storage_warning_dismiss": "Ausblenden",
+    "storage_indicator_label": "Lokal gespeichert",
+    "storage_indicator_message": "Ihre EZ-Booth-Daten liegen in diesem Browser.",
+    "storage_indicator_link": "Backups und Wiederherstellung"
   },
   "data": {
     "export_title": "Daten exportieren",

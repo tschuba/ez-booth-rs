@@ -447,6 +447,10 @@ pub fn BoothListPage() -> impl IntoView {
                             </div>
                         </div>
 
+                        <div class="mb-6">
+                            <StorageWarningInfo />
+                        </div>
+
                         <Show
                             when=move || is_loading.get()
                             fallback=move || {
