@@ -505,7 +505,15 @@
     "import_apply_ready": "Choose how to handle existing records, then apply the import.",
     "import_apply": "Apply Import",
     "import_apply_success": "Import complete: {booths} events, {vendors} vendors, {purchases} purchases imported; {resolved} conflicts resolved; {skipped} records skipped.",
-    "import_apply_failed": "Import failed"
+    "import_apply_failed": "Import failed",
+    "storage_warning_label": "Browser-local data",
+    "storage_warning_message": "EZ Booth stores event data only in this browser. Clearing browser storage can remove events, vendors, and purchases.",
+    "storage_warning_recommendation": "Create a backup before browser cleanup, profile changes, device switches, or major browser updates.",
+    "storage_warning_cta": "Open Backup Settings",
+    "storage_warning_dismiss": "Dismiss",
+    "storage_indicator_label": "Stored locally",
+    "storage_indicator_message": "Your EZ Booth data lives in this browser.",
+    "storage_indicator_link": "Backups and recovery"
   },
   "data": {
     "export_title": "Export Data",
