@@ -6,6 +6,7 @@ use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{Event, FileReader, ProgressEvent};
 
 use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
+use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
 use ez_booth_storage::export::{
@@ -40,6 +41,7 @@ pub fn ImportButton(
     #[prop(optional)] class: Option<String>,
 ) -> impl IntoView {
     let app_state = use_app_state();
+    let booth_list_version = use_booth_list_version();
     let toast = use_toast();
     let input_ref = create_node_ref::<html::Input>();
     let (is_reading, set_is_reading) = create_signal(false);
@@ -126,27 +128,29 @@ pub fn ImportButton(
                     return;
                 };
 
-                let validation = validator_for_load.validate_backup(&contents).map(|data| {
-                    let preview = ImportPreview::Full {
-                        booths: data.booths.len(),
-                        vendors: data.vendors.len(),
-                        purchases: data.purchases.len(),
-                    };
-                    (preview, ParsedImportData::Full(data))
-                });
+                let booth_validation = validator_for_load
+                    .validate_booth_backup(&contents)
+                    .map(|data| {
+                        let preview = ImportPreview::Booth {
+                            description: data.booth.description.clone(),
+                            vendors: data.vendors.len(),
+                            purchases: data.purchases.len(),
+                        };
+                        (preview, ParsedImportData::Booth(data))
+                    });
 
-                let resolved = match validation {
-                    Ok(full) => Ok(full),
-                    Err(ImportError::InvalidJson(_)) => validator_for_load
-                        .validate_booth_backup(&contents)
-                        .map(|data| {
-                            let preview = ImportPreview::Booth {
-                                description: data.booth.description.clone(),
+                let resolved = match booth_validation {
+                    Ok(booth) => Ok(booth),
+                    Err(ImportError::InvalidJson(_)) | Err(ImportError::InvalidStructure(_)) => {
+                        validator_for_load.validate_backup(&contents).map(|data| {
+                            let preview = ImportPreview::Full {
+                                booths: data.booths.len(),
                                 vendors: data.vendors.len(),
                                 purchases: data.purchases.len(),
                             };
-                            (preview, ParsedImportData::Booth(data))
-                        }),
+                            (preview, ParsedImportData::Full(data))
+                        })
+                    }
                     Err(other) => Err(other),
                 };
 
@@ -256,6 +260,14 @@ pub fn ImportButton(
 
             match result {
                 Ok(summary) => {
+                    if summary.booths_imported > 0
+                        || summary.vendors_imported > 0
+                        || summary.purchases_imported > 0
+                        || summary.conflicts_resolved > 0
+                    {
+                        booth_list_version.update(|version| *version += 1);
+                    }
+
                     let message = t!("backup.import_apply_success")()
                         .replace("{booths}", &summary.booths_imported.to_string())
                         .replace("{vendors}", &summary.vendors_imported.to_string())
@@ -440,5 +452,87 @@ pub fn ImportButton(
                 </div>
             </Modal>
         </>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{NaiveDate, TimeZone, Utc};
+    use domain::{Booth, FeeConfig};
+    use ez_booth_storage::export::{BoothBackupData, ImportValidator};
+    use rust_decimal_macros::dec;
+
+    use super::{ImportPreview, ParsedImportData};
+
+    fn parse_import_data(
+        validator: &ImportValidator,
+        contents: &str,
+    ) -> Result<(ImportPreview, ParsedImportData), String> {
+        let booth_validation = validator.validate_booth_backup(contents).map(|data| {
+            let preview = ImportPreview::Booth {
+                description: data.booth.description.clone(),
+                vendors: data.vendors.len(),
+                purchases: data.purchases.len(),
+            };
+            (preview, ParsedImportData::Booth(data))
+        });
+
+        match booth_validation {
+            Ok(booth) => Ok(booth),
+            Err(ez_booth_storage::export::ImportError::InvalidJson(_))
+            | Err(ez_booth_storage::export::ImportError::InvalidStructure(_)) => validator
+                .validate_backup(contents)
+                .map(|data| {
+                    let preview = ImportPreview::Full {
+                        booths: data.booths.len(),
+                        vendors: data.vendors.len(),
+                        purchases: data.purchases.len(),
+                    };
+                    (preview, ParsedImportData::Full(data))
+                })
+                .map_err(|err| err.to_string()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    fn sample_booth() -> Booth {
+        Booth::new(
+            "Spring Market 2026".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 29).unwrap(),
+            FeeConfig {
+                participation_fee: dec!(10.00),
+                sales_fee_percent: dec!(15.00),
+                rounding_step: dec!(0.50),
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn booth_backup_with_empty_lists_is_detected_as_booth_backup() {
+        let validator = ImportValidator::new();
+        let booth = sample_booth();
+        let mut backup = BoothBackupData::new(booth.clone(), "test-version");
+        backup.created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+
+        let contents = serde_json::to_string(&backup).unwrap();
+        let result = parse_import_data(&validator, &contents).unwrap();
+
+        match result {
+            (
+                ImportPreview::Booth {
+                    description,
+                    vendors,
+                    purchases,
+                },
+                ParsedImportData::Booth(data),
+            ) => {
+                assert_eq!(description, booth.description);
+                assert_eq!(vendors, 0);
+                assert_eq!(purchases, 0);
+                assert_eq!(data.booth.id, booth.id);
+            }
+            other => panic!("expected booth backup parse result, got {other:?}"),
+        }
     }
 }
