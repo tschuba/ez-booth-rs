@@ -466,7 +466,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                     aria_label=booth_description.get_value()
                                                                     role="region"
                                                                 >
-                                                                    <div class="absolute right-4 top-4 z-[45]">
+                                                                    <div class="absolute right-4 top-4">
                                                                         <DropdownMenu
                                                                             trigger=view! {
                                                                                 <Button
