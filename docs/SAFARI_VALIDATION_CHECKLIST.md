@@ -2,6 +2,8 @@
 
 Focused manual validation for checkout reliability, data consistency, and report correctness in Safari.
 
+This checklist also covers browser-local backup, import recovery, and storage-warning comprehension.
+
 ## Test Session
 
 - Safari version: `26.4 (21624.1.16.11.4)`
@@ -16,6 +18,7 @@ Focused manual validation for checkout reliability, data consistency, and report
 2. Open Safari Developer Tools and clear previous console noise.
 3. If needed, clear IndexedDB and localStorage before starting a fresh session.
 4. Keep a calculator ready for manual fee verification.
+5. Prepare a writable folder outside the browser for downloaded JSON backups.
 
 ## Scenario 1: Base Checkout Flow
 
@@ -168,6 +171,53 @@ Operator notes: _________________________________________________
 | Three-checkout report generation | __________ | [ ] | |
 | Print preview load | __________ | [ ] | |
 
+## Scenario 8: Backup Export And Warning Visibility
+
+- [ ] Open the booth list and verify the permanent storage warning is visible
+- [ ] Open Settings and verify the permanent storage warning is visible in the backup section
+- [ ] Verify the global warning banner appears until dismissed
+- [ ] Export a full backup and confirm a `.json` file downloads successfully
+- [ ] Export a booth backup and confirm a `.json` file downloads successfully
+- [ ] Verify both downloaded files can be opened as readable JSON text
+- [ ] Verify the operator warning copy is understandable without developer explanation
+
+### Result Comparison
+
+| Check | Expected | Actual | Match |
+|-------|----------|--------|-------|
+| Booth list warning visible | Yes | __________ | [ ] |
+| Settings warning visible | Yes | __________ | [ ] |
+| Global banner visible before dismissal | Yes | __________ | [ ] |
+| Full backup downloaded | Yes | __________ | [ ] |
+| Booth backup downloaded | Yes | __________ | [ ] |
+| Warning copy understandable | Yes | __________ | [ ] |
+
+Operator notes: _________________________________________________
+
+## Scenario 9: Backup Import And Recovery
+
+- [ ] Start with at least one booth that contains vendors and purchases
+- [ ] Export a full backup and one booth backup
+- [ ] Delete one booth from the app
+- [ ] Import the booth backup with `Merge` or `Replace`
+- [ ] Verify the deleted booth is recreated
+- [ ] Verify the booth list refreshes immediately after import
+- [ ] Import the full backup
+- [ ] Verify booths, vendors, and purchases are present afterwards
+- [ ] Repeat one import with `Skip` and confirm conflicting records are skipped safely
+
+### Result Comparison
+
+| Check | Expected | Actual | Match |
+|-------|----------|--------|-------|
+| Deleted booth restored from booth backup | Yes | __________ | [ ] |
+| Booth list refreshed after import | Yes | __________ | [ ] |
+| Full backup import succeeds | Yes | __________ | [ ] |
+| Conflict handling message is clear | Yes | __________ | [ ] |
+| Skip strategy keeps existing records | Yes | __________ | [ ] |
+
+Recovery notes: _________________________________________________
+
 ## Console / Error Review
 
 - [ ] No uncaught console errors during checkout/report flow
@@ -184,6 +234,7 @@ Notes: _____________________________________________________________
 | Data consistency | [ ] Pass / [ ] Fail | |
 | Report accuracy | [ ] Pass / [ ] Fail | |
 | Recovery guidance | [ ] Pass / [ ] Fail | |
+| Backup and restore workflow | [ ] Pass / [ ] Fail | |
 | Correction workflows | [ ] Pass / [ ] Fail | |
 | Performance | [ ] Pass / [ ] Fail | |
 
