@@ -36,6 +36,17 @@ impl ImportValidator {
         Ok(data)
     }
 
+    pub fn validate_booth_backup_data(
+        &self,
+        data: BoothBackupData,
+    ) -> Result<BoothBackupData, ImportError> {
+        self.validate_version(data.version)?;
+        self.validate_booth_structure(&data)?;
+        self.validate_all_records(&[data.booth.clone()], &data.vendors, &data.purchases)?;
+
+        Ok(data)
+    }
+
     fn validate_version(&self, version: u32) -> Result<(), ImportError> {
         if version != BACKUP_FORMAT_VERSION {
             return Err(ImportError::UnsupportedVersion {

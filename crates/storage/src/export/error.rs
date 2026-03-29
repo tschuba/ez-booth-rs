@@ -30,6 +30,15 @@ pub enum ExportError {
 
     #[error("Failed to serialize backup: {0}")]
     Serialization(String),
+
+    #[error("Failed to compress backup: {0}")]
+    Compression(String),
+
+    #[error("Failed to generate QR code: {0}")]
+    QrGeneration(String),
+
+    #[error("QR export requires {required} codes, exceeding maximum of {maximum}")]
+    TooManyQrCodes { required: usize, maximum: usize },
 }
 
 #[derive(Debug, Error)]
@@ -42,6 +51,24 @@ pub enum ImportError {
 
     #[error("Invalid backup structure: {0}")]
     InvalidStructure(String),
+
+    #[error("Invalid QR payload: {0}")]
+    InvalidQrPayload(String),
+
+    #[error("Inconsistent QR chunks: {0}")]
+    InconsistentChunks(String),
+
+    #[error("QR import incomplete: received {received} of {expected} chunks")]
+    IncompleteChunks { received: usize, expected: usize },
+
+    #[error("QR chunk hash mismatch")]
+    HashMismatch,
+
+    #[error("Failed to decompress backup: {0}")]
+    Decompression(String),
+
+    #[error("Failed to deserialize backup: {0}")]
+    Deserialization(String),
 
     #[error("Orphaned records detected")]
     OrphanedRecords { details: Vec<String> },
