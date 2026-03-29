@@ -240,7 +240,7 @@
     "prompt_select_booth": "Bitte wähle oben eine Veranstaltung aus, um mit der Kasse zu starten.",
     "title": "Kasse",
     "vendor_id": "Verkäufer-ID",
-    "vendor_placeholder": "Verkäufer-ID (z. B. 101)",
+    "vendor_placeholder": "z. B. 101",
     "amount": "Betrag",
     "amount_placeholder": "0,00",
     "error_sound_on": "Fehlerton an",

@@ -1,6 +1,9 @@
 use crate::components::*;
 use crate::error_translator::translate_domain_error;
-use crate::formatting::{currency_symbol_for_label, format_decimal_for_input, parse_decimal_input};
+use crate::formatting::{
+    currency_symbol_for_label, format_decimal_for_input, parse_decimal_input,
+    DecimalInputParseError,
+};
 use crate::i18n::{use_locale, Locale};
 use crate::t;
 use chrono::NaiveDate;
@@ -330,7 +333,7 @@ pub fn BoothForm(
                     }
                 }
                 Err(e) => {
-                    let message = if e == "Maximum 2 decimal places allowed" {
+                    let message = if e == DecimalInputParseError::TooManyDecimalPlaces {
                         max_two_decimals_msg()
                     } else {
                         invalid_number_format_msg()
@@ -358,7 +361,7 @@ pub fn BoothForm(
                     }
                 }
                 Err(e) => {
-                    let message = if e == "Maximum 2 decimal places allowed" {
+                    let message = if e == DecimalInputParseError::TooManyDecimalPlaces {
                         max_two_decimals_msg()
                     } else {
                         invalid_number_format_msg()
@@ -383,7 +386,7 @@ pub fn BoothForm(
                     }
                 }
                 Err(e) => {
-                    let message = if e == "Maximum 2 decimal places allowed" {
+                    let message = if e == DecimalInputParseError::TooManyDecimalPlaces {
                         max_two_decimals_msg()
                     } else {
                         invalid_number_format_msg()
