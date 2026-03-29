@@ -217,3 +217,22 @@ async fn test_find_by_description_and_date() {
         .unwrap();
     assert!(missing.is_none());
 }
+
+#[wasm_bindgen_test]
+async fn test_find_by_description_and_date_trims_lookup_value() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+
+    let booth = create_test_booth("Duplicate Check Booth");
+    let booth_id = booth.id;
+    let booth_date = booth.date;
+    repo.save(&booth).await.unwrap();
+
+    let found = repo
+        .find_by_description_and_date("  Duplicate Check Booth  ", &booth_date)
+        .await
+        .unwrap();
+
+    assert!(found.is_some());
+    assert_eq!(found.unwrap().id, booth_id);
+}
