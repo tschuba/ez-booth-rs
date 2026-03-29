@@ -82,7 +82,7 @@ This consolidation pass focused on integrating the ez-booth migration strategy a
 
 **User Experience:**
 - Optional one-time operation
-- Triggered on first launch or via settings
+- Triggered on first launch or via a dedicated import entry point
 - Progress indicators during migration
 - Validation summary after completion
 - Ability to retry or skip

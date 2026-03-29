@@ -53,7 +53,7 @@ pub fn StorageWarningBanner() -> impl IntoView {
 
                         <div class="flex flex-wrap items-center gap-2">
                             <a
-                                href="/settings"
+                                href="/booths"
                                 class="inline-flex items-center justify-center rounded-lg bg-amber-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-950"
                             >
                                 {t!("backup.storage_warning_cta")}
@@ -121,7 +121,7 @@ pub fn StorageIndicator() -> impl IntoView {
             </div>
             <p class="text-sm text-gray-600">
                 {t!("backup.storage_indicator_message")}
-                <a href="/settings" class="ml-1 font-medium text-blue-600 hover:text-blue-700">
+                <a href="/booths" class="ml-1 font-medium text-blue-600 hover:text-blue-700">
                     {t!("backup.storage_indicator_link")}
                 </a>
             </p>

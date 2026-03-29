@@ -2425,7 +2425,7 @@ pub fn FirstTimeWelcome(state: OnboardingState) -> impl IntoView {
                         </p>
                         <ol class="text-sm text-gray-700 space-y-2 mb-6 pl-5">
                             <li class="list-decimal">"Open ez-booth in your other browser"</li>
-                            <li class="list-decimal">"Go to Settings → Export Data"</li>
+                            <li class="list-decimal">"Open the booth list and choose Export Data"</li>
                             <li class="list-decimal">"Download the JSON file"</li>
                             <li class="list-decimal">"Come back here and import it"</li>
                         </ol>
@@ -3864,4 +3864,3 @@ fn validate_date(date: &NaiveDate) -> Result<(), ValidationError> {
 3. Begin iterative development
 
 **Estimated Implementation Timeline:** 18 weeks to MVP
-

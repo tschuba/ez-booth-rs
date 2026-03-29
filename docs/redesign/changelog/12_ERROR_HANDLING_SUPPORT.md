@@ -122,7 +122,7 @@ Show diagnostic export option:
 
 ### 2.1 System Health Check
 
-Built-in diagnostic panel accessible from Settings:
+Built-in diagnostic panel accessible from a dedicated diagnostics view:
 
 ```
 System Health
@@ -297,9 +297,9 @@ const FAQ_DATABASE = [
     answer: `If you're using a different browser or device, your data
              is still safe on your previous device. Follow these steps:
              
-             1. On old device: Settings → Export Data
+             1. On old device: Open the booth list → Export Data
              2. Transfer file to new device
-             3. On new device: Settings → Import Data
+             3. On new device: Open the booth list → Import Data
              
              Your data is stored locally in each browser.`,
     related: ["export-data", "import-data", "switching-browsers"]
@@ -314,7 +314,7 @@ const FAQ_DATABASE = [
              2. Delete old booths (Booth Management → Archive)
              3. Use Chrome/Edge for larger storage limits
              
-             Current usage: Check Settings → System Health`,
+             Current usage: Check the diagnostics panel`,
     related: ["browser-storage", "delete-booth"]
   },
   {

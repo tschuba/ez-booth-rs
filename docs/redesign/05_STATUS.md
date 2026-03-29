@@ -140,7 +140,7 @@ Both naming systems are valid in the repository history. The roadmap below remai
 - ✅ Added uuid "js" feature for WASM random number generation
 - ✅ Application successfully builds for wasm32-unknown-unknown target
 - ⚠️  Browser testing deferred (app builds successfully, manual testing pending)
-- ⚠️  Language switching UI not yet implemented (can be added to settings)
+- ✅ Language switching UI is available in the header navigation
 
 ### 2.2 Component Library (P0) ✅ COMPLETE
 - [x] Create button components

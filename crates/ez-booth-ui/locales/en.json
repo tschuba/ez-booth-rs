@@ -460,13 +460,6 @@
       "no_vendors_selected": "Please select at least one vendor"
     }
   },
-  "settings": {
-    "title": "Settings",
-    "language": "Language",
-    "language_de": "Deutsch",
-    "language_en": "English",
-    "backup_title": "Data Backup"
-  },
   "backup": {
     "section_label": "Backup & Recovery",
     "heading": "Export your event data",
@@ -509,11 +502,11 @@
     "storage_warning_label": "Browser-local data",
     "storage_warning_message": "EZ Booth stores event data only in this browser. Clearing browser storage can remove events, vendors, and purchases.",
     "storage_warning_recommendation": "Create a backup before browser cleanup, profile changes, device switches, or major browser updates.",
-    "storage_warning_cta": "Open Backup Settings",
+    "storage_warning_cta": "Open Event Backups",
     "storage_warning_dismiss": "Dismiss",
     "storage_indicator_label": "Stored locally",
     "storage_indicator_message": "Your EZ Booth data lives in this browser.",
-    "storage_indicator_link": "Backups and recovery"
+    "storage_indicator_link": "Open event backups"
   },
   "data": {
     "export_title": "Export Data",

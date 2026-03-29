@@ -614,7 +614,7 @@ Users transitioning from ez-booth (Java) to ez-booth-rs risk losing their histor
 
 #### Proposed Solutions (ez-booth-rs)
 - **One-Click Export:** Download diagnostic bundle
-- **System Health Panel:** Built-in diagnostics (Settings)
+- **System Health Panel:** Built-in diagnostics in a dedicated app view
 - **Privacy-Safe:** Bundle contains NO sensitive data
 - **Error Log Viewer:** In-app error history with filtering
 

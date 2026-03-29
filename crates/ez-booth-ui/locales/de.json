@@ -460,13 +460,6 @@
       "no_vendors_selected": "Bitte wählen Sie mindestens einen Verkäufer aus"
     }
   },
-  "settings": {
-    "title": "Einstellungen",
-    "language": "Sprache",
-    "language_de": "Deutsch",
-    "language_en": "English",
-    "backup_title": "Datensicherung"
-  },
   "backup": {
     "section_label": "Sicherung & Wiederherstellung",
     "heading": "Veranstaltungsdaten exportieren",
@@ -509,11 +502,11 @@
     "storage_warning_label": "Browser-lokale Daten",
     "storage_warning_message": "EZ Booth speichert Veranstaltungsdaten nur in diesem Browser. Das Löschen von Browserdaten kann Veranstaltungen, Verkäufer und Käufe entfernen.",
     "storage_warning_recommendation": "Erstellen Sie ein Backup vor Browser-Bereinigungen, Profilwechseln, Gerätewechseln oder größeren Browser-Updates.",
-    "storage_warning_cta": "Backup-Einstellungen öffnen",
+    "storage_warning_cta": "Veranstaltungs-Backups öffnen",
     "storage_warning_dismiss": "Ausblenden",
     "storage_indicator_label": "Lokal gespeichert",
     "storage_indicator_message": "Ihre EZ-Booth-Daten liegen in diesem Browser.",
-    "storage_indicator_link": "Backups und Wiederherstellung"
+    "storage_indicator_link": "Veranstaltungs-Backups öffnen"
   },
   "data": {
     "export_title": "Daten exportieren",

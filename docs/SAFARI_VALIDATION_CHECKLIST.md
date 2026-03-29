@@ -174,7 +174,6 @@ Operator notes: _________________________________________________
 ## Scenario 8: Backup Export And Warning Visibility
 
 - [ ] Open the booth list and verify the permanent storage warning is visible
-- [ ] Open Settings and verify the permanent storage warning is visible in the backup section
 - [ ] Verify the global warning banner appears until dismissed
 - [ ] Export a full backup and confirm a `.json` file downloads successfully
 - [ ] Export a booth backup and confirm a `.json` file downloads successfully
@@ -186,7 +185,6 @@ Operator notes: _________________________________________________
 | Check | Expected | Actual | Match |
 |-------|----------|--------|-------|
 | Booth list warning visible | Yes | __________ | [ ] |
-| Settings warning visible | Yes | __________ | [ ] |
 | Global banner visible before dismissal | Yes | __________ | [ ] |
 | Full backup downloaded | Yes | __________ | [ ] |
 | Booth backup downloaded | Yes | __________ | [ ] |
