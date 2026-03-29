@@ -80,7 +80,6 @@ pub fn App() -> impl IntoView {
                     <div class="fixed left-0 right-0 top-0 z-40 bg-white print:hidden">
                         // Header (hidden during print)
                         <header>
-                            <StorageWarningBanner />
                             <Container>
                                 <div class="flex items-center justify-between py-4">
                                     <a href="/" class="text-2xl font-bold text-blue-600">
