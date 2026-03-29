@@ -10,6 +10,13 @@ pub struct ValidationFailure {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkippedRecord {
+    pub record_type: String,
+    pub record_id: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Error)]
 pub enum ExportError {
     #[error("Domain error: {0}")]
