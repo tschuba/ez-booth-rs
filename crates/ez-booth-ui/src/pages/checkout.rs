@@ -1284,14 +1284,6 @@ pub fn CheckoutPage() -> impl IntoView {
             data.vendor_id = trimmed_vendor_id;
         }
 
-        if data.vendor_id.is_empty() {
-            let message = t!("checkout.errors.vendor_required")();
-            toast.warning(&message);
-            set_form_data.update(|form| form.vendor_error = Some(message));
-            focus_and_select_input(&vendor_input_ref_for_add);
-            return;
-        }
-
         let omission_rules = vendor_omission_rules.get();
 
         if let Err(err) = omission_rules.validate() {
