@@ -372,3 +372,168 @@ async fn qr_export_accepts_boundary_size_before_exceeding_max_qr_codes() {
         other => panic!("expected TooManyQrCodes, got {other:?}"),
     }
 }
+
+#[wasm_bindgen_test]
+async fn qr_import_replace_overwrites_existing_records_from_chunks() {
+    let (source_booth_repo, source_vendor_repo, source_purchase_repo, export_service, _) =
+        build_services().await;
+    let (target_booth_repo, target_vendor_repo, target_purchase_repo, _, import_service) =
+        build_services().await;
+
+    let source_booth = create_test_booth("Replacement Booth");
+    let source_vendor = create_test_vendor(&source_booth, 12).with_name("Imported Vendor".to_string());
+    let mut source_purchase = create_test_purchase(&source_booth, &source_vendor, 0, 42);
+    source_purchase.note = Some("Imported note".to_string());
+
+    seed_booth_data(
+        &source_booth_repo,
+        &source_vendor_repo,
+        &source_purchase_repo,
+        &source_booth,
+        std::slice::from_ref(&source_vendor),
+        std::slice::from_ref(&source_purchase),
+    )
+    .await;
+
+    let export = export_service
+        .export_booth_as_qr(&source_booth.id, ExportScope::Full)
+        .await
+        .unwrap();
+
+    let mut existing_booth = source_booth.clone();
+    existing_booth.description = "Existing Description".to_string();
+    existing_booth.updated_at = Utc::now() - Duration::days(2);
+
+    let existing_vendor = Vendor::new(source_vendor.vendor_id.clone(), source_booth.id)
+        .with_name("Existing Vendor".to_string());
+
+    let mut existing_purchase = source_purchase.clone();
+    existing_purchase.note = Some("Existing note".to_string());
+    existing_purchase.timestamp = Utc::now() - Duration::days(2);
+
+    seed_booth_data(
+        &target_booth_repo,
+        &target_vendor_repo,
+        &target_purchase_repo,
+        &existing_booth,
+        std::slice::from_ref(&existing_vendor),
+        std::slice::from_ref(&existing_purchase),
+    )
+    .await;
+
+    let summary = import_service
+        .import_chunks(export.chunks, ConflictStrategy::Replace)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.conflicts_resolved, 3);
+
+    let saved_booth = target_booth_repo
+        .find_by_id(&source_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_booth.description, source_booth.description);
+
+    let saved_vendor = target_vendor_repo
+        .find_by_id(&source_booth.id, &source_vendor.vendor_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_vendor.name.as_deref(), Some("Imported Vendor"));
+
+    let saved_purchase = target_purchase_repo
+        .find_by_id(&source_purchase.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_purchase.note.as_deref(), Some("Imported note"));
+}
+
+#[wasm_bindgen_test]
+async fn qr_import_merge_prefers_newer_records_from_chunks() {
+    let (source_booth_repo, source_vendor_repo, source_purchase_repo, export_service, _) =
+        build_services().await;
+    let (target_booth_repo, target_vendor_repo, target_purchase_repo, _, import_service) =
+        build_services().await;
+
+    let mut source_booth = create_test_booth("Merge Booth");
+    source_booth.description = "Merged Description".to_string();
+    source_booth.updated_at = Utc::now();
+
+    let source_vendor = Vendor::new(VendorId::new("77".to_string()), source_booth.id)
+        .with_name("Imported Vendor".to_string());
+
+    let mut source_purchase = create_test_purchase(&source_booth, &source_vendor, 0, 64);
+    source_purchase.note = Some("Merged note".to_string());
+    source_purchase.timestamp = Utc::now();
+
+    seed_booth_data(
+        &source_booth_repo,
+        &source_vendor_repo,
+        &source_purchase_repo,
+        &source_booth,
+        std::slice::from_ref(&source_vendor),
+        std::slice::from_ref(&source_purchase),
+    )
+    .await;
+
+    let export = export_service
+        .export_booth_as_qr(&source_booth.id, ExportScope::Full)
+        .await
+        .unwrap();
+
+    let mut existing_booth = source_booth.clone();
+    existing_booth.description = "Existing Description".to_string();
+    existing_booth.updated_at = Utc::now() - Duration::days(1);
+
+    let existing_vendor = Vendor::new(source_vendor.vendor_id.clone(), source_booth.id);
+
+    let mut existing_purchase = source_purchase.clone();
+    existing_purchase.note = Some("Existing note".to_string());
+    existing_purchase.timestamp = Utc::now() - Duration::days(1);
+
+    seed_booth_data(
+        &target_booth_repo,
+        &target_vendor_repo,
+        &target_purchase_repo,
+        &existing_booth,
+        std::slice::from_ref(&existing_vendor),
+        std::slice::from_ref(&existing_purchase),
+    )
+    .await;
+
+    let summary = import_service
+        .import_chunks(export.chunks, ConflictStrategy::Merge)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 1);
+    assert_eq!(summary.vendors_imported, 1);
+    assert_eq!(summary.purchases_imported, 1);
+    assert_eq!(summary.conflicts_resolved, 3);
+
+    let saved_booth = target_booth_repo
+        .find_by_id(&source_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_booth.description, "Merged Description");
+
+    let saved_vendor = target_vendor_repo
+        .find_by_id(&source_booth.id, &source_vendor.vendor_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_vendor.name.as_deref(), Some("Imported Vendor"));
+
+    let saved_purchase = target_purchase_repo
+        .find_by_id(&source_purchase.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved_purchase.note.as_deref(), Some("Merged note"));
+}
