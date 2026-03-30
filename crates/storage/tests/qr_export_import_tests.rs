@@ -4,7 +4,7 @@ use chrono::{Duration, NaiveDate, Utc};
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
 use domain::{Booth, FeeConfig, Purchase, PurchaseItem, Vendor, VendorId};
 use ez_booth_storage::export::{
-    ConflictStrategy, ExportScope, QrExportService, QrImportService, MAX_QR_CODES,
+    ConflictStrategy, ExportError, ExportScope, QrExportService, QrImportService, MAX_QR_CODES,
 };
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
@@ -52,6 +52,69 @@ fn create_test_purchase(booth: &Booth, vendor: &Vendor, days_ago: i64, amount: i
     purchase
 }
 
+fn create_boundary_purchase(booth: &Booth, vendor: &Vendor, index: usize) -> Purchase {
+    let mut purchase = create_test_purchase(booth, vendor, (index % 6) as i64, (index + 1) as i64);
+    purchase.note = Some(format!(
+        "Boundary purchase {index:04}: {}",
+        "x".repeat(96)
+    ));
+    purchase
+}
+
+async fn seed_booth_data(
+    booth_repo: &Arc<dyn BoothRepository>,
+    vendor_repo: &Arc<dyn VendorRepository>,
+    purchase_repo: &Arc<dyn PurchaseRepository>,
+    booth: &Booth,
+    vendors: &[Vendor],
+    purchases: &[Purchase],
+) {
+    booth_repo.save(booth).await.unwrap();
+    for vendor in vendors {
+        vendor_repo.save(vendor).await.unwrap();
+    }
+    for purchase in purchases {
+        purchase_repo.save(purchase).await.unwrap();
+    }
+}
+
+async fn export_chunk_count_for_fixture(
+    booth: &Booth,
+    vendors: &[Vendor],
+    purchases: &[Purchase],
+) -> Result<usize, ExportError> {
+    let (booth_repo, vendor_repo, purchase_repo, export_service, _) = build_services().await;
+    seed_booth_data(
+        &booth_repo,
+        &vendor_repo,
+        &purchase_repo,
+        booth,
+        vendors,
+        purchases,
+    )
+    .await;
+
+    export_service
+        .export_booth_as_qr(&booth.id, ExportScope::Full)
+        .await
+        .map(|export| export.chunks.len())
+}
+
+fn build_boundary_fixture(total_purchases: usize) -> (Booth, Vec<Vendor>, Vec<Purchase>) {
+    let booth = create_test_booth("QR Boundary Booth");
+    let vendors = (0..24)
+        .map(|index| create_test_vendor(&booth, index + 1))
+        .collect::<Vec<_>>();
+    let purchases = (0..total_purchases)
+        .map(|index| {
+            let vendor = &vendors[index % vendors.len()];
+            create_boundary_purchase(&booth, vendor, index)
+        })
+        .collect::<Vec<_>>();
+
+    (booth, vendors, purchases)
+}
+
 async fn build_services() -> (
     Arc<dyn BoothRepository>,
     Arc<dyn VendorRepository>,
@@ -88,7 +151,9 @@ async fn build_services() -> (
 
 #[wasm_bindgen_test]
 async fn qr_export_import_roundtrip_for_booth_backup() {
-    let (booth_repo, vendor_repo, purchase_repo, export_service, import_service) =
+    let (source_booth_repo, source_vendor_repo, source_purchase_repo, export_service, _) =
+        build_services().await;
+    let (target_booth_repo, target_vendor_repo, target_purchase_repo, _, import_service) =
         build_services().await;
     let booth = create_test_booth("QR Roundtrip Booth");
     let vendor_a = create_test_vendor(&booth, 1);
@@ -96,11 +161,15 @@ async fn qr_export_import_roundtrip_for_booth_backup() {
     let purchase_a = create_test_purchase(&booth, &vendor_a, 0, 42);
     let purchase_b = create_test_purchase(&booth, &vendor_b, 2, 21);
 
-    booth_repo.save(&booth).await.unwrap();
-    vendor_repo.save(&vendor_a).await.unwrap();
-    vendor_repo.save(&vendor_b).await.unwrap();
-    purchase_repo.save(&purchase_a).await.unwrap();
-    purchase_repo.save(&purchase_b).await.unwrap();
+    seed_booth_data(
+        &source_booth_repo,
+        &source_vendor_repo,
+        &source_purchase_repo,
+        &booth,
+        &[vendor_a.clone(), vendor_b.clone()],
+        &[purchase_a.clone(), purchase_b.clone()],
+    )
+    .await;
 
     let export = export_service
         .export_booth_as_qr(&booth.id, ExportScope::Full)
@@ -126,6 +195,18 @@ async fn qr_export_import_roundtrip_for_booth_backup() {
     assert_eq!(summary.booths_imported, 1);
     assert_eq!(summary.vendors_imported, 2);
     assert_eq!(summary.purchases_imported, 2);
+
+    assert!(target_booth_repo.find_by_id(&booth.id).await.unwrap().is_some());
+    assert!(target_vendor_repo
+        .find_by_id(&booth.id, &vendor_a.vendor_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(target_purchase_repo
+        .find_by_id(&purchase_a.id)
+        .await
+        .unwrap()
+        .is_some());
 }
 
 #[wasm_bindgen_test]
@@ -153,4 +234,141 @@ async fn qr_export_scope_filters_old_purchases() {
     assert_eq!(week_export.backup.purchases.len(), 1);
     assert_eq!(full_export.backup.purchases.len(), 2);
     assert!(week_export.compressed_bytes.len() < full_export.compressed_bytes.len());
+}
+
+#[wasm_bindgen_test]
+async fn qr_import_skip_reports_conflicts_for_existing_records() {
+    let (booth_repo, vendor_repo, purchase_repo, export_service, import_service) =
+        build_services().await;
+    let booth = create_test_booth("Existing Records Booth");
+    let vendor_a = create_test_vendor(&booth, 1);
+    let vendor_b = create_test_vendor(&booth, 2);
+    let purchase_a = create_test_purchase(&booth, &vendor_a, 0, 42);
+    let purchase_b = create_test_purchase(&booth, &vendor_b, 2, 21);
+
+    seed_booth_data(
+        &booth_repo,
+        &vendor_repo,
+        &purchase_repo,
+        &booth,
+        &[vendor_a.clone(), vendor_b.clone()],
+        &[purchase_a.clone(), purchase_b.clone()],
+    )
+    .await;
+
+    let export = export_service
+        .export_booth_as_qr(&booth.id, ExportScope::Full)
+        .await
+        .unwrap();
+
+    let summary = import_service
+        .import_chunks(export.chunks, ConflictStrategy::Skip)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.booths_imported, 0);
+    assert_eq!(summary.vendors_imported, 0);
+    assert_eq!(summary.purchases_imported, 0);
+    assert_eq!(summary.conflicts_resolved, 0);
+    assert_eq!(summary.skipped_records.len(), 5);
+}
+
+#[wasm_bindgen_test]
+async fn qr_import_collects_multichunk_payload_out_of_order_with_duplicates() {
+    let (booth_repo, vendor_repo, purchase_repo, export_service, import_service) =
+        build_services().await;
+    let booth = create_test_booth("Large QR Booth");
+    let vendors = (0..40)
+        .map(|index| create_test_vendor(&booth, index + 1))
+        .collect::<Vec<_>>();
+    let purchases = (0..220)
+        .map(|index| {
+            let vendor = &vendors[index % vendors.len()];
+            create_test_purchase(&booth, vendor, (index % 6) as i64, (index + 1) as i64)
+        })
+        .collect::<Vec<_>>();
+
+    seed_booth_data(
+        &booth_repo,
+        &vendor_repo,
+        &purchase_repo,
+        &booth,
+        &vendors,
+        &purchases,
+    )
+    .await;
+
+    let export = export_service
+        .export_booth_as_qr(&booth.id, ExportScope::Full)
+        .await
+        .unwrap();
+
+    assert!(export.chunks.len() > 1);
+
+    let mut import_chunks = export.chunks.clone();
+    import_chunks.reverse();
+    import_chunks.push(export.chunks[0].clone());
+
+    let backup = import_service.collect_backup(import_chunks).unwrap();
+    assert_eq!(backup.booth.id, booth.id);
+    assert_eq!(backup.vendors.len(), vendors.len());
+    assert_eq!(backup.purchases.len(), purchases.len());
+}
+
+#[wasm_bindgen_test]
+async fn qr_export_accepts_boundary_size_before_exceeding_max_qr_codes() {
+    let (booth, vendors, purchases) = build_boundary_fixture(4_096);
+    let mut low = 1_usize;
+    let mut high = 32_usize;
+    let mut max_success_chunk_count =
+        export_chunk_count_for_fixture(&booth, &vendors, &purchases[..low]).await.unwrap();
+
+    loop {
+        match export_chunk_count_for_fixture(&booth, &vendors, &purchases[..high]).await {
+            Ok(chunk_count) => {
+                low = high;
+                max_success_chunk_count = chunk_count;
+                high *= 2;
+                assert!(high <= 4_096, "expected to exceed max QR codes before 4096 purchases");
+            }
+            Err(ExportError::TooManyQrCodes { .. }) => break,
+            Err(other) => panic!("unexpected export failure: {other:?}"),
+        }
+    }
+
+    let mut max_success = low;
+    let mut left = low + 1;
+    let mut right = high;
+
+    while left < right {
+        let mid = left + (right - left) / 2;
+        match export_chunk_count_for_fixture(&booth, &vendors, &purchases[..mid]).await {
+            Ok(chunk_count) => {
+                max_success = mid;
+                max_success_chunk_count = chunk_count;
+                left = mid + 1;
+            }
+            Err(ExportError::TooManyQrCodes { .. }) => {
+                right = mid;
+            }
+            Err(other) => panic!("unexpected export failure: {other:?}"),
+        }
+    }
+
+    let success_chunks = export_chunk_count_for_fixture(&booth, &vendors, &purchases[..max_success])
+        .await
+        .unwrap();
+    assert_eq!(success_chunks, max_success_chunk_count);
+    assert!(success_chunks <= MAX_QR_CODES);
+
+    let failure = export_chunk_count_for_fixture(&booth, &vendors, &purchases[..right])
+        .await
+        .unwrap_err();
+    match failure {
+        ExportError::TooManyQrCodes { required, maximum } => {
+            assert_eq!(required, MAX_QR_CODES + 1);
+            assert_eq!(maximum, MAX_QR_CODES);
+        }
+        other => panic!("expected TooManyQrCodes, got {other:?}"),
+    }
 }

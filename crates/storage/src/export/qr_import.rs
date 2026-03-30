@@ -315,6 +315,23 @@ mod tests {
     }
 
     #[test]
+    fn collector_accepts_out_of_order_chunks() {
+        let backup = sample_backup();
+        let encoded = rmp_serde::to_vec_named(&QrBoothBackupData::from_backup(&backup)).unwrap();
+        let compressed = compress_data(&encoded).unwrap();
+        let mut chunks = create_chunks(&compressed).unwrap();
+        chunks.reverse();
+        let mut collector = QrChunkCollector::new();
+
+        for chunk in chunks {
+            collector.add_chunk(chunk).unwrap();
+        }
+
+        let decoded = collector.reassemble_backup().unwrap();
+        assert_eq!(decoded, backup);
+    }
+
+    #[test]
     fn collector_rejects_hash_mismatch() {
         let mut collector = QrChunkCollector::new();
         let mut chunks = create_chunks(b"hello world").unwrap();
@@ -330,6 +347,80 @@ mod tests {
         let error =
             parse_chunk_payload(r#"{"v":99,"i":0,"t":1,"h":"abc","d":"abcd"}"#).unwrap_err();
         assert!(matches!(error, ImportError::InvalidQrPayload(_)));
+    }
+
+    #[test]
+    fn collector_rejects_inconsistent_total_chunks() {
+        let mut collector = QrChunkCollector::new();
+        let first = QrChunk {
+            v: QR_FORMAT_VERSION,
+            i: 0,
+            t: 2,
+            h: "a".repeat(64),
+            d: BASE64_STANDARD.encode(b"hello"),
+        };
+        let second = QrChunk {
+            t: 3,
+            i: 1,
+            ..first.clone()
+        };
+
+        assert_eq!(collector.add_chunk(first).unwrap(), CollectorStatus::ChunkAdded);
+        let error = collector.add_chunk(second).unwrap_err();
+        assert!(matches!(error, ImportError::InconsistentChunks(_)));
+    }
+
+    #[test]
+    fn collector_rejects_invalid_base64_data() {
+        let mut collector = QrChunkCollector::new();
+        collector
+            .add_chunk(QrChunk {
+                v: QR_FORMAT_VERSION,
+                i: 0,
+                t: 1,
+                h: hash_bytes(b"ignored"),
+                d: "%%%not-base64%%%".to_string(),
+            })
+            .unwrap();
+
+        let error = collector.reassemble_bytes().unwrap_err();
+        assert!(matches!(error, ImportError::InvalidQrPayload(_)));
+    }
+
+    #[test]
+    fn collector_reports_decompression_error_for_non_gzip_payload() {
+        let raw_bytes = b"not a gzip stream";
+        let mut collector = QrChunkCollector::new();
+        collector
+            .add_chunk(QrChunk {
+                v: QR_FORMAT_VERSION,
+                i: 0,
+                t: 1,
+                h: hash_bytes(raw_bytes),
+                d: BASE64_STANDARD.encode(raw_bytes),
+            })
+            .unwrap();
+
+        let error = collector.reassemble_backup().unwrap_err();
+        assert!(matches!(error, ImportError::Decompression(_)));
+    }
+
+    #[test]
+    fn collector_reports_deserialization_error_for_invalid_messagepack() {
+        let invalid_messagepack = compress_data(b"not messagepack").unwrap();
+        let mut collector = QrChunkCollector::new();
+        collector
+            .add_chunk(QrChunk {
+                v: QR_FORMAT_VERSION,
+                i: 0,
+                t: 1,
+                h: hash_bytes(&invalid_messagepack),
+                d: BASE64_STANDARD.encode(invalid_messagepack),
+            })
+            .unwrap();
+
+        let error = collector.reassemble_backup().unwrap_err();
+        assert!(matches!(error, ImportError::Deserialization(_)));
     }
 
     #[test]

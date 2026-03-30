@@ -537,6 +537,27 @@ mod tests {
     }
 
     #[test]
+    fn estimates_qr_count_monotonically_by_scope() {
+        let today = estimate_qr_count(80, 1_200, ExportScope::Today);
+        let week = estimate_qr_count(80, 1_200, ExportScope::Week);
+        let month = estimate_qr_count(80, 1_200, ExportScope::Month);
+        let full = estimate_qr_count(80, 1_200, ExportScope::Full);
+
+        assert!(today <= week);
+        assert!(week <= month);
+        assert!(month <= full);
+    }
+
+    #[test]
+    fn serializes_chunk_payload_with_base64_data() {
+        let chunk = create_chunks(b"hello qr payload").unwrap().remove(0);
+        let payload = serialize_chunk_payload(&chunk).unwrap();
+
+        assert!(payload.contains("\"d\":"));
+        assert!(payload.contains(&chunk.d));
+    }
+
+    #[test]
     fn qr_transfer_format_roundtrips_backup_data() {
         let backup = sample_backup();
         let transfer = QrBoothBackupData::from_backup(&backup);
