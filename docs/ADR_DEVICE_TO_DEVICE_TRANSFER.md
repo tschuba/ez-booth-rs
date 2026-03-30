@@ -20,6 +20,8 @@ QR code export and import functionality already exists, but it is limited by dat
 
 Real-world booth data can range from tens of kilobytes to multiple megabytes depending on the number of vendors, purchases, and retained history. This makes QR codes insufficient for the intended device-to-device workflow.
 
+In practice, the most common expected transfer is Windows-to-Windows. Mixed-device transfer should remain possible, but the solution does not need to force a single mechanism across all device combinations if a multi-option approach yields better reliability.
+
 ### Platform Priority
 
 1. Windows
@@ -49,6 +51,9 @@ Real-world booth data can range from tens of kilobytes to multiple megabytes dep
 - higher data density than QR transfer
 - low operational risk and predictable user experience
 - reasonable implementation complexity using existing services
+- maximum practical compatibility across browser and device combinations
+- transfer payloads that remain inspectable and debuggable during development and support
+- integrity verification for transferred data regardless of transport option
 
 ## Options Considered
 
@@ -75,8 +80,8 @@ The ideal model is:
 
 - critical browser limitation: Web Bluetooth in browsers does not support peripheral advertising for this use case
 - browsers can scan and connect, but cannot reliably expose the app as a discoverable BLE peripheral
-- iOS Safari does not provide usable Web Bluetooth support
-- Firefox support is not practical
+- iOS Safari does not support Web Bluetooth at all, and all iOS browsers remain affected because they use WebKit
+- Firefox does not support Web Bluetooth and is not a viable target for this approach
 - high implementation and support complexity
 
 #### Platform Fit
@@ -86,9 +91,27 @@ The ideal model is:
 - iOS: not viable
 - Android: partial browser support, but still limited by browser role restrictions
 
+#### Browser Support Matrix
+
+| Platform | Chrome | Edge | Safari | Firefox | Notes |
+|----------|--------|------|--------|---------|-------|
+| Windows 10+ | supported | supported | n/a | not supported | central role only; no browser advertising/peripheral role |
+| macOS | supported | supported | not supported | not supported | central role only; no browser advertising/peripheral role |
+| Android 6+ | supported | supported | n/a | not supported | central role only; no browser advertising/peripheral role |
+| iOS | not supported | not supported | not supported | not supported | WebKit-based browsers do not provide Web Bluetooth |
+
+The critical limitation is role support rather than raw API availability alone. Browsers that implement Web Bluetooth act as BLE central clients. They do not reliably act as BLE peripherals and do not provide the discoverable advertising behavior needed for a straightforward browser-to-browser peer flow.
+
 #### Outcome
 
-Rejected. BLE is attractive conceptually, but browser limitations make it unsuitable for a web-based product that must work reliably across the target platforms.
+Deferred as a supplemental option. BLE remains unsuitable as the only product path across the full platform set, but it may still be worth a Windows-focused proof of concept because Windows-to-Windows is the primary expected transfer case.
+
+For Web Bluetooth to be viable, it would need:
+
+- an explicit sender/receiver role model instead of true peer discovery
+- a coordination step such as QR code or short-code exchange
+- measured confirmation that throughput and reliability are acceptable for typical booth payloads
+- a fallback path for unsupported browsers and mixed-device transfers
 
 ### Option 2: WebRTC Data Channels With Manual Signaling
 
@@ -216,32 +239,54 @@ Deferred. This is a future architectural direction, not the right next step for 
 
 ## Decision
 
-Select Option 3: Web Share API plus native OS transfer mechanisms, with standard file export and import as the desktop fallback.
+Adopt a multi-option transfer strategy.
+
+- Primary cross-platform approach: Option 3, Web Share API plus native OS transfer mechanisms where available
+- Universal fallback: standard file export and import
+- Additional Windows-focused option under investigation: Option 1, Web Bluetooth transfer with explicit role coordination
 
 ## Rationale
 
 This option best matches the actual constraints and platform priorities.
 
-- It avoids browser API gaps that make Web Bluetooth unreliable or impossible for the required role.
+- It avoids depending exclusively on browser API gaps that make Web Bluetooth unreliable or impossible for the required role on many platforms.
 - It avoids the hidden network dependency in WebRTC-based approaches.
 - It uses the strongest parts of the current product: export, import, validation, and structured backup data.
 - It supports a practical user story on every target platform, even when the exact transfer UX differs.
+- It keeps the most important scenario, Windows-to-Windows transfer, open for a more direct option if a proof of concept succeeds.
+- It favors transports that can share a common transfer payload with strong integrity checks and good debuggability.
 
 For mobile devices, native OS sharing is the most realistic path to true infrastructure-free transfer.
 
 For desktop platforms, file export and import is an acceptable fallback because Windows and macOS are the highest-priority platforms and users on those systems can reliably complete transfer through standard file-based workflows even when direct browser-triggered native sharing is inconsistent.
 
+For Windows-to-Windows, Web Bluetooth may still become a useful additional path if it proves reliable enough despite the browser role restrictions. That path should be treated as an optimization for a common environment, not as the sole supported architecture.
+
 ## Decisions Made
 
 ### Transfer Format
 
-Use MessagePack as the preferred transfer format.
+Use a gzipped JSON transfer envelope as the preferred transfer format across all transfer options.
 
 Rationale:
 
-- better density than JSON
-- already aligned with existing codebase usage
-- suitable for compressed single-booth transfer files
+- maximizes compatibility across browser, desktop, and mobile workflows
+- remains inspectable and debuggable during development and support
+- achieves good practical density once compressed
+- works well as a shared payload format across Web Share, file export/import, and any future Windows-focused Bluetooth flow
+
+The payload should carry explicit format metadata and versioning so transfers remain inspectable and evolvable.
+
+### Integrity Verification
+
+Use embedded integrity metadata for all transfer options.
+
+Rationale:
+
+- integrity matters more than confidentiality for this use case
+- transfer corruption must be detectable regardless of transport mechanism
+- a shared checksum-based validation model keeps behavior consistent across all options
+- integrity metadata improves supportability and troubleshooting
 
 ### Initial Scope
 
@@ -263,6 +308,17 @@ Rationale:
 - avoids dependence on uneven browser support for native sharing
 - keeps the concept understandable and supportable
 
+### Windows-Specific Transfer Exploration
+
+Investigate Web Bluetooth as an optional Windows-to-Windows transfer path, not as a universal requirement.
+
+Rationale:
+
+- Windows is the highest-priority platform
+- Windows-to-Windows is the most common expected transfer scenario
+- even an imperfect browser-only Bluetooth path may be worth offering if it performs better than manual file exchange in the common case
+- mixed-device support can still be covered by Web Share and file-based fallback
+
 ## Consequences
 
 ### Positive
@@ -272,17 +328,20 @@ Rationale:
 - significantly better payload density than QR transfer
 - clear fallback story for desktop platforms
 - lower implementation risk than browser-only peer protocols
+- room to add a Windows-optimized path without making it mandatory for every platform
 
 ### Negative
 
 - receiving-side import flow still needs UX design
 - transfer UX will vary somewhat by platform
 - the selected approach is less magical than a fully in-app peer discovery flow
+- Web Bluetooth remains a research item with real platform and browser constraints
 
 ### Neutral
 
 - further documentation will be needed for operator-facing instructions
 - the exact transfer file extension and file association details can be decided during implementation planning
+- the exact checksum and transfer-envelope schema can be finalized during implementation planning
 
 ## Open Question
 
@@ -299,8 +358,9 @@ This ADR leaves that design open for a follow-up decision, including whether the
 
 1. decide the receiving-side import UX
 2. create a focused implementation plan for single-booth transfer
-3. reuse the existing export/import services with MessagePack-based transfer files
-4. document platform-specific transfer flows for operators
+3. define the gzipped JSON transfer envelope and integrity metadata
+4. prototype the Windows-to-Windows Web Bluetooth option and measure reliability and throughput
+5. document platform-specific transfer flows for operators
 
 ## Related Documents
 
