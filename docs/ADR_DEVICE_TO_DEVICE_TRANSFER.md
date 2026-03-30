@@ -110,6 +110,16 @@ For Web Bluetooth to be viable, it would need:
 - measured confirmation that throughput and reliability are acceptable for typical booth payloads
 - a fallback path for unsupported browsers and mixed-device transfers
 
+The proof of concept should be limited to Windows-to-Windows transfer in current Chromium-based browsers.
+
+The proof of concept should only advance to product implementation if all of the following are demonstrated:
+
+- successful transfer between two Windows devices using supported Chromium-based browsers with no internet connection and no WiFi router
+- reliable completion for representative booth payload sizes from tens of kilobytes up to multi-megabyte transfers
+- explicit integrity verification before import succeeds
+- an operator flow that is understandable without technical troubleshooting or developer-only tooling
+- failure handling that leaves the receiving side in a safe state and clearly instructs the operator to retry or fall back to file transfer
+
 ### Option 2: WebRTC Data Channels With Manual Signaling
 
 #### Concept
@@ -315,6 +325,12 @@ Rationale:
 - Windows-to-Windows is the most common expected transfer scenario
 - even an imperfect browser-only Bluetooth path may be worth offering if it performs better than manual file exchange in the common case
 - mixed-device support can still be covered by Web Share and file-based fallback
+
+Implementation gate:
+
+- keep this option behind a proof-of-concept milestone until the acceptance criteria in Option 1 are met
+- do not let this option block delivery of Web Share and file-based transfer
+- if the proof of concept shows inconsistent browser behavior, weak throughput, or unclear operator UX, keep Web Bluetooth as a deferred experiment rather than a supported workflow
 
 ## Consequences
 
