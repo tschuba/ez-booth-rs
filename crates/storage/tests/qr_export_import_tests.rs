@@ -1,10 +1,12 @@
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 use chrono::{Duration, NaiveDate, Utc};
+use base64::Engine;
 use domain::repositories::{BoothRepository, PurchaseRepository, VendorRepository};
 use domain::{Booth, FeeConfig, Purchase, PurchaseItem, Vendor, VendorId};
 use ez_booth_storage::export::{
-    ConflictStrategy, ExportError, ExportScope, QrExportService, QrImportService, MAX_QR_CODES,
+    detect_payload_format, hash_bytes, BinaryQrChunk, ConflictStrategy, ExportError, ExportScope,
+    QrExportService, QrImportService, QrPayloadFormat, MAX_QR_CODES,
 };
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
@@ -181,6 +183,14 @@ async fn qr_export_import_roundtrip_for_booth_backup() {
     assert_eq!(export.backup.vendors.len(), 2);
     assert_eq!(export.backup.purchases.len(), 2);
 
+    let payload = ez_booth_storage::export::serialize_chunk_payload(&export.chunks[0]).unwrap();
+    assert_eq!(detect_payload_format(&payload).unwrap(), QrPayloadFormat::BinaryV2);
+
+    let packet = payload.chars().map(|ch| ch as u8).collect::<Vec<_>>();
+    let decoded_packet = BinaryQrChunk::decode_from_bytes(&packet).unwrap();
+    assert_eq!(usize::from(decoded_packet.index), export.chunks[0].i);
+    assert_eq!(decoded_packet.data, export.chunks[0].d);
+
     let imported_backup = import_service
         .collect_backup(export.chunks.clone())
         .unwrap();
@@ -207,6 +217,41 @@ async fn qr_export_import_roundtrip_for_booth_backup() {
         .await
         .unwrap()
         .is_some());
+}
+
+#[wasm_bindgen_test]
+async fn qr_import_accepts_legacy_json_chunks() {
+    let (_, _, _, _, import_service) = build_services().await;
+    let compressed = ez_booth_storage::export::serialize_and_compress_backup(&{
+        let booth = create_test_booth("Legacy QR Booth");
+        let vendor = create_test_vendor(&booth, 1);
+        let purchase = create_test_purchase(&booth, &vendor, 0, 42);
+        let mut backup = ez_booth_storage::export::BoothBackupData::new(booth, "legacy-test");
+        backup.vendors = vec![vendor];
+        backup.purchases = vec![purchase];
+        backup
+    })
+    .unwrap();
+
+    let hash_hex = hash_bytes(&compressed)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let legacy_payload = format!(
+        r#"{{"v":1,"i":0,"t":1,"h":"{hash_hex}","d":"{}"}}"#,
+        base64::engine::general_purpose::STANDARD.encode(&compressed)
+    );
+
+    assert_eq!(
+        detect_payload_format(&legacy_payload).unwrap(),
+        QrPayloadFormat::JsonV1
+    );
+
+    let chunk = import_service.parse_chunk_payload(&legacy_payload).unwrap();
+    let backup = import_service.collect_backup(vec![chunk]).unwrap();
+    assert_eq!(backup.booth.description, "Legacy QR Booth");
+    assert_eq!(backup.vendors.len(), 1);
+    assert_eq!(backup.purchases.len(), 1);
 }
 
 #[wasm_bindgen_test]

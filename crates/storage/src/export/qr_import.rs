@@ -12,15 +12,27 @@ use super::backup_format::BoothBackupData;
 use super::error::ImportError;
 use super::import_service::{ConflictStrategy, ImportService, ImportSummary};
 use super::import_validator::ImportValidator;
+use super::qr_binary_format::{
+    detect_payload_format, latin1_string_to_bytes, BinaryQrChunk, QrPayloadFormat,
+};
 use super::qr_export::{hash_bytes, QrBoothBackupData, QR_FORMAT_VERSION};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QrChunk {
     pub v: u32,
     pub i: usize,
     pub t: usize,
-    pub h: String,
-    pub d: String,
+    pub h: [u8; 32],
+    pub d: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct LegacyQrChunk {
+    v: u32,
+    i: usize,
+    t: usize,
+    h: String,
+    d: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +45,8 @@ pub enum CollectorStatus {
 #[derive(Debug, Clone, Default)]
 pub struct QrChunkCollector {
     expected_total: Option<usize>,
-    expected_hash: Option<String>,
+    expected_hash: Option<[u8; 32]>,
+    expected_version: Option<u32>,
     received_chunks: HashMap<usize, QrChunk>,
 }
 
@@ -56,6 +69,17 @@ impl QrChunkCollector {
             self.expected_total = Some(chunk.t);
         }
 
+        if let Some(expected_version) = self.expected_version {
+            if chunk.v != expected_version {
+                return Err(ImportError::InconsistentChunks(format!(
+                    "expected QR version {expected_version}, received {}",
+                    chunk.v
+                )));
+            }
+        } else {
+            self.expected_version = Some(chunk.v);
+        }
+
         if let Some(expected_hash) = &self.expected_hash {
             if chunk.h != *expected_hash {
                 return Err(ImportError::InconsistentChunks(
@@ -63,7 +87,7 @@ impl QrChunkCollector {
                 ));
             }
         } else {
-            self.expected_hash = Some(chunk.h.clone());
+            self.expected_hash = Some(chunk.h);
         }
 
         if self.received_chunks.contains_key(&chunk.i) {
@@ -113,13 +137,10 @@ impl QrChunkCollector {
                         expected: expected_total,
                     })?;
 
-            let decoded = BASE64_STANDARD
-                .decode(&chunk.d)
-                .map_err(|err| ImportError::InvalidQrPayload(err.to_string()))?;
-            bytes.extend_from_slice(&decoded);
+            bytes.extend_from_slice(&chunk.d);
         }
 
-        let expected_hash = self.expected_hash.as_deref().unwrap_or_default();
+        let expected_hash = self.expected_hash.unwrap_or_default();
         if hash_bytes(&bytes) != expected_hash {
             return Err(ImportError::HashMismatch);
         }
@@ -190,14 +211,14 @@ impl QrImportService {
 }
 
 pub fn parse_chunk_payload(raw: &str) -> Result<QrChunk, ImportError> {
-    let chunk: QrChunk =
-        serde_json::from_str(raw).map_err(|err| ImportError::InvalidQrPayload(err.to_string()))?;
-    validate_chunk_metadata(&chunk)?;
-    Ok(chunk)
+    match detect_payload_format(raw)? {
+        QrPayloadFormat::JsonV1 => parse_legacy_chunk_payload(raw),
+        QrPayloadFormat::BinaryV2 => parse_binary_chunk_payload(raw),
+    }
 }
 
 pub fn validate_chunk_metadata(chunk: &QrChunk) -> Result<(), ImportError> {
-    if chunk.v != QR_FORMAT_VERSION {
+    if chunk.v != 1 && chunk.v != QR_FORMAT_VERSION {
         return Err(ImportError::InvalidQrPayload(format!(
             "unsupported QR format version {}",
             chunk.v
@@ -217,9 +238,9 @@ pub fn validate_chunk_metadata(chunk: &QrChunk) -> Result<(), ImportError> {
         )));
     }
 
-    if chunk.h.len() != 64 || !chunk.h.chars().all(|ch| ch.is_ascii_hexdigit()) {
+    if chunk.h == [0_u8; 32] {
         return Err(ImportError::InvalidQrPayload(
-            "chunk hash must be a 64-character hex string".to_string(),
+            "chunk hash must not be empty".to_string(),
         ));
     }
 
@@ -230,6 +251,60 @@ pub fn validate_chunk_metadata(chunk: &QrChunk) -> Result<(), ImportError> {
     }
 
     Ok(())
+}
+
+fn parse_legacy_chunk_payload(raw: &str) -> Result<QrChunk, ImportError> {
+    let chunk: LegacyQrChunk =
+        serde_json::from_str(raw).map_err(|err| ImportError::InvalidQrPayload(err.to_string()))?;
+
+    let hash_vec = decode_hex_hash(&chunk.h)?;
+    let data = BASE64_STANDARD
+        .decode(&chunk.d)
+        .map_err(|err| ImportError::InvalidQrPayload(err.to_string()))?;
+
+    let normalized = QrChunk {
+        v: chunk.v,
+        i: chunk.i,
+        t: chunk.t,
+        h: hash_vec,
+        d: data,
+    };
+    validate_chunk_metadata(&normalized)?;
+    Ok(normalized)
+}
+
+fn parse_binary_chunk_payload(raw: &str) -> Result<QrChunk, ImportError> {
+    let bytes = latin1_string_to_bytes(raw)?;
+    let chunk = BinaryQrChunk::decode_from_bytes(&bytes)?;
+    let normalized = QrChunk {
+        v: u32::from(chunk.version),
+        i: usize::from(chunk.index),
+        t: usize::from(chunk.total),
+        h: chunk.hash,
+        d: chunk.data,
+    };
+    validate_chunk_metadata(&normalized)?;
+    Ok(normalized)
+}
+
+fn decode_hex_hash(value: &str) -> Result<[u8; 32], ImportError> {
+    if value.len() != 64 || !value.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return Err(ImportError::InvalidQrPayload(
+            "chunk hash must be a 64-character hex string".to_string(),
+        ));
+    }
+
+    let mut hash = [0_u8; 32];
+    for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+        let high = (chunk[0] as char)
+            .to_digit(16)
+            .ok_or_else(|| ImportError::InvalidQrPayload("invalid hash digit".to_string()))?;
+        let low = (chunk[1] as char)
+            .to_digit(16)
+            .ok_or_else(|| ImportError::InvalidQrPayload("invalid hash digit".to_string()))?;
+        hash[index] = ((high << 4) | low) as u8;
+    }
+    Ok(hash)
 }
 
 pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>, ImportError> {
@@ -335,7 +410,17 @@ mod tests {
     fn collector_rejects_hash_mismatch() {
         let mut collector = QrChunkCollector::new();
         let mut chunks = create_chunks(b"hello world").unwrap();
-        chunks[0].h = "0".repeat(64);
+        chunks[0].h = [0_u8; 32];
+
+        let error = collector.add_chunk(chunks.remove(0)).unwrap_err();
+        assert!(matches!(error, ImportError::InvalidQrPayload(_)));
+    }
+
+    #[test]
+    fn collector_rejects_reassembled_hash_mismatch() {
+        let mut collector = QrChunkCollector::new();
+        let mut chunks = create_chunks(b"hello world").unwrap();
+        chunks[0].h = [9_u8; 32];
 
         collector.add_chunk(chunks.remove(0)).unwrap();
         let error = collector.reassemble_bytes().unwrap_err();
@@ -356,8 +441,8 @@ mod tests {
             v: QR_FORMAT_VERSION,
             i: 0,
             t: 2,
-            h: "a".repeat(64),
-            d: BASE64_STANDARD.encode(b"hello"),
+            h: [10_u8; 32],
+            d: b"hello".to_vec(),
         };
         let second = QrChunk {
             t: 3,
@@ -372,18 +457,8 @@ mod tests {
 
     #[test]
     fn collector_rejects_invalid_base64_data() {
-        let mut collector = QrChunkCollector::new();
-        collector
-            .add_chunk(QrChunk {
-                v: QR_FORMAT_VERSION,
-                i: 0,
-                t: 1,
-                h: hash_bytes(b"ignored"),
-                d: "%%%not-base64%%%".to_string(),
-            })
-            .unwrap();
-
-        let error = collector.reassemble_bytes().unwrap_err();
+        let error = parse_chunk_payload(r#"{"v":1,"i":0,"t":1,"h":"001122","d":"%%%not-base64%%%"}"#)
+            .unwrap_err();
         assert!(matches!(error, ImportError::InvalidQrPayload(_)));
     }
 
@@ -397,7 +472,7 @@ mod tests {
                 i: 0,
                 t: 1,
                 h: hash_bytes(raw_bytes),
-                d: BASE64_STANDARD.encode(raw_bytes),
+                d: raw_bytes.to_vec(),
             })
             .unwrap();
 
@@ -415,7 +490,7 @@ mod tests {
                 i: 0,
                 t: 1,
                 h: hash_bytes(&invalid_messagepack),
-                d: BASE64_STANDARD.encode(invalid_messagepack),
+                d: invalid_messagepack,
             })
             .unwrap();
 
@@ -429,5 +504,39 @@ mod tests {
         let compressed = compress_data(&data).unwrap();
         let decompressed = decompress_data(&compressed).unwrap();
         assert_eq!(decompressed, data);
+    }
+
+    #[test]
+    fn parses_binary_chunk_payload() {
+        let chunk = create_chunks(b"hello binary").unwrap().remove(0);
+        let payload = crate::export::qr_export::serialize_chunk_payload(&chunk).unwrap();
+        let parsed = parse_chunk_payload(&payload).unwrap();
+        assert_eq!(parsed, chunk);
+        assert_eq!(parsed.v, QR_FORMAT_VERSION);
+    }
+
+    #[test]
+    fn parses_legacy_json_chunk_payload() {
+        let payload = r#"{"v":1,"i":0,"t":1,"h":"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824","d":"aGVsbG8="}"#;
+        let parsed = parse_chunk_payload(payload).unwrap();
+        assert_eq!(parsed.v, 1);
+        assert_eq!(parsed.i, 0);
+        assert_eq!(parsed.t, 1);
+        assert_eq!(parsed.d, b"hello");
+    }
+
+    #[test]
+    fn collector_rejects_mixed_qr_versions() {
+        let mut collector = QrChunkCollector::new();
+        let binary = create_chunks(b"hello").unwrap().remove(0);
+        collector.add_chunk(binary).unwrap();
+
+        let legacy = parse_chunk_payload(
+            r#"{"v":1,"i":0,"t":1,"h":"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824","d":"aGVsbG8="}"#,
+        )
+        .unwrap();
+
+        let error = collector.add_chunk(legacy).unwrap_err();
+        assert!(matches!(error, ImportError::InconsistentChunks(_)));
     }
 }

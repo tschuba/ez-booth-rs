@@ -3,6 +3,7 @@ mod error;
 mod export_service;
 mod import_service;
 mod import_validator;
+mod qr_binary_format;
 mod qr_export;
 mod qr_import;
 
@@ -15,6 +16,10 @@ pub use error::{ImportError, SkippedRecord, ValidationFailure};
 pub use export_service::{ExportService, SerializedBackup};
 pub use import_service::{ConflictStrategy, ImportService, ImportSummary};
 pub use import_validator::ImportValidator;
+pub use qr_binary_format::{
+    bytes_to_latin1_string, detect_payload_format, latin1_string_to_bytes, BinaryQrChunk,
+    QrPayloadFormat, QR_BINARY_FORMAT_VERSION, QR_BINARY_MAGIC,
+};
 pub use qr_export::{
     create_chunks, estimate_qr_count, hash_bytes, render_qr_svg, serialize_and_compress_backup,
     serialize_chunk_payload, ExportScope, QrExport, QrExportService, RenderedQrChunk, MAX_QR_CODES,

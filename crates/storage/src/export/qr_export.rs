@@ -2,8 +2,6 @@ use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use domain::{
     Booth, BoothId, BoothRepository, CheckoutKeyboardConfig, FeeConfig, ItemId, Purchase,
@@ -21,12 +19,13 @@ use sha2::{Digest, Sha256};
 use super::backup_format::BoothBackupData;
 use super::error::ExportError;
 use super::export_service::ExportService;
+use super::qr_binary_format::{bytes_to_latin1_string, BinaryQrChunk, QR_BINARY_FORMAT_VERSION};
 use super::qr_import::QrChunk;
 
-pub const QR_CHUNK_SIZE: usize = 1_800;
+pub const QR_CHUNK_SIZE: usize = 2_850;
 pub const QR_WARNING_THRESHOLD: usize = 5;
 pub const MAX_QR_CODES: usize = 10;
-pub const QR_FORMAT_VERSION: u32 = 1;
+pub const QR_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct QrBoothBackupData {
@@ -182,8 +181,8 @@ impl QrExportService {
             .iter()
             .cloned()
             .map(|chunk| {
-                let payload = serialize_chunk_payload(&chunk)?;
-                let svg = render_qr_svg(&payload)?;
+                let payload = serialize_chunk_bytes(&chunk)?;
+                let svg = render_qr_svg(payload)?;
                 Ok(RenderedQrChunk { chunk, svg })
             })
             .collect()
@@ -227,8 +226,8 @@ pub fn create_chunks(data: &[u8]) -> Result<Vec<QrChunk>, ExportError> {
             v: QR_FORMAT_VERSION,
             i: index,
             t: total_chunks,
-            h: hash.clone(),
-            d: BASE64_STANDARD.encode(chunk_data),
+            h: hash,
+            d: chunk_data.to_vec(),
         });
     }
 
@@ -236,11 +235,11 @@ pub fn create_chunks(data: &[u8]) -> Result<Vec<QrChunk>, ExportError> {
 }
 
 pub fn serialize_chunk_payload(chunk: &QrChunk) -> Result<String, ExportError> {
-    serde_json::to_string(chunk).map_err(|err| ExportError::Serialization(err.to_string()))
+    Ok(bytes_to_latin1_string(&serialize_chunk_bytes(chunk)?))
 }
 
-pub fn render_qr_svg(payload: &str) -> Result<String, ExportError> {
-    let code = QrCode::with_error_correction_level(payload.as_bytes(), EcLevel::M)
+pub fn render_qr_svg<D: AsRef<[u8]>>(payload: D) -> Result<String, ExportError> {
+    let code = QrCode::with_error_correction_level(payload.as_ref(), EcLevel::M)
         .map_err(|err| ExportError::QrGeneration(err.to_string()))?;
 
     Ok(code
@@ -249,6 +248,22 @@ pub fn render_qr_svg(payload: &str) -> Result<String, ExportError> {
         .dark_color(svg::Color("#111111"))
         .light_color(svg::Color("#ffffff"))
         .build())
+}
+
+fn serialize_chunk_bytes(chunk: &QrChunk) -> Result<Vec<u8>, ExportError> {
+    let index = u16::try_from(chunk.i)
+        .map_err(|_| ExportError::Serialization("chunk index exceeds binary QR limit".to_string()))?;
+    let total = u16::try_from(chunk.t)
+        .map_err(|_| ExportError::Serialization("chunk total exceeds binary QR limit".to_string()))?;
+
+    BinaryQrChunk {
+        version: QR_BINARY_FORMAT_VERSION,
+        index,
+        total,
+        hash: chunk.h,
+        data: chunk.d.clone(),
+    }
+    .encode_to_bytes()
 }
 
 pub fn estimate_qr_count(vendor_count: usize, purchase_count: usize, scope: ExportScope) -> usize {
@@ -264,10 +279,10 @@ pub fn estimate_qr_count(vendor_count: usize, purchase_count: usize, scope: Expo
     compressed_estimate.max(1).div_ceil(QR_CHUNK_SIZE).max(1)
 }
 
-pub fn hash_bytes(data: &[u8]) -> String {
+pub fn hash_bytes(data: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    hasher.finalize().into()
 }
 
 pub(crate) fn parse_decimal(value: &str, field: &str) -> Result<Decimal, String> {
@@ -523,8 +538,8 @@ mod tests {
     #[test]
     fn renders_svg_qr_code() {
         let chunk = create_chunks(b"hello qr").unwrap().remove(0);
-        let payload = serialize_chunk_payload(&chunk).unwrap();
-        let svg = render_qr_svg(&payload).unwrap();
+        let payload = serialize_chunk_bytes(&chunk).unwrap();
+        let svg = render_qr_svg(payload).unwrap();
 
         assert!(svg.contains("<svg"));
         assert!(svg.contains("path"));
@@ -553,8 +568,7 @@ mod tests {
         let chunk = create_chunks(b"hello qr payload").unwrap().remove(0);
         let payload = serialize_chunk_payload(&chunk).unwrap();
 
-        assert!(payload.contains("\"d\":"));
-        assert!(payload.contains(&chunk.d));
+        assert!(!payload.is_empty());
     }
 
     #[test]
