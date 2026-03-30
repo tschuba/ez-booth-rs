@@ -176,6 +176,7 @@ See the `docs/redesign/` folder for detailed architecture and implementation doc
 - `05_STATUS.md` - Current implementation and cleanup-track status
 - `PHASE1_M2_PREPARATION.md` - Milestone 2 safety/recovery planning reference
 - `PHASE2_PROPOSAL.md` - Proposed next phase for cleanup, maintainability, and operator polish
+- **[Device-to-Device Transfer ADR](docs/ADR_DEVICE_TO_DEVICE_TRANSFER.md)** - Architecture decision record for offline single-booth device-to-device transfer options
 
 ## Contributing
 
