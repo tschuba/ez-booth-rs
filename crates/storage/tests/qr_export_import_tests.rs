@@ -361,6 +361,49 @@ async fn qr_import_collects_multichunk_payload_out_of_order_with_duplicates() {
 }
 
 #[wasm_bindgen_test]
+async fn qr_export_renders_realistic_fixture_without_data_too_long_errors() {
+    let (booth_repo, vendor_repo, purchase_repo, export_service, _) = build_services().await;
+    let booth = create_test_booth("Realistic QR Booth");
+    let vendors = (0..20)
+        .map(|index| create_test_vendor(&booth, index + 1))
+        .collect::<Vec<_>>();
+    let purchases = (0..18)
+        .map(|index| {
+            let vendor = &vendors[index % vendors.len()];
+            let mut purchase = create_test_purchase(&booth, vendor, (index % 5) as i64, index as i64 + 10);
+            purchase.note = Some(format!(
+                "Realistic purchase {index:02} with note {}",
+                "y".repeat(72)
+            ));
+            purchase
+        })
+        .collect::<Vec<_>>();
+
+    seed_booth_data(
+        &booth_repo,
+        &vendor_repo,
+        &purchase_repo,
+        &booth,
+        &vendors,
+        &purchases,
+    )
+    .await;
+
+    let export = export_service
+        .export_booth_as_qr(&booth.id, ExportScope::Full)
+        .await
+        .unwrap();
+
+    assert!(!export.chunks.is_empty());
+    assert!(export.chunks.len() <= MAX_QR_CODES);
+
+    let rendered = export_service.render_svg_chunks(&export.chunks).unwrap();
+
+    assert_eq!(rendered.len(), export.chunks.len());
+    assert!(rendered.iter().all(|chunk| chunk.svg.contains("<svg")));
+}
+
+#[wasm_bindgen_test]
 async fn qr_export_accepts_boundary_size_before_exceeding_max_qr_codes() {
     let (booth, vendors, purchases) = build_boundary_fixture(4_096);
     let mut low = 1_usize;

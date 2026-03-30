@@ -21,9 +21,10 @@ pub use qr_binary_format::{
     QrPayloadFormat, QR_BINARY_FORMAT_VERSION, QR_BINARY_MAGIC,
 };
 pub use qr_export::{
-    create_chunks, estimate_qr_count, hash_bytes, render_qr_svg, serialize_and_compress_backup,
-    serialize_chunk_payload, ExportScope, QrExport, QrExportService, RenderedQrChunk, MAX_QR_CODES,
-    QR_CHUNK_SIZE, QR_FORMAT_VERSION, QR_WARNING_THRESHOLD,
+    create_chunks, estimate_qr_count, estimate_qr_payload_bytes, hash_bytes, render_qr_svg,
+    serialize_and_compress_backup, serialize_chunk_payload, ExportScope, QrExport,
+    QrExportService, RenderedQrChunk, MAX_QR_CODES, QR_CHUNK_SIZE, QR_FORMAT_VERSION,
+    QR_WARNING_THRESHOLD,
 };
 pub use qr_import::{
     decompress_data, deserialize_backup, parse_chunk_payload, CollectorStatus, QrChunk,

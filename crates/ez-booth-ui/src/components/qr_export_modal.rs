@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use domain::BoothId;
-use ez_booth_storage::export::{BoothBackupData, ExportScope, RenderedQrChunk, MAX_QR_CODES};
+use ez_booth_storage::export::{
+    estimate_qr_payload_bytes, BoothBackupData, ExportScope, RenderedQrChunk, MAX_QR_CODES,
+};
 use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 
@@ -13,10 +15,6 @@ use crate::t;
 const QR_WARNING_THRESHOLD_UI: usize = 5;
 const QR_ROTATION_INTERVAL_MS: i32 = 2_000;
 const QR_ROTATION_TICK_MS: i32 = 100;
-const ESTIMATED_QR_BASE_BINARY_BYTES: usize = 400;
-const ESTIMATED_QR_VENDOR_BINARY_BYTES: usize = 80;
-const ESTIMATED_QR_PURCHASE_BINARY_BYTES: usize = 200;
-const ESTIMATED_QR_COMPRESSION_PERCENT: usize = 30;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum QrExportStage {
@@ -171,19 +169,15 @@ pub fn QrExportModal(
     });
     let exceeds_limit = Signal::derive(move || estimated_codes.get() > MAX_QR_CODES);
     let size_label = Signal::derive(move || {
-        // This mirrors the current QR transfer payload shape closely enough for UI guidance:
-        // booth metadata plus per-vendor/per-purchase MessagePack records, then an approximate
-        // 70% gzip reduction. Keep these values aligned with the storage-layer QR format.
-        let binary_size = ESTIMATED_QR_BASE_BINARY_BYTES
-            + vendor_count.get() * ESTIMATED_QR_VENDOR_BINARY_BYTES
-            + filtered_purchase_count.get() * ESTIMATED_QR_PURCHASE_BINARY_BYTES;
-        let bytes = binary_size
-            .saturating_mul(ESTIMATED_QR_COMPRESSION_PERCENT)
-            .div_ceil(100);
+        let bytes = estimate_qr_payload_bytes(
+            vendor_count.get(),
+            filtered_purchase_count.get(),
+            scope.get(),
+        );
         if bytes >= 1_000 {
-            format!("~{:.1} KB", bytes as f64 / 1_000.0)
+            format!("~{:.1} KB across QR payloads", bytes as f64 / 1_000.0)
         } else {
-            format!("~{} B", bytes)
+            format!("~{} B across QR payloads", bytes)
         }
     });
     let progress_label = Signal::derive(move || {

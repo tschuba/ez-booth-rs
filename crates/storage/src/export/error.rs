@@ -37,6 +37,12 @@ pub enum ExportError {
     #[error("Failed to generate QR code: {0}")]
     QrGeneration(String),
 
+    #[error("QR payload is {payload_bytes} bytes, exceeding maximum of {maximum}")]
+    QrPayloadTooLarge {
+        payload_bytes: usize,
+        maximum: usize,
+    },
+
     #[error("QR export requires {required} codes, exceeding maximum of {maximum}")]
     TooManyQrCodes { required: usize, maximum: usize },
 }

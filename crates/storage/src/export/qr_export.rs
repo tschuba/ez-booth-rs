@@ -22,7 +22,12 @@ use super::export_service::ExportService;
 use super::qr_binary_format::{bytes_to_latin1_string, BinaryQrChunk, QR_BINARY_FORMAT_VERSION};
 use super::qr_import::QrChunk;
 
-pub const QR_CHUNK_SIZE: usize = 2_850;
+const QR_BYTE_CAPACITY: usize = 2_331;
+const QR_BINARY_PACKET_OVERHEAD: usize = 43;
+const QR_PAYLOAD_SAFETY_MARGIN: usize = 96;
+
+pub const QR_CHUNK_SIZE: usize =
+    QR_BYTE_CAPACITY - QR_BINARY_PACKET_OVERHEAD - QR_PAYLOAD_SAFETY_MARGIN;
 pub const QR_WARNING_THRESHOLD: usize = 5;
 pub const MAX_QR_CODES: usize = 10;
 pub const QR_FORMAT_VERSION: u32 = 2;
@@ -207,7 +212,8 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>, ExportError> {
 }
 
 pub fn create_chunks(data: &[u8]) -> Result<Vec<QrChunk>, ExportError> {
-    let total_chunks = data.len().max(1).div_ceil(QR_CHUNK_SIZE);
+    let total_bytes = data.len().max(1);
+    let total_chunks = total_bytes.div_ceil(QR_CHUNK_SIZE);
     if total_chunks > MAX_QR_CODES {
         return Err(ExportError::TooManyQrCodes {
             required: total_chunks,
@@ -215,12 +221,14 @@ pub fn create_chunks(data: &[u8]) -> Result<Vec<QrChunk>, ExportError> {
         });
     }
 
+    let chunk_size = total_bytes.div_ceil(total_chunks);
+
     let hash = hash_bytes(data);
     let mut chunks = Vec::with_capacity(total_chunks);
 
     for index in 0..total_chunks {
-        let start = index * QR_CHUNK_SIZE;
-        let end = (start + QR_CHUNK_SIZE).min(data.len());
+        let start = index * chunk_size;
+        let end = (start + chunk_size).min(data.len());
         let chunk_data = &data[start..end];
         chunks.push(QrChunk {
             v: QR_FORMAT_VERSION,
@@ -256,27 +264,40 @@ fn serialize_chunk_bytes(chunk: &QrChunk) -> Result<Vec<u8>, ExportError> {
     let total = u16::try_from(chunk.t)
         .map_err(|_| ExportError::Serialization("chunk total exceeds binary QR limit".to_string()))?;
 
-    BinaryQrChunk {
+    let bytes = BinaryQrChunk {
         version: QR_BINARY_FORMAT_VERSION,
         index,
         total,
         hash: chunk.h,
         data: chunk.d.clone(),
     }
-    .encode_to_bytes()
+    .encode_to_bytes()?;
+
+    if bytes.len() > QR_BYTE_CAPACITY {
+        return Err(ExportError::QrPayloadTooLarge {
+            payload_bytes: bytes.len(),
+            maximum: QR_BYTE_CAPACITY,
+        });
+    }
+
+    Ok(bytes)
 }
 
 pub fn estimate_qr_count(vendor_count: usize, purchase_count: usize, scope: ExportScope) -> usize {
-    let filtered_purchase_count = match scope {
-        ExportScope::Today => purchase_count.saturating_mul(3).div_ceil(100),
-        ExportScope::Week => purchase_count.saturating_mul(21).div_ceil(100),
-        ExportScope::Month => purchase_count.saturating_mul(9).div_ceil(10),
-        ExportScope::Full => purchase_count,
-    };
+    estimate_qr_compressed_bytes(vendor_count, purchase_count, scope)
+        .div_ceil(QR_CHUNK_SIZE)
+        .max(1)
+}
 
-    let total_binary_size = 400 + (vendor_count * 80) + (filtered_purchase_count * 200);
-    let compressed_estimate = total_binary_size.saturating_mul(30).div_ceil(100);
-    compressed_estimate.max(1).div_ceil(QR_CHUNK_SIZE).max(1)
+pub fn estimate_qr_payload_bytes(
+    vendor_count: usize,
+    purchase_count: usize,
+    scope: ExportScope,
+) -> usize {
+    let compressed_bytes = estimate_qr_compressed_bytes(vendor_count, purchase_count, scope);
+    let chunk_count = compressed_bytes.div_ceil(QR_CHUNK_SIZE).max(1);
+
+    compressed_bytes + (chunk_count * QR_BINARY_PACKET_OVERHEAD)
 }
 
 pub fn hash_bytes(data: &[u8]) -> [u8; 32] {
@@ -291,6 +312,29 @@ pub(crate) fn parse_decimal(value: &str, field: &str) -> Result<Decimal, String>
 
 fn decimal_to_string(decimal: Decimal) -> String {
     decimal.normalize().to_string()
+}
+
+fn estimate_qr_compressed_bytes(
+    vendor_count: usize,
+    purchase_count: usize,
+    scope: ExportScope,
+) -> usize {
+    let filtered_purchase_count = estimate_filtered_purchase_count(purchase_count, scope);
+    let total_binary_size = 400 + (vendor_count * 80) + (filtered_purchase_count * 200);
+
+    total_binary_size
+        .saturating_mul(30)
+        .div_ceil(100)
+        .max(1)
+}
+
+fn estimate_filtered_purchase_count(purchase_count: usize, scope: ExportScope) -> usize {
+    match scope {
+        ExportScope::Today => purchase_count.saturating_mul(3).div_ceil(100),
+        ExportScope::Week => purchase_count.saturating_mul(21).div_ceil(100),
+        ExportScope::Month => purchase_count.saturating_mul(9).div_ceil(10),
+        ExportScope::Full => purchase_count,
+    }
 }
 
 impl QrBoothBackupData {
@@ -519,6 +563,7 @@ mod tests {
         assert!(chunks.iter().all(|chunk| chunk.t == 3));
         assert!(chunks.iter().all(|chunk| chunk.v == QR_FORMAT_VERSION));
         assert!(chunks.iter().all(|chunk| chunk.h == chunks[0].h));
+        assert!(chunks.iter().all(|chunk| chunk.d.len() <= QR_CHUNK_SIZE));
     }
 
     #[test]
@@ -546,6 +591,19 @@ mod tests {
     }
 
     #[test]
+    fn serializes_chunk_bytes_within_qr_capacity() {
+        let chunk = create_chunks(&vec![9_u8; QR_CHUNK_SIZE * 3 + 17])
+            .unwrap()
+            .into_iter()
+            .max_by_key(|chunk| chunk.d.len())
+            .unwrap();
+
+        let payload = serialize_chunk_bytes(&chunk).unwrap();
+
+        assert!(payload.len() <= QR_BYTE_CAPACITY);
+    }
+
+    #[test]
     fn estimates_qr_count_with_scope() {
         assert_eq!(estimate_qr_count(20, 100, ExportScope::Today), 1);
         assert!(estimate_qr_count(100, 2_000, ExportScope::Full) > MAX_QR_CODES);
@@ -557,6 +615,18 @@ mod tests {
         let week = estimate_qr_count(80, 1_200, ExportScope::Week);
         let month = estimate_qr_count(80, 1_200, ExportScope::Month);
         let full = estimate_qr_count(80, 1_200, ExportScope::Full);
+
+        assert!(today <= week);
+        assert!(week <= month);
+        assert!(month <= full);
+    }
+
+    #[test]
+    fn estimates_qr_payload_bytes_monotonically_by_scope() {
+        let today = estimate_qr_payload_bytes(80, 1_200, ExportScope::Today);
+        let week = estimate_qr_payload_bytes(80, 1_200, ExportScope::Week);
+        let month = estimate_qr_payload_bytes(80, 1_200, ExportScope::Month);
+        let full = estimate_qr_payload_bytes(80, 1_200, ExportScope::Full);
 
         assert!(today <= week);
         assert!(week <= month);
