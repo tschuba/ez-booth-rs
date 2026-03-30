@@ -16,9 +16,7 @@ The transfer scope for the first implementation is a single booth including boot
 
 ### Background
 
-QR code export and import functionality already exists, but it is limited by data density. In practice, QR transfer is not effective for booth data once the payload grows beyond very small datasets.
-
-Real-world booth data can range from tens of kilobytes to multiple megabytes depending on the number of vendors, purchases, and retained history. This makes QR codes insufficient for the intended device-to-device workflow.
+Real-world booth data can range from tens of kilobytes to multiple megabytes depending on the number of vendors, purchases, and retained history. A practical device-to-device workflow must therefore handle more than just tiny payloads and remain reliable for substantially larger booth transfers.
 
 In practice, the most common expected transfer is Windows-to-Windows. Mixed-device transfer should remain possible, but the solution does not need to force a single mechanism across all device combinations if a multi-option approach yields better reliability.
 
@@ -41,14 +39,13 @@ In practice, the most common expected transfer is Windows-to-Windows. Mixed-devi
 - export and import services already exist in `crates/storage/src/export/`
 - MessagePack serialization and gzip compression are already used in the codebase
 - backup validation and import conflict handling already exist
-- QR transfer exists but is not sufficient for the main use case here
 
 ## Decision Drivers
 
 - true device-to-device operation without internet or WiFi router
 - strong support for Windows and macOS first
 - workable support for iOS and Android
-- higher data density than QR transfer
+- high data density suitable for full booth payloads
 - low operational risk and predictable user experience
 - reasonable implementation complexity using existing services
 - maximum practical compatibility across browser and device combinations
@@ -174,7 +171,7 @@ Examples include:
 - leverages mature OS-level transfer capabilities instead of fragile browser-only peer protocols
 - fits iOS much better than Web Bluetooth
 - reuses the existing export and import architecture
-- supports large payloads far beyond QR density limits
+- supports large payloads including multi-megabyte booth datasets
 - keeps the product aligned with a web-first architecture
 - gives a practical desktop fallback through ordinary file export and import
 
@@ -325,7 +322,7 @@ Rationale:
 
 - practical path forward without changing the app into a native product
 - strong reuse of current export and import services
-- significantly better payload density than QR transfer
+- supports full booth data payloads from small datasets to multi-megabyte archives
 - clear fallback story for desktop platforms
 - lower implementation risk than browser-only peer protocols
 - room to add a Windows-optimized path without making it mandatory for every platform
