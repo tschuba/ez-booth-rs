@@ -364,7 +364,7 @@ pub fn ImportButton(
                                 disabled=is_reading.get() || is_importing.get()
                                 title=t!("backup.import")()
                             >
-                                {if is_reading.get() || is_importing.get() {
+                                {move || if is_reading.get() || is_importing.get() {
                                     t!("backup.import_in_progress")()
                                 } else {
                                     t!("backup.import")()

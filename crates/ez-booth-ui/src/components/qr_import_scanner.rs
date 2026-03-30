@@ -476,7 +476,11 @@ pub fn QrImportScanner(
                         <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
                             {t!("common.close")}
                         </Button>
-                        <Button variant=ButtonVariant::Primary on_click=Box::new(preview_import.clone())>
+                        <Button
+                            variant=ButtonVariant::Primary
+                            class="js-qr-preview-import".to_string()
+                            on_click=Box::new(preview_import.clone())
+                        >
                             {t!("backup.import_qr_preview")}
                         </Button>
                     </div>
@@ -543,66 +547,71 @@ pub fn QrImportScanner(
             action_bar=action_bar
         >
             <div class="space-y-5 text-gray-700">
-                <Show when=move || stage.get() == ScannerStage::RequestingCamera>
-                    <div class="rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center shadow-sm">
-                        <div class="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-sky-600"></div>
-                        <p class="mt-4 text-sm text-slate-700">{t!("backup.import_qr_camera_request")}</p>
-                    </div>
-                </Show>
-
-                <Show when=move || stage.get() == ScannerStage::Scanning>
-                    <div class="space-y-4">
-                        <div class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950 shadow-xl">
-                            <div class="relative aspect-[4/3] w-full overflow-hidden">
-                                <video
-                                    node_ref=video_ref
-                                    class="h-full w-full object-cover"
-                                    autoplay=true
-                                    playsinline=true
-                                    muted=true
-                                ></video>
-                                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_9rem,rgba(2,6,23,0.58)_9.15rem)]"></div>
-                                <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                    <div class="h-48 w-48 rounded-[2rem] border-2 border-dashed border-white/85 shadow-[0_0_0_9999px_rgba(15,23,42,0.14)]"></div>
+                <div class=move || {
+                    if matches!(stage.get(), ScannerStage::RequestingCamera | ScannerStage::Scanning) {
+                        "space-y-4"
+                    } else {
+                        "hidden"
+                    }
+                }>
+                    <div class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950 shadow-xl">
+                        <div class="relative aspect-[4/3] w-full overflow-hidden">
+                            <video
+                                node_ref=video_ref
+                                class="h-full w-full object-cover"
+                                autoplay=true
+                                playsinline=true
+                                muted=true
+                            ></video>
+                            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,transparent_9rem,rgba(2,6,23,0.58)_9.15rem)]"></div>
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                <div class="h-48 w-48 rounded-[2rem] border-2 border-dashed border-white/85 shadow-[0_0_0_9999px_rgba(15,23,42,0.14)]"></div>
+                            </div>
+                            <Show when=move || stage.get() == ScannerStage::RequestingCamera>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70 text-white backdrop-blur-[1px]">
+                                    <div class="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white"></div>
+                                    <p class="mt-4 text-sm font-medium">{t!("backup.import_qr_camera_request")}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50 px-5 py-4 shadow-sm">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t!("backup.import_qr_open")}</p>
-                            <p class="mt-2 text-lg font-semibold text-slate-900">{move || progress_label.get()}</p>
-                            <p class="mt-1 text-sm text-slate-600">
-                                {move || if progress.get().0 == 0 {
-                                    t!("backup.import_qr_ready")()
-                                } else {
-                                    t!("backup.import_qr_scan_next")()
-                                }}
-                            </p>
-                            <div class="mt-4 flex gap-2">
-                                <For
-                                    each=move || dot_indexes.get()
-                                    key=|index| *index
-                                    children=move |index| {
-                                        view! {
-                                            <span class=move || {
-                                                let (received, total) = progress.get();
-                                                let active = index < received;
-                                                let is_last_placeholder = total.is_none() && index == dot_count.get() - 1;
-                                                if active {
-                                                    "h-2.5 w-8 rounded-full bg-emerald-500 transition-all"
-                                                } else if is_last_placeholder {
-                                                    "h-2.5 w-8 rounded-full border border-dashed border-slate-300 bg-transparent transition-all"
-                                                } else {
-                                                    "h-2.5 w-2.5 rounded-full bg-slate-300 transition-all"
-                                                }
-                                            }></span>
-                                        }
-                                    }
-                                />
-                            </div>
+                            </Show>
                         </div>
                     </div>
-                </Show>
+
+                    <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50 px-5 py-4 shadow-sm">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t!("backup.import_qr_open")}</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-900">{move || progress_label.get()}</p>
+                        <p class="mt-1 text-sm text-slate-600">
+                            {move || if stage.get() == ScannerStage::RequestingCamera {
+                                t!("backup.import_qr_camera_request")()
+                            } else if progress.get().0 == 0 {
+                                t!("backup.import_qr_ready")()
+                            } else {
+                                t!("backup.import_qr_scan_next")()
+                            }}
+                        </p>
+                        <div class="mt-4 flex gap-2">
+                            <For
+                                each=move || dot_indexes.get()
+                                key=|index| *index
+                                children=move |index| {
+                                    view! {
+                                        <span class=move || {
+                                            let (received, total) = progress.get();
+                                            let active = index < received;
+                                            let is_last_placeholder = total.is_none() && index == dot_count.get() - 1;
+                                            if active {
+                                                "h-2.5 w-8 rounded-full bg-emerald-500 transition-all"
+                                            } else if is_last_placeholder {
+                                                "h-2.5 w-8 rounded-full border border-dashed border-slate-300 bg-transparent transition-all"
+                                            } else {
+                                                "h-2.5 w-2.5 rounded-full bg-slate-300 transition-all"
+                                            }
+                                        }></span>
+                                    }
+                                }
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 <Show when=move || stage.get() == ScannerStage::Complete>
                     <div class="space-y-4">
