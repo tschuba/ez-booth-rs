@@ -555,6 +555,7 @@ dependencies = [
 name = "ez-booth-ui"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "domain",
  "ez-booth-storage",

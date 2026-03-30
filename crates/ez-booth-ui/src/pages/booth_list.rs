@@ -727,8 +727,7 @@ pub fn BoothListPage() -> impl IntoView {
                         on_close=move || set_show_create_modal.set(false)
                         title=Signal::derive(move || create_booth_title())
                         size=ModalSize::Large
-                        action_bar=
-                            view! {
+                        action_bar=Callback::new(move |_| view! {
                                 <div class="contents">
                                     <Button
                                         on_click=Box::new(move || {
@@ -747,7 +746,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     </Button>
                                 </div>
                             }
-                            .into_view()
+                            .into_view())
                     >
                         {move || {
                             if show_create_modal.get() {
@@ -774,8 +773,7 @@ pub fn BoothListPage() -> impl IntoView {
                         }
                         title=Signal::derive(move || edit_booth_title())
                         size=ModalSize::Large
-                        action_bar=
-                            view! {
+                        action_bar=Callback::new(move |_| view! {
                                 <div class="contents">
                                     <Button
                                         on_click=Box::new(move || {
@@ -795,7 +793,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     </Button>
                                 </div>
                             }
-                            .into_view()
+                            .into_view())
                     >
                         {move || editing_booth.get().map(|booth| {
                             let current_locale = locale.get();
@@ -818,8 +816,7 @@ pub fn BoothListPage() -> impl IntoView {
                         }
                         title=Signal::derive(move || t!("booth.copy_title")())
                         size=ModalSize::Medium
-                        action_bar=
-                            view! {
+                        action_bar=Callback::new(move |_| view! {
                                 <div class="contents">
                                     <Button
                                         on_click=Box::new(move || {
@@ -839,7 +836,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     </Button>
                                 </div>
                             }
-                            .into_view()
+                            .into_view())
                     >
                         {move || copying_booth.get().map(|booth| {
                             view! {
@@ -889,8 +886,7 @@ pub fn BoothListPage() -> impl IntoView {
                             }
                         })
                         size=ModalSize::Medium
-                        action_bar=
-                            view! {
+                        action_bar=Callback::new(move |_| view! {
                                 <div class="contents">
                                     <Show when=move || !is_checking_delete_requirements.get()>
                                         <Button
@@ -909,7 +905,7 @@ pub fn BoothListPage() -> impl IntoView {
                                     </Show>
                                 </div>
                             }
-                            .into_view()
+                            .into_view())
                     >
                         <Show
                             when=move || is_checking_delete_requirements.get()

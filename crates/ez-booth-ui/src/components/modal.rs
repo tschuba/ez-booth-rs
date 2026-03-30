@@ -51,7 +51,7 @@ pub fn Modal(
     close_on_overlay_click: bool,
     /// Optional actions rendered in a fixed footer
     #[prop(optional)]
-    action_bar: Option<View>,
+    action_bar: Option<Callback<(), View>>,
     /// Child content
     children: Children,
 ) -> impl IntoView {
@@ -186,7 +186,7 @@ pub fn Modal(
                         <Show when=move || action_bar_stored.get_value().is_some()>
                             <div class="border-t border-gray-200 bg-white p-4">
                                 <div class="flex justify-end gap-2">
-                                    {move || action_bar_stored.get_value()}
+                                    {move || action_bar_stored.get_value().map(|action_bar| action_bar.call(()))}
                                 </div>
                             </div>
                         </Show>
@@ -226,15 +226,9 @@ pub fn ConfirmModal(
     let on_close_for_confirm = on_close.clone();
     let on_close_for_cancel = on_close.clone();
     let on_close_for_modal = on_close.clone();
-
-    let on_confirm_click = move |_| {
-        on_confirm();
-        on_close_for_confirm();
-    };
-
-    let on_cancel_click = move |_| {
-        on_close_for_cancel();
-    };
+    let on_close_for_confirm = store_value(on_close_for_confirm);
+    let on_close_for_cancel = store_value(on_close_for_cancel);
+    let on_confirm = store_value(on_confirm);
 
     let confirm_button_class = if is_destructive {
         "px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -248,26 +242,28 @@ pub fn ConfirmModal(
             on_close=on_close_for_modal
             title=title
             size=ModalSize::Small
-            action_bar=
-                view! {
+            action_bar=Callback::new(move |_| view! {
                     <div class="contents">
                         <button
                             type="button"
                             class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                            on:click=on_cancel_click
+                            on:click=move |_| on_close_for_cancel.with_value(|on_close| on_close())
                         >
                             {move || cancel_text.get()}
                         </button>
                         <button
                             type="button"
                             class=confirm_button_class
-                            on:click=on_confirm_click
+                            on:click=move |_| {
+                                on_confirm.with_value(|on_confirm| on_confirm());
+                                on_close_for_confirm.with_value(|on_close| on_close());
+                            }
                         >
                             {move || confirm_text.get()}
                         </button>
                     </div>
                 }
-                .into_view()
+                .into_view())
         >
             <div class="space-y-4">
                 <p class="text-gray-700">{move || message.get()}</p>

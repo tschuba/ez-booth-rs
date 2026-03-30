@@ -398,8 +398,7 @@ pub fn ImportButton(
                 on_close=move || close_modal_action.with_value(|close| close())
                 title=Signal::derive(move || t!("backup.import_review_title")())
                 size=ModalSize::Large
-                action_bar=
-                    view! {
+                action_bar=Callback::new(move |_| view! {
                         <div class="contents">
                             <Button
                                 variant=ButtonVariant::Secondary
@@ -418,7 +417,7 @@ pub fn ImportButton(
                             </Show>
                         </div>
                     }
-                    .into_view()
+                    .into_view())
             >
                 <div class="space-y-4 text-gray-700">
                     <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">

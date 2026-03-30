@@ -945,8 +945,7 @@ pub fn VendorListPage() -> impl IntoView {
             on_close=cancel_vendor_delete.clone()
             title=Signal::derive(move || t!("vendor.delete.modal_title")())
             size=ModalSize::Medium
-            action_bar=
-                view! {
+            action_bar=Callback::new(move |_| view! {
                     <div class="contents">
                         <Button
                             variant=ButtonVariant::Secondary
@@ -962,7 +961,7 @@ pub fn VendorListPage() -> impl IntoView {
                         </Button>
                     </div>
                 }
-                .into_view()
+                .into_view())
         >
             <Show when=move || pending_vendor_deletion.get().is_some()>
                 <div class="space-y-4">

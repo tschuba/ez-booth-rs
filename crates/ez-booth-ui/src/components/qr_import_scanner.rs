@@ -468,18 +468,23 @@ pub fn QrImportScanner(
         }
     };
 
-    let action_bar = view! {
+    let close_scanner_for_actions = store_value(close_scanner_for_actions);
+    let preview_import = store_value(preview_import);
+    let use_file_import = store_value(use_file_import);
+    let start_scanner = store_value(start_scanner);
+
+    let action_bar = Callback::new(move |_| view! {
         {move || match stage.get() {
             ScannerStage::Complete => {
                 view! {
                     <div class="contents">
-                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(move || close_scanner_for_actions.with_value(|close_scanner| close_scanner()))>
                             {t!("common.close")}
                         </Button>
                         <Button
                             variant=ButtonVariant::Primary
                             class="js-qr-preview-import".to_string()
-                            on_click=Box::new(preview_import.clone())
+                            on_click=Box::new(move || preview_import.with_value(|preview_import| preview_import()))
                         >
                             {t!("backup.import_qr_preview")}
                         </Button>
@@ -490,17 +495,17 @@ pub fn QrImportScanner(
             ScannerStage::PermissionDenied | ScannerStage::Error => {
                 view! {
                     <div class="contents">
-                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(move || close_scanner_for_actions.with_value(|close_scanner| close_scanner()))>
                             {t!("common.close")}
                         </Button>
                         <Button
                             variant=ButtonVariant::Ghost
                             class="js-import-json-fallback".to_string()
-                            on_click=Box::new(use_file_import.clone())
+                            on_click=Box::new(move || use_file_import.with_value(|use_file_import| use_file_import()))
                         >
                             {t!("backup.import_qr_use_json")}
                         </Button>
-                        <Button variant=ButtonVariant::Primary on_click=Box::new(start_scanner.clone())>
+                        <Button variant=ButtonVariant::Primary on_click=Box::new(move || start_scanner.with_value(|start_scanner| start_scanner()))>
                             {t!("backup.import_qr_try_again")}
                         </Button>
                     </div>
@@ -510,13 +515,13 @@ pub fn QrImportScanner(
             ScannerStage::Unsupported => {
                 view! {
                     <div class="contents">
-                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(move || close_scanner_for_actions.with_value(|close_scanner| close_scanner()))>
                             {t!("common.close")}
                         </Button>
                         <Button
                             variant=ButtonVariant::Primary
                             class="js-import-json-fallback".to_string()
-                            on_click=Box::new(use_file_import.clone())
+                            on_click=Box::new(move || use_file_import.with_value(|use_file_import| use_file_import()))
                         >
                             {t!("backup.import_qr_use_json")}
                         </Button>
@@ -527,7 +532,7 @@ pub fn QrImportScanner(
             ScannerStage::RequestingCamera | ScannerStage::Scanning => {
                 view! {
                     <div class="contents">
-                        <Button variant=ButtonVariant::Secondary on_click=Box::new(close_scanner_for_actions.clone())>
+                        <Button variant=ButtonVariant::Secondary on_click=Box::new(move || close_scanner_for_actions.with_value(|close_scanner| close_scanner()))>
                             {t!("backup.import_qr_cancel")}
                         </Button>
                     </div>
@@ -536,7 +541,7 @@ pub fn QrImportScanner(
             }
         }}
     }
-    .into_view();
+    .into_view());
 
     view! {
         <Modal

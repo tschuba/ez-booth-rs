@@ -2619,8 +2619,7 @@ pub fn CheckoutPage() -> impl IntoView {
             on_close=cancel_delete_purchase.clone()
             title=Signal::derive(move || t!("checkout.delete_modal.title")())
             size=ModalSize::Medium
-            action_bar=
-                view! {
+            action_bar=Callback::new(move |_| view! {
                     <div class="contents">
                         <Button
                             variant=ButtonVariant::Secondary
@@ -2637,7 +2636,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         </Button>
                     </div>
                 }
-                .into_view()
+                .into_view())
         >
             <Show when=move || pending_deletion.get().purchase_id.is_some()>
                 <div class="space-y-4">

@@ -281,55 +281,11 @@ pub fn QrExportModal(
         set_countdown_ms.set(QR_ROTATION_INTERVAL_MS);
     };
 
-    let action_bar_view = move || {
-        match stage.get() {
-            QrExportStage::Configure => view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(on_close.clone())>
-                        {t!("common.close")}
-                    </Button>
-                    <Button
-                        on_click=Box::new(request_generate)
-                        disabled=is_loading.get() || is_generating.get() || backup.get().is_none() || exceeds_limit.get()
-                    >
-                        {move || if is_generating.get() { t!("backup.qr_generating")() } else { t!("backup.qr_generate")() }}
-                    </Button>
-                </div>
-            }
-            .into_view(),
-            QrExportStage::ConfirmLarge => view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(move || set_stage.set(QrExportStage::Configure))>
-                        {t!("common.back")}
-                    </Button>
-                    <Button
-                        variant=ButtonVariant::Secondary
-                        on_click=Box::new(move || {
-                            on_close_action.clone()();
-                            on_use_json_action.clone()();
-                        })
-                    >
-                        {t!("backup.qr_use_json")}
-                    </Button>
-                    <Button on_click=Box::new(generate_qr) disabled=is_generating.get()>
-                        {move || if is_generating.get() { t!("backup.qr_generating")() } else { t!("backup.qr_continue")() }}
-                    </Button>
-                </div>
-            }
-            .into_view(),
-            QrExportStage::Display => view! {
-                <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(move || set_stage.set(QrExportStage::Configure))>
-                        {t!("backup.qr_reconfigure")}
-                    </Button>
-                    <Button variant=ButtonVariant::Primary on_click=Box::new(on_close.clone())>
-                        {t!("common.close")}
-                    </Button>
-                </div>
-            }
-            .into_view(),
-        }
-    };
+    let on_close_action = store_value(on_close_action);
+    let on_use_json_action = store_value(on_use_json_action);
+    let on_close_button = store_value(on_close.clone());
+    let request_generate = store_value(request_generate);
+    let generate_qr = store_value(generate_qr);
 
     view! {
         <Modal
@@ -337,7 +293,56 @@ pub fn QrExportModal(
             on_close=move || on_close_footer.clone()()
             title=Signal::derive(move || t!("backup.qr_export_title")())
             size=ModalSize::XLarge
-            action_bar=action_bar_view()
+            action_bar=Callback::new(move |_| view! {
+                {move || match stage.get() {
+                    QrExportStage::Configure => view! {
+                        <div class="contents">
+                            <Button variant=ButtonVariant::Secondary on_click=Box::new(move || on_close_button.with_value(|on_close| on_close()))>
+                                {t!("common.close")}
+                            </Button>
+                            <Button
+                                class="js-qr-generate-button".to_string()
+                                on_click=Box::new(move || request_generate.with_value(|request_generate| request_generate()))
+                                disabled=is_loading.get() || is_generating.get() || backup.get().is_none() || exceeds_limit.get()
+                            >
+                                {move || if is_generating.get() { t!("backup.qr_generating")() } else { t!("backup.qr_generate")() }}
+                            </Button>
+                        </div>
+                    }
+                    .into_view(),
+                    QrExportStage::ConfirmLarge => view! {
+                        <div class="contents">
+                            <Button variant=ButtonVariant::Secondary on_click=Box::new(move || set_stage.set(QrExportStage::Configure))>
+                                {t!("common.back")}
+                            </Button>
+                            <Button
+                                variant=ButtonVariant::Secondary
+                                on_click=Box::new(move || {
+                                    on_close_action.with_value(|on_close| on_close());
+                                    on_use_json_action.with_value(|on_use_json| on_use_json());
+                                })
+                            >
+                                {t!("backup.qr_use_json")}
+                            </Button>
+                            <Button on_click=Box::new(move || generate_qr.with_value(|generate_qr| generate_qr())) disabled=is_generating.get()>
+                                {move || if is_generating.get() { t!("backup.qr_generating")() } else { t!("backup.qr_continue")() }}
+                            </Button>
+                        </div>
+                    }
+                    .into_view(),
+                    QrExportStage::Display => view! {
+                        <div class="contents">
+                            <Button variant=ButtonVariant::Secondary on_click=Box::new(move || set_stage.set(QrExportStage::Configure))>
+                                {t!("backup.qr_reconfigure")}
+                            </Button>
+                            <Button variant=ButtonVariant::Primary on_click=Box::new(move || on_close_button.with_value(|on_close| on_close()))>
+                                {t!("common.close")}
+                            </Button>
+                        </div>
+                    }
+                    .into_view(),
+                }}
+            }.into_view())
         >
             <div class="space-y-5 text-gray-700">
                 <Show when=move || !description.get().is_empty()>
