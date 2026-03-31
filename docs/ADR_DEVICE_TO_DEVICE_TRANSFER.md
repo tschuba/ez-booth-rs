@@ -18,6 +18,8 @@ The transfer scope for the first implementation is a single booth including boot
 
 Real-world booth data can range from tens of kilobytes to multiple megabytes depending on the number of vendors, purchases, and retained history. A practical device-to-device workflow must therefore handle more than just tiny payloads and remain reliable for substantially larger booth transfers.
 
+QR-code-based booth data transfer was explored before this ADR and rejected because it does not match expectations for data density or user experience when transferring realistic booth payloads.
+
 In practice, the most common expected transfer is Windows-to-Windows. Mixed-device transfer should remain possible, but the solution does not need to force a single mechanism across all device combinations if a multi-option approach yields better reliability.
 
 ### Platform Priority
