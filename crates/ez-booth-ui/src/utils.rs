@@ -3,6 +3,9 @@ use web_sys::{window, Blob, BlobPropertyBag, File};
 
 use ez_booth_storage::export::{sanitize_filename_component, DeviceInfo};
 
+const DEVICE_IDENTIFIER_MIN_LENGTH: usize = 3;
+const DEVICE_IDENTIFIER_MAX_LENGTH: usize = 50;
+
 /// Format an error message for user display, truncating if too long
 pub fn format_error_message<E: std::fmt::Debug>(error: &E) -> String {
     const MAX_LEN: usize = 140;
@@ -136,30 +139,75 @@ pub async fn share_json_file(file_name: &str, contents: &str, title: &str) -> Re
         .map_err(|err| format!("native share failed: {err:?}"))
 }
 
+pub fn load_device_identifier() -> Option<String> {
+    let window = window()?;
+    let storage = window.local_storage().ok()??;
+    let value = storage.get_item(DEVICE_IDENTIFIER_STORAGE_KEY).ok()??;
+    normalize_device_identifier(&value).ok()
+}
+
+pub fn save_device_identifier(value: String) -> Result<String, String> {
+    let normalized = normalize_device_identifier(&value)?;
+    persist_device_identifier(&normalized)?;
+    Ok(normalized)
+}
+
+pub fn reset_device_identifier() -> Result<String, String> {
+    let generated = generate_default_device_identifier();
+    persist_device_identifier(&generated)?;
+    Ok(generated)
+}
+
+pub fn validate_device_identifier(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+
+    if trimmed.len() < DEVICE_IDENTIFIER_MIN_LENGTH || trimmed.len() > DEVICE_IDENTIFIER_MAX_LENGTH
+    {
+        return Err(format!(
+            "device identifier must be {}-{} characters",
+            DEVICE_IDENTIFIER_MIN_LENGTH, DEVICE_IDENTIFIER_MAX_LENGTH
+        ));
+    }
+
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+    {
+        return Err(
+            "device identifier may only contain letters, numbers, hyphens, and underscores"
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
 fn load_or_create_device_identifier() -> String {
     if let Some(existing) = load_device_identifier() {
         return existing;
     }
 
     let generated = generate_default_device_identifier();
-    if let Some(window) = window() {
-        if let Ok(Some(storage)) = window.local_storage() {
-            let _ = storage.set_item(DEVICE_IDENTIFIER_STORAGE_KEY, &generated);
-        }
-    }
+    let _ = persist_device_identifier(&generated);
     generated
 }
 
-fn load_device_identifier() -> Option<String> {
-    let window = window()?;
-    let storage = window.local_storage().ok()??;
-    let value = storage.get_item(DEVICE_IDENTIFIER_STORAGE_KEY).ok()??;
-    let sanitized = sanitize_filename_component(&value);
-    if sanitized.is_empty() {
-        None
-    } else {
-        Some(sanitized)
-    }
+fn normalize_device_identifier(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    validate_device_identifier(trimmed)?;
+    Ok(trimmed.to_string())
+}
+
+fn persist_device_identifier(value: &str) -> Result<(), String> {
+    let window = window().ok_or_else(|| "window not available".to_string())?;
+    let storage = window
+        .local_storage()
+        .map_err(|err| format!("localStorage unavailable: {err:?}"))?
+        .ok_or_else(|| "localStorage unavailable".to_string())?;
+
+    storage
+        .set_item(DEVICE_IDENTIFIER_STORAGE_KEY, value)
+        .map_err(|err| format!("failed to store device identifier: {err:?}"))
 }
 
 fn generate_default_device_identifier() -> String {
@@ -212,5 +260,25 @@ fn detect_browser(user_agent: &str) -> &'static str {
         "Safari"
     } else {
         "Browser"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_device_identifier;
+
+    #[test]
+    fn accepts_valid_device_identifiers() {
+        assert!(validate_device_identifier("marias-laptop").is_ok());
+        assert!(validate_device_identifier("AWO_Desk_01").is_ok());
+        assert!(validate_device_identifier("abc").is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_device_identifiers() {
+        assert!(validate_device_identifier("ab").is_err());
+        assert!(validate_device_identifier("name with spaces").is_err());
+        assert!(validate_device_identifier("device!").is_err());
+        assert!(validate_device_identifier(&"a".repeat(51)).is_err());
     }
 }

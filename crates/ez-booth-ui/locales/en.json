@@ -27,6 +27,21 @@
     "page_title": "EZ Booth - Checkout Made Easy",
     "welcome": "Welcome to EZ Booth"
   },
+  "settings": {
+    "title": "Settings",
+    "device_section_title": "Device Identifier",
+    "device_current_label": "Current device name",
+    "device_detected_label": "Detected device",
+    "device_edit_label": "Edit device name",
+    "device_help_text": "This name is included in exported files so volunteers can identify which device created the backup.",
+    "device_platform_info": "Detected: {platform} / {browser}",
+    "device_format_help": "Use 3-50 characters: letters, numbers, hyphens, or underscores.",
+    "device_validation_error": "Invalid device name. Use only letters, numbers, hyphens, and underscores (3-50 characters).",
+    "device_save": "Save Changes",
+    "device_reset": "Reset to Auto-Generated",
+    "device_save_success": "Device name saved",
+    "device_reset_success": "Device name reset"
+  },
   "booth": {
     "title": "Event",
     "selected_label": "Selected event:",
