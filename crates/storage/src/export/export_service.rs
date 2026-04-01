@@ -12,6 +12,7 @@ use super::backup_format::{
     generate_full_backup_filename, generate_full_backup_filename_with_device, BackupData,
     BoothBackupData,
 };
+use super::checksum::{compute_backup_checksum, compute_booth_checksum};
 use super::error::ExportError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -111,13 +112,19 @@ impl ExportService {
         data: &BackupData,
         device_identifier: Option<&str>,
     ) -> Result<SerializedBackup, ExportError> {
+        let mut payload = data.clone();
+        let checksum = compute_backup_checksum(&payload)
+            .map_err(|err| ExportError::Serialization(err.to_string()))?;
+        info!("Computed checksum for full backup: {}", checksum);
+        payload.checksum = Some(checksum);
+
         Ok(SerializedBackup {
             file_name: if device_identifier.is_some() {
                 generate_full_backup_filename_with_device(data.created_at, device_identifier)
             } else {
                 generate_full_backup_filename(data.created_at)
             },
-            json: serde_json::to_string_pretty(data)
+            json: serde_json::to_string_pretty(&payload)
                 .map_err(|err| ExportError::Serialization(err.to_string()))?,
         })
     }
@@ -139,6 +146,12 @@ impl ExportService {
         data: &BoothBackupData,
         device_identifier: Option<&str>,
     ) -> Result<SerializedBackup, ExportError> {
+        let mut payload = data.clone();
+        let checksum = compute_booth_checksum(&payload)
+            .map_err(|err| ExportError::Serialization(err.to_string()))?;
+        info!("Computed checksum for booth backup: {}", checksum);
+        payload.checksum = Some(checksum);
+
         Ok(SerializedBackup {
             file_name: if device_identifier.is_some() {
                 generate_booth_backup_filename_with_device(
@@ -154,7 +167,7 @@ impl ExportService {
                     data.created_at,
                 )
             },
-            json: serde_json::to_string_pretty(data)
+            json: serde_json::to_string_pretty(&payload)
                 .map_err(|err| ExportError::Serialization(err.to_string()))?,
         })
     }

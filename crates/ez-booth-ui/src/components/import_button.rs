@@ -593,7 +593,7 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
                 preview: None,
                 parsed_data: None,
                 validation_failures: Vec::new(),
-                structure_error: Some(other.to_string()),
+                structure_error: Some(format_import_error(&other)),
             },
         },
         Err(message) => ImportCandidate {
@@ -632,6 +632,19 @@ fn parse_import_data(
             })
         }
         Err(other) => Err(other),
+    }
+}
+
+fn format_import_error(error: &ImportError) -> String {
+    match error {
+        ImportError::ChecksumMismatch { expected, actual } => t!("backup.checksum_failed")()
+            .replace(
+                "{detail}",
+                &t!("backup.checksum_mismatch_detail")()
+                    .replace("{expected}", expected)
+                    .replace("{actual}", actual),
+            ),
+        _ => error.to_string(),
     }
 }
 

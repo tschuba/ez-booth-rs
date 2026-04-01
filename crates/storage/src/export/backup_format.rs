@@ -20,6 +20,8 @@ pub struct BackupData {
     pub created_at: DateTime<Utc>,
     pub app_version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_info: Option<DeviceInfo>,
     #[serde(default)]
     pub booths: Vec<Booth>,
@@ -37,6 +39,7 @@ impl BackupData {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc::now(),
             app_version: app_version.into(),
+            checksum: None,
             device_info: None,
             booths: Vec::new(),
             vendors: Vec::new(),
@@ -52,6 +55,8 @@ pub struct BoothBackupData {
     pub created_at: DateTime<Utc>,
     pub app_version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_info: Option<DeviceInfo>,
     pub booth: Booth,
     #[serde(default)]
@@ -66,6 +71,7 @@ impl BoothBackupData {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc::now(),
             app_version: app_version.into(),
+            checksum: None,
             device_info: None,
             booth,
             vendors: Vec::new(),
