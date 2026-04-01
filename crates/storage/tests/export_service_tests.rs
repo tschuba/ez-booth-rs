@@ -10,7 +10,10 @@ use domain::repositories::{
 use domain::{
     Booth, BoothId, DomainResult, FeeConfig, Purchase, PurchaseId, PurchaseItem, Vendor, VendorId,
 };
-use ez_booth_storage::export::{ExportError, ExportService, BACKUP_FORMAT_VERSION};
+use ez_booth_storage::export::{
+    compute_backup_checksum, compute_booth_checksum, ExportError, ExportService,
+    BACKUP_FORMAT_VERSION,
+};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
     IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
@@ -296,6 +299,13 @@ async fn test_export_all_collects_all_records_and_serializes() {
     assert_eq!(serialized.file_name, "ez-booth-backup-2026-03-29.json");
     assert!(serialized.json.contains("\n  \"booths\""));
     assert!(serialized.json.contains("Spring Market 2026"));
+
+    let parsed: serde_json::Value = serde_json::from_str(&serialized.json).unwrap();
+    let checksum = parsed
+        .get("checksum")
+        .and_then(|value| value.as_str())
+        .unwrap();
+    assert_eq!(checksum, compute_backup_checksum(&backup).unwrap());
 }
 
 #[wasm_bindgen_test]
@@ -343,6 +353,13 @@ async fn test_export_booth_filters_to_requested_booth() {
     );
     assert!(serialized.json.contains("Spring Market 2026"));
     assert!(!serialized.json.contains("Autumn Fair 2026"));
+
+    let parsed: serde_json::Value = serde_json::from_str(&serialized.json).unwrap();
+    let checksum = parsed
+        .get("checksum")
+        .and_then(|value| value.as_str())
+        .unwrap();
+    assert_eq!(checksum, compute_booth_checksum(&backup).unwrap());
 }
 
 #[wasm_bindgen_test]

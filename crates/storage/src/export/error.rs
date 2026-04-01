@@ -37,6 +37,9 @@ pub enum ImportError {
     #[error("Invalid backup JSON: {0}")]
     InvalidJson(String),
 
+    #[error("Checksum verification failed: expected {expected}, actual {actual}")]
+    ChecksumMismatch { expected: String, actual: String },
+
     #[error("Unsupported backup version {found}; expected {supported}")]
     UnsupportedVersion { found: u32, supported: u32 },
 

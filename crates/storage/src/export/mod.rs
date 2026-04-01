@@ -1,4 +1,5 @@
 mod backup_format;
+mod checksum;
 mod error;
 mod export_service;
 mod import_service;
@@ -9,6 +10,10 @@ pub use backup_format::{
     generate_full_backup_filename, generate_full_backup_filename_with_device,
     sanitize_filename_component, BackupData, BoothBackupData, DeviceInfo, BACKUP_FILE_EXTENSION,
     BACKUP_FORMAT_VERSION,
+};
+pub use checksum::{
+    compute_backup_checksum, compute_booth_checksum, verify_backup_checksum, verify_booth_checksum,
+    ChecksumVerificationResult,
 };
 pub use error::ExportError;
 pub use error::{ImportError, SkippedRecord, ValidationFailure};
