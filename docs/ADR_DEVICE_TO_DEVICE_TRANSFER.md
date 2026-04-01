@@ -146,6 +146,17 @@ Examples include:
 - Nearby Share or equivalent native sharing on supported platforms
 - manual file transfer fallback where native peer sharing is not available in the browser context
 
+#### Hardware Prerequisites
+
+Native OS sharing mechanisms (AirDrop, Nearby Share, Windows Nearby Sharing) require:
+
+- **WiFi and Bluetooth hardware** enabled on both devices
+- no WiFi router or access point needed - devices create peer-to-peer wireless links
+
+**Important:** "Without WiFi router infrastructure" means no central access point is required. However, devices still need WiFi and Bluetooth radios for peer-to-peer communication. Many older desktop PCs lack these radios and must use the file export/import fallback method.
+
+**Network limitations:** Even when WiFi is available, hotspots with client isolation (AP isolation) prevent devices from discovering each other. In these scenarios, file export/import or AirDrop (which creates its own wireless link) are the viable options.
+
 #### Pros
 
 - leverages mature OS-level transfer capabilities instead of fragile browser-only peer protocols

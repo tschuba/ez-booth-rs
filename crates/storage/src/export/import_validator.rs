@@ -299,6 +299,7 @@ mod tests {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap(),
             app_version: "test-version".to_string(),
+            device_info: None,
             booths: vec![booth],
             vendors: vec![vendor],
             purchases: vec![purchase],

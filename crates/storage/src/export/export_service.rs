@@ -8,7 +8,9 @@ use domain::{
 use log::info;
 
 use super::backup_format::{
-    generate_booth_backup_filename, generate_full_backup_filename, BackupData, BoothBackupData,
+    generate_booth_backup_filename, generate_booth_backup_filename_with_device,
+    generate_full_backup_filename, generate_full_backup_filename_with_device, BackupData,
+    BoothBackupData,
 };
 use super::error::ExportError;
 
@@ -96,8 +98,25 @@ impl ExportService {
         &self,
         data: &BackupData,
     ) -> Result<SerializedBackup, ExportError> {
+        self.serialize_full_backup_with_device_identifier(
+            data,
+            data.device_info
+                .as_ref()
+                .map(|info| info.identifier.as_str()),
+        )
+    }
+
+    pub fn serialize_full_backup_with_device_identifier(
+        &self,
+        data: &BackupData,
+        device_identifier: Option<&str>,
+    ) -> Result<SerializedBackup, ExportError> {
         Ok(SerializedBackup {
-            file_name: generate_full_backup_filename(data.created_at),
+            file_name: if device_identifier.is_some() {
+                generate_full_backup_filename_with_device(data.created_at, device_identifier)
+            } else {
+                generate_full_backup_filename(data.created_at)
+            },
             json: serde_json::to_string_pretty(data)
                 .map_err(|err| ExportError::Serialization(err.to_string()))?,
         })
@@ -107,12 +126,34 @@ impl ExportService {
         &self,
         data: &BoothBackupData,
     ) -> Result<SerializedBackup, ExportError> {
+        self.serialize_booth_backup_with_device_identifier(
+            data,
+            data.device_info
+                .as_ref()
+                .map(|info| info.identifier.as_str()),
+        )
+    }
+
+    pub fn serialize_booth_backup_with_device_identifier(
+        &self,
+        data: &BoothBackupData,
+        device_identifier: Option<&str>,
+    ) -> Result<SerializedBackup, ExportError> {
         Ok(SerializedBackup {
-            file_name: generate_booth_backup_filename(
-                &data.booth.id,
-                &data.booth.description,
-                data.created_at,
-            ),
+            file_name: if device_identifier.is_some() {
+                generate_booth_backup_filename_with_device(
+                    &data.booth.id,
+                    &data.booth.description,
+                    data.created_at,
+                    device_identifier,
+                )
+            } else {
+                generate_booth_backup_filename(
+                    &data.booth.id,
+                    &data.booth.description,
+                    data.created_at,
+                )
+            },
             json: serde_json::to_string_pretty(data)
                 .map_err(|err| ExportError::Serialization(err.to_string()))?,
         })
