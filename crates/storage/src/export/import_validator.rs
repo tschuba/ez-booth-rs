@@ -2,9 +2,11 @@ use std::collections::HashSet;
 
 use domain::validation::{validate_digits_only_constraints, validate_regex_pattern};
 use domain::{BoothId, Purchase, Vendor, VendorIdValidation};
+use log::{error, info, warn};
 use rust_decimal::Decimal;
 
 use super::backup_format::{BackupData, BoothBackupData, BACKUP_FORMAT_VERSION};
+use super::checksum::{verify_backup_checksum, verify_booth_checksum, ChecksumVerificationResult};
 use super::error::{ImportError, ValidationFailure};
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -19,6 +21,7 @@ impl ImportValidator {
         let data: BackupData =
             serde_json::from_str(raw).map_err(|err| ImportError::InvalidJson(err.to_string()))?;
 
+        self.verify_full_checksum(&data)?;
         self.validate_version(data.version)?;
         self.validate_all_records(&data.booths, &data.vendors, &data.purchases)?;
 
@@ -29,11 +32,54 @@ impl ImportValidator {
         let data: BoothBackupData =
             serde_json::from_str(raw).map_err(|err| ImportError::InvalidJson(err.to_string()))?;
 
+        self.verify_booth_backup_checksum(&data)?;
         self.validate_version(data.version)?;
         self.validate_booth_structure(&data)?;
         self.validate_all_records(&[data.booth.clone()], &data.vendors, &data.purchases)?;
 
         Ok(data)
+    }
+
+    fn verify_full_checksum(&self, data: &BackupData) -> Result<(), ImportError> {
+        match verify_backup_checksum(data) {
+            Ok(ChecksumVerificationResult::Verified) => {
+                info!("Checksum verification passed for full backup");
+                Ok(())
+            }
+            Ok(ChecksumVerificationResult::Missing) => {
+                warn!("Backup has no checksum; allowing import for backward compatibility");
+                Ok(())
+            }
+            Err(ImportError::ChecksumMismatch { expected, actual }) => {
+                error!(
+                    "Checksum verification failed for full backup: expected {}, actual {}",
+                    expected, actual
+                );
+                Err(ImportError::ChecksumMismatch { expected, actual })
+            }
+            Err(other) => Err(other),
+        }
+    }
+
+    fn verify_booth_backup_checksum(&self, data: &BoothBackupData) -> Result<(), ImportError> {
+        match verify_booth_checksum(data) {
+            Ok(ChecksumVerificationResult::Verified) => {
+                info!("Checksum verification passed for booth backup");
+                Ok(())
+            }
+            Ok(ChecksumVerificationResult::Missing) => {
+                warn!("Booth backup has no checksum; allowing import for backward compatibility");
+                Ok(())
+            }
+            Err(ImportError::ChecksumMismatch { expected, actual }) => {
+                error!(
+                    "Checksum verification failed for booth backup: expected {}, actual {}",
+                    expected, actual
+                );
+                Err(ImportError::ChecksumMismatch { expected, actual })
+            }
+            Err(other) => Err(other),
+        }
     }
 
     fn validate_version(&self, version: u32) -> Result<(), ImportError> {
@@ -299,6 +345,8 @@ mod tests {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap(),
             app_version: "test-version".to_string(),
+            checksum: None,
+            device_info: None,
             booths: vec![booth],
             vendors: vec![vendor],
             purchases: vec![purchase],
@@ -455,6 +503,44 @@ mod tests {
 
         assert_eq!(data.version, BACKUP_FORMAT_VERSION);
         assert_eq!(data.vendors.len(), 1);
+    }
+
+    #[test]
+    fn rejects_backup_with_invalid_checksum() {
+        let validator = ImportValidator::new();
+        let mut backup = sample_backup();
+        backup.checksum = Some("wrong".to_string());
+
+        let error = validator
+            .validate_backup(&serde_json::to_string(&backup).unwrap())
+            .unwrap_err();
+
+        match error {
+            ImportError::ChecksumMismatch { expected, actual } => {
+                assert_eq!(expected, "wrong");
+                assert_eq!(actual.len(), 64);
+            }
+            other => panic!("expected ChecksumMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_booth_backup_with_invalid_checksum() {
+        let validator = ImportValidator::new();
+        let booth = sample_booth();
+        let vendor = sample_vendor(booth.id);
+        let purchase = sample_purchase(booth.id, &vendor.vendor_id);
+        let mut booth_backup = BoothBackupData::new(booth, "test-version");
+        booth_backup.created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+        booth_backup.checksum = Some("wrong".to_string());
+        booth_backup.vendors = vec![vendor];
+        booth_backup.purchases = vec![purchase];
+
+        let error = validator
+            .validate_booth_backup(&serde_json::to_string(&booth_backup).unwrap())
+            .unwrap_err();
+
+        assert!(matches!(error, ImportError::ChecksumMismatch { .. }));
     }
 
     #[test]

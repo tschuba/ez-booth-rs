@@ -43,6 +43,8 @@ fn sample_backup() -> BackupData {
         version: BACKUP_FORMAT_VERSION,
         created_at: Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap(),
         app_version: "test-version".to_string(),
+        checksum: None,
+        device_info: None,
         booths: vec![booth],
         vendors: vec![vendor],
         purchases: vec![purchase],
@@ -59,6 +61,16 @@ fn accepts_valid_full_backup() {
 
     assert_eq!(data.version, BACKUP_FORMAT_VERSION);
     assert_eq!(data.booths.len(), 1);
+}
+
+#[test]
+fn accepts_backup_without_checksum_for_backward_compatibility() {
+    let validator = ImportValidator::new();
+    let data = validator
+        .validate_backup(&serde_json::to_string(&sample_backup()).unwrap())
+        .unwrap();
+
+    assert_eq!(data.checksum, None);
 }
 
 #[test]
@@ -199,6 +211,38 @@ fn accepts_valid_booth_backup() {
 
     assert_eq!(data.version, BACKUP_FORMAT_VERSION);
     assert_eq!(data.vendors.len(), 1);
+}
+
+#[test]
+fn rejects_full_backup_with_checksum_mismatch() {
+    let validator = ImportValidator::new();
+    let mut backup = sample_backup();
+    backup.checksum = Some("wrong".to_string());
+
+    let error = validator
+        .validate_backup(&serde_json::to_string(&backup).unwrap())
+        .unwrap_err();
+
+    assert!(matches!(error, ImportError::ChecksumMismatch { .. }));
+}
+
+#[test]
+fn rejects_booth_backup_with_checksum_mismatch() {
+    let validator = ImportValidator::new();
+    let booth = sample_booth();
+    let vendor = sample_vendor(booth.id);
+    let purchase = sample_purchase(booth.id, &vendor.vendor_id);
+    let mut booth_backup = BoothBackupData::new(booth, "test-version");
+    booth_backup.created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+    booth_backup.checksum = Some("wrong".to_string());
+    booth_backup.vendors = vec![vendor];
+    booth_backup.purchases = vec![purchase];
+
+    let error = validator
+        .validate_booth_backup(&serde_json::to_string(&booth_backup).unwrap())
+        .unwrap_err();
+
+    assert!(matches!(error, ImportError::ChecksumMismatch { .. }));
 }
 
 #[test]

@@ -28,6 +28,7 @@ fn AppViewHeader() -> impl IntoView {
         "/booths" => Some(t!("booth.list_title")()),
         "/vendors" => Some(t!("vendor.list_title")()),
         "/checkout" => Some(t!("checkout.title")()),
+        "/settings" => Some(t!("settings.title")()),
         _ => None,
     });
 
@@ -97,9 +98,9 @@ pub fn App() -> impl IntoView {
                                              {t!("checkout.title")}
                                          </a>
                                          // Language switcher with globe icon
-                                         <button
-                                             class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
-                                             on:click=move |_| {
+                                     <button
+                                         class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
+                                         on:click=move |_| {
                                                  let new_locale = match locale.get() {
                                                      Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
                                                      Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
@@ -130,10 +131,34 @@ pub fn App() -> impl IntoView {
                                                     Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "DE",
                                                 }}
                                             </span>
-                                        </button>
-                                    </nav>
-                                </div>
-                            </Container>
+                                         </button>
+                                         <a href="/settings" class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm">
+                                             <svg
+                                                 class="h-4 w-4"
+                                                 fill="none"
+                                                 stroke="currentColor"
+                                                 viewBox="0 0 24 24"
+                                                 xmlns="http://www.w3.org/2000/svg"
+                                                 aria-hidden="true"
+                                             >
+                                                 <path
+                                                     stroke-linecap="round"
+                                                     stroke-linejoin="round"
+                                                     stroke-width="2"
+                                                     d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35A1.724 1.724 0 005.38 7.753c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.573-1.066z"
+                                                 />
+                                                 <path
+                                                     stroke-linecap="round"
+                                                     stroke-linejoin="round"
+                                                     stroke-width="2"
+                                                     d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                 />
+                                             </svg>
+                                             <span>{t!("settings.title")}</span>
+                                         </a>
+                                     </nav>
+                                 </div>
+                             </Container>
                         </header>
 
                         <AppViewHeader />
@@ -146,6 +171,7 @@ pub fn App() -> impl IntoView {
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
+                            <Route path="/settings" view=SettingsPage/>
                         </Routes>
                     </main>
 
