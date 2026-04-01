@@ -27,6 +27,21 @@
     "page_title": "EZ Booth - Kassieren leicht gemacht",
     "welcome": "Willkommen bei EZ Booth"
   },
+  "settings": {
+    "title": "Einstellungen",
+    "device_section_title": "Gerätekennung",
+    "device_current_label": "Aktueller Gerätename",
+    "device_detected_label": "Erkanntes Gerät",
+    "device_edit_label": "Gerätenamen bearbeiten",
+    "device_help_text": "Dieser Name wird in exportierte Dateien aufgenommen, damit Helfer erkennen können, welches Gerät das Backup erstellt hat.",
+    "device_platform_info": "Erkannt: {platform} / {browser}",
+    "device_format_help": "Verwenden Sie 3-50 Zeichen: Buchstaben, Zahlen, Bindestriche oder Unterstriche.",
+    "device_validation_error": "Ungültiger Gerätename. Verwenden Sie nur Buchstaben, Zahlen, Bindestriche und Unterstriche (3-50 Zeichen).",
+    "device_save": "Änderungen speichern",
+    "device_reset": "Auf automatisch erzeugt zurücksetzen",
+    "device_save_success": "Gerätename gespeichert",
+    "device_reset_success": "Gerätename zurückgesetzt"
+  },
   "booth": {
     "title": "Veranstaltung",
     "selected_label": "Ausgewählte Veranstaltung:",
