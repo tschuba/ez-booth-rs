@@ -562,32 +562,6 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
                 validation_failures: failures,
                 structure_error: None,
             },
-            Err(ImportError::UnsupportedVersion { found, supported }) => ImportCandidate {
-                file_name,
-                preview: None,
-                parsed_data: None,
-                validation_failures: Vec::new(),
-                structure_error: Some(
-                    t!("backup.import_version_error")()
-                        .replace("{found}", &found.to_string())
-                        .replace("{supported}", &supported.to_string()),
-                ),
-            },
-            Err(ImportError::OrphanedRecords { details }) => ImportCandidate {
-                file_name,
-                preview: None,
-                parsed_data: None,
-                validation_failures: Vec::new(),
-                structure_error: Some(details.join("\n")),
-            },
-            Err(ImportError::InvalidStructure(message))
-            | Err(ImportError::InvalidJson(message)) => ImportCandidate {
-                file_name,
-                preview: None,
-                parsed_data: None,
-                validation_failures: Vec::new(),
-                structure_error: Some(message),
-            },
             Err(other) => ImportCandidate {
                 file_name,
                 preview: None,
@@ -622,6 +596,10 @@ fn parse_import_data(
     match booth_validation {
         Ok(booth) => Ok(booth),
         Err(ImportError::InvalidJson(_)) | Err(ImportError::InvalidStructure(_)) => {
+            // Only fall back when the payload does not match the booth backup shape.
+            // Once a file parses as a booth backup, checksum/version/validation errors
+            // should be shown directly instead of reinterpreting the same payload as a
+            // different backup type.
             validator.validate_backup(contents).map(|data| {
                 let preview = ImportPreview::Full {
                     booths: data.booths.len(),
@@ -637,6 +615,13 @@ fn parse_import_data(
 
 fn format_import_error(error: &ImportError) -> String {
     match error {
+        ImportError::UnsupportedVersion { found, supported } => t!("backup.import_version_error")()
+            .replace("{found}", &found.to_string())
+            .replace("{supported}", &supported.to_string()),
+        ImportError::OrphanedRecords { details } => details.join("\n"),
+        ImportError::InvalidStructure(message) | ImportError::InvalidJson(message) => {
+            message.clone()
+        }
         ImportError::ChecksumMismatch { expected, actual } => t!("backup.checksum_failed")()
             .replace(
                 "{detail}",
@@ -715,7 +700,10 @@ async fn read_file_as_text(file: &WebFile) -> Result<String, String> {
 mod tests {
     use chrono::{NaiveDate, TimeZone, Utc};
     use domain::{Booth, FeeConfig};
-    use ez_booth_storage::export::{BoothBackupData, DeviceInfo, ImportValidator};
+    use ez_booth_storage::export::{
+        BackupData, BoothBackupData, DeviceInfo, ImportError, ImportValidator,
+        BACKUP_FORMAT_VERSION,
+    };
     use rust_decimal_macros::dec;
 
     use super::{parse_import_data, ImportPreview, ParsedImportData};
@@ -768,5 +756,64 @@ mod tests {
             }
             other => panic!("expected booth backup parse result, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn full_backup_with_empty_lists_is_detected_as_full_backup() {
+        let validator = ImportValidator::new();
+        let booth = sample_booth();
+        let backup = BackupData {
+            version: BACKUP_FORMAT_VERSION,
+            created_at: Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap(),
+            app_version: "test-version".to_string(),
+            checksum: None,
+            device_info: Some(DeviceInfo {
+                identifier: "marias-laptop".to_string(),
+                platform: "Windows".to_string(),
+                browser: "Chrome".to_string(),
+            }),
+            booths: vec![booth.clone()],
+            vendors: Vec::new(),
+            purchases: Vec::new(),
+            metadata: Default::default(),
+        };
+
+        let contents = serde_json::to_string(&backup).unwrap();
+        let result = parse_import_data(&validator, &contents).unwrap();
+
+        match result {
+            (
+                ImportPreview::Full {
+                    booths,
+                    vendors,
+                    purchases,
+                },
+                ParsedImportData::Full(data),
+            ) => {
+                assert_eq!(booths, 1);
+                assert_eq!(vendors, 0);
+                assert_eq!(purchases, 0);
+                assert_eq!(data.booths[0].id, booth.id);
+                assert_eq!(
+                    data.device_info.unwrap().identifier,
+                    "marias-laptop".to_string()
+                );
+            }
+            other => panic!("expected full backup parse result, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn booth_backup_checksum_mismatch_is_reported_without_fallback() {
+        let validator = ImportValidator::new();
+        let booth = sample_booth();
+        let mut backup = BoothBackupData::new(booth, "test-version");
+        backup.created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+        backup.checksum = Some("wrong".to_string());
+
+        let contents = serde_json::to_string(&backup).unwrap();
+        let error = parse_import_data(&validator, &contents).unwrap_err();
+
+        assert!(matches!(error, ImportError::ChecksumMismatch { .. }));
     }
 }
