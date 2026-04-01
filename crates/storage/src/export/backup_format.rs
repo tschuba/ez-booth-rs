@@ -7,11 +7,20 @@ use serde::{Deserialize, Serialize};
 pub const BACKUP_FORMAT_VERSION: u32 = 1;
 pub const BACKUP_FILE_EXTENSION: &str = "json";
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeviceInfo {
+    pub identifier: String,
+    pub platform: String,
+    pub browser: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackupData {
     pub version: u32,
     pub created_at: DateTime<Utc>,
     pub app_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_info: Option<DeviceInfo>,
     #[serde(default)]
     pub booths: Vec<Booth>,
     #[serde(default)]
@@ -28,6 +37,7 @@ impl BackupData {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc::now(),
             app_version: app_version.into(),
+            device_info: None,
             booths: Vec::new(),
             vendors: Vec::new(),
             purchases: Vec::new(),
@@ -41,6 +51,8 @@ pub struct BoothBackupData {
     pub version: u32,
     pub created_at: DateTime<Utc>,
     pub app_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_info: Option<DeviceInfo>,
     pub booth: Booth,
     #[serde(default)]
     pub vendors: Vec<Vendor>,
@@ -54,6 +66,7 @@ impl BoothBackupData {
             version: BACKUP_FORMAT_VERSION,
             created_at: Utc::now(),
             app_version: app_version.into(),
+            device_info: None,
             booth,
             vendors: Vec::new(),
             purchases: Vec::new(),
@@ -62,9 +75,19 @@ impl BoothBackupData {
 }
 
 pub fn generate_full_backup_filename(created_at: DateTime<Utc>) -> String {
+    generate_full_backup_filename_with_device(created_at, None)
+}
+
+pub fn generate_full_backup_filename_with_device(
+    created_at: DateTime<Utc>,
+    device_identifier: Option<&str>,
+) -> String {
+    let device_suffix = sanitized_device_suffix(device_identifier);
+
     format!(
-        "ez-booth-backup-{}.{}",
+        "ez-booth-backup-{}{}.{}",
         created_at.format("%Y-%m-%d"),
+        device_suffix,
         BACKUP_FILE_EXTENSION
     )
 }
@@ -74,19 +97,38 @@ pub fn generate_booth_backup_filename(
     description: &str,
     created_at: DateTime<Utc>,
 ) -> String {
+    generate_booth_backup_filename_with_device(booth_id, description, created_at, None)
+}
+
+pub fn generate_booth_backup_filename_with_device(
+    booth_id: &BoothId,
+    description: &str,
+    created_at: DateTime<Utc>,
+    device_identifier: Option<&str>,
+) -> String {
     let sanitized = sanitize_filename_component(description);
     let label = if sanitized.is_empty() {
         format!("booth-{}", booth_id)
     } else {
         sanitized
     };
+    let device_suffix = sanitized_device_suffix(device_identifier);
 
     format!(
-        "ez-booth-{}-{}.{}",
+        "ez-booth-{}-{}{}.{}",
         label,
         created_at.format("%Y-%m-%d"),
+        device_suffix,
         BACKUP_FILE_EXTENSION
     )
+}
+
+fn sanitized_device_suffix(device_identifier: Option<&str>) -> String {
+    device_identifier
+        .map(sanitize_filename_component)
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("-{value}"))
+        .unwrap_or_default()
 }
 
 pub fn sanitize_filename_component(input: &str) -> String {
@@ -159,6 +201,15 @@ mod tests {
     }
 
     #[test]
+    fn builds_full_backup_filename_with_device_identifier() {
+        let created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+        assert_eq!(
+            generate_full_backup_filename_with_device(created_at, Some("Maria's Laptop")),
+            "ez-booth-backup-2026-03-29-marias-laptop.json"
+        );
+    }
+
+    #[test]
     fn builds_booth_backup_filename() {
         let booth = sample_booth();
         let created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
@@ -166,6 +217,24 @@ mod tests {
         let filename = generate_booth_backup_filename(&booth.id, &booth.description, created_at);
 
         assert_eq!(filename, "ez-booth-spring-market-2026-2026-03-29.json");
+    }
+
+    #[test]
+    fn builds_booth_backup_filename_with_device_identifier() {
+        let booth = sample_booth();
+        let created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+
+        let filename = generate_booth_backup_filename_with_device(
+            &booth.id,
+            &booth.description,
+            created_at,
+            Some("Maria's Laptop"),
+        );
+
+        assert_eq!(
+            filename,
+            "ez-booth-spring-market-2026-2026-03-29-marias-laptop.json"
+        );
     }
 
     #[test]

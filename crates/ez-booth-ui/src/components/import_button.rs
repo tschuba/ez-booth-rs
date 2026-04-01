@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use leptos::html;
 use leptos::*;
-use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{Event, FileReader, ProgressEvent};
+use wasm_bindgen::{closure::Closure, JsCast, JsValue};
+use web_sys::{Event, File as WebFile, FileReader, ProgressEvent};
 
 use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
 use crate::selected_booth_context::use_booth_list_version;
@@ -34,6 +34,28 @@ enum ParsedImportData {
     Booth(BoothBackupData),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct ImportCandidate {
+    file_name: String,
+    preview: Option<ImportPreview>,
+    parsed_data: Option<ParsedImportData>,
+    validation_failures: Vec<ValidationFailure>,
+    structure_error: Option<String>,
+}
+
+impl ImportCandidate {
+    fn is_ready(&self) -> bool {
+        self.preview.is_some() && self.parsed_data.is_some()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ImportResultItem {
+    file_name: String,
+    success: bool,
+    message: String,
+}
+
 #[component]
 pub fn ImportButton(
     #[prop(optional)] variant: Option<ButtonVariant>,
@@ -47,20 +69,18 @@ pub fn ImportButton(
     let (is_reading, set_is_reading) = create_signal(false);
     let (is_importing, set_is_importing) = create_signal(false);
     let (show_modal, set_show_modal) = create_signal(false);
-    let (selected_file_name, set_selected_file_name) = create_signal(String::new());
-    let (preview, set_preview) = create_signal(None::<ImportPreview>);
-    let (parsed_data, set_parsed_data) = create_signal(None::<ParsedImportData>);
-    let (validation_failures, set_validation_failures) =
-        create_signal(Vec::<ValidationFailure>::new());
-    let (structure_error, set_structure_error) = create_signal(None::<String>);
+    let (selected_file_names, set_selected_file_names) = create_signal(Vec::<String>::new());
+    let (candidates, set_candidates) = create_signal(Vec::<ImportCandidate>::new());
     let (conflict_strategy, set_conflict_strategy) = create_signal(ConflictStrategy::Merge);
+    let (import_progress, set_import_progress) = create_signal(None::<(usize, usize)>);
+    let (import_results, set_import_results) = create_signal(Vec::<ImportResultItem>::new());
 
     let validator = Rc::new(ImportValidator::new());
 
     let open_file_picker = {
         let input_ref = input_ref.clone();
         move || {
-            if is_reading.get_untracked() {
+            if is_reading.get_untracked() || is_importing.get_untracked() {
                 return;
             }
 
@@ -72,15 +92,15 @@ pub fn ImportButton(
     };
 
     let reset_results = {
-        let set_preview = set_preview;
-        let set_parsed_data = set_parsed_data;
-        let set_validation_failures = set_validation_failures;
-        let set_structure_error = set_structure_error;
+        let set_candidates = set_candidates;
+        let set_selected_file_names = set_selected_file_names;
+        let set_import_progress = set_import_progress;
+        let set_import_results = set_import_results;
         move || {
-            set_preview.set(None);
-            set_parsed_data.set(None);
-            set_validation_failures.set(Vec::new());
-            set_structure_error.set(None);
+            set_candidates.set(Vec::new());
+            set_selected_file_names.set(Vec::new());
+            set_import_progress.set(None);
+            set_import_results.set(Vec::new());
         }
     };
 
@@ -96,124 +116,55 @@ pub fn ImportButton(
                 return;
             };
 
-            let Some(file) = files.get(0) else {
+            if files.length() == 0 {
                 return;
-            };
-
-            reset_results();
-            set_selected_file_name.set(file.name());
-            set_is_reading.set(true);
-
-            let reader = match FileReader::new() {
-                Ok(reader) => reader,
-                Err(err) => {
-                    set_is_reading.set(false);
-                    toast.error(format!("{}: {:?}", t!("backup.import_failed")(), err));
-                    return;
-                }
-            };
-
-            let reader_for_load = reader.clone();
-            let validator_for_load = Rc::clone(&validator);
-            let onload = Closure::wrap(Box::new(move |_event: ProgressEvent| {
-                let Ok(result) = reader_for_load.result() else {
-                    set_is_reading.set(false);
-                    toast.error(t!("backup.import_failed")());
-                    return;
-                };
-
-                let Some(contents) = result.as_string() else {
-                    set_is_reading.set(false);
-                    toast.error(t!("backup.import_invalid_encoding")());
-                    return;
-                };
-
-                let booth_validation =
-                    validator_for_load
-                        .validate_booth_backup(&contents)
-                        .map(|data| {
-                            let preview = ImportPreview::Booth {
-                                description: data.booth.description.clone(),
-                                vendors: data.vendors.len(),
-                                purchases: data.purchases.len(),
-                            };
-                            (preview, ParsedImportData::Booth(data))
-                        });
-
-                let resolved = match booth_validation {
-                    Ok(booth) => Ok(booth),
-                    Err(ImportError::InvalidJson(_)) | Err(ImportError::InvalidStructure(_)) => {
-                        validator_for_load.validate_backup(&contents).map(|data| {
-                            let preview = ImportPreview::Full {
-                                booths: data.booths.len(),
-                                vendors: data.vendors.len(),
-                                purchases: data.purchases.len(),
-                            };
-                            (preview, ParsedImportData::Full(data))
-                        })
-                    }
-                    Err(other) => Err(other),
-                };
-
-                set_is_reading.set(false);
-                match resolved {
-                    Ok((next_preview, next_data)) => {
-                        set_preview.set(Some(next_preview));
-                        set_parsed_data.set(Some(next_data));
-                        set_show_modal.set(true);
-                    }
-                    Err(ImportError::ValidationFailed { failures }) => {
-                        set_validation_failures.set(failures);
-                        set_show_modal.set(true);
-                    }
-                    Err(ImportError::UnsupportedVersion { found, supported }) => {
-                        set_structure_error.set(Some(
-                            t!("backup.import_version_error")()
-                                .replace("{found}", &found.to_string())
-                                .replace("{supported}", &supported.to_string()),
-                        ));
-                        set_show_modal.set(true);
-                    }
-                    Err(ImportError::OrphanedRecords { details }) => {
-                        set_structure_error.set(Some(details.join("\n")));
-                        set_show_modal.set(true);
-                    }
-                    Err(ImportError::InvalidStructure(message))
-                    | Err(ImportError::InvalidJson(message)) => {
-                        set_structure_error.set(Some(message));
-                        set_show_modal.set(true);
-                    }
-                    Err(other) => {
-                        set_structure_error.set(Some(other.to_string()));
-                        set_show_modal.set(true);
-                    }
-                }
-            }) as Box<dyn FnMut(_)>);
-
-            let onerror = Closure::wrap(Box::new(move |_event: ProgressEvent| {
-                set_is_reading.set(false);
-                toast.error(t!("backup.import_failed")());
-            }) as Box<dyn FnMut(_)>);
-
-            reader.set_onload(Some(onload.as_ref().unchecked_ref()));
-            reader.set_onerror(Some(onerror.as_ref().unchecked_ref()));
-
-            if let Err(err) = reader.read_as_text(&file) {
-                set_is_reading.set(false);
-                toast.error(format!("{}: {:?}", t!("backup.import_failed")(), err));
             }
 
-            onload.forget();
-            onerror.forget();
+            reset_results();
+            set_is_reading.set(true);
+
+            let file_names = (0..files.length())
+                .filter_map(|index| files.get(index))
+                .map(|file| file.name())
+                .collect::<Vec<_>>();
+            set_selected_file_names.set(file_names);
+
+            let candidates_signal = set_candidates;
+            let show_modal_signal = set_show_modal;
+            let reading_signal = set_is_reading;
+            let toast = toast.clone();
+            let validator_for_parse = Rc::clone(&validator);
+
+            spawn_local(async move {
+                let mut parsed_candidates = Vec::new();
+                for index in 0..files.length() {
+                    let Some(file) = files.get(index) else {
+                        continue;
+                    };
+
+                    let candidate =
+                        read_and_parse_file(file, Rc::clone(&validator_for_parse)).await;
+                    parsed_candidates.push(candidate);
+                }
+
+                reading_signal.set(false);
+                if parsed_candidates.is_empty() {
+                    toast.error(t!("backup.import_failed")());
+                    return;
+                }
+
+                candidates_signal.set(parsed_candidates);
+                show_modal_signal.set(true);
+            });
         }
     };
 
     let close_modal = move || {
         set_show_modal.set(false);
-        set_preview.set(None);
-        set_parsed_data.set(None);
-        set_validation_failures.set(Vec::new());
-        set_structure_error.set(None);
+        set_candidates.set(Vec::new());
+        set_selected_file_names.set(Vec::new());
+        set_import_progress.set(None);
+        set_import_results.set(Vec::new());
         set_conflict_strategy.set(ConflictStrategy::Merge);
     };
 
@@ -225,62 +176,117 @@ pub fn ImportButton(
         }
 
         let state_result = app_state.get();
-        let parsed = parsed_data.get_untracked();
+        let ready_candidates = candidates
+            .get_untracked()
+            .into_iter()
+            .filter_map(|candidate| {
+                candidate
+                    .parsed_data
+                    .clone()
+                    .map(|parsed_data| (candidate.file_name, parsed_data))
+            })
+            .collect::<Vec<_>>();
         let strategy = conflict_strategy.get_untracked();
 
-        let Some(payload) = parsed else {
+        if ready_candidates.is_empty() {
             return;
-        };
+        }
 
         set_is_importing.set(true);
+        set_import_progress.set(Some((0, ready_candidates.len())));
+        set_import_results.set(Vec::new());
 
         spawn_local(async move {
-            let result: Result<ImportSummary, String> = async move {
-                let state = match state_result {
-                    Some(Ok(state)) => state,
-                    Some(Err(error)) => return Err(error),
-                    None => return Err(t!("common.loading")()),
+            let state = match state_result {
+                Some(Ok(state)) => state,
+                Some(Err(error)) => {
+                    set_is_importing.set(false);
+                    set_import_progress.set(None);
+                    toast.error(format!("{}: {}", t!("backup.import_apply_failed")(), error));
+                    return;
+                }
+                None => {
+                    set_is_importing.set(false);
+                    set_import_progress.set(None);
+                    toast.error(format!(
+                        "{}: {}",
+                        t!("backup.import_apply_failed")(),
+                        t!("common.loading")()
+                    ));
+                    return;
+                }
+            };
+
+            let mut combined = ImportSummary::default();
+            let mut result_items = Vec::new();
+
+            for (index, (file_name, payload)) in ready_candidates.iter().cloned().enumerate() {
+                set_import_progress.set(Some((index + 1, ready_candidates.len())));
+
+                let result = match payload {
+                    ParsedImportData::Full(data) => {
+                        state.import_service.import_all(data, strategy).await
+                    }
+                    ParsedImportData::Booth(data) => {
+                        state
+                            .import_service
+                            .import_booth_backup(data, strategy)
+                            .await
+                    }
                 };
 
-                match payload {
-                    ParsedImportData::Full(data) => state
-                        .import_service
-                        .import_all(data, strategy)
-                        .await
-                        .map_err(|err| err.to_string()),
-                    ParsedImportData::Booth(data) => state
-                        .import_service
-                        .import_booth_backup(data, strategy)
-                        .await
-                        .map_err(|err| err.to_string()),
+                match result {
+                    Ok(summary) => {
+                        combined.booths_imported += summary.booths_imported;
+                        combined.vendors_imported += summary.vendors_imported;
+                        combined.purchases_imported += summary.purchases_imported;
+                        combined.conflicts_resolved += summary.conflicts_resolved;
+                        combined.skipped_records.extend(summary.skipped_records);
+                        result_items.push(ImportResultItem {
+                            file_name,
+                            success: true,
+                            message: t!("backup.import_file_success")(),
+                        });
+                    }
+                    Err(err) => {
+                        result_items.push(ImportResultItem {
+                            file_name,
+                            success: false,
+                            message: err.to_string(),
+                        });
+                    }
                 }
             }
-            .await;
 
             set_is_importing.set(false);
+            set_import_progress.set(None);
+            set_import_results.set(result_items.clone());
 
-            match result {
-                Ok(summary) => {
-                    if summary.booths_imported > 0
-                        || summary.vendors_imported > 0
-                        || summary.purchases_imported > 0
-                        || summary.conflicts_resolved > 0
-                    {
-                        booth_list_version.update(|version| *version += 1);
-                    }
+            let success_count = result_items.iter().filter(|item| item.success).count();
+            let failure_count = result_items.len().saturating_sub(success_count);
 
-                    let message = t!("backup.import_apply_success")()
-                        .replace("{booths}", &summary.booths_imported.to_string())
-                        .replace("{vendors}", &summary.vendors_imported.to_string())
-                        .replace("{purchases}", &summary.purchases_imported.to_string())
-                        .replace("{resolved}", &summary.conflicts_resolved.to_string())
-                        .replace("{skipped}", &summary.skipped_records.len().to_string());
-                    toast.success(message);
-                    close_modal_action.with_value(|close| close());
-                }
-                Err(error) => {
-                    toast.error(format!("{}: {}", t!("backup.import_apply_failed")(), error));
-                }
+            if combined.booths_imported > 0
+                || combined.vendors_imported > 0
+                || combined.purchases_imported > 0
+                || combined.conflicts_resolved > 0
+            {
+                booth_list_version.update(|version| *version += 1);
+            }
+
+            if failure_count == 0 {
+                let message = t!("backup.import_apply_success")()
+                    .replace("{booths}", &combined.booths_imported.to_string())
+                    .replace("{vendors}", &combined.vendors_imported.to_string())
+                    .replace("{purchases}", &combined.purchases_imported.to_string())
+                    .replace("{resolved}", &combined.conflicts_resolved.to_string())
+                    .replace("{skipped}", &combined.skipped_records.len().to_string());
+                toast.success(message);
+                close_modal_action.with_value(|close| close());
+            } else {
+                let message = t!("backup.import_partial_success")()
+                    .replace("{success}", &success_count.to_string())
+                    .replace("{failed}", &failure_count.to_string());
+                toast.error(message);
             }
         });
     };
@@ -297,6 +303,22 @@ pub fn ImportButton(
 
     let on_strategy_change_action = store_value(on_strategy_change);
 
+    let ready_count = Signal::derive(move || {
+        candidates
+            .get()
+            .iter()
+            .filter(|item| item.is_ready())
+            .count()
+    });
+    let invalid_count = Signal::derive(move || {
+        candidates
+            .get()
+            .iter()
+            .filter(|item| !item.is_ready())
+            .count()
+    });
+    let has_ready_candidates = Signal::derive(move || ready_count.get() > 0);
+
     view! {
         <>
             <input
@@ -304,6 +326,7 @@ pub fn ImportButton(
                 type="file"
                 accept="application/json,.json"
                 class="hidden"
+                multiple
                 on:change=on_file_change
             />
 
@@ -336,7 +359,7 @@ pub fn ImportButton(
                             >
                                 {t!("common.close")}
                             </Button>
-                            <Show when=move || preview.get().is_some()>
+                            <Show when=move || has_ready_candidates.get()>
                                 <Button on_click=Box::new(handle_apply_import) disabled=is_importing.get()>
                                     {move || if is_importing.get() {
                                         t!("backup.import_in_progress")()
@@ -351,154 +374,338 @@ pub fn ImportButton(
             >
                 <div class="space-y-4 text-gray-700">
                     <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
-                        <span class="font-medium text-gray-900">{t!("backup.selected_file")}</span>
-                        <span>{move || format!(" {}", selected_file_name.get())}</span>
+                        <span class="font-medium text-gray-900">{t!("backup.selected_files")}</span>
+                        <span>{move || format!(" {}", selected_file_names.get().join(", "))}</span>
                     </div>
 
-                    <Show when=move || preview.get().is_some()>
-                        {move || {
-                            preview.get().map(|preview| {
-                                match preview {
-                                    ImportPreview::Full { booths, vendors, purchases } => view! {
-                                        <div class="space-y-3">
-                                            <p class="text-sm uppercase tracking-wide text-green-700 font-semibold">
-                                                {t!("backup.import_ready_label")}
-                                            </p>
-                                            <p>{t!("backup.import_valid_full")}</p>
-                                            <p class="text-sm text-gray-600">
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+                            <p class="font-semibold">{t!("backup.import_ready_count")}</p>
+                            <p>{move || ready_count.get().to_string()}</p>
+                        </div>
+                        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+                            <p class="font-semibold">{t!("backup.import_blocked_count")}</p>
+                            <p>{move || invalid_count.get().to_string()}</p>
+                        </div>
+                        <Show when=move || import_progress.get().is_some()>
+                            {move || import_progress.get().map(|(current, total)| view! {
+                                <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                    <p class="font-semibold">{t!("backup.import_progress_label")}</p>
+                                    <p>{t!("backup.import_progress_status")()
+                                        .replace("{current}", &current.to_string())
+                                        .replace("{total}", &total.to_string())}</p>
+                                </div>
+                            })}
+                        </Show>
+                    </div>
+
+                    <Show when=move || has_ready_candidates.get()>
+                        <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                            <p class="font-medium">{t!("backup.import_strategy_label")}</p>
+                            <select
+                                class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
+                            >
+                                <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
+                                <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
+                                <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
+                            </select>
+                            <p>{t!("backup.import_apply_ready")}</p>
+                        </div>
+                    </Show>
+
+                    <div class="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                        <For
+                            each=move || candidates.get()
+                            key=|candidate| candidate.file_name.clone()
+                            children=move |candidate| {
+                                let file_name = candidate.file_name;
+                                let preview = candidate.preview;
+                                let validation_failures = candidate.validation_failures;
+                                let structure_error = candidate.structure_error;
+                                let is_ready = preview.is_some();
+                                let preview_view = match preview.clone() {
+                                    Some(ImportPreview::Full {
+                                        booths,
+                                        vendors,
+                                        purchases,
+                                    }) => Some(
+                                        view! {
+                                            <p class="mt-2 text-sm text-gray-600">
                                                 {t!("backup.import_counts")()
                                                     .replace("{booths}", &booths.to_string())
                                                     .replace("{vendors}", &vendors.to_string())
                                                     .replace("{purchases}", &purchases.to_string())}
                                             </p>
-                                            <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                                                <p class="font-medium">{t!("backup.import_strategy_label")}</p>
-                                                <select
-                                                    class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
-                                                >
-                                                    <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
-                                                    <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
-                                                    <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
-                                                </select>
-                                                <p>{t!("backup.import_apply_ready")}</p>
-                                            </div>
-                                        </div>
-                                    }.into_view(),
-                                    ImportPreview::Booth { description, vendors, purchases } => view! {
-                                        <div class="space-y-3">
-                                            <p class="text-sm uppercase tracking-wide text-green-700 font-semibold">
-                                                {t!("backup.import_ready_label")}
-                                            </p>
-                                            <p>{t!("backup.import_valid_booth")().replace("{description}", &description)}</p>
-                                            <p class="text-sm text-gray-600">
-                                                {t!("backup.import_booth_counts")()
-                                                    .replace("{vendors}", &vendors.to_string())
-                                                    .replace("{purchases}", &purchases.to_string())}
-                                            </p>
-                                            <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                                                <p class="font-medium">{t!("backup.import_strategy_label")}</p>
-                                                <select
-                                                    class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
-                                                >
-                                                    <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
-                                                    <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
-                                                    <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
-                                                </select>
-                                                <p>{t!("backup.import_apply_ready")}</p>
-                                            </div>
-                                        </div>
-                                    }.into_view(),
-                                }
-                            })
-                        }}
-                    </Show>
-
-                    <Show when=move || !validation_failures.get().is_empty()>
-                        <div class="space-y-3">
-                            <p class="text-sm uppercase tracking-wide text-red-700 font-semibold">
-                                {t!("backup.import_invalid_label")}
-                            </p>
-                            <p>{t!("backup.import_validation_summary")}</p>
-                            <div class="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-                                <For
-                                    each=move || validation_failures.get()
-                                    key=|failure| format!("{}:{}:{}", failure.record_type, failure.record_id, failure.reason)
-                                    children=move |failure| {
+                                        }
+                                            .into_view(),
+                                    ),
+                                    Some(ImportPreview::Booth {
+                                        description,
+                                        vendors,
+                                        purchases,
+                                    }) => Some(
                                         view! {
-                                            <div class="rounded border border-red-100 bg-white px-3 py-2">
-                                                <p class="font-medium">
-                                                    {format!("{} {}", failure.record_type, failure.record_id)}
+                                            <div class="mt-2 space-y-1 text-sm text-gray-600">
+                                                <p>{t!("backup.import_valid_booth")().replace("{description}", &description)}</p>
+                                                <p>
+                                                    {t!("backup.import_booth_counts")()
+                                                        .replace("{vendors}", &vendors.to_string())
+                                                        .replace("{purchases}", &purchases.to_string())}
                                                 </p>
-                                                <p>{failure.reason}</p>
                                             </div>
                                         }
+                                            .into_view(),
+                                    ),
+                                    None => None,
+                                };
+                                let validation_view = if validation_failures.is_empty() {
+                                    None
+                                } else {
+                                    Some(
+                                        view! {
+                                            <div class="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                                                <p class="font-medium">{t!("backup.import_validation_summary")}</p>
+                                                <For
+                                                    each=move || validation_failures.clone()
+                                                    key=|failure| format!("{}:{}:{}", failure.record_type, failure.record_id, failure.reason)
+                                                    children=move |failure| {
+                                                        view! {
+                                                            <div class="rounded border border-red-100 bg-white px-3 py-2">
+                                                                <p class="font-medium">{format!("{} {}", failure.record_type, failure.record_id)}</p>
+                                                                <p>{failure.reason}</p>
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                            </div>
+                                        }
+                                            .into_view(),
+                                    )
+                                };
+                                let structure_view = structure_error.map(|message| {
+                                    view! {
+                                        <div class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+                                            <p class="font-medium">{t!("backup.import_structure_summary")}</p>
+                                            <pre class="mt-2 whitespace-pre-wrap">{message}</pre>
+                                        </div>
                                     }
-                                />
-                            </div>
+                                        .into_view()
+                                });
+                                view! {
+                                    <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p class="font-medium text-gray-900">{file_name.clone()}</p>
+                                                <Show when=move || is_ready>
+                                                    <p class="text-sm text-green-700">{t!("backup.import_ready_label")}</p>
+                                                </Show>
+                                                <Show when=move || !is_ready>
+                                                    <p class="text-sm text-red-700">{t!("backup.import_invalid_label")}</p>
+                                                </Show>
+                                            </div>
+                                        </div>
+
+                                        {preview_view}
+                                        {validation_view}
+                                        {structure_view}
+                                    </div>
+                                }
+                            }
+                        />
+                    </div>
+
+                    <Show when=move || !import_results.get().is_empty()>
+                        <div class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
+                            <p class="font-medium text-gray-900">{t!("backup.import_results_label")}</p>
+                            <For
+                                each=move || import_results.get()
+                                key=|item| item.file_name.clone()
+                                children=move |item| {
+                                    let status_class = if item.success {
+                                        "text-green-700"
+                                    } else {
+                                        "text-red-700"
+                                    };
+                                    view! {
+                                        <div class="rounded border border-gray-200 bg-white px-3 py-2">
+                                            <p class="font-medium text-gray-900">{item.file_name}</p>
+                                            <p class=status_class>{item.message}</p>
+                                        </div>
+                                    }
+                                }
+                            />
                         </div>
                     </Show>
-
-                    <Show when=move || structure_error.get().is_some()>
-                        {move || structure_error.get().map(|message| {
-                            view! {
-                                <div class="space-y-3">
-                                    <p class="text-sm uppercase tracking-wide text-red-700 font-semibold">
-                                        {t!("backup.import_invalid_label")}
-                                    </p>
-                                    <p>{t!("backup.import_structure_summary")}</p>
-                                    <pre class="whitespace-pre-wrap rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{message}</pre>
-                                </div>
-                            }
-                        })}
-                    </Show>
-
                 </div>
             </Modal>
         </>
     }
 }
 
+async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> ImportCandidate {
+    let file_name = file.name();
+
+    match read_file_as_text(&file).await {
+        Ok(contents) => match parse_import_data(&validator, &contents) {
+            Ok((preview, parsed_data)) => ImportCandidate {
+                file_name,
+                preview: Some(preview),
+                parsed_data: Some(parsed_data),
+                validation_failures: Vec::new(),
+                structure_error: None,
+            },
+            Err(ImportError::ValidationFailed { failures }) => ImportCandidate {
+                file_name,
+                preview: None,
+                parsed_data: None,
+                validation_failures: failures,
+                structure_error: None,
+            },
+            Err(ImportError::UnsupportedVersion { found, supported }) => ImportCandidate {
+                file_name,
+                preview: None,
+                parsed_data: None,
+                validation_failures: Vec::new(),
+                structure_error: Some(
+                    t!("backup.import_version_error")()
+                        .replace("{found}", &found.to_string())
+                        .replace("{supported}", &supported.to_string()),
+                ),
+            },
+            Err(ImportError::OrphanedRecords { details }) => ImportCandidate {
+                file_name,
+                preview: None,
+                parsed_data: None,
+                validation_failures: Vec::new(),
+                structure_error: Some(details.join("\n")),
+            },
+            Err(ImportError::InvalidStructure(message))
+            | Err(ImportError::InvalidJson(message)) => ImportCandidate {
+                file_name,
+                preview: None,
+                parsed_data: None,
+                validation_failures: Vec::new(),
+                structure_error: Some(message),
+            },
+            Err(other) => ImportCandidate {
+                file_name,
+                preview: None,
+                parsed_data: None,
+                validation_failures: Vec::new(),
+                structure_error: Some(other.to_string()),
+            },
+        },
+        Err(message) => ImportCandidate {
+            file_name,
+            preview: None,
+            parsed_data: None,
+            validation_failures: Vec::new(),
+            structure_error: Some(message),
+        },
+    }
+}
+
+fn parse_import_data(
+    validator: &ImportValidator,
+    contents: &str,
+) -> Result<(ImportPreview, ParsedImportData), ImportError> {
+    let booth_validation = validator.validate_booth_backup(contents).map(|data| {
+        let preview = ImportPreview::Booth {
+            description: data.booth.description.clone(),
+            vendors: data.vendors.len(),
+            purchases: data.purchases.len(),
+        };
+        (preview, ParsedImportData::Booth(data))
+    });
+
+    match booth_validation {
+        Ok(booth) => Ok(booth),
+        Err(ImportError::InvalidJson(_)) | Err(ImportError::InvalidStructure(_)) => {
+            validator.validate_backup(contents).map(|data| {
+                let preview = ImportPreview::Full {
+                    booths: data.booths.len(),
+                    vendors: data.vendors.len(),
+                    purchases: data.purchases.len(),
+                };
+                (preview, ParsedImportData::Full(data))
+            })
+        }
+        Err(other) => Err(other),
+    }
+}
+
+async fn read_file_as_text(file: &WebFile) -> Result<String, String> {
+    let reader =
+        FileReader::new().map_err(|err| format!("{}: {:?}", t!("backup.import_failed")(), err))?;
+
+    let promise = js_sys::Promise::new(&mut |resolve, reject| {
+        let reader_for_load = reader.clone();
+        let resolve_fn = resolve.clone();
+        let reject_for_load = reject.clone();
+
+        let onload =
+            Closure::once(Box::new(
+                move |_event: ProgressEvent| match reader_for_load.result() {
+                    Ok(result) => {
+                        if let Some(contents) = result.as_string() {
+                            let _ = resolve_fn.call1(&JsValue::NULL, &JsValue::from_str(&contents));
+                        } else {
+                            let _ = reject_for_load.call1(
+                                &JsValue::NULL,
+                                &JsValue::from_str(&t!("backup.import_invalid_encoding")()),
+                            );
+                        }
+                    }
+                    Err(_) => {
+                        let _ = reject_for_load.call1(
+                            &JsValue::NULL,
+                            &JsValue::from_str(&t!("backup.import_failed")()),
+                        );
+                    }
+                },
+            ) as Box<dyn FnOnce(_)>);
+
+        let reject_for_error = reject.clone();
+        let onerror = Closure::once(Box::new(move |_event: ProgressEvent| {
+            let _ = reject_for_error.call1(
+                &JsValue::NULL,
+                &JsValue::from_str(&t!("backup.import_failed")()),
+            );
+        }) as Box<dyn FnOnce(_)>);
+
+        reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+        reader.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+
+        if let Err(err) = reader.read_as_text(file) {
+            let _ = reject.call1(
+                &JsValue::NULL,
+                &JsValue::from_str(&format!("{}: {:?}", t!("backup.import_failed")(), err)),
+            );
+        }
+
+        onload.forget();
+        onerror.forget();
+    });
+
+    wasm_bindgen_futures::JsFuture::from(promise)
+        .await
+        .map_err(|err| {
+            err.as_string()
+                .unwrap_or_else(|| t!("backup.import_failed")())
+        })?
+        .as_string()
+        .ok_or_else(|| t!("backup.import_invalid_encoding")())
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::{NaiveDate, TimeZone, Utc};
     use domain::{Booth, FeeConfig};
-    use ez_booth_storage::export::{BoothBackupData, ImportValidator};
+    use ez_booth_storage::export::{BoothBackupData, DeviceInfo, ImportValidator};
     use rust_decimal_macros::dec;
 
-    use super::{ImportPreview, ParsedImportData};
-
-    fn parse_import_data(
-        validator: &ImportValidator,
-        contents: &str,
-    ) -> Result<(ImportPreview, ParsedImportData), String> {
-        let booth_validation = validator.validate_booth_backup(contents).map(|data| {
-            let preview = ImportPreview::Booth {
-                description: data.booth.description.clone(),
-                vendors: data.vendors.len(),
-                purchases: data.purchases.len(),
-            };
-            (preview, ParsedImportData::Booth(data))
-        });
-
-        match booth_validation {
-            Ok(booth) => Ok(booth),
-            Err(ez_booth_storage::export::ImportError::InvalidJson(_))
-            | Err(ez_booth_storage::export::ImportError::InvalidStructure(_)) => validator
-                .validate_backup(contents)
-                .map(|data| {
-                    let preview = ImportPreview::Full {
-                        booths: data.booths.len(),
-                        vendors: data.vendors.len(),
-                        purchases: data.purchases.len(),
-                    };
-                    (preview, ParsedImportData::Full(data))
-                })
-                .map_err(|err| err.to_string()),
-            Err(err) => Err(err.to_string()),
-        }
-    }
+    use super::{parse_import_data, ImportPreview, ParsedImportData};
 
     fn sample_booth() -> Booth {
         Booth::new(
@@ -519,6 +726,11 @@ mod tests {
         let booth = sample_booth();
         let mut backup = BoothBackupData::new(booth.clone(), "test-version");
         backup.created_at = Utc.with_ymd_and_hms(2026, 3, 29, 10, 0, 0).unwrap();
+        backup.device_info = Some(DeviceInfo {
+            identifier: "marias-laptop".to_string(),
+            platform: "Windows".to_string(),
+            browser: "Chrome".to_string(),
+        });
 
         let contents = serde_json::to_string(&backup).unwrap();
         let result = parse_import_data(&validator, &contents).unwrap();
@@ -536,6 +748,10 @@ mod tests {
                 assert_eq!(vendors, 0);
                 assert_eq!(purchases, 0);
                 assert_eq!(data.booth.id, booth.id);
+                assert_eq!(
+                    data.device_info.unwrap().identifier,
+                    "marias-laptop".to_string()
+                );
             }
             other => panic!("expected booth backup parse result, got {other:?}"),
         }
