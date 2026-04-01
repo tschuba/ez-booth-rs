@@ -99,7 +99,10 @@ pub fn SettingsPage() -> impl IntoView {
                         </div>
 
                         <div class="flex flex-wrap gap-3">
-                            <Button on_click=Box::new(handle_save) disabled=!can_save.get()>
+                            <Button
+                                on_click=Box::new(handle_save)
+                                disabled=Signal::derive(move || !can_save.get())
+                            >
                                 {t!("settings.device_save")}
                             </Button>
                             <Button

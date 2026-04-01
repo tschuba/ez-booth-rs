@@ -57,8 +57,8 @@ pub fn Button(
     #[prop(optional)]
     size: Option<ButtonSize>,
     /// Whether button is disabled
-    #[prop(optional)]
-    disabled: Option<bool>,
+    #[prop(optional, into)]
+    disabled: MaybeSignal<bool>,
     /// Whether button should take full width
     #[prop(optional)]
     full_width: Option<bool>,
@@ -83,7 +83,7 @@ pub fn Button(
 ) -> impl IntoView {
     let variant = variant.unwrap_or(ButtonVariant::Primary);
     let size = size.unwrap_or(ButtonSize::Medium);
-    let disabled = disabled.unwrap_or(false);
+    let disabled = disabled;
     let full_width = full_width.unwrap_or(false);
 
     let focus_ring_color = match variant {
@@ -112,14 +112,14 @@ pub fn Button(
         <button
             type=button_type
             class=class_list
-            disabled=disabled
+            disabled=move || disabled.get()
             form=form
             aria-label=aria_label
             title=title
             aria-pressed=aria_pressed.map(|p| if p { "true" } else { "false" })
-            aria-disabled=if disabled { Some("true") } else { None }
+            aria-disabled=move || if disabled.get() { Some("true") } else { None }
             on:click=move |_| {
-                if !disabled {
+                if !disabled.get() {
                     if let Some(handler) = &on_click {
                         handler();
                     }
