@@ -50,6 +50,7 @@ Still open:
 - vendor and booth reporting with consistent payout-derived totals
 - German primary / English fallback translations
 - IndexedDB persistence through repository abstractions
+- offline-first architecture ready for PWA deployment planning; see `docs/ADR_PWA_IMPLEMENTATION.md`
 
 ### Current Validation Workflow
 
