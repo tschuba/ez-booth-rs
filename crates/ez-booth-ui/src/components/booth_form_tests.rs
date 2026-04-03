@@ -19,6 +19,7 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            amount_stepping: String::new(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),
             vendor_validation_min: "1".to_string(),
@@ -47,6 +48,7 @@ mod tests {
         assert_eq!(form.participation_fee, "1.00");
         assert_eq!(form.sales_fee_percent, "15.00");
         assert_eq!(form.rounding_step, "0.50");
+        assert_eq!(form.amount_stepping, "");
         assert_eq!(form.vendor_omission_rules, default_rules());
     }
 
@@ -69,6 +71,7 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("0.50").unwrap());
+        assert_eq!(booth.amount_stepping, None);
         assert_eq!(booth.vendor_id_omission_rules, default_rules());
     }
 
@@ -231,6 +234,7 @@ mod tests {
         assert_eq!(form.participation_fee, "25.50");
         assert_eq!(form.sales_fee_percent, "12.50");
         assert_eq!(form.rounding_step, "0.10");
+        assert_eq!(form.amount_stepping, "");
         assert_eq!(form.vendor_omission_rules, booth.vendor_id_omission_rules);
     }
 
@@ -253,11 +257,13 @@ mod tests {
         assert_eq!(form_en.participation_fee, "10.50");
         assert_eq!(form_en.sales_fee_percent, "15.00");
         assert_eq!(form_en.rounding_step, "0.50");
+        assert_eq!(form_en.amount_stepping, "");
 
         let form_de = BoothFormData::from_booth(&booth, Locale::De);
         assert_eq!(form_de.participation_fee, "10,50");
         assert_eq!(form_de.sales_fee_percent, "15,00");
         assert_eq!(form_de.rounding_step, "0,50");
+        assert_eq!(form_de.amount_stepping, "");
     }
 
     #[test]
@@ -359,7 +365,61 @@ mod tests {
             Decimal::from_str("15.00").unwrap()
         );
         assert_eq!(booth.fees.rounding_step, Decimal::from_str("1.00").unwrap());
+        assert_eq!(booth.amount_stepping, None);
         assert_eq!(booth.vendor_id_omission_rules, custom_rules);
+    }
+
+    #[test]
+    fn test_to_booth_parses_amount_stepping() {
+        let form = BoothFormData {
+            amount_stepping: "0.50".to_string(),
+            ..booth_form()
+        };
+
+        let booth = form.to_booth(Locale::En).unwrap();
+
+        assert_eq!(
+            booth.amount_stepping,
+            Some(Decimal::from_str("0.50").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_to_booth_rejects_non_positive_amount_stepping() {
+        let form = BoothFormData {
+            amount_stepping: "0.00".to_string(),
+            ..booth_form()
+        };
+
+        assert!(matches!(
+            form.to_booth(Locale::En),
+            Err(DomainError::Validation(
+                ValidationError::AmountSteppingInvalid
+            ))
+        ));
+    }
+
+    #[test]
+    fn test_from_booth_formats_amount_stepping() {
+        let mut booth = Booth::new(
+            "Original Booth".to_string(),
+            NaiveDate::from_ymd_opt(2026, 4, 15).unwrap(),
+            FeeConfig {
+                participation_fee: Decimal::from_str("25.50").unwrap(),
+                sales_fee_percent: Decimal::from_str("12.50").unwrap(),
+                rounding_step: Decimal::from_str("0.10").unwrap(),
+            },
+        )
+        .unwrap();
+        booth
+            .update_amount_stepping(Some(Decimal::from_str("0.50").unwrap()))
+            .unwrap();
+
+        let form_en = BoothFormData::from_booth(&booth, Locale::En);
+        let form_de = BoothFormData::from_booth(&booth, Locale::De);
+
+        assert_eq!(form_en.amount_stepping, "0.50");
+        assert_eq!(form_de.amount_stepping, "0,50");
     }
 
     #[test]

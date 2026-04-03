@@ -3,6 +3,30 @@ use crate::error_code::ValidationError;
 use crate::models::*;
 use rust_decimal::Decimal;
 
+pub fn validate_amount_stepping(step: Decimal) -> DomainResult<()> {
+    if step <= Decimal::ZERO {
+        return Err(DomainError::Validation(
+            ValidationError::AmountSteppingInvalid,
+        ));
+    }
+
+    Ok(())
+}
+
+pub fn validate_amount_matches_step(amount: Decimal, step: Decimal) -> DomainResult<()> {
+    validate_amount_stepping(step)?;
+
+    if amount % step != Decimal::ZERO {
+        return Err(DomainError::Validation(
+            ValidationError::AmountSteppingMismatch {
+                step: step.normalize().to_string(),
+            },
+        ));
+    }
+
+    Ok(())
+}
+
 /// Validation rules for booth entities
 pub struct BoothValidator;
 
@@ -97,5 +121,24 @@ mod tests {
         assert!(PurchaseValidator::validate_amount(&dec!(-1.0)).is_err());
         assert!(PurchaseValidator::validate_amount(&dec!(-0.01)).is_err());
         assert!(PurchaseValidator::validate_amount(&Decimal::new(1_000_001, 0)).is_err());
+    }
+
+    #[test]
+    fn amount_stepping_must_be_positive() {
+        use rust_decimal_macros::dec;
+
+        assert!(validate_amount_stepping(dec!(0)).is_err());
+        assert!(validate_amount_stepping(dec!(-0.5)).is_err());
+        assert!(validate_amount_stepping(dec!(0.5)).is_ok());
+    }
+
+    #[test]
+    fn amount_must_match_step() {
+        use rust_decimal_macros::dec;
+
+        assert!(validate_amount_matches_step(dec!(3.5), dec!(0.5)).is_ok());
+        assert!(validate_amount_matches_step(dec!(102), dec!(0.5)).is_ok());
+        assert!(validate_amount_matches_step(dec!(1.1), dec!(0.5)).is_err());
+        assert!(validate_amount_matches_step(dec!(3.5), dec!(1)).is_err());
     }
 }

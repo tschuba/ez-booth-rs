@@ -38,6 +38,8 @@ pub enum ValidationError {
     ParticipationFeeInvalid,
     SalesFeePercentInvalid,
     RoundingStepInvalid,
+    AmountSteppingInvalid,
+    AmountSteppingMismatch { step: String },
     QuickAmountInvalid { value: String },
     QuickAmountsEmpty,
     QuickAmountsNonPositive,
@@ -83,6 +85,8 @@ impl ValidationError {
             Self::ParticipationFeeInvalid => "validation.participation_fee_invalid",
             Self::SalesFeePercentInvalid => "validation.sales_fee_percent_invalid",
             Self::RoundingStepInvalid => "validation.rounding_step_invalid",
+            Self::AmountSteppingInvalid => "validation.amount_stepping_invalid",
+            Self::AmountSteppingMismatch { .. } => "validation.amount_stepping_mismatch",
             Self::QuickAmountInvalid { .. } => "validation.quick_amount_invalid",
             Self::QuickAmountsEmpty => "validation.quick_amounts_empty",
             Self::QuickAmountsNonPositive => "validation.quick_amounts_non_positive",
@@ -113,6 +117,7 @@ impl ValidationError {
                 vec![("description", description.clone()), ("date", date.clone())]
             }
             Self::QuickAmountInvalid { value } => vec![("value", value.clone())],
+            Self::AmountSteppingMismatch { step } => vec![("step", step.clone())],
             Self::DigitsOnlyMinMaxInvalid { min, max } => {
                 vec![("min", min.to_string()), ("max", max.to_string())]
             }

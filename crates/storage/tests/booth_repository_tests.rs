@@ -24,18 +24,25 @@ async fn create_test_db() -> Database {
 
 /// Helper to create a test booth
 fn create_test_booth(description: &str) -> Booth {
+    create_test_booth_with_stepping(description, None)
+}
+
+fn create_test_booth_with_stepping(description: &str, amount_stepping: Option<Decimal>) -> Booth {
     let fees = FeeConfig {
         participation_fee: Decimal::from_str("10.00").unwrap(),
         sales_fee_percent: Decimal::from_str("15.00").unwrap(),
         rounding_step: Decimal::from_str("0.50").unwrap(),
     };
 
-    Booth::new(
+    let mut booth = Booth::new(
         description.to_string(),
         NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
         fees,
     )
-    .unwrap()
+    .unwrap();
+
+    booth.update_amount_stepping(amount_stepping).unwrap();
+    booth
 }
 
 #[wasm_bindgen_test]
@@ -117,6 +124,45 @@ async fn test_update_booth() {
     // Verify the update
     let found = repo.find_by_id(&booth_id).await.unwrap().unwrap();
     assert_eq!(found.description, "Updated Description");
+}
+
+#[wasm_bindgen_test]
+async fn test_amount_stepping_persistence() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+
+    let create_step = Decimal::from_str("0.50").unwrap();
+    let update_step = Decimal::from_str("1.25").unwrap();
+
+    let booth_with_step = create_test_booth_with_stepping("Stepped Booth", Some(create_step));
+    let booth_with_step_id = booth_with_step.id;
+    repo.save(&booth_with_step).await.unwrap();
+
+    let found_with_step = repo.find_by_id(&booth_with_step_id).await.unwrap().unwrap();
+    assert_eq!(found_with_step.amount_stepping, Some(create_step));
+
+    let mut booth_without_step = create_test_booth("Optional Step Booth");
+    let booth_without_step_id = booth_without_step.id;
+    repo.save(&booth_without_step).await.unwrap();
+
+    booth_without_step
+        .update_amount_stepping(Some(update_step))
+        .unwrap();
+    repo.save(&booth_without_step).await.unwrap();
+
+    let found_updated_step = repo
+        .find_by_id(&booth_without_step_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(found_updated_step.amount_stepping, Some(update_step));
+
+    let mut booth_cleared_step = found_with_step;
+    booth_cleared_step.update_amount_stepping(None).unwrap();
+    repo.save(&booth_cleared_step).await.unwrap();
+
+    let found_cleared_step = repo.find_by_id(&booth_with_step_id).await.unwrap().unwrap();
+    assert_eq!(found_cleared_step.amount_stepping, None);
 }
 
 #[wasm_bindgen_test]
