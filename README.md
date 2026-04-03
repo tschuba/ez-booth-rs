@@ -157,6 +157,27 @@ Launcher notes:
 - the lock file uses atomic creation plus stale-process cleanup; a narrow cleanup race still exists if two launchers start at the exact same time, which is an accepted desktop-app tradeoff for this local single-user workflow
 - `crates/ez-booth-app/Trunk.toml` uses `public_url = "./"` so downloaded builds work from any extracted folder, but that relative asset layout is not suitable for deployments that serve the app from a URL subdirectory
 
+## Releases
+
+Download stable builds from the [GitHub Releases page](https://github.com/tschuba/ez-booth-rs/releases).
+
+Each release publishes complete platform bundles:
+
+- `ez-booth-windows-vX.Y.Z.zip`
+- `ez-booth-macos-vX.Y.Z.tar.gz`
+- `ez-booth-linux-vX.Y.Z.tar.gz`
+- `checksums.txt`
+
+Every platform archive includes the launcher binary, the full WASM app bundle, and a `README.txt` with usage guidance.
+
+Verify a download with the published checksum file:
+
+```bash
+shasum -a 256 -c checksums.txt
+```
+
+For maintainers creating releases, see `docs/RELEASE_PROCESS.md`.
+
 ## Building
 
 ```bash
