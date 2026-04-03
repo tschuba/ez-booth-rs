@@ -101,6 +101,11 @@
     "amount_stepping": "Amount Stepping",
     "description_placeholder": "e.g., Spring Market 2026",
     "fee_configuration_title": "Fee Configuration",
+    "tabs": {
+      "basic_settings": "Basic Settings",
+      "validation_rules": "Validation Rules",
+      "vendor_omissions": "Vendor Omissions"
+    },
     "rounding_step_help": "Net vendor payouts will be rounded to this step (e.g., 0.50 rounds to the nearest 50 cents)",
     "amount_stepping_help": "Optional. Leave empty to allow any valid amount. Set a value like 0.50 or 1.00 to require checkout amounts to follow that increment.",
     "save_button": "Save Event",

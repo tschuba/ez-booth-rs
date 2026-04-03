@@ -383,6 +383,7 @@ pub fn BoothForm(
     on_submit: impl Fn(BoothFormData) + 'static,
 ) -> impl IntoView {
     let form_data = create_rw_signal(initial_data.unwrap_or_default());
+    let active_tab = create_rw_signal(0_usize);
     let description_input_ref = create_node_ref::<html::Input>();
 
     // Individual field signals for Input components
@@ -427,6 +428,21 @@ pub fn BoothForm(
     let (vendor_validation_max_error, set_vendor_validation_max_error) =
         create_signal(None::<String>);
     let (vendor_omission_error, set_vendor_omission_error) = create_signal(None::<String>);
+
+    let basic_tab_has_errors = Signal::derive(move || {
+        description_error.get().is_some()
+            || date_error.get().is_some()
+            || participation_fee_error.get().is_some()
+            || sales_fee_percent_error.get().is_some()
+            || rounding_step_error.get().is_some()
+    });
+    let validation_tab_has_errors = Signal::derive(move || {
+        amount_stepping_error.get().is_some()
+            || vendor_validation_regex_error.get().is_some()
+            || vendor_validation_min_error.get().is_some()
+            || vendor_validation_max_error.get().is_some()
+    });
+    let omission_tab_has_errors = Signal::derive(move || vendor_omission_error.get().is_some());
 
     let locale = use_locale();
 
@@ -488,15 +504,20 @@ pub fn BoothForm(
         set_vendor_omission_error.set(None);
 
         let mut has_errors = false;
+        let mut basic_errors = false;
+        let mut validation_errors = false;
+        let mut omission_errors = false;
 
         // Validate description
         let desc = description.get();
         if desc.trim().is_empty() {
             set_description_error.set(Some(description_required_msg()));
             has_errors = true;
+            basic_errors = true;
         } else if desc.chars().count() > 200 {
             set_description_error.set(Some(description_length_msg()));
             has_errors = true;
+            basic_errors = true;
         }
 
         let step = amount_stepping.get();
@@ -507,6 +528,7 @@ pub fn BoothForm(
                         set_amount_stepping_error
                             .set(Some(t!("booth.form_errors.positive_number_required")()));
                         has_errors = true;
+                        validation_errors = true;
                     }
                 }
                 Err(e) => {
@@ -517,6 +539,7 @@ pub fn BoothForm(
                     };
                     set_amount_stepping_error.set(Some(message));
                     has_errors = true;
+                    validation_errors = true;
                 }
             }
         }
@@ -526,6 +549,7 @@ pub fn BoothForm(
         if date_str.trim().is_empty() {
             set_date_error.set(Some(date_required_msg()));
             has_errors = true;
+            basic_errors = true;
         }
 
         // Validate participation fee using flexible parsing (accepts both comma and dot)
@@ -533,12 +557,14 @@ pub fn BoothForm(
         if part_fee.trim().is_empty() {
             set_participation_fee_error.set(Some(participation_fee_required_msg()));
             has_errors = true;
+            basic_errors = true;
         } else {
             match parse_decimal_input(&part_fee) {
                 Ok(val) => {
                     if val < Decimal::ZERO {
                         set_participation_fee_error.set(Some(cannot_be_negative_msg()));
                         has_errors = true;
+                        basic_errors = true;
                     }
                 }
                 Err(e) => {
@@ -549,6 +575,7 @@ pub fn BoothForm(
                     };
                     set_participation_fee_error.set(Some(message));
                     has_errors = true;
+                    basic_errors = true;
                 }
             }
         }
@@ -558,15 +585,18 @@ pub fn BoothForm(
         if sales_pct.trim().is_empty() {
             set_sales_fee_percent_error.set(Some(sales_fee_required_msg()));
             has_errors = true;
+            basic_errors = true;
         } else {
             match parse_decimal_input(&sales_pct) {
                 Ok(val) => {
                     if val < Decimal::ZERO {
                         set_sales_fee_percent_error.set(Some(cannot_be_negative_msg()));
                         has_errors = true;
+                        basic_errors = true;
                     } else if val > Decimal::from(100) {
                         set_sales_fee_percent_error.set(Some(cannot_exceed_100_msg()));
                         has_errors = true;
+                        basic_errors = true;
                     }
                 }
                 Err(e) => {
@@ -577,6 +607,7 @@ pub fn BoothForm(
                     };
                     set_sales_fee_percent_error.set(Some(message));
                     has_errors = true;
+                    basic_errors = true;
                 }
             }
         }
@@ -586,12 +617,14 @@ pub fn BoothForm(
         if rounding.trim().is_empty() {
             set_rounding_step_error.set(Some(rounding_step_required_msg()));
             has_errors = true;
+            basic_errors = true;
         } else {
             match parse_decimal_input(&rounding) {
                 Ok(val) => {
                     if val < Decimal::ZERO {
                         set_rounding_step_error.set(Some(cannot_be_negative_msg()));
                         has_errors = true;
+                        basic_errors = true;
                     }
                 }
                 Err(e) => {
@@ -602,6 +635,7 @@ pub fn BoothForm(
                     };
                     set_rounding_step_error.set(Some(message));
                     has_errors = true;
+                    basic_errors = true;
                 }
             }
         }
@@ -618,11 +652,13 @@ pub fn BoothForm(
             if let Some(message) = min_error {
                 set_vendor_validation_min_error.set(Some(message));
                 has_errors = true;
+                validation_errors = true;
             }
 
             if let Some(message) = max_error {
                 set_vendor_validation_max_error.set(Some(message));
                 has_errors = true;
+                validation_errors = true;
             }
         } else if validation_type == "regex" {
             let regex_pattern = vendor_validation_regex.get();
@@ -630,11 +666,13 @@ pub fn BoothForm(
                 set_vendor_validation_regex_error
                     .set(Some(t!("booth.form_errors.regex_pattern_required")()));
                 has_errors = true;
+                validation_errors = true;
             } else {
                 // Validate the regex pattern
                 if let Err(e) = validate_regex_pattern(&regex_pattern) {
                     set_vendor_validation_regex_error.set(Some(translate_domain_error(&e)));
                     has_errors = true;
+                    validation_errors = true;
                 }
             }
         }
@@ -642,476 +680,541 @@ pub fn BoothForm(
         if let Err(err) = vendor_omission_rules.get().validate() {
             set_vendor_omission_error.set(Some(translate_domain_error(&err)));
             has_errors = true;
+            omission_errors = true;
         }
 
-        if !has_errors {
-            let data = BoothFormData {
-                description: description.get(),
-                date: date.get(),
-                participation_fee: participation_fee.get(),
-                sales_fee_percent: sales_fee_percent.get(),
-                rounding_step: rounding_step.get(),
-                amount_stepping: amount_stepping.get(),
-                vendor_validation_type: vendor_validation_type.get(),
-                vendor_validation_regex: vendor_validation_regex.get(),
-                vendor_validation_min: vendor_validation_min.get(),
-                vendor_validation_max: vendor_validation_max.get(),
-                vendor_omission_rules: vendor_omission_rules.get(),
+        if has_errors {
+            let current_tab = active_tab.get();
+            let current_tab_has_errors = match current_tab {
+                0 => basic_errors,
+                1 => validation_errors,
+                2 => omission_errors,
+                _ => false,
             };
-            on_submit(data);
+
+            if !current_tab_has_errors {
+                if basic_errors {
+                    active_tab.set(0);
+                } else if validation_errors {
+                    active_tab.set(1);
+                } else if omission_errors {
+                    active_tab.set(2);
+                }
+            }
+
+            return;
         }
+
+        let data = BoothFormData {
+            description: description.get(),
+            date: date.get(),
+            participation_fee: participation_fee.get(),
+            sales_fee_percent: sales_fee_percent.get(),
+            rounding_step: rounding_step.get(),
+            amount_stepping: amount_stepping.get(),
+            vendor_validation_type: vendor_validation_type.get(),
+            vendor_validation_regex: vendor_validation_regex.get(),
+            vendor_validation_min: vendor_validation_min.get(),
+            vendor_validation_max: vendor_validation_max.get(),
+            vendor_omission_rules: vendor_omission_rules.get(),
+        };
+        on_submit(data);
     };
 
     view! {
         <form
             id=form_id
-            class="space-y-6"
+            class="space-y-0"
             on:submit=move |e| {
                 e.prevent_default();
                 validate_and_submit();
             }
         >
-            // Description
-            <div>
-                <Input
-                    node_ref=description_input_ref
-                    autofocus=autofocus_description
-                    value=description
-                    label=t!("booth.description_label")()
-                    placeholder=t!("booth.description_placeholder")()
-                    required=true
-                    error=description_error
-                />
-            </div>
-
-            // Date
-            <div>
-                <Input
-                    value=date
-                    input_type=crate::components::InputType::Date
-                    label=t!("booth.date_label")()
-                    required=true
-                    error=date_error
-                />
-            </div>
-
-            // Fee Configuration Section
-            <div class="border-t pt-6">
-                <h3 class="text-lg font-semibold mb-4">{t!("booth.fee_configuration_title")()}</h3>
-
-                <div class="space-y-4">
-                    <div class="grid gap-4 md:grid-cols-2">
-                        // Participation Fee
-                        <NumberInput
-                            value=participation_fee
-                            label={
-                                let locale_val = locale.get();
-                                let currency = currency_symbol_for_label(locale_val);
-                                t!("booth.participation_fee")().replace("{currency}", currency)
-                            }
-                            placeholder=t!("common.placeholders.decimal_zero")()
-                            required=true
-                            error=participation_fee_error
-                        />
-
-                        // Sales Fee Percent
-                        <NumberInput
-                            value=sales_fee_percent
-                            label=t!("booth.sales_fee_percent")()
-                            placeholder=t!("common.placeholders.decimal_zero")()
-                            required=true
-                            error=sales_fee_percent_error
-                        />
-                    </div>
-
-                    // Rounding Step
-                    <div>
-                        <NumberInput
-                            value=rounding_step
-                            label=t!("booth.rounding_step")()
-                            placeholder=t!("common.placeholders.decimal_half")()
-                            required=true
-                            error=rounding_step_error
-                        />
-                        <p class="mt-1 text-sm text-gray-600">
-                            {t!("booth.rounding_step_help")()}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="border-t pt-6">
-                <h3 class="text-lg font-semibold mb-4">{t!("booth.amount_validation_title")()}</h3>
-
-                <div>
-                    <NumberInput
-                        value=amount_stepping
-                        label=t!("booth.amount_stepping")()
-                        placeholder=t!("common.placeholders.decimal_half")()
-                        error=amount_stepping_error
-                    />
-                    <p class="mt-1 text-sm text-gray-600">
-                        {t!("booth.amount_stepping_help")()}
-                    </p>
-                </div>
-            </div>
-
-            // Vendor ID Validation Section
-            <div class="border-t pt-6">
-                <h3 class="text-lg font-semibold mb-4">{t!("booth.vendor_validation_title")()}</h3>
-                <p class="text-sm text-gray-600 mb-4">{t!("booth.vendor_validation_description")()}</p>
-
-                <div class="space-y-4">
-                    // Validation Type Select
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            {t!("booth.vendor_validation_type_label")()}
-                        </label>
-                        <select
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                vendor_validation_type.set(event_target_value(&ev));
-                                set_vendor_validation_regex_error.set(None);
-                                set_vendor_validation_min_error.set(None);
-                                set_vendor_validation_max_error.set(None);
-                            }
-                            prop:value=vendor_validation_type
-                        >
-                            <option value="unrestricted" selected=move || vendor_validation_type.get() == "unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
-                            <option value="digits_only" selected=move || vendor_validation_type.get() == "digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
-                            <option value="regex" selected=move || vendor_validation_type.get() == "regex">{t!("booth.vendor_validation_regex")()}</option>
-                        </select>
-                    </div>
-
-                    // Regex Pattern Input (only shown when type is "regex")
-                    {move || {
-                        if vendor_validation_type.get() == "digits_only" {
-                            view! {
+            <TabGroup
+                tabs=vec![
+                    TabItem {
+                        id: "basic-settings".to_string(),
+                        label: t!("booth.tabs.basic_settings")(),
+                        has_error: basic_tab_has_errors,
+                    },
+                    TabItem {
+                        id: "validation-rules".to_string(),
+                        label: t!("booth.tabs.validation_rules")(),
+                        has_error: validation_tab_has_errors,
+                    },
+                    TabItem {
+                        id: "vendor-omissions".to_string(),
+                        label: t!("booth.tabs.vendor_omissions")(),
+                        has_error: omission_tab_has_errors,
+                    },
+                ]
+                active_tab=active_tab
+                children=Box::new(move |tab_index| {
+                    match tab_index {
+                        0 => view! {
+                            <div class="space-y-6">
                                 <div class="grid gap-4 md:grid-cols-2">
-                                    <div>
-                                        <Input
-                                            value=vendor_validation_min
-                                            input_type=InputType::Number
-                                            label=t!("booth.vendor_validation_min_label")()
-                                            placeholder="1".to_string()
-                                            required=true
-                                            error=vendor_validation_min_error
-                                        />
-                                        <p class="text-sm text-gray-600 mt-1">
-                                            {t!("booth.vendor_validation_min_help")()}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <Input
-                                            value=vendor_validation_max
-                                            input_type=InputType::Number
-                                            label=t!("booth.vendor_validation_max_label")()
-                                            placeholder=t!("booth.vendor_validation_max_placeholder")()
-                                            error=vendor_validation_max_error
-                                        />
-                                        <p class="text-sm text-gray-600 mt-1">
-                                            {t!("booth.vendor_validation_max_help")()}
-                                        </p>
-                                    </div>
-                                </div>
-                            }
-                                .into_view()
-                        } else if vendor_validation_type.get() == "regex" {
-                            view! {
-                                <div class="space-y-2">
                                     <Input
-                                        value=vendor_validation_regex
-                                        label=t!("booth.vendor_validation_regex_pattern")()
-                                        placeholder=r"^V\d{3}$".to_string()
+                                        node_ref=description_input_ref
+                                        autofocus=autofocus_description
+                                        value=description
+                                        label=t!("booth.description_label")()
+                                        placeholder=t!("booth.description_placeholder")()
                                         required=true
-                                        error=vendor_validation_regex_error
+                                        error=description_error
                                     />
-                                    <p class="text-sm text-gray-600">
-                                        {t!("booth.vendor_validation_regex_help")()}
-                                    </p>
-                                </div>
-                            }.into_view()
-                        } else {
-                            view! { <div></div> }.into_view()
-                        }
-                    }}
-                </div>
-            </div>
 
-            <div class="border-t pt-6">
-                <h3 class="text-lg font-semibold mb-4">{t!("booth.vendor_omission_title")()}</h3>
-                <p class="text-sm text-gray-600 mb-4">{t!("booth.vendor_omission_description")()}</p>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            {t!("booth.vendor_omission_type_label")()}
-                        </label>
-                        <select
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                new_omission_rule_type.set(event_target_value(&ev));
-                                set_vendor_omission_error.set(None);
-                            }
-                            prop:value=new_omission_rule_type
-                        >
-                            <option value="exact">{t!("booth.vendor_omission_type_exact")()}</option>
-                            <option value="wildcard">{t!("booth.vendor_omission_type_wildcard")()}</option>
-                            <option value="regex">{t!("booth.vendor_omission_type_regex")()}</option>
-                            <option value="range">{t!("booth.vendor_omission_type_range")()}</option>
-                        </select>
-                    </div>
-
-                    {move || {
-                        match new_omission_rule_type.get().as_str() {
-                            "exact" => view! {
-                                <Input
-                                    value=new_omission_value
-                                    label=t!("booth.vendor_omission_value_label")()
-                                    placeholder=t!("booth.vendor_omission_value_placeholder")()
-                                />
-                            }.into_view(),
-                            "wildcard" => view! {
-                                <Input
-                                    value=new_omission_pattern
-                                    label=t!("booth.vendor_omission_pattern_label")()
-                                    placeholder=t!("booth.vendor_omission_pattern_wildcard_placeholder")()
-                                />
-                            }.into_view(),
-                            "regex" => view! {
-                                <Input
-                                    value=new_omission_pattern
-                                    label=t!("booth.vendor_omission_pattern_label")()
-                                    placeholder=t!("booth.vendor_omission_pattern_regex_placeholder")()
-                                />
-                            }.into_view(),
-                            "range" => view! {
-                                <div class="grid grid-cols-3 gap-4">
                                     <Input
-                                        value=new_omission_range_start
-                                        label=t!("booth.vendor_omission_start_label")()
-                                        placeholder="56".to_string()
-                                    />
-                                    <Input
-                                        value=new_omission_range_end
-                                        label=t!("booth.vendor_omission_end_label")()
-                                        placeholder="182".to_string()
-                                    />
-                                    <Input
-                                        value=new_omission_range_step
-                                        label=t!("booth.vendor_omission_step_label")()
-                                        placeholder="6".to_string()
+                                        value=date
+                                        input_type=crate::components::InputType::Date
+                                        label=t!("booth.date_label")()
+                                        required=true
+                                        error=date_error
                                     />
                                 </div>
-                            }.into_view(),
-                            _ => view! {
-                                <Input
-                                    value=new_omission_value
-                                    label=t!("booth.vendor_omission_value_label")()
-                                    placeholder=t!("booth.vendor_omission_value_placeholder")()
-                                />
-                            }.into_view(),
-                        }
-                    }}
 
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-600">{move || omission_help_text.get()}</p>
-                        <Button
-                            on_click=Box::new(move || {
-                                set_vendor_omission_error.set(None);
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-6">
+                                    <h3 class="mb-4 text-lg font-semibold text-gray-900">
+                                        {t!("booth.fee_configuration_title")()}
+                                    </h3>
 
-                                let next_rules = match new_omission_rule_type.get().as_str() {
-                                    "exact" => {
-                                        let values = parse_exact_omission_values(&new_omission_value.get());
-                                        if values.is_empty() {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_value_required")(),
-                                            ));
-                                            return;
-                                        }
-                                        values
-                                            .into_iter()
-                                            .map(OmissionRule::Exact)
-                                            .collect::<Vec<_>>()
-                                    }
-                                    "wildcard" => {
-                                        let pattern = new_omission_pattern.get().trim().to_string();
-                                        if pattern.is_empty() {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_pattern_required")(),
-                                            ));
-                                            return;
-                                        }
-                                        if pattern.len() > 100 {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_pattern_too_long")(),
-                                            ));
-                                            return;
-                                        }
-                                        vec![OmissionRule::Wildcard(pattern.into())]
-                                    }
-                                    "regex" => {
-                                        let pattern = new_omission_pattern.get().trim().to_string();
-                                        if let Err(err) = validate_regex_pattern(&pattern) {
-                                            set_vendor_omission_error
-                                                .set(Some(translate_domain_error(&err)));
-                                            return;
-                                        }
-                                        vec![OmissionRule::Regex(pattern.into())]
-                                    }
-                                    "range" => {
-                                        let Some(start) = parse_u32_input(&new_omission_range_start.get()) else {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_number_required")(),
-                                            ));
-                                            return;
-                                        };
-                                        let Some(end) = parse_u32_input(&new_omission_range_end.get()) else {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_number_required")(),
-                                            ));
-                                            return;
-                                        };
-                                        if start > end {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_range_invalid")(),
-                                            ));
-                                            return;
-                                        }
-                                        let step_input = new_omission_range_step.get();
-                                        let step_input = step_input.trim();
+                                    <div class="space-y-4">
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <NumberInput
+                                                value=participation_fee
+                                                label={
+                                                    let locale_val = locale.get();
+                                                    let currency = currency_symbol_for_label(locale_val);
+                                                    t!("booth.participation_fee")()
+                                                        .replace("{currency}", currency)
+                                                }
+                                                placeholder=t!("common.placeholders.decimal_zero")()
+                                                required=true
+                                                error=participation_fee_error
+                                            />
 
-                                        if step_input.is_empty() {
-                                            vec![OmissionRule::Range { start, end }]
-                                        } else {
-                                            let Some(step) = parse_u32_input(step_input) else {
-                                                set_vendor_omission_error.set(Some(
-                                                    t!("booth.form_errors.vendor_omission_step_required")(),
-                                                ));
-                                                return;
-                                            };
-                                            if step == 0 {
-                                                set_vendor_omission_error.set(Some(
-                                                    t!("booth.form_errors.vendor_omission_step_invalid")(),
-                                                ));
-                                                return;
-                                            }
-                                            vec![OmissionRule::RangeWithStep { start, end, step }]
-                                        }
-                                    }
-                                    _ => {
-                                        let values = parse_exact_omission_values(&new_omission_value.get());
-                                        if values.is_empty() {
-                                            set_vendor_omission_error.set(Some(
-                                                t!("booth.form_errors.vendor_omission_value_required")(),
-                                            ));
-                                            return;
-                                        }
-                                        values
-                                            .into_iter()
-                                            .map(OmissionRule::Exact)
-                                            .collect::<Vec<_>>()
-                                    }
-                                };
+                                            <NumberInput
+                                                value=sales_fee_percent
+                                                label=t!("booth.sales_fee_percent")()
+                                                placeholder=t!("common.placeholders.decimal_zero")()
+                                                required=true
+                                                error=sales_fee_percent_error
+                                            />
+                                        </div>
 
-                                let mut updated_rules = vendor_omission_rules.get();
-                                updated_rules.rules.extend(next_rules);
-
-                                if let Err(err) = updated_rules.validate() {
-                                    set_vendor_omission_error.set(Some(translate_domain_error(&err)));
-                                    return;
-                                }
-
-                                vendor_omission_rules.set(updated_rules);
-                                new_omission_value.set(String::new());
-                                new_omission_pattern.set(String::new());
-                                new_omission_range_start.set(String::new());
-                                new_omission_range_end.set(String::new());
-                                new_omission_range_step.set(String::new());
-                            })
-                            variant=crate::components::ButtonVariant::Secondary
-                        >
-                            {t!("booth.vendor_omission_add_rule")()}
-                        </Button>
-                    </div>
-
-                    <Show when=move || vendor_omission_error.get().is_some()>
-                        <p class="text-sm text-red-600">{move || vendor_omission_error.get().unwrap_or_default()}</p>
-                    </Show>
-
-                    <div class="space-y-2">
-                        <Show
-                            when=move || !vendor_omission_rules.get().rules.is_empty()
-                            fallback=move || view! {
-                                <p class="text-sm text-gray-500">{t!("booth.vendor_omission_empty")()}</p>
-                            }
-                        >
-                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                <For
-                                    each=move || {
-                                        vendor_omission_rules
-                                            .get()
-                                            .rules
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(index, rule)| {
-                                                let key = omission_rule_key(index, &rule);
-                                                (index, key, rule)
-                                            })
-                                    }
-                                    key=|(_, key, _)| key.clone()
-                                    children=move |(_, rule_key, rule)| {
-                                        let type_label = omission_rule_type_label(&rule);
-                                        let value_label = omission_rule_value(&rule);
-
-                                        view! {
-                                            <div class="flex h-full flex-col justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-                                                <div class="min-h-[4.5rem] space-y-1">
-                                                    <p
-                                                        class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500"
-                                                    >
-                                                        {type_label}
-                                                    </p>
-                                                    <p
-                                                        class="text-sm font-medium text-gray-800"
-                                                        title=value_label.clone()
-                                                        style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;"
-                                                    >
-                                                        {value_label}
-                                                    </p>
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    class="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-800"
-                                                    on:click=move |_| {
-                                                        vendor_omission_rules.update(|rules| {
-                                                            if let Some(index) = rules
-                                                                .rules
-                                                                .iter()
-                                                                .enumerate()
-                                                                .find_map(|(index, existing_rule)| {
-                                                                    (omission_rule_key(index, existing_rule) == rule_key)
-                                                                        .then_some(index)
-                                                                })
-                                                            {
-                                                                rules.rules.remove(index);
-                                                            }
-                                                        });
-                                                    }
-                                                >
-                                                    {t!("common.delete")()}
-                                                </button>
-                                            </div>
-                                        }
-                                    }
-                                />
+                                        <div>
+                                            <NumberInput
+                                                value=rounding_step
+                                                label=t!("booth.rounding_step")()
+                                                placeholder=t!("common.placeholders.decimal_half")()
+                                                required=true
+                                                error=rounding_step_error
+                                            />
+                                            <p class="mt-1 text-sm text-gray-600">
+                                                {t!("booth.rounding_step_help")()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </Show>
-                    </div>
-                </div>
-            </div>
+                        }
+                        .into_view(),
+                        1 => view! {
+                            <div class="space-y-6">
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-6">
+                                    <h3 class="mb-4 text-lg font-semibold text-gray-900">
+                                        {t!("booth.amount_validation_title")()}
+                                    </h3>
 
+                                    <div>
+                                        <NumberInput
+                                            value=amount_stepping
+                                            label=t!("booth.amount_stepping")()
+                                            placeholder=t!("common.placeholders.decimal_half")()
+                                            error=amount_stepping_error
+                                        />
+                                        <p class="mt-1 text-sm text-gray-600">
+                                            {t!("booth.amount_stepping_help")()}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-6">
+                                    <h3 class="mb-4 text-lg font-semibold text-gray-900">
+                                        {t!("booth.vendor_validation_title")()}
+                                    </h3>
+                                    <p class="mb-4 text-sm text-gray-600">
+                                        {t!("booth.vendor_validation_description")()}
+                                    </p>
+
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">
+                                                {t!("booth.vendor_validation_type_label")()}
+                                            </label>
+                                            <select
+                                                class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                on:change=move |ev| {
+                                                    vendor_validation_type.set(event_target_value(&ev));
+                                                    set_vendor_validation_regex_error.set(None);
+                                                    set_vendor_validation_min_error.set(None);
+                                                    set_vendor_validation_max_error.set(None);
+                                                }
+                                                prop:value=vendor_validation_type
+                                            >
+                                                <option value="unrestricted" selected=move || vendor_validation_type.get() == "unrestricted">{t!("booth.vendor_validation_unrestricted")()}</option>
+                                                <option value="digits_only" selected=move || vendor_validation_type.get() == "digits_only">{t!("booth.vendor_validation_digits_only")()}</option>
+                                                <option value="regex" selected=move || vendor_validation_type.get() == "regex">{t!("booth.vendor_validation_regex")()}</option>
+                                            </select>
+                                        </div>
+
+                                        {move || {
+                                            if vendor_validation_type.get() == "digits_only" {
+                                                view! {
+                                                    <div class="grid gap-4 md:grid-cols-2">
+                                                        <div>
+                                                            <Input
+                                                                value=vendor_validation_min
+                                                                input_type=InputType::Number
+                                                                label=t!("booth.vendor_validation_min_label")()
+                                                                placeholder="1".to_string()
+                                                                required=true
+                                                                error=vendor_validation_min_error
+                                                            />
+                                                            <p class="mt-1 text-sm text-gray-600">
+                                                                {t!("booth.vendor_validation_min_help")()}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <Input
+                                                                value=vendor_validation_max
+                                                                input_type=InputType::Number
+                                                                label=t!("booth.vendor_validation_max_label")()
+                                                                placeholder=t!("booth.vendor_validation_max_placeholder")()
+                                                                error=vendor_validation_max_error
+                                                            />
+                                                            <p class="mt-1 text-sm text-gray-600">
+                                                                {t!("booth.vendor_validation_max_help")()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                .into_view()
+                                            } else if vendor_validation_type.get() == "regex" {
+                                                view! {
+                                                    <div class="space-y-2">
+                                                        <Input
+                                                            value=vendor_validation_regex
+                                                            label=t!("booth.vendor_validation_regex_pattern")()
+                                                            placeholder=r"^V\d{3}$".to_string()
+                                                            required=true
+                                                            error=vendor_validation_regex_error
+                                                        />
+                                                        <p class="text-sm text-gray-600">
+                                                            {t!("booth.vendor_validation_regex_help")()}
+                                                        </p>
+                                                    </div>
+                                                }
+                                                .into_view()
+                                            } else {
+                                                view! { <div></div> }.into_view()
+                                            }
+                                        }}
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        .into_view(),
+                        2 => view! {
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-6">
+                                <h3 class="mb-4 text-lg font-semibold text-gray-900">
+                                    {t!("booth.vendor_omission_title")()}
+                                </h3>
+                                <p class="mb-4 text-sm text-gray-600">
+                                    {t!("booth.vendor_omission_description")()}
+                                </p>
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-gray-700">
+                                            {t!("booth.vendor_omission_type_label")()}
+                                        </label>
+                                        <select
+                                            class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            on:change=move |ev| {
+                                                new_omission_rule_type.set(event_target_value(&ev));
+                                                set_vendor_omission_error.set(None);
+                                            }
+                                            prop:value=new_omission_rule_type
+                                        >
+                                            <option value="exact">{t!("booth.vendor_omission_type_exact")()}</option>
+                                            <option value="wildcard">{t!("booth.vendor_omission_type_wildcard")()}</option>
+                                            <option value="regex">{t!("booth.vendor_omission_type_regex")()}</option>
+                                            <option value="range">{t!("booth.vendor_omission_type_range")()}</option>
+                                        </select>
+                                    </div>
+
+                                    {move || {
+                                        match new_omission_rule_type.get().as_str() {
+                                            "exact" => view! {
+                                                <Input
+                                                    value=new_omission_value
+                                                    label=t!("booth.vendor_omission_value_label")()
+                                                    placeholder=t!("booth.vendor_omission_value_placeholder")()
+                                                />
+                                            }
+                                            .into_view(),
+                                            "wildcard" => view! {
+                                                <Input
+                                                    value=new_omission_pattern
+                                                    label=t!("booth.vendor_omission_pattern_label")()
+                                                    placeholder=t!("booth.vendor_omission_pattern_wildcard_placeholder")()
+                                                />
+                                            }
+                                            .into_view(),
+                                            "regex" => view! {
+                                                <Input
+                                                    value=new_omission_pattern
+                                                    label=t!("booth.vendor_omission_pattern_label")()
+                                                    placeholder=t!("booth.vendor_omission_pattern_regex_placeholder")()
+                                                />
+                                            }
+                                            .into_view(),
+                                            "range" => view! {
+                                                <div class="grid gap-4 md:grid-cols-3">
+                                                    <Input
+                                                        value=new_omission_range_start
+                                                        label=t!("booth.vendor_omission_start_label")()
+                                                        placeholder="56".to_string()
+                                                    />
+                                                    <Input
+                                                        value=new_omission_range_end
+                                                        label=t!("booth.vendor_omission_end_label")()
+                                                        placeholder="182".to_string()
+                                                    />
+                                                    <Input
+                                                        value=new_omission_range_step
+                                                        label=t!("booth.vendor_omission_step_label")()
+                                                        placeholder="6".to_string()
+                                                    />
+                                                </div>
+                                            }
+                                            .into_view(),
+                                            _ => view! {
+                                                <Input
+                                                    value=new_omission_value
+                                                    label=t!("booth.vendor_omission_value_label")()
+                                                    placeholder=t!("booth.vendor_omission_value_placeholder")()
+                                                />
+                                            }
+                                            .into_view(),
+                                        }
+                                    }}
+
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <p class="text-sm text-gray-600">{move || omission_help_text.get()}</p>
+                                        <Button
+                                            on_click=Box::new(move || {
+                                                set_vendor_omission_error.set(None);
+
+                                                let next_rules = match new_omission_rule_type.get().as_str() {
+                                                    "exact" => {
+                                                        let values = parse_exact_omission_values(&new_omission_value.get());
+                                                        if values.is_empty() {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_value_required")(),
+                                                            ));
+                                                            return;
+                                                        }
+                                                        values
+                                                            .into_iter()
+                                                            .map(OmissionRule::Exact)
+                                                            .collect::<Vec<_>>()
+                                                    }
+                                                    "wildcard" => {
+                                                        let pattern = new_omission_pattern.get().trim().to_string();
+                                                        if pattern.is_empty() {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_pattern_required")(),
+                                                            ));
+                                                            return;
+                                                        }
+                                                        if pattern.len() > 100 {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_pattern_too_long")(),
+                                                            ));
+                                                            return;
+                                                        }
+                                                        vec![OmissionRule::Wildcard(pattern.into())]
+                                                    }
+                                                    "regex" => {
+                                                        let pattern = new_omission_pattern.get().trim().to_string();
+                                                        if let Err(err) = validate_regex_pattern(&pattern) {
+                                                            set_vendor_omission_error
+                                                                .set(Some(translate_domain_error(&err)));
+                                                            return;
+                                                        }
+                                                        vec![OmissionRule::Regex(pattern.into())]
+                                                    }
+                                                    "range" => {
+                                                        let Some(start) = parse_u32_input(&new_omission_range_start.get()) else {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_number_required")(),
+                                                            ));
+                                                            return;
+                                                        };
+                                                        let Some(end) = parse_u32_input(&new_omission_range_end.get()) else {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_number_required")(),
+                                                            ));
+                                                            return;
+                                                        };
+                                                        if start > end {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_range_invalid")(),
+                                                            ));
+                                                            return;
+                                                        }
+                                                        let step_input = new_omission_range_step.get();
+                                                        let step_input = step_input.trim();
+
+                                                        if step_input.is_empty() {
+                                                            vec![OmissionRule::Range { start, end }]
+                                                        } else {
+                                                            let Some(step) = parse_u32_input(step_input) else {
+                                                                set_vendor_omission_error.set(Some(
+                                                                    t!("booth.form_errors.vendor_omission_step_required")(),
+                                                                ));
+                                                                return;
+                                                            };
+                                                            if step == 0 {
+                                                                set_vendor_omission_error.set(Some(
+                                                                    t!("booth.form_errors.vendor_omission_step_invalid")(),
+                                                                ));
+                                                                return;
+                                                            }
+                                                            vec![OmissionRule::RangeWithStep { start, end, step }]
+                                                        }
+                                                    }
+                                                    _ => {
+                                                        let values = parse_exact_omission_values(&new_omission_value.get());
+                                                        if values.is_empty() {
+                                                            set_vendor_omission_error.set(Some(
+                                                                t!("booth.form_errors.vendor_omission_value_required")(),
+                                                            ));
+                                                            return;
+                                                        }
+                                                        values
+                                                            .into_iter()
+                                                            .map(OmissionRule::Exact)
+                                                            .collect::<Vec<_>>()
+                                                    }
+                                                };
+
+                                                let mut updated_rules = vendor_omission_rules.get();
+                                                updated_rules.rules.extend(next_rules);
+
+                                                if let Err(err) = updated_rules.validate() {
+                                                    set_vendor_omission_error
+                                                        .set(Some(translate_domain_error(&err)));
+                                                    return;
+                                                }
+
+                                                vendor_omission_rules.set(updated_rules);
+                                                new_omission_value.set(String::new());
+                                                new_omission_pattern.set(String::new());
+                                                new_omission_range_start.set(String::new());
+                                                new_omission_range_end.set(String::new());
+                                                new_omission_range_step.set(String::new());
+                                            })
+                                            variant=crate::components::ButtonVariant::Secondary
+                                        >
+                                            {t!("booth.vendor_omission_add_rule")()}
+                                        </Button>
+                                    </div>
+
+                                    <Show when=move || vendor_omission_error.get().is_some()>
+                                        <p class="text-sm text-red-600">
+                                            {move || vendor_omission_error.get().unwrap_or_default()}
+                                        </p>
+                                    </Show>
+
+                                    <div class="space-y-2">
+                                        <Show
+                                            when=move || !vendor_omission_rules.get().rules.is_empty()
+                                            fallback=move || view! {
+                                                <p class="text-sm text-gray-500">{t!("booth.vendor_omission_empty")()}</p>
+                                            }
+                                        >
+                                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                <For
+                                                    each=move || {
+                                                        vendor_omission_rules
+                                                            .get()
+                                                            .rules
+                                                            .into_iter()
+                                                            .enumerate()
+                                                            .map(|(index, rule)| {
+                                                                let key = omission_rule_key(index, &rule);
+                                                                (index, key, rule)
+                                                            })
+                                                    }
+                                                    key=|(_, key, _)| key.clone()
+                                                    children=move |(_, rule_key, rule)| {
+                                                        let type_label = omission_rule_type_label(&rule);
+                                                        let value_label = omission_rule_value(&rule);
+
+                                                        view! {
+                                                            <div class="flex h-full flex-col justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                                                                <div class="min-h-[4.5rem] space-y-1">
+                                                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                                                                        {type_label}
+                                                                    </p>
+                                                                    <p
+                                                                        class="text-sm font-medium text-gray-800"
+                                                                        title=value_label.clone()
+                                                                        style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;"
+                                                                    >
+                                                                        {value_label}
+                                                                    </p>
+                                                                </div>
+
+                                                                <button
+                                                                    type="button"
+                                                                    class="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-800"
+                                                                    on:click=move |_| {
+                                                                        vendor_omission_rules.update(|rules| {
+                                                                            if let Some(index) = rules
+                                                                                .rules
+                                                                                .iter()
+                                                                                .enumerate()
+                                                                                .find_map(|(index, existing_rule)| {
+                                                                                    (omission_rule_key(index, existing_rule) == rule_key)
+                                                                                        .then_some(index)
+                                                                                })
+                                                                            {
+                                                                                rules.rules.remove(index);
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                >
+                                                                    {t!("common.delete")()}
+                                                                </button>
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                            </div>
+                                        </Show>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        .into_view(),
+                        _ => view! { <div></div> }.into_view(),
+                    }
+                })
+            />
         </form>
     }
 }

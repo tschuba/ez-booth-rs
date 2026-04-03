@@ -725,8 +725,8 @@ pub fn BoothListPage() -> impl IntoView {
                     <Modal
                         show=show_create_modal
                         on_close=move || set_show_create_modal.set(false)
-                        title=Signal::derive(move || create_booth_title())
-                        size=ModalSize::Large
+                        title=Signal::derive(create_booth_title)
+                        size=ModalSize::XLarge
                         action_bar=
                             view! {
                                 <div class="contents">
@@ -772,8 +772,8 @@ pub fn BoothListPage() -> impl IntoView {
                             set_show_edit_modal.set(false);
                             set_editing_booth.set(None);
                         }
-                        title=Signal::derive(move || edit_booth_title())
-                        size=ModalSize::Large
+                        title=Signal::derive(edit_booth_title)
+                        size=ModalSize::XLarge
                         action_bar=
                             view! {
                                 <div class="contents">
