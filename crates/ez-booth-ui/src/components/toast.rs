@@ -161,7 +161,7 @@ fn ToastContainer() -> impl IntoView {
 
     view! {
         <div
-            class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+            class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none print:hidden"
             role="region"
             aria-label="Notifications"
             aria-live="polite"
