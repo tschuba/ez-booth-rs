@@ -152,6 +152,11 @@ CI artifacts follow the same layout:
 
 The launcher starts a local server, opens your browser, and enforces single-instance execution per device with a lock file in the user config directory.
 
+Launcher notes:
+
+- the lock file uses atomic creation plus stale-process cleanup; a narrow cleanup race still exists if two launchers start at the exact same time, which is an accepted desktop-app tradeoff for this local single-user workflow
+- `crates/ez-booth-app/Trunk.toml` uses `public_url = "./"` so downloaded builds work from any extracted folder, but that relative asset layout is not suitable for deployments that serve the app from a URL subdirectory
+
 ## Building
 
 ```bash
@@ -196,6 +201,7 @@ cargo test -p domain
 - downloaded app shows a blank page: launch it with the included binary instead of opening `index.html` directly
 - macOS or Windows warns about the launcher binary: expected for unsigned builds; follow the steps in `crates/ez-booth-app/ARTIFACT_README.md`
 - lock file seems stuck after a crash: delete `launcher.lock` from the user config directory listed in `crates/ez-booth-app/ARTIFACT_README.md`
+- downloaded build is being hosted from a web server subdirectory: rebuild with a deployment-specific `public_url` instead of `./`
 
 ## Documentation
 

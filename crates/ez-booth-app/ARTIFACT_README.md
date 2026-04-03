@@ -29,6 +29,7 @@ This folder is ready to run without Python, Node.js, or any extra setup.
 - opens your default browser automatically
 - keeps all booth data on your device in that browser profile
 - prevents two EZ Booth instances from running at the same time on the same device
+- serves files only from this extracted folder and adds browser security headers for the local session
 
 If the browser does not open, copy the printed URL into your browser manually.
 
@@ -37,6 +38,13 @@ If the browser does not open, copy the printed URL into your browser manually.
 - Keep the launcher binary and all extracted files in the same folder.
 - Do not move `index.html`, `.wasm`, `.js`, or `.css` files away from the launcher.
 - Use a current Chrome, Edge, Firefox, or Safari release.
+- Use the launcher only for local extracted builds; if you deploy EZ Booth behind a normal web server, that server must provide its own asset and security configuration.
+
+## Security Notes
+
+- The launcher only listens on `127.0.0.1`, so it is intended for the same device that starts it.
+- The app bundle is loaded from the extracted folder next to the launcher, not from arbitrary filesystem paths.
+- Single-instance protection relies on a lock file in your user config directory. If the launcher crashes, it may need to clean up that stale file the next time it starts.
 
 ## Troubleshooting
 
