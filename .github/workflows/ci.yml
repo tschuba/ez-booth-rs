@@ -117,6 +117,10 @@ jobs:
         run: trunk build --release
         working-directory: crates/ez-booth-app
 
+      - name: Add artifact usage guide
+        run: cp ARTIFACT_README.md dist/README.txt
+        working-directory: crates/ez-booth-app
+
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
         with:

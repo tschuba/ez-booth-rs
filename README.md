@@ -129,7 +129,28 @@ cd crates/ez-booth-app
 trunk build --release
 ```
 
-The optimized build will be output to `dist/` and can be deployed to any static web server.
+The optimized build is output to `crates/ez-booth-app/dist/` and is intended for local use.
+
+To use the built app locally:
+
+1. keep all files in `crates/ez-booth-app/dist/` together
+2. open `crates/ez-booth-app/dist/index.html` in Chrome or Safari
+3. use the same browser profile on the same device to keep IndexedDB data available
+
+CI artifacts follow the same layout:
+
+1. download the `wasm-dist` artifact from GitHub Actions
+2. extract it fully
+3. open `index.html` directly
+
+If a browser or environment blocks direct file access, serve the folder locally instead:
+
+```bash
+cd crates/ez-booth-app/dist
+python3 -m http.server 8080
+```
+
+Then open `http://localhost:8080`.
 
 ## Building
 
