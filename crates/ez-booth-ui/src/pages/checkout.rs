@@ -426,7 +426,11 @@ fn should_play_inline_error(previous_error: &Option<String>, next_error: &Option
     next_error.is_some() && previous_error.as_ref() != next_error.as_ref()
 }
 
-fn validate_inline_amount(value: &str, amount_stepping: Option<Decimal>, locale: Locale) -> Option<String> {
+fn validate_inline_amount(
+    value: &str,
+    amount_stepping: Option<Decimal>,
+    locale: Locale,
+) -> Option<String> {
     let trimmed = value.trim();
 
     if trimmed.is_empty() {
@@ -439,12 +443,10 @@ fn validate_inline_amount(value: &str, amount_stepping: Option<Decimal>, locale:
         InlineAmountValidation::TooManyDecimals => {
             Some(t!("booth_form.errors.item_amount_too_many_decimals")())
         }
-        InlineAmountValidation::StepMismatch(step) => Some(
-            translate_with_params(
-                "checkout.errors.amount_stepping",
-                HashMap::from([("step", format_currency(step, locale))]),
-            ),
-        ),
+        InlineAmountValidation::StepMismatch(step) => Some(translate_with_params(
+            "checkout.errors.amount_stepping",
+            HashMap::from([("step", format_currency(step, locale))]),
+        )),
         InlineAmountValidation::Invalid => Some(t!("checkout.errors.amount_invalid")()),
     }
 }
@@ -813,7 +815,8 @@ pub fn CheckoutPage() -> impl IntoView {
             .unwrap_or_else(VendorIdOmissionRules::empty)
     });
 
-    let amount_stepping = create_memo(move |_| selected_booth.get().and_then(|booth| booth.amount_stepping));
+    let amount_stepping =
+        create_memo(move |_| selected_booth.get().and_then(|booth| booth.amount_stepping));
 
     let show_rules_modal = create_rw_signal(false);
 
@@ -1054,13 +1057,15 @@ pub fn CheckoutPage() -> impl IntoView {
                         validate_amount_matches_step(amount, step)
                     {
                         let message = match validation {
-                            ValidationError::AmountSteppingMismatch { .. } => translate_with_params(
-                                "checkout.errors.amount_stepping",
-                                HashMap::from([(
-                                    "step",
-                                    format_currency(step, locale.get_untracked()),
-                                )]),
-                            ),
+                            ValidationError::AmountSteppingMismatch { .. } => {
+                                translate_with_params(
+                                    "checkout.errors.amount_stepping",
+                                    HashMap::from([(
+                                        "step",
+                                        format_currency(step, locale.get_untracked()),
+                                    )]),
+                                )
+                            }
                             _ => translate_domain_error(&DomainError::Validation(validation)),
                         };
                         toast.warning(&message);
@@ -2901,8 +2906,14 @@ mod tests {
             classify_inline_amount("1,213", None),
             InlineAmountValidation::TooManyDecimals
         );
-        assert_eq!(classify_inline_amount(".21", None), InlineAmountValidation::Valid);
-        assert_eq!(classify_inline_amount(",21", None), InlineAmountValidation::Valid);
+        assert_eq!(
+            classify_inline_amount(".21", None),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount(",21", None),
+            InlineAmountValidation::Valid
+        );
         assert_eq!(
             classify_inline_amount("0.21", None),
             InlineAmountValidation::Valid

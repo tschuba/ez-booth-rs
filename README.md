@@ -1,5 +1,7 @@
 # ez-booth-rs
 
+[![CI](https://github.com/tschuba/ez-booth-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tschuba/ez-booth-rs/actions/workflows/ci.yml)
+
 A Rust-based flea market booth management system for tracking vendor sales and calculating commissions.
 
 ## Project Structure
