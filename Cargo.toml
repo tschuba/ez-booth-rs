@@ -5,6 +5,7 @@ members = [
     "crates/ez-booth-core",
     "crates/ez-booth-ui",
     "crates/ez-booth-app",
+    "crates/ez-booth-launcher",
 ]
 resolver = "2"
 

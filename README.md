@@ -129,7 +129,33 @@ cd crates/ez-booth-app
 trunk build --release
 ```
 
-The optimized build will be output to `dist/` and can be deployed to any static web server.
+The optimized build is output to `crates/ez-booth-app/dist/`.
+
+To build the standalone launcher for your current platform:
+
+```bash
+cargo build --release -p ez-booth-launcher
+```
+
+To run the built app locally without Python or Node.js:
+
+1. keep all files in `crates/ez-booth-app/dist/` together
+2. copy `target/release/ez-booth-launcher` into `crates/ez-booth-app/dist/`
+3. run `crates/ez-booth-app/dist/ez-booth-launcher`
+4. use the same browser profile on the same device to keep IndexedDB data available
+
+CI artifacts follow the same layout:
+
+1. download the `wasm-dist` artifact from GitHub Actions
+2. extract it fully
+3. run the launcher for your platform: `ez-booth.exe`, `ez-booth-macos`, or `ez-booth-linux`
+
+The launcher starts a local server, opens your browser, and enforces single-instance execution per device with a lock file in the user config directory.
+
+Launcher notes:
+
+- the lock file uses atomic creation plus stale-process cleanup; a narrow cleanup race still exists if two launchers start at the exact same time, which is an accepted desktop-app tradeoff for this local single-user workflow
+- `crates/ez-booth-app/Trunk.toml` uses `public_url = "./"` so downloaded builds work from any extracted folder, but that relative asset layout is not suitable for deployments that serve the app from a URL subdirectory
 
 ## Building
 
@@ -146,6 +172,9 @@ cargo build -p ez-booth-ui
 # Build for WASM target
 cargo build -p ez-booth-app --target wasm32-unknown-unknown
 
+# Build the standalone launcher
+cargo build -p ez-booth-launcher
+
 # Run unit tests only
 ./run-tests.sh
 
@@ -155,6 +184,24 @@ cargo build -p ez-booth-app --target wasm32-unknown-unknown
 # Run tests for a specific crate
 cargo test -p domain
 ```
+
+## Troubleshooting
+
+### Development
+
+- `trunk build` fails: run `npm ci` in `crates/ez-booth-app`, then retry the build
+- `cargo build -p ez-booth-launcher` fails: update your Rust toolchain with `rustup update`
+- local launcher says another instance is running: remove the lock file from your OS config directory and retry
+- browser changes do not appear: hard-refresh the page or clear the cache for `127.0.0.1`
+- ports `8080-8089` are busy: stop the conflicting process or run your local checks after freeing one of those ports
+
+### CI And Downloaded Artifacts
+
+- GitHub Actions launcher build fails on one platform: inspect that job's artifact-build log for platform-specific linker or dependency issues
+- downloaded app shows a blank page: launch it with the included binary instead of opening `index.html` directly
+- macOS or Windows warns about the launcher binary: expected for unsigned builds; follow the steps in `crates/ez-booth-app/ARTIFACT_README.md`
+- lock file seems stuck after a crash: delete `launcher.lock` from the user config directory listed in `crates/ez-booth-app/ARTIFACT_README.md`
+- downloaded build is being hosted from a web server subdirectory: rebuild with a deployment-specific `public_url` instead of `./`
 
 ## Documentation
 
