@@ -25,6 +25,7 @@ pub struct BoothFormData {
     pub participation_fee: String,
     pub sales_fee_percent: String,
     pub rounding_step: String,
+    pub amount_stepping: String,
     pub vendor_validation_type: String, // "unrestricted", "digits_only", or "regex"
     pub vendor_validation_regex: String,
     pub vendor_validation_min: String,
@@ -63,6 +64,7 @@ impl BoothFormData {
             participation_fee: format_decimal_for_input(Decimal::ONE, locale, 2),
             sales_fee_percent: format_decimal_for_input(Decimal::from(15), locale, 2),
             rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
+            amount_stepping: String::new(),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
             vendor_validation_min: "1".to_string(),
@@ -101,6 +103,10 @@ impl BoothFormData {
             participation_fee: format_decimal_for_input(booth.fees.participation_fee, locale, 2),
             sales_fee_percent: format_decimal_for_input(booth.fees.sales_fee_percent, locale, 2),
             rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
+            amount_stepping: booth
+                .amount_stepping
+                .map(|step| format_decimal_for_input(step, locale, 2))
+                .unwrap_or_default(),
             vendor_validation_type: validation_type,
             vendor_validation_regex: validation_regex,
             vendor_validation_min: validation_min,
@@ -133,6 +139,15 @@ impl BoothFormData {
         let rounding_step = parse_decimal_input(&self.rounding_step)
             .map_err(|_| DomainError::Validation(ValidationError::RoundingStepInvalid))?;
 
+        let amount_stepping = if self.amount_stepping.trim().is_empty() {
+            None
+        } else {
+            Some(
+                parse_decimal_input(&self.amount_stepping)
+                    .map_err(|_| DomainError::Validation(ValidationError::AmountSteppingInvalid))?,
+            )
+        };
+
         // Create FeeConfig
         let fees = FeeConfig {
             participation_fee,
@@ -160,6 +175,7 @@ impl BoothFormData {
         self.vendor_omission_rules.validate()?;
         booth.vendor_id_validation = vendor_id_validation;
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
+        booth.update_amount_stepping(amount_stepping)?;
 
         Ok(booth)
     }
@@ -183,6 +199,15 @@ impl BoothFormData {
 
         let rounding_step = parse_decimal_input(&self.rounding_step)
             .map_err(|_| DomainError::Validation(ValidationError::RoundingStepInvalid))?;
+
+        let amount_stepping = if self.amount_stepping.trim().is_empty() {
+            None
+        } else {
+            Some(
+                parse_decimal_input(&self.amount_stepping)
+                    .map_err(|_| DomainError::Validation(ValidationError::AmountSteppingInvalid))?,
+            )
+        };
 
         // Create and validate FeeConfig
         let fees = FeeConfig {
@@ -214,6 +239,7 @@ impl BoothFormData {
         booth.update_fees(fees);
         booth.vendor_id_validation = vendor_id_validation;
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
+        booth.update_amount_stepping(amount_stepping)?;
 
         Ok(())
     }
@@ -365,6 +391,7 @@ pub fn BoothForm(
     let participation_fee = create_rw_signal(form_data.get_untracked().participation_fee);
     let sales_fee_percent = create_rw_signal(form_data.get_untracked().sales_fee_percent);
     let rounding_step = create_rw_signal(form_data.get_untracked().rounding_step);
+    let amount_stepping = create_rw_signal(form_data.get_untracked().amount_stepping);
     let vendor_validation_type = create_rw_signal(form_data.get_untracked().vendor_validation_type);
     let vendor_validation_regex =
         create_rw_signal(form_data.get_untracked().vendor_validation_regex);
@@ -392,6 +419,7 @@ pub fn BoothForm(
     let (participation_fee_error, set_participation_fee_error) = create_signal(None::<String>);
     let (sales_fee_percent_error, set_sales_fee_percent_error) = create_signal(None::<String>);
     let (rounding_step_error, set_rounding_step_error) = create_signal(None::<String>);
+    let (amount_stepping_error, set_amount_stepping_error) = create_signal(None::<String>);
     let (vendor_validation_regex_error, set_vendor_validation_regex_error) =
         create_signal(None::<String>);
     let (vendor_validation_min_error, set_vendor_validation_min_error) =
@@ -453,6 +481,7 @@ pub fn BoothForm(
         set_participation_fee_error.set(None);
         set_sales_fee_percent_error.set(None);
         set_rounding_step_error.set(None);
+        set_amount_stepping_error.set(None);
         set_vendor_validation_regex_error.set(None);
         set_vendor_validation_min_error.set(None);
         set_vendor_validation_max_error.set(None);
@@ -468,6 +497,28 @@ pub fn BoothForm(
         } else if desc.chars().count() > 200 {
             set_description_error.set(Some(description_length_msg()));
             has_errors = true;
+        }
+
+        let step = amount_stepping.get();
+        if !step.trim().is_empty() {
+            match parse_decimal_input(&step) {
+                Ok(val) => {
+                    if val <= Decimal::ZERO {
+                        set_amount_stepping_error
+                            .set(Some(t!("booth.form_errors.positive_number_required")()));
+                        has_errors = true;
+                    }
+                }
+                Err(e) => {
+                    let message = if e == DecimalInputParseError::TooManyDecimalPlaces {
+                        max_two_decimals_msg()
+                    } else {
+                        invalid_number_format_msg()
+                    };
+                    set_amount_stepping_error.set(Some(message));
+                    has_errors = true;
+                }
+            }
         }
 
         // Validate date
@@ -600,6 +651,7 @@ pub fn BoothForm(
                 participation_fee: participation_fee.get(),
                 sales_fee_percent: sales_fee_percent.get(),
                 rounding_step: rounding_step.get(),
+                amount_stepping: amount_stepping.get(),
                 vendor_validation_type: vendor_validation_type.get(),
                 vendor_validation_regex: vendor_validation_regex.get(),
                 vendor_validation_min: vendor_validation_min.get(),
@@ -685,6 +737,22 @@ pub fn BoothForm(
                             {t!("booth.rounding_step_help")()}
                         </p>
                     </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-6">
+                <h3 class="text-lg font-semibold mb-4">{t!("booth.amount_validation_title")()}</h3>
+
+                <div>
+                    <NumberInput
+                        value=amount_stepping
+                        label=t!("booth.amount_stepping")()
+                        placeholder=t!("common.placeholders.decimal_half")()
+                        error=amount_stepping_error
+                    />
+                    <p class="mt-1 text-sm text-gray-600">
+                        {t!("booth.amount_stepping_help")()}
+                    </p>
                 </div>
             </div>
 

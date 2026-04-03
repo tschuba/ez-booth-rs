@@ -6,7 +6,10 @@ use std::sync::{Arc, OnceLock};
 use super::shared::{BoothId, VendorId};
 use crate::error::DomainError;
 use crate::error_code::ValidationError;
-use crate::validation::vendor_id::{build_safe_regex, validate_digits_only_constraints};
+use crate::validation::{
+    validate_amount_stepping,
+    vendor_id::{build_safe_regex, validate_digits_only_constraints},
+};
 
 const OMISSION_RULES_VERSION: u8 = 1;
 const MAX_OMISSION_RULES: usize = 100;
@@ -400,6 +403,9 @@ pub struct Booth {
     #[serde(default)]
     pub keyboard_config: CheckoutKeyboardConfig,
 
+    #[serde(default)]
+    pub amount_stepping: Option<Decimal>,
+
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -497,6 +503,9 @@ impl Booth {
         // Validate fee configuration
         fees.validate_ranges()?;
 
+        // Validate optional amount stepping configuration
+        let amount_stepping = None;
+
         let now = Utc::now();
         let booth = Self {
             id: BoothId::new(),
@@ -506,6 +515,7 @@ impl Booth {
             vendor_id_validation: VendorIdValidation::default(),
             vendor_id_omission_rules: VendorIdOmissionRules::empty(),
             keyboard_config: CheckoutKeyboardConfig::default(),
+            amount_stepping,
             created_at: now,
             updated_at: now,
         };
@@ -526,6 +536,20 @@ impl Booth {
     pub fn update_keyboard_config(&mut self, keyboard_config: CheckoutKeyboardConfig) {
         self.keyboard_config = keyboard_config;
         self.updated_at = Utc::now();
+    }
+
+    pub fn update_amount_stepping(
+        &mut self,
+        amount_stepping: Option<Decimal>,
+    ) -> Result<(), DomainError> {
+        if let Some(step) = amount_stepping {
+            validate_amount_stepping(step)?;
+            self.amount_stepping = Some(step);
+        } else {
+            self.amount_stepping = None;
+        }
+        self.updated_at = Utc::now();
+        Ok(())
     }
 }
 
@@ -750,6 +774,39 @@ mod tests {
         assert!(matches!(
             invalid,
             Err(DomainError::Validation(ValidationError::BoothNameTooLong))
+        ));
+    }
+
+    #[test]
+    fn booth_amount_stepping_defaults_to_none() {
+        let booth = Booth::new(
+            "Spring Fair".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        assert_eq!(booth.amount_stepping, None);
+    }
+
+    #[test]
+    fn booth_update_amount_stepping_validates_positive_values() {
+        let mut booth = Booth::new(
+            "Spring Fair".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        assert!(booth
+            .update_amount_stepping(Some(Decimal::new(5, 1)))
+            .is_ok());
+        assert_eq!(booth.amount_stepping, Some(Decimal::new(5, 1)));
+        assert!(matches!(
+            booth.update_amount_stepping(Some(Decimal::ZERO)),
+            Err(DomainError::Validation(
+                ValidationError::AmountSteppingInvalid
+            ))
         ));
     }
 

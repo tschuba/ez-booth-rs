@@ -15,7 +15,7 @@ use domain::error_code::ValidationError;
 use domain::models::booth::{VendorIdOmissionRules, VendorIdValidation};
 use domain::models::purchase::{Purchase, PurchaseItem};
 use domain::models::shared::{PurchaseId, VendorId};
-use domain::validation::validate_vendor_id;
+use domain::validation::{validate_amount_matches_step, validate_vendor_id};
 use leptos::html;
 use leptos::*;
 use log::{error, info, warn};
@@ -426,19 +426,25 @@ fn should_play_inline_error(previous_error: &Option<String>, next_error: &Option
     next_error.is_some() && previous_error.as_ref() != next_error.as_ref()
 }
 
-fn validate_inline_amount(value: &str) -> Option<String> {
+fn validate_inline_amount(value: &str, amount_stepping: Option<Decimal>, locale: Locale) -> Option<String> {
     let trimmed = value.trim();
 
     if trimmed.is_empty() {
         return None;
     }
 
-    match classify_inline_amount(trimmed) {
+    match classify_inline_amount(trimmed, amount_stepping) {
         InlineAmountValidation::Valid => None,
         InlineAmountValidation::TooLarge => Some(t!("checkout.errors.amount_too_large")()),
         InlineAmountValidation::TooManyDecimals => {
             Some(t!("booth_form.errors.item_amount_too_many_decimals")())
         }
+        InlineAmountValidation::StepMismatch(step) => Some(
+            translate_with_params(
+                "checkout.errors.amount_stepping",
+                HashMap::from([("step", format_currency(step, locale))]),
+            ),
+        ),
         InlineAmountValidation::Invalid => Some(t!("checkout.errors.amount_invalid")()),
     }
 }
@@ -448,14 +454,21 @@ enum InlineAmountValidation {
     Valid,
     TooLarge,
     TooManyDecimals,
+    StepMismatch(Decimal),
     Invalid,
 }
 
-fn classify_inline_amount(value: &str) -> InlineAmountValidation {
+fn classify_inline_amount(value: &str, amount_stepping: Option<Decimal>) -> InlineAmountValidation {
     match parse_decimal_input(value) {
         Ok(amount) => {
             if amount > MAX_ITEM_AMOUNT {
                 InlineAmountValidation::TooLarge
+            } else if let Some(step) = amount_stepping {
+                if validate_amount_matches_step(amount, step).is_err() {
+                    InlineAmountValidation::StepMismatch(step)
+                } else {
+                    InlineAmountValidation::Valid
+                }
             } else {
                 InlineAmountValidation::Valid
             }
@@ -515,10 +528,12 @@ fn update_vendor_input(
 fn update_amount_input(
     set_form_data: WriteSignal<CheckoutFormData>,
     value: String,
+    amount_stepping: Option<Decimal>,
+    locale: Locale,
     error_sound_enabled: ReadSignal<bool>,
     last_error_sound_at: RwSignal<u128>,
 ) {
-    let amount_error = validate_inline_amount(&value);
+    let amount_error = validate_inline_amount(&value, amount_stepping, locale);
     let mut should_play_sound = false;
 
     set_form_data.update(|data| {
@@ -798,6 +813,8 @@ pub fn CheckoutPage() -> impl IntoView {
             .unwrap_or_else(VendorIdOmissionRules::empty)
     });
 
+    let amount_stepping = create_memo(move |_| selected_booth.get().and_then(|booth| booth.amount_stepping));
+
     let show_rules_modal = create_rw_signal(false);
 
     // Focus vendor input when view is ready and data is loaded
@@ -1032,6 +1049,29 @@ pub fn CheckoutPage() -> impl IntoView {
                     return;
                 }
 
+                if let Some(step) = amount_stepping.get_untracked() {
+                    if let Err(DomainError::Validation(validation)) =
+                        validate_amount_matches_step(amount, step)
+                    {
+                        let message = match validation {
+                            ValidationError::AmountSteppingMismatch { .. } => translate_with_params(
+                                "checkout.errors.amount_stepping",
+                                HashMap::from([(
+                                    "step",
+                                    format_currency(step, locale.get_untracked()),
+                                )]),
+                            ),
+                            _ => translate_domain_error(&DomainError::Validation(validation)),
+                        };
+                        toast.warning(&message);
+                        set_form_data.update(|form| {
+                            form.amount_error = Some(message.clone());
+                        });
+                        focus_and_select_input(&amount_input_ref_for_add);
+                        return;
+                    }
+                }
+
                 let mut new_items = data.items.clone();
                 new_items.insert(
                     0,
@@ -1189,6 +1229,8 @@ pub fn CheckoutPage() -> impl IntoView {
                 update_amount_input(
                     set_form_data,
                     next.clone(),
+                    amount_stepping.get_untracked(),
+                    locale.get_untracked(),
                     error_sound_enabled,
                     last_error_sound_at,
                 );
@@ -1952,6 +1994,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 update_amount_input(
                                                                     set_form_data,
                                                                     next,
+                                                                    amount_stepping.get_untracked(),
+                                                                    locale.get_untracked(),
                                                                     error_sound_enabled,
                                                                     last_error_sound_at,
                                                                 );
@@ -2024,7 +2068,11 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 set_amount_input_mode.set(next_mode);
                                                                 set_form_data.update(|data| {
                                                                     data.current_amount = normalized_amount.clone();
-                                                                    data.amount_error = None;
+                                                                    data.amount_error = validate_inline_amount(
+                                                                        &normalized_amount,
+                                                                        amount_stepping.get_untracked(),
+                                                                        locale.get_untracked(),
+                                                                    );
                                                                 });
                                                                 if let Some(amount_input) = amount_input_ref.get() {
                                                                     amount_input.set_value(&normalized_amount);
@@ -2818,50 +2866,66 @@ mod tests {
     #[test]
     fn classify_inline_amount_rejects_more_than_two_decimals() {
         assert_eq!(
-            classify_inline_amount("12.345"),
+            classify_inline_amount("12.345", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("12,345"),
+            classify_inline_amount("12,345", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("12.34"),
+            classify_inline_amount("12.34", None),
             InlineAmountValidation::Valid
         );
         assert_eq!(
-            classify_inline_amount(".213"),
+            classify_inline_amount(".213", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount(",213"),
+            classify_inline_amount(",213", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("0.213"),
+            classify_inline_amount("0.213", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("0,213"),
+            classify_inline_amount("0,213", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("1.213"),
+            classify_inline_amount("1.213", None),
             InlineAmountValidation::TooManyDecimals
         );
         assert_eq!(
-            classify_inline_amount("1,213"),
+            classify_inline_amount("1,213", None),
             InlineAmountValidation::TooManyDecimals
         );
-        assert_eq!(classify_inline_amount(".21"), InlineAmountValidation::Valid);
-        assert_eq!(classify_inline_amount(",21"), InlineAmountValidation::Valid);
+        assert_eq!(classify_inline_amount(".21", None), InlineAmountValidation::Valid);
+        assert_eq!(classify_inline_amount(",21", None), InlineAmountValidation::Valid);
         assert_eq!(
-            classify_inline_amount("0.21"),
+            classify_inline_amount("0.21", None),
             InlineAmountValidation::Valid
         );
         assert_eq!(
-            classify_inline_amount("0,21"),
+            classify_inline_amount("0,21", None),
             InlineAmountValidation::Valid
+        );
+    }
+
+    #[test]
+    fn classify_inline_amount_rejects_values_that_do_not_match_step() {
+        assert_eq!(
+            classify_inline_amount("3.5", Some(Decimal::new(5, 1))),
+            InlineAmountValidation::Valid
+        );
+        assert_eq!(
+            classify_inline_amount("1.1", Some(Decimal::new(5, 1))),
+            InlineAmountValidation::StepMismatch(Decimal::new(5, 1))
+        );
+        assert_eq!(
+            classify_inline_amount("8.7", Some(Decimal::ONE)),
+            InlineAmountValidation::StepMismatch(Decimal::ONE)
         );
     }
 }

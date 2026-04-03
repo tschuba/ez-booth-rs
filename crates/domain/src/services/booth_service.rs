@@ -2,7 +2,9 @@ use crate::error::{DomainError, DomainResult};
 use crate::error_code::ValidationError;
 use crate::models::{Booth, BoothId, FeeConfig, VendorIdValidation};
 use crate::repositories::BoothRepository;
-use crate::validation::{validate_digits_only_constraints, validate_regex_pattern};
+use crate::validation::{
+    validate_amount_stepping, validate_digits_only_constraints, validate_regex_pattern,
+};
 use chrono::NaiveDate;
 
 /// Service for booth management operations
@@ -66,6 +68,7 @@ impl<R: BoothRepository> BoothService<R> {
         booth.vendor_id_validation = source.vendor_id_validation.clone();
         booth.vendor_id_omission_rules = source.vendor_id_omission_rules.clone();
         booth.keyboard_config = source.keyboard_config.clone();
+        booth.amount_stepping = source.amount_stepping;
 
         self.save_booth(&booth).await?;
         Ok(booth)
@@ -92,6 +95,10 @@ impl<R: BoothRepository> BoothService<R> {
                 validate_digits_only_constraints(*min, *max)?;
             }
             VendorIdValidation::Unrestricted => {}
+        }
+
+        if let Some(step) = booth.amount_stepping {
+            validate_amount_stepping(step)?;
         }
 
         Ok(())
@@ -371,6 +378,38 @@ mod tests {
         });
 
         assert!(service.update_booth(booth).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_booth_persists_amount_stepping() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo.clone());
+
+        let mut booth = service
+            .create_booth(
+                "Stepped Booth".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                FeeConfig {
+                    participation_fee: dec!(5.0),
+                    sales_fee_percent: dec!(10.0),
+                    rounding_step: dec!(0.50),
+                },
+            )
+            .await
+            .unwrap();
+
+        booth.update_amount_stepping(Some(dec!(0.50))).unwrap();
+        service.update_booth(booth.clone()).await.unwrap();
+
+        let persisted = repo.find_by_id(&booth.id).await.unwrap().unwrap();
+        assert_eq!(persisted.amount_stepping, Some(dec!(0.50)));
+
+        let mut cleared = persisted.clone();
+        cleared.update_amount_stepping(None).unwrap();
+        service.update_booth(cleared.clone()).await.unwrap();
+
+        let persisted_cleared = repo.find_by_id(&cleared.id).await.unwrap().unwrap();
+        assert_eq!(persisted_cleared.amount_stepping, None);
     }
 
     #[tokio::test]
