@@ -292,7 +292,7 @@ pub fn DropdownMenu(
                 <Portal>
                     <>
                         <div
-                            class="fixed inset-0 z-40"
+                            class="fixed inset-0 z-40 print:hidden"
                             on:click={
                                 move |_| {
                                     if let Some(window) = web_sys::window() {
@@ -305,7 +305,7 @@ pub fn DropdownMenu(
 
                         <div
                             node_ref=menu_ref
-                            class=move || menu_classes.get_value()
+                            class=move || format!("{} print:hidden", menu_classes.get_value())
                             style=move || menu_style.get()
                             on:click={
                                 move |event: ev::MouseEvent| {
