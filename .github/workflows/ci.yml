@@ -83,7 +83,9 @@ jobs:
   wasm-build:
     name: WASM Build
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - build
+      - build-launcher
 
     steps:
       - name: Check out repository
@@ -117,6 +119,29 @@ jobs:
         run: trunk build --release
         working-directory: crates/ez-booth-app
 
+      - name: Download Windows launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-windows
+          path: crates/ez-booth-app/dist/
+
+      - name: Download macOS launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-macos
+          path: crates/ez-booth-app/dist/
+
+      - name: Download Linux launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: launcher-linux
+          path: crates/ez-booth-app/dist/
+
+      - name: Set launcher permissions
+        run: |
+          chmod +x crates/ez-booth-app/dist/ez-booth-macos
+          chmod +x crates/ez-booth-app/dist/ez-booth-linux
+
       - name: Add artifact usage guide
         run: cp ARTIFACT_README.md dist/README.txt
         working-directory: crates/ez-booth-app
@@ -126,6 +151,50 @@ jobs:
         with:
           name: wasm-dist
           path: crates/ez-booth-app/dist/
+          if-no-files-found: error
+          retention-days: 90
+
+  build-launcher:
+    name: Build Launcher (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            binary: ez-booth.exe
+            source: target/release/ez-booth-launcher.exe
+          - os: macos-latest
+            platform: macos
+            binary: ez-booth-macos
+            source: target/release/ez-booth-launcher
+          - os: ubuntu-latest
+            platform: linux
+            binary: ez-booth-linux
+            source: target/release/ez-booth-launcher
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build launcher
+        run: cargo build --release -p ez-booth-launcher --locked
+
+      - name: Prepare launcher artifact
+        shell: bash
+        run: cp "${{ matrix.source }}" "${{ matrix.binary }}"
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.platform }}
+          path: ${{ matrix.binary }}
           if-no-files-found: error
           retention-days: 90
 
