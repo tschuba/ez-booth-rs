@@ -44,6 +44,12 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - Production bundle: `trunk build --release` from `crates/ez-booth-app`
 - Tailwind CSS only: `npm run build:css` from `crates/ez-booth-app`
 
+## Release Commands
+
+- Validate release readiness: `./scripts/validate-release.sh`
+- Create a release from local `main`: `./scripts/create-release.sh 0.1.0`
+- Release workflow trigger: push a stable semantic version tag like `v0.1.0`
+
 ## Lint And Format Commands
 
 - Format check: `cargo fmt --all --check`
@@ -162,6 +168,7 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - Before finishing, run the smallest relevant command set from this file.
 - In PR summaries, explain why the change exists, what validation ran, and any deferred follow-up.
 - Do not plan on direct merges to `main`; the repo expects pull requests and prefers squash merges.
+- For release automation changes, keep the tag and built source aligned; prefer validating version state in CI over mutating version files after a tag already exists.
 
 ## Safe Defaults For Agentic Changes
 
