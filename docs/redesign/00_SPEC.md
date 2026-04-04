@@ -1,5 +1,12 @@
 # ez-booth-rs
 
+---
+**Document Status:** Historical Reference
+**Last Updated:** 2026-04-04
+**Purpose:** Original redesign specification capturing the initial scope and goals of the Rust/WASM project.
+
+---
+
 ## Introduction
 
 `ez-booth-rs` is a redesign of `ez-booth` in Rust.  

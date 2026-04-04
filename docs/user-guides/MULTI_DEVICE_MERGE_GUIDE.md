@@ -82,6 +82,6 @@ The storage-layer merge behavior for this workflow has automated browser-backed 
 
 For cross-browser operator validation, also use:
 
-- `docs/SAFARI_VALIDATION_CHECKLIST.md`
-- `docs/DATA_BACKUP_GUIDE.md`
-- `docs/VALIDATION_WORKFLOW.md`
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/user-guides/DATA_BACKUP_GUIDE.md`
+- `docs/validation/VALIDATION_WORKFLOW.md`

@@ -212,7 +212,7 @@ Keep a subtle persistent indicator available from the footer, banner, or booth l
 
 ### Operator Guide
 
-Add `docs/DATA_BACKUP_GUIDE.md` with bilingual or clearly structured operator-facing guidance covering:
+Add `docs/user-guides/DATA_BACKUP_GUIDE.md` with bilingual or clearly structured operator-facing guidance covering:
 
 - what browser-local storage means
 - what happens when browser data is cleared
@@ -225,7 +225,7 @@ Add `docs/DATA_BACKUP_GUIDE.md` with bilingual or clearly structured operator-fa
 
 ### Technical Guide
 
-Add `docs/DATA_STORAGE_ARCHITECTURE.md` covering:
+Add `docs/technical/DATA_STORAGE_ARCHITECTURE.md` covering:
 
 - IndexedDB and `localStorage` responsibilities
 - backup JSON format
@@ -273,8 +273,8 @@ Update the manual artifacts to cover:
 
 Likely artifact updates:
 
-- `docs/SAFARI_VALIDATION_CHECKLIST.md`
-- `docs/UAT_Ausfuehrungsplan_DE_EN.html`
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
 - milestone result file if this work is executed as a named milestone
 
 ## Recommended Execution Order

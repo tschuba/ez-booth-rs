@@ -1,9 +1,16 @@
 # ez-booth-rs Areas for Improvement
 
+---
+**Document Status:** Historical Reference
+**Last Updated:** 2026-04-04
+**Purpose:** Original redesign rationale describing where the Rust/WASM version aimed to improve on the Java application.
+
+---
+
 **Document Version:** 1.0  
 **Date:** March 19, 2026  
 **Status:** Analysis Phase  
-**Related Documents:** [ANALYSIS.md](ANALYSIS.md), [ARCHITECTURE.md](ARCHITECTURE.md)
+**Related Documents:** [01_ANALYSIS.md](01_ANALYSIS.md), [02_ARCHITECTURE.md](02_ARCHITECTURE.md), [REDESIGN_SUMMARY.md](REDESIGN_SUMMARY.md)
 
 ---
 
@@ -437,7 +444,7 @@ Users transitioning from ez-booth (Java) to ez-booth-rs risk losing their histor
 **Phase:** Post-MVP (Phase 3)
 **Rationale:** Convenience feature for existing users, not critical for new users
 
-**For detailed strategy, see:** `/changelog/17_MIGRATION_STRATEGY.md`
+**For the current migration status, see:** `05_STATUS.md` and `../COMPARISON_TO_ORIGINAL.md`.
 
 ---
 
@@ -648,7 +655,7 @@ Users transitioning from ez-booth (Java) to ez-booth-rs risk losing their histor
 | "How do I...?" tickets | 5/month | 1/month | **80% reduction** |
 | Feature discovery | 50% | 85% | **1.7x better** |
 
-**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+**For current operator-support and validation direction, see:** `05_STATUS.md`, `../validation/VALIDATION_WORKFLOW.md`, and `../planning/PHASE2_PROPOSAL.md`.
 
 ---
 

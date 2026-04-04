@@ -45,4 +45,4 @@ Recent examples:
 
 ## Validation Reminder
 
-Changes that affect operator-facing behavior should update the relevant validation artifacts in `docs/` along with the code. See `docs/VALIDATION_WORKFLOW.md` for the expected validation flow.
+Changes that affect operator-facing behavior should update the relevant validation artifacts in `docs/validation/` along with the code. See `docs/validation/VALIDATION_WORKFLOW.md` for the expected validation flow.

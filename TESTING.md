@@ -284,8 +284,8 @@ jobs:
   - Checkout/report browser tests: 7
 
 ### Reusable Manual Validation Assets
-- `docs/SAFARI_VALIDATION_CHECKLIST.md` - detailed Safari checkout/report verification with result comparison tables
-- `docs/UAT_Ausfuehrungsplan_DE_EN.html` - reusable bilingual UAT execution plan for onboarding and pre-production reliability checks
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` - detailed Safari checkout/report verification with result comparison tables
+- `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` - reusable bilingual UAT execution plan for onboarding and pre-production reliability checks
 
 To generate coverage reports:
 
@@ -351,10 +351,10 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] Corrupt one purchase record and verify a visible warning explains that only recoverable data is shown
 - [ ] Confirm there are no uncaught console errors during checkout/report flows
 
-Use `docs/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow, including expected values, result comparison tables, and performance notes.
+Use `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow, including expected values, result comparison tables, and performance notes.
 
 ### Reusable User Acceptance Testing
-- [ ] Open `docs/UAT_Ausfuehrungsplan_DE_EN.html` in a browser
+- [ ] Open `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` in a browser
 - [ ] Select the primary language (`Deutsch` or `English`)
 - [ ] Choose the modules relevant for onboarding, regression checks, or production-readiness verification
 - [ ] Execute the selected modules and record actual results, timings, and issues

@@ -205,9 +205,9 @@ Examples already covered in this track:
 
 Manual validation artifacts for backup and recovery live in:
 
-- `docs/SAFARI_VALIDATION_CHECKLIST.md`
-- `docs/UAT_Ausfuehrungsplan_DE_EN.html`
-- `docs/VALIDATION_WORKFLOW.md`
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
+- `docs/validation/VALIDATION_WORKFLOW.md`
 
 ## Future Compatibility
 

@@ -22,9 +22,9 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 
 - `README.md` for product scope, build flow, and delivery expectations.
 - `TESTING.md` for unit, browser, and manual validation details.
-- `docs/VALIDATION_WORKFLOW.md` for when manual validation is required.
+- `docs/validation/VALIDATION_WORKFLOW.md` for when manual validation is required.
 - `docs/BRANCH_STRATEGY.md` for branch naming, PR expectations, and squash-merge policy.
-- `docs/SAFARI_VALIDATION_CHECKLIST.md` and `docs/UAT_Ausfuehrungsplan_DE_EN.html` for manual operator validation.
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` and `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` for manual operator validation.
 
 ## Setup Prerequisites
 
@@ -85,7 +85,7 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - If you change operator-facing flows, reporting, recovery behavior, print output, or Safari-sensitive behavior, do more than unit tests.
 - Start the app with `trunk serve` from `crates/ez-booth-app` for manual validation.
 - Use the smallest validation set that proves safety, then note what you ran.
-- Update validation docs in `docs/` when workflows or acceptance coverage change.
+- Update validation docs in `docs/validation/` when workflows or acceptance coverage change.
 
 ## Architecture Guidance
 

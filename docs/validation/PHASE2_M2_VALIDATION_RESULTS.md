@@ -19,8 +19,8 @@ The milestone is complete when operators can understand recovery and correction 
 
 Two validation methods are used:
 
-1. `docs/SAFARI_VALIDATION_CHECKLIST.md` for focused Safari validation
-2. `docs/UAT_Ausfuehrungsplan_DE_EN.html` Module H for correction and deletion workflow checks
+1. `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` for focused Safari validation
+2. `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` Module H for correction and deletion workflow checks
 
 ---
 

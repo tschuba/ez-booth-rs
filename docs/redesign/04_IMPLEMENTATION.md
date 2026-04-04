@@ -1,9 +1,16 @@
 # ez-booth-rs Implementation Specification
 
+---
+**Document Status:** Active Guide
+**Last Updated:** 2026-04-04
+**Purpose:** Detailed implementation guide for the Rust/WASM redesign, including historical implementation planning that may now be partly superseded by current docs.
+
+---
+
 **Document Version:** 1.0  
 **Date:** March 19, 2026  
 **Status:** Design Phase  
-**Related Documents:** [ARCHITECTURE.md](ARCHITECTURE.md), [IMPROVEMENTS.md](IMPROVEMENTS.md)
+**Related Documents:** [02_ARCHITECTURE.md](02_ARCHITECTURE.md), [03_IMPROVEMENTS.md](03_IMPROVEMENTS.md), [REDESIGN_SUMMARY.md](REDESIGN_SUMMARY.md)
 
 ---
 
@@ -2995,7 +3002,7 @@ Users will need clear guidance:
 - What to do if migration fails
 - How to verify migration success
 
-**See:** `/changelog/17_MIGRATION_STRATEGY.md` for complete details.
+**See:** `05_STATUS.md` for the current migration status and `../COMPARISON_TO_ORIGINAL.md` for the current user-facing summary.
 
 ---
 
@@ -3810,7 +3817,7 @@ async fn test_diagnostic_export_no_sensitive_data() {
 
 **Total Effort:** ~58 hours
 
-**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+**For current validation and operator-support expectations, see:** `05_STATUS.md`, `../validation/VALIDATION_WORKFLOW.md`, and `../planning/PHASE2_PROPOSAL.md`.
 
 ---
 
