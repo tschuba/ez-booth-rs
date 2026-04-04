@@ -1,3 +1,9 @@
+---
+title: Validation Workflow
+nav_order: 1
+parent: Validation
+---
+
 # Validation Workflow
 
 Use the smallest validation set that still proves the change is safe. Automated checks are the baseline; manual validation is required when operator behavior, browser behavior, or reporting trust changes.

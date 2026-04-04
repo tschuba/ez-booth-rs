@@ -1,3 +1,9 @@
+---
+title: ADR PWA Implementation
+nav_order: 2
+parent: Technical Docs
+---
+
 # ADR: Progressive Web App Implementation for Offline-First Deployment
 
 Date: 2026-03-30

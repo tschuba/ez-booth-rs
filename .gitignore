@@ -24,3 +24,10 @@ crates/ez-booth-app/styles/app.css
 
 # Local browser driver cache
 .local/
+
+# Jekyll docs site artifacts
+docs/.jekyll-cache/
+docs/.sass-cache/
+docs/_site/
+docs/.bundle/
+docs/Gemfile.lock

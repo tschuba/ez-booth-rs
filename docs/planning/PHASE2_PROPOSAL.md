@@ -1,3 +1,9 @@
+---
+title: Phase 2 Proposal
+nav_order: 2
+parent: Planning
+---
+
 # Phase 2 Proposal
 
 Prepared from the post-Phase-1 state on `main` after Milestone 1 and Milestone 2 were merged.

@@ -1,3 +1,9 @@
+---
+title: Specification
+nav_order: 2
+parent: Redesign
+---
+
 # ez-booth-rs
 
 ---

@@ -1,3 +1,9 @@
+---
+title: Implementation Specification
+nav_order: 6
+parent: Redesign
+---
+
 # ez-booth-rs Implementation Specification
 
 ---

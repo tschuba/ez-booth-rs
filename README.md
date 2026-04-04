@@ -1,6 +1,7 @@
 # ez-booth-rs
 
 [![CI](https://github.com/tschuba/ez-booth-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tschuba/ez-booth-rs/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://tschuba.github.io/ez-booth-rs/)
 
 `ez-booth-rs` is a browser-based flea market booth management system built with Rust and WebAssembly.
 
@@ -106,6 +107,7 @@ See [docs/redesign/05_STATUS.md](docs/redesign/05_STATUS.md) for the broader imp
 
 ### Start Here
 
+- Published site: [EZ Booth Documentation](https://tschuba.github.io/ez-booth-rs/)
 - [Getting Started](docs/GETTING_STARTED.md)
 - [Architecture Overview](ARCHITECTURE.md)
 - [Testing Guide](TESTING.md)

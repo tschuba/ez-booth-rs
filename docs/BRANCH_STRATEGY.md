@@ -1,3 +1,8 @@
+---
+title: Branch Strategy
+nav_order: 4
+---
+
 # Branch Strategy
 
 This repository uses short-lived branches and pull requests so `main` stays deployable and easy to review.

@@ -1,3 +1,9 @@
+---
+title: Roadmap
+nav_order: 1
+parent: Planning
+---
+
 # Roadmap
 
 This roadmap gives a simple view of what is already in place, what remains active, and what is still future work.

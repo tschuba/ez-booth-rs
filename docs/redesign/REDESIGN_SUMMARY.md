@@ -1,3 +1,9 @@
+---
+title: Redesign Summary
+nav_order: 1
+parent: Redesign
+---
+
 # Redesign Summary
 
 `ez-booth-rs` is a Rust and WebAssembly redesign of the original `ez-booth` project.
@@ -220,8 +226,8 @@ Those items are still useful future work, but they are not the current baseline 
 
 ### If You Want the Big Picture
 
-1. [README](../../README.md)
-2. [Architecture Overview](../../ARCHITECTURE.md)
+1. [README](https://github.com/tschuba/ez-booth-rs/blob/main/README.md)
+2. [Architecture Overview](https://github.com/tschuba/ez-booth-rs/blob/main/ARCHITECTURE.md)
 3. [What Changed from ez-booth to ez-booth-rs?](../COMPARISON_TO_ORIGINAL.md)
 
 ### If You Want the Technical History

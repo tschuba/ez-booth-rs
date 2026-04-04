@@ -1,3 +1,9 @@
+---
+title: Data Storage Architecture
+nav_order: 1
+parent: Technical Docs
+---
+
 # Data Storage Architecture
 
 This document describes how EZ Booth stores event data locally, how backup files are structured, and how recovery flows are validated.

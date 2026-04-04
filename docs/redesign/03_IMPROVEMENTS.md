@@ -1,3 +1,9 @@
+---
+title: Areas for Improvement
+nav_order: 5
+parent: Redesign
+---
+
 # ez-booth-rs Areas for Improvement
 
 ---

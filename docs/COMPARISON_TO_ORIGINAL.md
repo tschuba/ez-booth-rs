@@ -1,3 +1,8 @@
+---
+title: Comparison to Original
+nav_order: 3
+---
+
 # What Changed from ez-booth to ez-booth-rs?
 
 This guide focuses on the practical differences for people who already know the original Java-based `ez-booth`.
