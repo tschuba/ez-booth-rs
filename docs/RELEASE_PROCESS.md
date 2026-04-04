@@ -111,6 +111,17 @@ Inspect the failed GitHub Actions job.
 - WASM build failures are usually frontend dependency or `trunk` build issues
 - packaging failures usually mean an expected artifact name changed
 
+### Publish job fails with "not a git repository"
+
+The `publish` job runs `gh release create --verify-tag`, which requires a checked-out repository so the CLI can verify the tag against the repo remote.
+
+If this error appears:
+
+- ensure the `publish` job starts with `actions/checkout`
+- ensure the checkout step runs before downloading artifacts or invoking `gh`
+
+This is a workflow configuration issue, not a damaged repository or invalid release tag.
+
 ### Wrong release notes
 
 Delete the release in GitHub, update the annotated tag locally if repository settings allow it, and recreate the tag. If release immutability is enabled, create a new patch release instead.
