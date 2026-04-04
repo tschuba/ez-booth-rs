@@ -1,6 +1,6 @@
 title: EZ Booth Documentation
 description: Documentation for the ez-booth-rs browser-based flea market booth management system.
-theme: just-the-docs
+remote_theme: just-the-docs/just-the-docs
 color_scheme: light
 url: https://tschuba.github.io
 baseurl: /ez-booth-rs
@@ -13,6 +13,7 @@ back_to_top: true
 back_to_top_text: Back to top
 plugins:
   - jekyll-relative-links
+  - jekyll-remote-theme
 relative_links:
   enabled: true
   collections: true
