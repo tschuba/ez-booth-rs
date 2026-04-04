@@ -29,6 +29,8 @@ This workflow does not publish pre-releases. Tags like `v1.0.0-beta.1` are rejec
 
 ## Create A Release
 
+This repository protects `main`, so release preparation happens through a pull request.
+
 Use the helper script from `main`:
 
 ```bash
@@ -38,10 +40,25 @@ Use the helper script from `main`:
 What the script does:
 
 1. verifies you are on a clean, up-to-date local `main`
-2. updates `[workspace.package] version` in `Cargo.toml`
-3. creates a release commit on `main`
-4. creates an annotated tag like `v0.1.0`
-5. pushes `main` and the tag to `origin`
+2. creates a release branch like `release/v0.1.0`
+3. updates `[workspace.package] version` in `Cargo.toml`
+4. creates and pushes the version bump commit on that release branch
+5. opens a pull request targeting `main`
+
+If you provide notes, the script includes them in the release PR body so they are easy to reuse when tagging.
+
+After the release PR is merged, create the annotated tag from local `main`:
+
+```bash
+./scripts/tag-release.sh 0.1.0
+```
+
+That second helper:
+
+1. verifies local `main` is clean and matches `origin/main`
+2. verifies `Cargo.toml` already matches the requested version
+3. creates the annotated tag like `v0.1.0`
+4. pushes the tag to `origin`
 
 The annotated tag message is optional. If you provide one, GitHub prepends it to the generated release notes.
 
@@ -101,7 +118,7 @@ The release workflow rejects:
 - pre-release tags
 - tags whose version does not match `Cargo.toml`
 
-Fix the version on `main`, create a new tag, and push again.
+Fix the version on `main` through a pull request, then create a new tag and push again.
 
 ### Release build fails
 
@@ -131,7 +148,7 @@ Delete the release in GitHub, update the annotated tag locally if repository set
 1. fix the issue on a new `fix/...` branch
 2. merge through a pull request
 3. run `./scripts/validate-release.sh`
-4. create the next patch release with `./scripts/create-release.sh X.Y.Z`
+4. create the next patch release with `./scripts/create-release.sh X.Y.Z`, merge it, then run `./scripts/tag-release.sh X.Y.Z`
 
 ## Important Constraint
 
