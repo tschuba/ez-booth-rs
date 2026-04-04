@@ -2,7 +2,7 @@
 
 This guide explains how EZ Booth backup and recovery works for event operators.
 
-Dieser Leitfaden erklaert, wie Datensicherung und Wiederherstellung in EZ Booth fuer Veranstaltungs-Teams funktionieren.
+Dieser Leitfaden erklärt, wie Datensicherung und Wiederherstellung in EZ Booth für Veranstaltungs-Teams funktionieren.
 
 ## 1. Where Your Data Lives / Wo Ihre Daten gespeichert werden
 
@@ -15,12 +15,12 @@ Dieser Leitfaden erklaert, wie Datensicherung und Wiederherstellung in EZ Booth 
 
 ### DE
 
-- EZ Booth speichert Veranstaltungsdaten im aktuellen Browser auf dem aktuellen Geraet.
+- EZ Booth speichert Veranstaltungsdaten im aktuellen Browser auf dem aktuellen Gerät.
 - Die App synchronisiert Daten nicht automatisch mit einem Server oder Cloud-Speicher.
-- Wenn Browserdaten geloescht werden, koennen lokale Veranstaltungsdaten verloren gehen.
-- Backups sind JSON-Dateien, die Sie herunterladen und ausserhalb des Browsers speichern.
+- Wenn Browserdaten gelöscht werden, können lokale Veranstaltungsdaten verloren gehen.
+- Backups sind JSON-Dateien, die Sie herunterladen und außerhalb des Browsers speichern.
 
-## 2. What Can Cause Data Loss / Was zu Datenverlust fuehren kann
+## 2. What Can Cause Data Loss / Was zu Datenverlust führen kann
 
 ### EN
 
@@ -34,15 +34,15 @@ Data can be lost if you:
 
 ### DE
 
-Daten koennen verloren gehen, wenn Sie:
+Daten können verloren gehen, wenn Sie:
 
-- Browserverlauf, Webseitendaten oder Speicher loeschen
+- Browserverlauf, Webseitendaten oder Speicher löschen
 - zu einem anderen Browser-Profil wechseln
 - auf ein anderes Notebook oder Tablet wechseln, ohne vorher zu exportieren
-- einen privaten Browsermodus verwenden und die Sitzung schliessen
-- das Geraet zuruecksetzen oder austauschen
+- einen privaten Browsermodus verwenden und die Sitzung schließen
+- das Gerät zurücksetzen oder austauschen
 
-## 3. Full Backup: Export Everything / Vollstaendiges Backup: Alles exportieren
+## 3. Full Backup: Export Everything / Vollständiges Backup: Alles exportieren
 
 ### EN
 
@@ -61,14 +61,14 @@ Typical filename:
 
 ### DE
 
-Verwenden Sie ein vollstaendiges Backup, wenn Sie alle Veranstaltungen, Verkaeufer und Kaeufe sichern moechten.
+Verwenden Sie ein vollständiges Backup, wenn Sie alle Veranstaltungen, Verkäufer und Käufe sichern möchten.
 
 Schritte:
 
-1. Oeffnen Sie die Standliste.
+1. Öffnen Sie die Standliste.
 2. Klicken Sie auf `Alle exportieren`.
 3. Speichern Sie die heruntergeladene JSON-Datei an einem sicheren Ort.
-4. Pruefen Sie, dass die Datei ausserhalb des Browsers vorhanden ist, zum Beispiel in `Downloads`, einem Team-Ordner oder auf einem externen Speichermedium.
+4. Prüfen Sie, dass die Datei außerhalb des Browsers vorhanden ist, zum Beispiel in `Downloads`, einem Team-Ordner oder auf einem externen Speichermedium.
 
 Typischer Dateiname:
 
@@ -93,12 +93,12 @@ Typical filename:
 
 ### DE
 
-Verwenden Sie ein Stand-Backup, wenn Sie nur eine einzelne Veranstaltung sichern moechten.
+Verwenden Sie ein Stand-Backup, wenn Sie nur eine einzelne Veranstaltung sichern möchten.
 
 Schritte:
 
-1. Oeffnen Sie die Standliste.
-2. Suchen Sie die Standkarte der gewuenschten Veranstaltung.
+1. Öffnen Sie die Standliste.
+2. Suchen Sie die Standkarte der gewünschten Veranstaltung.
 3. Klicken Sie auf die Export-Aktion dieses Standes.
 4. Speichern Sie die heruntergeladene JSON-Datei.
 
@@ -136,31 +136,31 @@ Important merge details:
 
 ### DE
 
-Sie koennen sowohl ein vollstaendiges Backup als auch ein Stand-Backup importieren.
+Sie können sowohl ein vollständiges Backup als auch ein Stand-Backup importieren.
 
 Schritte:
 
-1. Oeffnen Sie die Standliste.
+1. Öffnen Sie die Standliste.
 2. Klicken Sie auf `Importieren`.
-3. Waehlen Sie eine `.json`-Backup-Datei aus.
-4. Pruefen Sie die von EZ Booth angezeigte Vorschau.
-5. Waehlen Sie, wie Konflikte behandelt werden sollen.
+3. Wählen Sie eine `.json`-Backup-Datei aus.
+4. Prüfen Sie die von EZ Booth angezeigte Vorschau.
+5. Wählen Sie, wie Konflikte behandelt werden sollen.
 6. Starten Sie den Import.
-7. Pruefen Sie danach Standliste, Verkaeufer und Kaeufe.
+7. Prüfen Sie danach Standliste, Verkäufer und Käufe.
 
 Konfliktstrategien:
 
-- `Merge`: importiert neue Datensaetze, bevorzugt bei Staenden und Kaeufen nur eindeutig neuere Datensaetze und behaelt bei Verkaeufern den aussagekraeftigeren Namen
-- `Skip`: behaelt vorhandene Datensaetze und ignoriert konfligierende importierte Datensaetze
-- `Replace`: ueberschreibt vorhandene konfligierende Datensaetze mit den importierten Daten
+- `Merge`: importiert neue Datensätze, bevorzugt bei Ständen und Käufen nur eindeutig neuere Datensätze und behält bei Verkäufern den aussagekräftigeren Namen
+- `Skip`: behält vorhandene Datensätze und ignoriert konfligierende importierte Datensätze
+- `Replace`: überschreibt vorhandene konfligierende Datensätze mit den importierten Daten
 
 Wichtige Merge-Details:
 
-- Wenn derselbe Stand oder Kauf bereits vorhanden ist und die Zeitstempel exakt gleich sind, behaelt EZ Booth den bereits lokalen Datensatz.
-- Wenn derselbe Verkaeufer in beiden Importen vorkommt, behaelt EZ Booth einen nicht-leeren Verkaeufernamen und bevorzugt den aussagekraeftigeren Namen.
-- Wenn zwei Geraete unterschiedliche Kaeufe erzeugt haben, bleiben beide Kaeufe erhalten, solange sie unterschiedliche Kauf-IDs haben.
+- Wenn derselbe Stand oder Kauf bereits vorhanden ist und die Zeitstempel exakt gleich sind, behält EZ Booth den bereits lokalen Datensatz.
+- Wenn derselbe Verkäufer in beiden Importen vorkommt, behält EZ Booth einen nicht-leeren Verkäufernamen und bevorzugt den aussagekräftigeren Namen.
+- Wenn zwei Geräte unterschiedliche Käufe erzeugt haben, bleiben beide Käufe erhalten, solange sie unterschiedliche Kauf-IDs haben.
 
-## 5a. Multi-Device Booth Workflow / Mehrgeraete-Workflow fuer einzelne Staende
+## 5a. Multi-Device Booth Workflow / Mehrgeräte-Workflow für einzelne Stände
 
 ### EN
 
@@ -190,29 +190,29 @@ Limits to understand:
 
 ### DE
 
-Dies ist der empfohlene Hauptablauf, wenn ein einzelner Stand auf mehreren Geraeten bearbeitet wird.
+Dies ist der empfohlene Hauptablauf, wenn ein einzelner Stand auf mehreren Geräten bearbeitet wird.
 
 Empfohlene Reihenfolge:
 
-1. Starten Sie mit einem bekannten gueltigen Stand-Backup.
-2. Importieren Sie dieses Stand-Backup auf jedem weiteren Geraet, bevor neue Daten erfasst werden.
-3. Lassen Sie jedes Geraet seine neuen Kaeufe erfassen.
-4. Exportieren Sie den Stand anschliessend erneut von jedem Geraet.
-5. Importieren Sie diese Stand-Backups auf dem Zielgeraet mit `Merge`.
-6. Pruefen Sie die finalen Stand-Summen, die Verkaeuferliste und die letzten Kaeufe.
+1. Starten Sie mit einem bekannten gültigen Stand-Backup.
+2. Importieren Sie dieses Stand-Backup auf jedem weiteren Gerät, bevor neue Daten erfasst werden.
+3. Lassen Sie jedes Gerät seine neuen Käufe erfassen.
+4. Exportieren Sie den Stand anschließend erneut von jedem Gerät.
+5. Importieren Sie diese Stand-Backups auf dem Zielgerät mit `Merge`.
+6. Prüfen Sie die finalen Stand-Summen, die Verkäuferliste und die letzten Käufe.
 
 Empfohlene Praxis:
 
-- verwenden Sie fuer Geraete-zu-Geraete-Standarbeit bevorzugt Stand-Backups statt Voll-Backups
-- importieren Sie nach Moeglichkeit immer zuerst, bevor auf einem weiteren Geraet neue Daten erfasst werden
-- bewahren Sie die Exportdateien aller Geraete auf, bis das Merge-Ergebnis geprueft ist
+- verwenden Sie für Geräte-zu-Geräte-Standarbeit bevorzugt Stand-Backups statt Voll-Backups
+- importieren Sie nach Möglichkeit immer zuerst, bevor auf einem weiteren Gerät neue Daten erfasst werden
+- bewahren Sie die Exportdateien aller Geräte auf, bis das Merge-Ergebnis geprüft ist
 - erstellen Sie nach einem erfolgreichen Merge ein neues Stand-Backup als neuen Wiederherstellungspunkt
 
 Wichtige Grenzen:
 
 - EZ Booth versucht nicht zu erraten, ob zwei unterschiedliche Kauf-IDs denselben realen Verkauf meinen
-- wenn zwei Geraete denselben Stand oder Kauf mit exakt gleichem Zeitstempel aendern, bleibt beim `Merge` der bereits lokale Datensatz erhalten
-- mehrere Dateien werden nacheinander importiert; pruefen Sie deshalb das Ergebnis nach dem Import mehrerer Dateien
+- wenn zwei Geräte denselben Stand oder Kauf mit exakt gleichem Zeitstempel ändern, bleibt beim `Merge` der bereits lokale Datensatz erhalten
+- mehrere Dateien werden nacheinander importiert; prüfen Sie deshalb das Ergebnis nach dem Import mehrerer Dateien
 
 ## 6. When To Create Backups / Wann Backups erstellt werden sollten
 
@@ -231,11 +231,11 @@ Create a backup:
 
 Erstellen Sie ein Backup:
 
-- vor dem Loeschen von Browserdaten
+- vor dem Löschen von Browserdaten
 - vor Browser-Updates oder Profilbereinigungen
-- vor dem Wechsel auf ein anderes Geraet
+- vor dem Wechsel auf ein anderes Gerät
 - vor und nach einem Veranstaltungstag
-- vor Test-Importen oder groesseren Bereinigungen
+- vor Test-Importen oder größeren Bereinigungen
 - nach wichtigen Eingabephasen
 
 ## 7. Where To Store Backup Files / Wo Backup-Dateien gespeichert werden sollten
@@ -260,9 +260,9 @@ Good practice:
 Empfohlene Speicherorte:
 
 - ein gemeinsamer Team-Ordner
-- ein externer USB-Datentraeger
+- ein externer USB-Datenträger
 - ein von der Organisation verwalteter Cloud-Ordner
-- ein zweites Geraet des Veranstaltungsteams
+- ein zweites Gerät des Veranstaltungsteams
 
 Gute Praxis:
 
@@ -288,10 +288,10 @@ If data is missing:
 Wenn Daten fehlen:
 
 1. Erfassen Sie keine neuen Veranstaltungsdaten, bis klar ist, was verloren ging.
-2. Pruefen Sie, ob nur ein anderes Browser-Profil oder Geraet verwendet wird.
+2. Prüfen Sie, ob nur ein anderes Browser-Profil oder Gerät verwendet wird.
 3. Suchen Sie die neueste passende Backup-Datei.
-4. Importieren Sie das Backup ueber die Standliste.
-5. Pruefen Sie Standanzahl, Verkaeuferlisten und aktuelle Kaeufe.
+4. Importieren Sie das Backup über die Standliste.
+5. Prüfen Sie Standanzahl, Verkäuferlisten und aktuelle Käufe.
 6. Erstellen Sie nach erfolgreicher Wiederherstellung ein neues Backup.
 
 ## 9. Quick Recommendation / Kurze Empfehlung
@@ -302,4 +302,4 @@ Before each event session, export a full backup and confirm the file was saved o
 
 ### DE
 
-Exportieren Sie vor jeder Veranstaltungssitzung ein vollstaendiges Backup und pruefen Sie, dass die Datei ausserhalb des Browsers gespeichert wurde.
+Exportieren Sie vor jeder Veranstaltungssitzung ein vollständiges Backup und prüfen Sie, dass die Datei außerhalb des Browsers gespeichert wurde.

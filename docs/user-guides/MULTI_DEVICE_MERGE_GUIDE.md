@@ -1,8 +1,14 @@
-# Multi-Device Booth Merge Guide
+# Multi-Device Booth Merge Guide / Leitfaden für Geräteübergreifende Stand-Zusammenführung
 
 This guide explains the safest current workflow for working on one booth across multiple devices and then merging the booth data back together.
 
-## Recommended Use Case
+Dieser Leitfaden erklärt den sichersten aktuellen Arbeitsablauf für die Bearbeitung eines Standes auf mehreren Geräten und die anschließende Zusammenführung der Stand-Daten.
+
+---
+
+## Recommended Use Case / Empfohlener Anwendungsfall
+
+### EN
 
 Use this workflow when:
 
@@ -12,7 +18,21 @@ Use this workflow when:
 
 This guide is about booth backups, not cloud sync.
 
-## Safe Workflow
+### DE
+
+Verwenden Sie diesen Arbeitsablauf, wenn:
+
+- ein Veranstaltungsstand auf mehreren Laptops oder Tablets genutzt wird
+- jedes Gerät möglicherweise Käufe offline erfasst
+- das Team diese Käufe sicher zu einem Stand zusammenführen muss
+
+Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
+
+---
+
+## Safe Workflow / Sicherer Arbeitsablauf
+
+### EN
 
 1. Create or confirm one known-good booth backup.
 2. Import that booth backup onto every device that will be used for the same booth.
@@ -23,7 +43,22 @@ This guide is about booth backups, not cloud sync.
 7. Verify vendor list, purchase count, and booth totals.
 8. Create one new booth backup from the merged result.
 
-## What `Merge` Safely Does
+### DE
+
+1. Erstellen oder bestätigen Sie ein bekanntes funktionierendes Stand-Backup.
+2. Importieren Sie dieses Stand-Backup auf jedes Gerät, das für denselben Stand verwendet wird.
+3. Erfassen Sie neue Käufe auf jedem Gerät.
+4. Exportieren Sie ein Stand-Backup von jedem Gerät.
+5. Wählen Sie ein Ziel-Gerät als Merge-Gerät aus.
+6. Importieren Sie jedes Geräte-Backup auf dem Ziel-Gerät mit `Merge`.
+7. Prüfen Sie Verkäuferliste, Kaufanzahl und Stand-Summen.
+8. Erstellen Sie ein neues Stand-Backup aus dem zusammengeführten Ergebnis.
+
+---
+
+## What `Merge` Safely Does / Was `Merge` sicher durchführt
+
+### EN
 
 - imports new booths, vendors, and purchases that do not exist locally yet
 - keeps both purchases when the devices created different purchase IDs
@@ -32,14 +67,38 @@ This guide is about booth backups, not cloud sync.
 - keeps the local record when booth or purchase timestamps are exactly equal
 - keeps a non-empty vendor name and prefers the richer vendor name when names differ
 
-## What `Merge` Does Not Try To Do
+### DE
+
+- importiert neue Stände, Verkäufer und Käufe, die lokal noch nicht vorhanden sind
+- behält beide Käufe, wenn die Geräte unterschiedliche Kauf-IDs erstellt haben
+- wählt den eindeutig neueren Stand-Datensatz, wenn derselbe Stand auf mehreren Geräten aktualisiert wurde
+- wählt den eindeutig neueren Kauf-Datensatz, wenn dieselbe Kauf-ID auf mehreren Geräten aktualisiert wurde
+- behält den lokalen Datensatz, wenn Stand- oder Kauf-Zeitstempel exakt gleich sind
+- behält einen nicht-leeren Verkäufernamen und bevorzugt den aussagekräftigeren Verkäufernamen, wenn Namen unterschiedlich sind
+
+---
+
+## What `Merge` Does Not Try To Do / Was `Merge` nicht versucht
+
+### EN
 
 - it does not guess that two different purchase IDs are the same real-world sale
 - it does not combine two conflicting booth edits field by field
 - it does not provide a manual conflict-resolution UI
 - it does not make multi-file import atomic
 
-## Practical Team Rules
+### DE
+
+- es errät nicht, dass zwei unterschiedliche Kauf-IDs derselbe reale Verkauf sind
+- es kombiniert nicht zwei widersprüchliche Stand-Änderungen Feld für Feld
+- es bietet keine manuelle Konfliktlösungs-Benutzeroberfläche
+- es macht Mehrdatei-Importe nicht atomar
+
+---
+
+## Practical Team Rules / Praktische Team-Regeln
+
+### EN
 
 - prefer booth backups over full backups for single-booth device transfer
 - import the latest known booth backup before entering more data on another device
@@ -47,7 +106,19 @@ This guide is about booth backups, not cloud sync.
 - after merging, create a new backup and treat that file as the current recovery point
 - if totals look wrong, stop and compare the imported purchase list before recording more sales
 
-## Verification Checklist After Merge
+### DE
+
+- bevorzugen Sie Stand-Backups gegenüber Voll-Backups für Einzelstand-Geräteübertragungen
+- importieren Sie das neueste bekannte Stand-Backup, bevor Sie auf einem anderen Gerät weitere Daten erfassen
+- bewahren Sie alle exportierten Dateien auf, bis das Merge-Ergebnis geprüft ist
+- erstellen Sie nach dem Merge ein neues Backup und behandeln Sie diese Datei als aktuellen Wiederherstellungspunkt
+- wenn Summen falsch aussehen, stoppen Sie und vergleichen Sie die importierte Kaufliste, bevor Sie weitere Verkäufe erfassen
+
+---
+
+## Verification Checklist After Merge / Prüfliste nach dem Merge
+
+### EN
 
 - the expected booth is present
 - vendor count looks correct
@@ -57,19 +128,53 @@ This guide is about booth backups, not cloud sync.
 - booth totals match the combined purchases
 - no unrelated booths were changed
 
-## When To Use `Skip` Or `Replace`
+### DE
+
+- der erwartete Stand ist vorhanden
+- die Verkäuferanzahl sieht korrekt aus
+- kürzlich hinzugefügte Verkäufer haben noch die erwarteten Namen
+- die Kaufanzahl stimmt mit der kombinierten erwarteten Anzahl von allen Geräten überein
+- neueste Kauf-Notizen oder Korrekturen sind vorhanden, wo erwartet
+- die Stand-Summen stimmen mit den kombinierten Käufen überein
+- keine nicht betroffenen Stände wurden geändert
+
+---
+
+## When To Use `Skip` Or `Replace` / Wann `Skip` oder `Replace` verwenden
+
+### EN
 
 - use `Skip` when the local device should stay authoritative and imported conflicts should be ignored
 - use `Replace` when one backup should fully overwrite conflicting local records
 - use `Merge` for the normal multi-device booth workflow
 
-## Current Limits To Communicate To Operators
+### DE
+
+- verwenden Sie `Skip`, wenn das lokale Gerät maßgeblich bleiben soll und importierte Konflikte ignoriert werden sollen
+- verwenden Sie `Replace`, wenn ein Backup widersprüchliche lokale Datensätze vollständig überschreiben soll
+- verwenden Sie `Merge` für den normalen geräteübergreifenden Stand-Arbeitsablauf
+
+---
+
+## Current Limits To Communicate To Operators / Aktuelle Einschränkungen für Anwendende
+
+### EN
 
 - if two devices independently record the same real-world sale as two different purchases, EZ Booth will keep both because the purchase IDs are different
 - if two devices edit the same booth or purchase at the exact same timestamp, the target device keeps its existing local record
 - if you import several files and a later file fails, earlier successful imports are already applied
 
-## Validation Status
+### DE
+
+- wenn zwei Geräte unabhängig voneinander denselben realen Verkauf als zwei unterschiedliche Käufe erfassen, behält EZ Booth beide, da die Kauf-IDs unterschiedlich sind
+- wenn zwei Geräte denselben Stand oder Kauf zum exakt gleichen Zeitstempel bearbeiten, behält das Ziel-Gerät seinen bestehenden lokalen Datensatz
+- wenn Sie mehrere Dateien importieren und eine spätere Datei fehlschlägt, sind frühere erfolgreiche Importe bereits angewendet
+
+---
+
+## Validation Status / Validierungsstatus
+
+### EN
 
 The storage-layer merge behavior for this workflow has automated browser-backed coverage for:
 
@@ -81,6 +186,23 @@ The storage-layer merge behavior for this workflow has automated browser-backed 
 - mixed booth-backup and full-backup merge sequences
 
 For cross-browser operator validation, also use:
+
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/user-guides/DATA_BACKUP_GUIDE.md`
+- `docs/validation/VALIDATION_WORKFLOW.md`
+
+### DE
+
+Das Merge-Verhalten auf Storage-Ebene für diesen Arbeitsablauf hat automatisierte browsergestützte Abdeckung für:
+
+- wiederholten Import gemeinsamer Stand-Historie ohne doppelte Datensätze
+- parallele geräteübergreifende Stand-Kauf-Merges
+- Roundtrip-Importe
+- Konfliktlösung bei identischen Käufen anhand des neueren Zeitstempels
+- Konvergenz aussagekräftigerer Verkäufernamen
+- gemischte Stand-Backup- und Voll-Backup-Merge-Sequenzen
+
+Für browserübergreifende Operator-Validierung verwenden Sie auch:
 
 - `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
 - `docs/user-guides/DATA_BACKUP_GUIDE.md`
