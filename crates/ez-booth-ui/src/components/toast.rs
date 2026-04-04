@@ -1,8 +1,7 @@
-use crate::t;
+use crate::{t, utils::copy_text_to_clipboard};
 use leptos::*;
 use std::time::Duration;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::window;
 
 /// Toast notification type
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -209,12 +208,14 @@ fn ToastItem(toast: Toast, on_dismiss: impl Fn() + 'static) -> impl IntoView {
                         type="button"
                         class="text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white rounded p-1"
                         on:click=move |_| {
-                            let message_to_copy = toast.full_message.clone().unwrap_or_else(|| toast.message.clone());
+                            let message_to_copy =
+                                toast.full_message.clone().unwrap_or_else(|| toast.message.clone());
                             spawn_local(async move {
-                                if let Some(win) = window() {
-                                    let clipboard = win.navigator().clipboard();
-                                    let _ = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&message_to_copy)).await;
-                                    use_toast().info(&t!("components.toast.copied")());
+                                match copy_text_to_clipboard(&message_to_copy).await {
+                                    Ok(()) => use_toast().info(&t!("components.toast.copied")()),
+                                    Err(error) => {
+                                        log::warn!("Failed to copy toast message: {error}");
+                                    }
                                 }
                             });
                         }

@@ -1,5 +1,7 @@
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, Blob, BlobPropertyBag, File, HtmlAnchorElement, Url};
+use web_sys::{
+    window, Blob, BlobPropertyBag, Document, File, HtmlAnchorElement, HtmlTextAreaElement, Url,
+};
 
 use ez_booth_storage::export::{sanitize_filename_component, DeviceInfo};
 
@@ -95,10 +97,69 @@ pub fn download_text_file(file_name: &str, contents: &str, mime_type: &str) -> R
 pub async fn copy_text_to_clipboard(contents: &str) -> Result<(), String> {
     let window = window().ok_or_else(|| "window not available".to_string())?;
     let clipboard = window.navigator().clipboard();
-    wasm_bindgen_futures::JsFuture::from(clipboard.write_text(contents))
-        .await
-        .map(|_| ())
-        .map_err(|err| format!("failed to write to clipboard: {err:?}"))
+
+    if !clipboard.is_undefined() {
+        return wasm_bindgen_futures::JsFuture::from(clipboard.write_text(contents))
+            .await
+            .map(|_| ())
+            .map_err(|err| format!("failed to write to clipboard: {err:?}"));
+    }
+
+    copy_text_with_exec_command(
+        &window
+            .document()
+            .ok_or_else(|| "document not available".to_string())?,
+        contents,
+    )
+}
+
+fn copy_text_with_exec_command(document: &Document, contents: &str) -> Result<(), String> {
+    let textarea = document
+        .create_element("textarea")
+        .map_err(|err| format!("failed to create textarea: {err:?}"))?
+        .dyn_into::<HtmlTextAreaElement>()
+        .map_err(|_| "failed to cast textarea element".to_string())?;
+
+    textarea.set_value(contents);
+    textarea
+        .set_attribute("readonly", "readonly")
+        .map_err(|err| format!("failed to set textarea readonly: {err:?}"))?;
+    textarea
+        .set_attribute(
+            "style",
+            "position:fixed;top:-1000px;left:-1000px;opacity:0;pointer-events:none;",
+        )
+        .map_err(|err| format!("failed to set textarea style: {err:?}"))?;
+
+    let body = document
+        .body()
+        .ok_or_else(|| "document body not available".to_string())?;
+    body.append_child(&textarea)
+        .map_err(|err| format!("failed to append textarea: {err:?}"))?;
+
+    textarea
+        .focus()
+        .map_err(|err| format!("failed to focus textarea: {err:?}"))?;
+    textarea.select();
+
+    let exec_command = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("execCommand"))
+        .map_err(|err| format!("failed to access execCommand: {err:?}"))?;
+    let exec_command = exec_command
+        .dyn_into::<js_sys::Function>()
+        .map_err(|_| "execCommand not available on document".to_string())?;
+    let copied = exec_command
+        .call1(document.as_ref(), &JsValue::from_str("copy"))
+        .map_err(|err| format!("failed to execute copy command: {err:?}"))?
+        .as_bool()
+        .unwrap_or(false);
+
+    let _ = body.remove_child(&textarea);
+
+    if copied {
+        Ok(())
+    } else {
+        Err("clipboard not available in this browser context".to_string())
+    }
 }
 
 pub fn open_print_window_html(html: &str) -> Result<(), String> {

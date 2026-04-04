@@ -46,49 +46,58 @@ pub fn SettingsPage() -> impl IntoView {
     {
         let app_state = app_state.clone();
         let toast = toast.clone();
-        spawn_local(async move {
-            let result = match app_state.get() {
-                Some(Ok(state)) => state.load_storage_diagnostics().await,
-                Some(Err(error)) => Err(error),
-                None => Err(t!("common.loading")()),
-            };
+        create_effect(move |_| match app_state.get() {
+            Some(Ok(state)) => {
+                set_is_loading_diagnostics.set(true);
+                let toast = toast.clone();
+                spawn_local(async move {
+                    let result = state.load_storage_diagnostics().await;
+                    set_is_loading_diagnostics.set(false);
 
-            set_is_loading_diagnostics.set(false);
-
-            match result {
-                Ok(diagnostics) => set_storage_diagnostics.set(Some(diagnostics)),
-                Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+                    match result {
+                        Ok(diagnostics) => set_storage_diagnostics.set(Some(diagnostics)),
+                        Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+                    }
+                });
             }
+            Some(Err(error)) => {
+                set_is_loading_diagnostics.set(false);
+                toast.error(format!("{}: {error}", t!("common.error")()));
+            }
+            None => {}
         });
     }
 
     {
         let app_state = app_state.clone();
         let toast = toast.clone();
-        spawn_local(async move {
-            let result = match app_state.get() {
-                Some(Ok(state)) => {
+        create_effect(move |_| match app_state.get() {
+            Some(Ok(state)) => {
+                set_is_loading_error_log.set(true);
+                let toast = toast.clone();
+                spawn_local(async move {
                     let cutoff = recent_error_cutoff();
                     let entries = state.get_recent_errors(20).await;
                     let count = state.count_errors_since(cutoff).await;
+
+                    set_is_loading_error_log.set(false);
+
                     match (entries, count) {
-                        (Ok(entries), Ok(count)) => Ok((entries, count)),
-                        (Err(error), _) | (_, Err(error)) => Err(error),
+                        (Ok(entries), Ok(count)) => {
+                            set_error_log_entries.set(entries);
+                            set_recent_error_count.set(count);
+                        }
+                        (Err(error), _) | (_, Err(error)) => {
+                            toast.error(format!("{}: {error}", t!("common.error")()));
+                        }
                     }
-                }
-                Some(Err(error)) => Err(error),
-                None => Err(t!("common.loading")()),
-            };
-
-            set_is_loading_error_log.set(false);
-
-            match result {
-                Ok((entries, count)) => {
-                    set_error_log_entries.set(entries);
-                    set_recent_error_count.set(count);
-                }
-                Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+                });
             }
+            Some(Err(error)) => {
+                set_is_loading_error_log.set(false);
+                toast.error(format!("{}: {error}", t!("common.error")()));
+            }
+            None => {}
         });
     }
 
@@ -143,16 +152,23 @@ pub fn SettingsPage() -> impl IntoView {
                 return;
             }
 
+            let state = match app_state.get() {
+                Some(Ok(state)) => state,
+                Some(Err(error)) => {
+                    toast.error(format!("{}: {error}", t!("common.error")()));
+                    return;
+                }
+                None => {
+                    toast.info(t!("common.loading")());
+                    return;
+                }
+            };
+
             set_is_running_integrity_check.set(true);
-            let app_state = app_state.clone();
             let toast = toast.clone();
 
             spawn_local(async move {
-                let result = match app_state.get() {
-                    Some(Ok(state)) => state.run_integrity_check().await,
-                    Some(Err(error)) => Err(error),
-                    None => Err(t!("common.loading")()),
-                };
+                let result = state.run_integrity_check().await;
 
                 set_is_running_integrity_check.set(false);
 
@@ -208,32 +224,35 @@ pub fn SettingsPage() -> impl IntoView {
         let app_state = app_state.clone();
         let toast = toast.clone();
         move || {
-            let app_state = app_state.clone();
+            let state = match app_state.get() {
+                Some(Ok(state)) => state,
+                Some(Err(error)) => {
+                    toast.error(format!("{}: {error}", t!("common.error")()));
+                    return;
+                }
+                None => {
+                    toast.info(t!("common.loading")());
+                    return;
+                }
+            };
+
             let toast = toast.clone();
             set_is_loading_error_log.set(true);
             spawn_local(async move {
-                let result = match app_state.get() {
-                    Some(Ok(state)) => {
-                        let cutoff = recent_error_cutoff();
-                        let entries = state.get_recent_errors(20).await;
-                        let count = state.count_errors_since(cutoff).await;
-                        match (entries, count) {
-                            (Ok(entries), Ok(count)) => Ok((entries, count)),
-                            (Err(error), _) | (_, Err(error)) => Err(error),
-                        }
-                    }
-                    Some(Err(error)) => Err(error),
-                    None => Err(t!("common.loading")()),
-                };
+                let cutoff = recent_error_cutoff();
+                let entries = state.get_recent_errors(20).await;
+                let count = state.count_errors_since(cutoff).await;
 
                 set_is_loading_error_log.set(false);
 
-                match result {
-                    Ok((entries, count)) => {
+                match (entries, count) {
+                    (Ok(entries), Ok(count)) => {
                         set_error_log_entries.set(entries);
                         set_recent_error_count.set(count);
                     }
-                    Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+                    (Err(error), _) | (_, Err(error)) => {
+                        toast.error(format!("{}: {error}", t!("common.error")()));
+                    }
                 }
             });
         }
@@ -248,18 +267,26 @@ pub fn SettingsPage() -> impl IntoView {
             if is_clearing_error_log.get_untracked() {
                 return;
             }
+
+            let state = match app_state.get() {
+                Some(Ok(state)) => state,
+                Some(Err(error)) => {
+                    toast.error(format!("{}: {error}", t!("common.error")()));
+                    return;
+                }
+                None => {
+                    toast.info(t!("common.loading")());
+                    return;
+                }
+            };
+
             set_is_clearing_error_log.set(true);
 
-            let app_state = app_state.clone();
             let toast = toast.clone();
             let refresh_error_log = refresh_error_log.clone();
             let log_error = log_error_for_clear.clone();
             spawn_local(async move {
-                let result = match app_state.get() {
-                    Some(Ok(state)) => state.clear_error_log().await,
-                    Some(Err(error)) => Err(error),
-                    None => Err(t!("common.loading")()),
-                };
+                let result = state.clear_error_log().await;
 
                 set_is_clearing_error_log.set(false);
 
@@ -300,8 +327,19 @@ pub fn SettingsPage() -> impl IntoView {
                 return;
             }
 
+            let state = match app_state.get() {
+                Some(Ok(state)) => state,
+                Some(Err(error)) => {
+                    toast.error(format!("{}: {error}", t!("common.error")()));
+                    return;
+                }
+                None => {
+                    toast.info(t!("common.loading")());
+                    return;
+                }
+            };
+
             set_is_exporting_diagnostics.set(true);
-            let app_state = app_state.clone();
             let toast = toast.clone();
             let selected_booth = selected_booth.get_untracked();
             let device_info = current_device_info();
@@ -313,12 +351,6 @@ pub fn SettingsPage() -> impl IntoView {
 
             spawn_local(async move {
                 let result: Result<(), String> = async move {
-                    let state = match app_state.get() {
-                        Some(Ok(state)) => state,
-                        Some(Err(error)) => return Err(error),
-                        None => return Err(t!("common.loading")()),
-                    };
-
                     let exported_at = Utc::now();
                     let all_errors = state.get_recent_errors(100).await?;
                     let booth_summary = if let Some(booth) = selected_booth.clone() {

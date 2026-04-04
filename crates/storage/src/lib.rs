@@ -6,8 +6,8 @@ pub mod indexeddb;
 pub mod repositories;
 
 pub use diagnostics::{
-    load_or_create_session_id, load_storage_diagnostics, record_backup_completed,
-    run_integrity_check, IntegrityStatus, StorageDiagnostics,
+    create_session_id, load_storage_diagnostics, record_backup_completed, run_integrity_check,
+    IntegrityStatus, StorageDiagnostics,
 };
 pub use error::StorageError;
 pub use error_log::{

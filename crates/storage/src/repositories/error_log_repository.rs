@@ -32,10 +32,29 @@ impl IndexedDbErrorLogRepository {
         Self { db }
     }
 
+    fn error_logs_store_missing(error: &StorageError) -> bool {
+        match error {
+            StorageError::TransactionError(message) | StorageError::DatabaseError(message) => {
+                message.contains("NotFoundError")
+                    || message.contains("object stores was not found")
+                    || message.contains("object store was not found")
+            }
+            _ => false,
+        }
+    }
+
     async fn load_all_entries(&self) -> Result<Vec<ErrorLogEntry>, StorageError> {
-        let transaction = self
+        let transaction = match self
             .db
-            .transaction(&["error_logs"], TransactionMode::ReadOnly)?;
+            .transaction(&["error_logs"], TransactionMode::ReadOnly)
+        {
+            Ok(transaction) => transaction,
+            Err(error) if Self::error_logs_store_missing(&error) => {
+                log::warn!("error_logs object store missing; returning empty error log results");
+                return Ok(Vec::new());
+            }
+            Err(error) => return Err(error),
+        };
         let store = transaction
             .store("error_logs")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
@@ -91,9 +110,17 @@ impl IndexedDbErrorLogRepository {
 #[async_trait(?Send)]
 impl ErrorLogRepository for IndexedDbErrorLogRepository {
     async fn log_error(&self, entry: &ErrorLogEntry) -> Result<ErrorLogEntry, StorageError> {
-        let transaction = self
+        let transaction = match self
             .db
-            .transaction(&["error_logs"], TransactionMode::ReadWrite)?;
+            .transaction(&["error_logs"], TransactionMode::ReadWrite)
+        {
+            Ok(transaction) => transaction,
+            Err(error) if Self::error_logs_store_missing(&error) => {
+                log::warn!("error_logs object store missing; skipping persisted error log entry");
+                return Ok(entry.clone());
+            }
+            Err(error) => return Err(error),
+        };
         let store = transaction
             .store("error_logs")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
@@ -137,9 +164,17 @@ impl ErrorLogRepository for IndexedDbErrorLogRepository {
     }
 
     async fn clear_all(&self) -> Result<(), StorageError> {
-        let transaction = self
+        let transaction = match self
             .db
-            .transaction(&["error_logs"], TransactionMode::ReadWrite)?;
+            .transaction(&["error_logs"], TransactionMode::ReadWrite)
+        {
+            Ok(transaction) => transaction,
+            Err(error) if Self::error_logs_store_missing(&error) => {
+                log::warn!("error_logs object store missing; treating clear request as no-op");
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
         let store = transaction
             .store("error_logs")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;

@@ -7,7 +7,7 @@ use ez_booth_storage::repositories::{
     IndexedDbVendorRepository,
 };
 use ez_booth_storage::{
-    load_or_create_session_id, load_storage_diagnostics, run_integrity_check, ErrorLogEntry,
+    create_session_id, load_storage_diagnostics, run_integrity_check, ErrorLogEntry,
     ErrorLogRepository, IntegrityStatus, StorageDiagnostics,
 };
 use leptos::*;
@@ -45,7 +45,7 @@ impl AppState {
             .map_err(|e| format!("Failed to initialize database: {:?}", e))?;
 
         let db = Arc::new(db);
-        let session_id = load_or_create_session_id(&db)
+        let session_id = create_session_id(&db)
             .await
             .map_err(|e| format!("Failed to initialize error logging session: {:?}", e))?;
 

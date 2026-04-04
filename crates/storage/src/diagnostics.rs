@@ -60,11 +60,7 @@ pub async fn record_backup_completed(
     Ok(())
 }
 
-pub async fn load_or_create_session_id(db: &Database) -> Result<String, StorageError> {
-    if let Some(existing) = load_metadata_string(db, SESSION_ID_METADATA_KEY).await? {
-        return Ok(existing);
-    }
-
+pub async fn create_session_id(db: &Database) -> Result<String, StorageError> {
     let session_id = Uuid::new_v4().to_string();
     write_metadata_value(db, SESSION_ID_METADATA_KEY, JsValue::from_str(&session_id)).await?;
     Ok(session_id)
@@ -163,14 +159,6 @@ async fn load_last_backup_at(db: &Database) -> Result<Option<DateTime<Utc>>, Sto
                 .map_err(|e| StorageError::SerializationError(e.to_string()))?;
             Ok(Some(timestamp))
         }
-        None => Ok(None),
-    }
-}
-
-async fn load_metadata_string(db: &Database, key: &str) -> Result<Option<String>, StorageError> {
-    let result = load_metadata_raw_value(db, key).await?;
-    match result {
-        Some(value) => Ok(value.as_string()),
         None => Ok(None),
     }
 }
