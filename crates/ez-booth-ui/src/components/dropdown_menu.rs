@@ -332,18 +332,34 @@ pub fn DropdownMenu(
 pub fn DropdownMenuItem(
     on_click: Callback<ev::MouseEvent>,
     #[prop(optional)] icon: Option<View>,
+    #[prop(optional, into)] disabled: MaybeSignal<bool>,
     #[prop(optional)] class: Option<String>,
     children: Children,
 ) -> impl IntoView {
     let icon_stored = store_value(icon);
     let children_stored = store_value(children());
-    let class_name = format!(
-        "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none {}",
-        class.unwrap_or_default()
-    );
+    let additional_class = class.unwrap_or_default();
 
     view! {
-        <button type="button" class=class_name on:click=move |event| on_click.call(event)>
+        <button
+            type="button"
+            class=move || format!(
+                "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 transition-colors focus:outline-none {} {}",
+                if disabled.get() {
+                    "cursor-not-allowed opacity-50"
+                } else {
+                    "hover:bg-gray-50 focus:bg-gray-50"
+                },
+                additional_class
+            )
+            disabled=move || disabled.get()
+            aria-disabled=move || if disabled.get() { Some("true") } else { None }
+            on:click=move |event| {
+                if !disabled.get() {
+                    on_click.call(event);
+                }
+            }
+        >
             {move || {
                 icon_stored.get_value().map(|icon| {
                     view! {

@@ -62,6 +62,7 @@ pub fn SettingsPage() -> impl IntoView {
     let (is_loading_error_log, set_is_loading_error_log) = create_signal(true);
     let (is_clearing_error_log, set_is_clearing_error_log) = create_signal(false);
     let (is_exporting_diagnostics, set_is_exporting_diagnostics) = create_signal(false);
+    let (show_clear_error_log_confirm, set_show_clear_error_log_confirm) = create_signal(false);
     let (expanded_error_ids, set_expanded_error_ids) = create_signal(Vec::<u32>::new());
     let initial_tab = web_sys::window()
         .and_then(|window| window.location().hash().ok())
@@ -171,6 +172,8 @@ pub fn SettingsPage() -> impl IntoView {
 
     let is_dirty = Signal::derive(move || device_identifier.get() != saved_identifier.get());
     let can_save = Signal::derive(move || is_dirty.get() && validation_error.get().is_none());
+    let is_error_log_actions_disabled =
+        Signal::derive(move || is_loading_error_log.get() || error_log_entries.get().is_empty());
 
     let handle_save = {
         let toast = toast.clone();
@@ -317,7 +320,7 @@ pub fn SettingsPage() -> impl IntoView {
         }
     };
 
-    let handle_clear_error_log = {
+    let handle_confirm_clear_error_log = {
         let app_state = app_state.clone();
         let toast = toast.clone();
         let refresh_error_log = refresh_error_log.clone();
@@ -340,6 +343,7 @@ pub fn SettingsPage() -> impl IntoView {
             };
 
             set_is_clearing_error_log.set(true);
+            set_show_clear_error_log_confirm.set(false);
 
             let toast = toast.clone();
             let refresh_error_log = refresh_error_log.clone();
@@ -375,6 +379,14 @@ pub fn SettingsPage() -> impl IntoView {
                 }
             });
         }
+    };
+
+    let handle_prompt_clear_error_log = move || {
+        if is_clearing_error_log.get_untracked() {
+            return;
+        }
+
+        set_show_clear_error_log_confirm.set(true);
     };
 
     let handle_export_diagnostics = {
@@ -534,14 +546,30 @@ pub fn SettingsPage() -> impl IntoView {
     let on_reset = Callback::new(move |_| handle_reset());
     let on_run_integrity_check = Callback::new(move |_| handle_run_integrity_check());
     let on_export_diagnostics = Callback::new(move |_| handle_export_diagnostics());
-    let on_clear_error_log = Callback::new(move |_| handle_clear_error_log());
+    let on_clear_error_log = Callback::new(move |_| handle_prompt_clear_error_log());
     let on_print_error_log = Callback::new(move |_| handle_print_error_log());
     let on_copy_error_log = Callback::new(move |_| handle_copy_error_log());
+    let close_clear_error_log_confirm = move || {
+        set_show_clear_error_log_confirm.set(false);
+    };
+    let on_confirm_clear_error_log = move || {
+        handle_confirm_clear_error_log();
+    };
 
     view! {
         <Container class="mt-6 pb-24" aria_label=t!("settings.title")() as_landmark=true>
             <div class="mx-auto max-w-3xl">
                 <Card title_view={t!("settings.title").into_view()}>
+                    <ConfirmModal
+                        show=show_clear_error_log_confirm
+                        on_close=close_clear_error_log_confirm
+                        on_confirm=on_confirm_clear_error_log
+                        title=Signal::derive(|| t!("settings.error_log_clear_confirm_title")())
+                        message=Signal::derive(|| t!("settings.error_log_clear_confirm_message")())
+                        confirm_text=Signal::derive(|| t!("settings.error_log_clear_confirm_button")())
+                        cancel_text=Signal::derive(|| t!("settings.error_log_clear_cancel_button")())
+                        is_destructive=true
+                    />
                     <TabGroup
                         tabs=vec![
                             TabItem {
@@ -727,11 +755,17 @@ pub fn SettingsPage() -> impl IntoView {
                                                     </Button>
                                                 }.into_view()}
                                                 align="right".to_string()
-                                            >
-                                                <DropdownMenuItem on_click=Callback::new(move |_| on_print_error_log.call(()))>
+                                                >
+                                                <DropdownMenuItem
+                                                    on_click=Callback::new(move |_| on_print_error_log.call(()))
+                                                    disabled=is_error_log_actions_disabled
+                                                >
                                                     {t!("settings.error_log_print_button")}
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem on_click=Callback::new(move |_| on_copy_error_log.call(()))>
+                                                <DropdownMenuItem
+                                                    on_click=Callback::new(move |_| on_copy_error_log.call(()))
+                                                    disabled=is_error_log_actions_disabled
+                                                >
                                                     {t!("settings.error_log_copy_button")}
                                                 </DropdownMenuItem>
                                             </DropdownMenu>
