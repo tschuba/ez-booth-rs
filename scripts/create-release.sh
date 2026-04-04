@@ -8,7 +8,8 @@ usage() {
     cat <<'EOF'
 Usage: ./scripts/create-release.sh [version]
 
-Creates a release commit and annotated tag from an up-to-date local main branch.
+Creates a release branch and pull request from an up-to-date local main branch.
+After the PR is merged, run ./scripts/tag-release.sh to create and push the release tag.
 
 Examples:
   ./scripts/create-release.sh
@@ -19,6 +20,10 @@ EOF
 cleanup() {
     if [[ -n "${NOTES_FILE:-}" && -f "$NOTES_FILE" ]]; then
         rm -f "$NOTES_FILE"
+    fi
+
+    if [[ -n "${PR_BODY_FILE:-}" && -f "$PR_BODY_FILE" ]]; then
+        rm -f "$PR_BODY_FILE"
     fi
 }
 
@@ -83,6 +88,20 @@ ensure_tag_absent() {
     fi
 }
 
+ensure_release_branch_absent() {
+    local release_branch="$1"
+
+    if git show-ref --verify --quiet "refs/heads/$release_branch"; then
+        echo "Branch $release_branch already exists locally." >&2
+        exit 1
+    fi
+
+    if git ls-remote --heads origin "$release_branch" | grep -q .; then
+        echo "Branch $release_branch already exists on origin." >&2
+        exit 1
+    fi
+}
+
 update_workspace_version() {
     local version="$1"
 
@@ -109,12 +128,50 @@ capture_notes() {
     local notes_file="$1"
 
     cat <<'EOF'
-Enter optional release notes for the annotated tag.
-These notes are prepended to the auto-generated GitHub release notes.
+Enter optional release notes to include in the release PR.
+You can reuse them later with ./scripts/tag-release.sh when the PR is merged.
 Press Ctrl-D on a new line to finish, or just press Ctrl-D immediately to skip.
 EOF
 
     cat > "$notes_file" || true
+}
+
+build_pr_body() {
+    local version="$1"
+    local notes_file="$2"
+    local pr_body_file="$3"
+
+    cat > "$pr_body_file" <<EOF
+## Summary
+- bump the workspace version to ${version} so the release tag can match Cargo.toml
+- prepare the release branch for merge into main without pushing directly to the protected branch
+
+## Validation
+- not run by this helper; run ./scripts/validate-release.sh before merging if release readiness still needs confirmation
+
+## After Merge
+- run ./scripts/tag-release.sh ${version} from an up-to-date local main branch to create the annotated release tag and trigger the GitHub release workflow
+EOF
+
+    if [[ -s "$notes_file" ]]; then
+        cat >> "$pr_body_file" <<EOF
+
+## Release Notes Draft
+$(<"$notes_file")
+EOF
+    fi
+}
+
+create_release_pr() {
+    local version="$1"
+    local release_branch="$2"
+    local pr_body_file="$3"
+
+    gh pr create \
+        --base main \
+        --head "$release_branch" \
+        --title "chore: prepare release v${version}" \
+        --body-file "$pr_body_file"
 }
 
 main() {
@@ -129,37 +186,46 @@ main() {
     require_branch_main
     require_synced_main
 
-    local version tag_name commit_message
+    local version tag_name commit_message release_branch pr_url original_branch
     version="$(prompt_version "${1:-}")"
     tag_name="v${version}"
+    release_branch="release/${tag_name}"
+    original_branch="$(git branch --show-current)"
     NOTES_FILE="$(mktemp)"
+    PR_BODY_FILE="$(mktemp)"
     commit_message="chore: bump version to ${version}"
 
     trap cleanup EXIT
 
     ensure_tag_absent "$tag_name"
+    ensure_release_branch_absent "$release_branch"
     capture_notes "$NOTES_FILE"
+
+    git checkout -b "$release_branch"
 
     update_workspace_version "$version"
 
     if git diff --quiet -- Cargo.toml; then
-        echo "Cargo.toml already uses version ${version}; no version bump commit needed."
-    else
-        git add Cargo.toml
-        git commit -m "$commit_message"
+        echo "Cargo.toml already uses version ${version}; no release PR created." >&2
+        git checkout "$original_branch"
+        git branch -D "$release_branch"
+        exit 1
     fi
 
-    if [[ -s "$NOTES_FILE" ]]; then
-        git tag -a "$tag_name" -F "$NOTES_FILE"
-    else
-        git tag -a "$tag_name" -m "Release ${tag_name}"
-    fi
+    git add Cargo.toml
+    git commit -m "$commit_message"
+    git push -u origin "$release_branch"
 
-    git push origin main
-    git push origin "$tag_name"
+    build_pr_body "$version" "$NOTES_FILE" "$PR_BODY_FILE"
+    pr_url="$(create_release_pr "$version" "$release_branch" "$PR_BODY_FILE")"
 
-    echo "Created release tag $tag_name and pushed main + tag to origin."
-    echo "Monitor the workflow at: https://github.com/tschuba/ez-booth-rs/actions/workflows/release.yml"
+    git checkout "$original_branch"
+
+    echo "Created release branch $release_branch and opened PR: $pr_url"
+    echo "Next steps:"
+    echo "1. Review and merge the PR into main."
+    echo "2. Run ./scripts/tag-release.sh ${version} from an up-to-date local main branch."
+    echo "3. Monitor the workflow at: https://github.com/tschuba/ez-booth-rs/actions/workflows/release.yml"
 }
 
 main "$@"

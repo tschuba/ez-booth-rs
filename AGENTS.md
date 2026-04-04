@@ -47,7 +47,8 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 ## Release Commands
 
 - Validate release readiness: `./scripts/validate-release.sh`
-- Create a release from local `main`: `./scripts/create-release.sh 0.1.0`
+- Create a release PR from local `main`: `./scripts/create-release.sh 0.1.0`
+- Create the release tag after the PR is merged: `./scripts/tag-release.sh 0.1.0`
 - Release workflow trigger: push a stable semantic version tag like `v0.1.0`
 
 ## Lint And Format Commands
