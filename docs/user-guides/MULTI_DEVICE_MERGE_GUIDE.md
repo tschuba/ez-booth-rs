@@ -1,3 +1,9 @@
+---
+title: Multi-Device Booth Merge Guide
+nav_order: 3
+parent: User Guides
+---
+
 # Multi-Device Booth Merge Guide / Leitfaden für Geräteübergreifende Stand-Zusammenführung
 
 This guide explains the safest current workflow for working on one booth across multiple devices and then merging the booth data back together.

@@ -1,3 +1,9 @@
+---
+title: ADR Device-to-Device Transfer
+nav_order: 3
+parent: Technical Docs
+---
+
 # ADR: Device-to-Device Booth Data Transfer
 
 Date: 2026-03-30

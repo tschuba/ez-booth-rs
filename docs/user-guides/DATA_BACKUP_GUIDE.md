@@ -1,3 +1,9 @@
+---
+title: Data Backup Guide
+nav_order: 2
+parent: User Guides
+---
+
 # Data Backup Guide / Leitfaden Datensicherung
 
 This guide explains how EZ Booth backup and recovery works for event operators.

@@ -1,3 +1,9 @@
+---
+title: Current Implementation Analysis
+nav_order: 3
+parent: Redesign
+---
+
 # ez-booth Current Implementation Analysis
 
 ---

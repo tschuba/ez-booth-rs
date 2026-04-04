@@ -1,3 +1,9 @@
+---
+title: Phase 1 Milestone 2 Preparation
+nav_order: 3
+parent: Planning
+---
+
 # Phase 1 Milestone 2 Preparation
 
 Prepared after Milestone 1 validation, Safari verification, and PR creation.

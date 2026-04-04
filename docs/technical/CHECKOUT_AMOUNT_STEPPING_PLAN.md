@@ -1,3 +1,9 @@
+---
+title: Checkout Amount Stepping Plan
+nav_order: 4
+parent: Technical Docs
+---
+
 # Checkout Amount Stepping Plan
 
 Prepared on 2026-04-01 to capture the agreed implementation plan for configurable checkout amount stepping.

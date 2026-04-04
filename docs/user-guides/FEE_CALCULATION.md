@@ -1,3 +1,9 @@
+---
+title: Fee Calculation
+nav_order: 1
+parent: User Guides
+---
+
 # Gebührenberechnung / Fee Calculation
 
 Diese Dokumentation erklärt, wie die Gebühren und Auszahlungen für Verkäufer berechnet werden.

@@ -1,3 +1,9 @@
+---
+title: Phase 2 Milestone 2 Validation Results
+nav_order: 3
+parent: Validation
+---
+
 # Phase 2 Milestone 2 Validation Results
 
 Branch: `feature/phase2-correction-workflow-polish`  

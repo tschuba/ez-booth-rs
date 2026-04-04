@@ -1,3 +1,8 @@
+---
+title: Release Process
+nav_order: 5
+---
+
 # Release Process
 
 This repository publishes stable releases from semantic version tags like `v0.1.0`.

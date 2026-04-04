@@ -1,3 +1,9 @@
+---
+title: Data Backup Implementation Plan
+nav_order: 4
+parent: Planning
+---
+
 # Data Backup And Recovery Implementation Plan
 
 Prepared on 2026-03-29 to capture the agreed follow-up work for export/import, browser-storage warnings, and recovery guidance.

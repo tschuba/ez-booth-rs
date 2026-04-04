@@ -1,3 +1,9 @@
+---
+title: Safari Validation Checklist
+nav_order: 2
+parent: Validation
+---
+
 # Safari Validation Checklist
 
 Focused manual validation for checkout reliability, data consistency, and report correctness in Safari.

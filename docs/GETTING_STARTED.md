@@ -1,3 +1,8 @@
+---
+title: Getting Started
+nav_order: 2
+---
+
 # Getting Started
 
 This guide helps you set up `ez-booth-rs`, run it locally, and understand the first steps before using it for a real event.
@@ -46,7 +51,7 @@ Before doing deeper work, these commands are the most useful quick validation st
 cargo build --workspace --locked
 ```
 
-For browser validation options, see [TESTING.md](../TESTING.md) and [docs/validation/VALIDATION_WORKFLOW.md](validation/VALIDATION_WORKFLOW.md).
+For browser validation options, see the [Testing Guide](https://github.com/tschuba/ez-booth-rs/blob/main/TESTING.md) and [Validation Workflow](validation/VALIDATION_WORKFLOW.md).
 
 ## What the App Does
 
@@ -156,7 +161,7 @@ Manual validation documents live in `docs/validation/`:
 
 ## More Documentation
 
-- [Architecture Overview](../ARCHITECTURE.md)
+- [Architecture Overview](https://github.com/tschuba/ez-booth-rs/blob/main/ARCHITECTURE.md)
 - [Comparison to the Original App](COMPARISON_TO_ORIGINAL.md)
 - [Redesign Summary](redesign/REDESIGN_SUMMARY.md)
 - [Technical Docs](technical/)
