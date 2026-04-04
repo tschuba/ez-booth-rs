@@ -1,5 +1,6 @@
 use chrono::Utc;
 use leptos::*;
+use wasm_bindgen::{closure::Closure, JsCast};
 
 use crate::components::*;
 use crate::error_logging::{recent_error_cutoff, stack_trace, use_error_logger, ErrorLogDraft};
@@ -17,6 +18,26 @@ use crate::utils::{
     reset_device_identifier, save_device_identifier, validate_device_identifier,
 };
 use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
+
+const SETTINGS_TAB_GENERAL_ID: &str = "general";
+const SETTINGS_TAB_DIAGNOSTICS_ID: &str = "diagnostics";
+const SETTINGS_TAB_ABOUT_ID: &str = "about";
+
+fn settings_tab_index_from_hash(hash: &str) -> usize {
+    match hash.trim_start_matches('#') {
+        SETTINGS_TAB_DIAGNOSTICS_ID => 1,
+        SETTINGS_TAB_ABOUT_ID => 2,
+        _ => 0,
+    }
+}
+
+fn settings_tab_hash(index: usize) -> &'static str {
+    match index {
+        1 => "#diagnostics",
+        2 => "#about",
+        _ => "#general",
+    }
+}
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
@@ -42,6 +63,44 @@ pub fn SettingsPage() -> impl IntoView {
     let (is_clearing_error_log, set_is_clearing_error_log) = create_signal(false);
     let (is_exporting_diagnostics, set_is_exporting_diagnostics) = create_signal(false);
     let (expanded_error_ids, set_expanded_error_ids) = create_signal(Vec::<u32>::new());
+    let initial_tab = web_sys::window()
+        .and_then(|window| window.location().hash().ok())
+        .map(|hash| settings_tab_index_from_hash(&hash))
+        .unwrap_or(0);
+    let active_tab = create_rw_signal(initial_tab);
+
+    create_effect(move |_| {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+
+        let listener = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+            if let Some(window) = web_sys::window() {
+                if let Ok(hash) = window.location().hash() {
+                    active_tab.set(settings_tab_index_from_hash(&hash));
+                }
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        let _ = window
+            .add_event_listener_with_callback("hashchange", listener.as_ref().unchecked_ref());
+
+        on_cleanup(move || {
+            let _ = window.remove_event_listener_with_callback(
+                "hashchange",
+                listener.as_ref().unchecked_ref(),
+            );
+        });
+    });
+
+    create_effect(move |_| {
+        let hash = settings_tab_hash(active_tab.get());
+        if let Some(window) = web_sys::window() {
+            if window.location().hash().ok().as_deref() != Some(hash) {
+                let _ = window.location().set_hash(hash.trim_start_matches('#'));
+            }
+        }
+    });
 
     {
         let app_state = app_state.clone();
@@ -471,351 +530,397 @@ pub fn SettingsPage() -> impl IntoView {
         }
     };
 
+    let on_save = Callback::new(move |_| handle_save());
+    let on_reset = Callback::new(move |_| handle_reset());
+    let on_run_integrity_check = Callback::new(move |_| handle_run_integrity_check());
+    let on_export_diagnostics = Callback::new(move |_| handle_export_diagnostics());
+    let on_clear_error_log = Callback::new(move |_| handle_clear_error_log());
+    let on_print_error_log = Callback::new(move |_| handle_print_error_log());
+    let on_copy_error_log = Callback::new(move |_| handle_copy_error_log());
+
     view! {
         <Container class="mt-6 pb-24" aria_label=t!("settings.title")() as_landmark=true>
             <div class="mx-auto max-w-3xl">
                 <Card title_view={t!("settings.title").into_view()}>
-                    <div class="space-y-6">
-                        <div class="space-y-2 border-b border-gray-200 pb-6">
-                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.app_info_section_title")}</h3>
-                            <p class="text-sm text-gray-600">{t!("settings.app_info_help_text")}</p>
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.app_version_label")}</p>
-                                    <p class="mt-1 font-mono text-sm text-slate-900">{APP_VERSION}</p>
-                                </div>
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.database_version_label")}</p>
-                                    <p class="mt-1 font-mono text-sm text-slate-900">{move || database_version_label.get()}</p>
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap gap-3 pt-1 text-sm">
-                                <a
-                                    href=REPOSITORY_URL
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    class="font-medium text-blue-600 hover:text-blue-700"
-                                >
-                                    {t!("settings.repository_link")}
-                                </a>
-                                <a
-                                    href=DOCS_URL
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    class="font-medium text-blue-600 hover:text-blue-700"
-                                >
-                                    {t!("settings.docs_link")}
-                                </a>
-                            </div>
-                        </div>
+                    <TabGroup
+                        tabs=vec![
+                            TabItem {
+                                id: SETTINGS_TAB_GENERAL_ID.to_string(),
+                                label: t!("settings.tabs.general")(),
+                                has_error: Signal::derive(|| false),
+                            },
+                            TabItem {
+                                id: SETTINGS_TAB_DIAGNOSTICS_ID.to_string(),
+                                label: t!("settings.tabs.diagnostics")(),
+                                has_error: Signal::derive(|| false),
+                            },
+                            TabItem {
+                                id: SETTINGS_TAB_ABOUT_ID.to_string(),
+                                label: t!("settings.tabs.about")(),
+                                has_error: Signal::derive(|| false),
+                            },
+                        ]
+                        active_tab=active_tab
+                        children=Box::new(move |tab_index| match tab_index {
+                            0 => view! {
+                                <div class="space-y-6">
+                                    <div class="space-y-2">
+                                        <h3 class="text-lg font-semibold text-slate-900">{t!("settings.device_section_title")}</h3>
+                                        <p class="text-sm text-gray-600">{t!("settings.device_help_text")}</p>
+                                    </div>
 
-                        <div class="space-y-4 border-b border-gray-200 pb-6">
-                            <div class="space-y-2">
-                                <h3 class="text-lg font-semibold text-slate-900">{t!("settings.storage_health_section_title")}</h3>
-                                <p class="text-sm text-gray-600">{t!("settings.storage_health_help_text")}</p>
-                            </div>
-
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.last_backup_label")}</p>
-                                    <p class="mt-1 text-sm text-slate-900">
-                                        {move || if is_loading_diagnostics.get() {
-                                            t!("common.loading")()
-                                        } else {
-                                            last_backup_label.get()
-                                        }}
-                                    </p>
-                                </div>
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.integrity_status_label")}</p>
-                                    <p class="mt-1 text-sm text-slate-900">
-                                        {move || match integrity_status.get() {
-                                            Some(IntegrityStatus::Healthy) => t!("settings.integrity_status_healthy")(),
-                                            Some(IntegrityStatus::IssuesFound { ref issues }) => t!("settings.integrity_status_issues_found")().replace("{count}", &issues.len().to_string()),
-                                            None => t!("settings.integrity_not_checked")(),
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap gap-3">
-                                <Button
-                                    on_click=Box::new(handle_run_integrity_check)
-                                    variant=ButtonVariant::Secondary
-                                    disabled=is_running_integrity_check
-                                >
-                                    {move || if is_running_integrity_check.get() {
-                                        t!("settings.integrity_check_running")()
-                                    } else {
-                                        t!("settings.integrity_check_button")()
-                                    }}
-                                </Button>
-                            </div>
-
-                            <Show when=move || matches!(integrity_status.get(), Some(IntegrityStatus::IssuesFound { .. }))>
-                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-amber-900">{t!("settings.integrity_status_issues_detail_title")}</p>
-                                    <ul class="mt-2 space-y-1 text-sm text-amber-900">
-                                        {move || match integrity_status.get() {
-                                            Some(IntegrityStatus::IssuesFound { issues }) => issues
-                                                .into_iter()
-                                                .map(|issue| view! { <li class="list-disc ml-5">{issue}</li> })
-                                                .collect_view(),
-                                            _ => ().into_view(),
-                                        }}
-                                    </ul>
-                                </div>
-                            </Show>
-                        </div>
-
-                        <div class="space-y-2">
-                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.device_section_title")}</h3>
-                            <p class="text-sm text-gray-600">{t!("settings.device_help_text")}</p>
-                        </div>
-
-                        <div class="space-y-4 border-t border-gray-200 pt-6">
-                            <div class="space-y-2">
-                                <h3 class="text-lg font-semibold text-slate-900">{t!("settings.error_log_section_title")}</h3>
-                                <p class="text-sm text-gray-600">{t!("settings.error_log_help_text")}</p>
-                            </div>
-
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_recent_count_label")}</p>
-                                    <p class="mt-1 text-sm text-slate-900">
-                                        {move || if is_loading_error_log.get() {
-                                            t!("common.loading")()
-                                        } else {
-                                            t!("settings.error_log_recent_count_value")()
-                                                .replace("{count}", &recent_error_count.get().to_string())
-                                        }}
-                                    </p>
-                                </div>
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_entries_label")}</p>
-                                    <p class="mt-1 text-sm text-slate-900">{move || error_log_entries.get().len().to_string()}</p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap gap-3">
-                                <Button
-                                    on_click=Box::new(handle_export_diagnostics)
-                                    variant=ButtonVariant::Secondary
-                                    disabled=is_exporting_diagnostics
-                                >
-                                    {move || if is_exporting_diagnostics.get() {
-                                        t!("settings.error_log_export_running")()
-                                    } else {
-                                        t!("settings.error_log_export_button")()
-                                    }}
-                                </Button>
-                                <Button
-                                    on_click=Box::new(handle_print_error_log)
-                                    variant=ButtonVariant::Secondary
-                                >
-                                    {t!("settings.error_log_print_button")}
-                                </Button>
-                                <Button
-                                    on_click=Box::new(handle_copy_error_log)
-                                    variant=ButtonVariant::Secondary
-                                >
-                                    {t!("settings.error_log_copy_button")}
-                                </Button>
-                                <Button
-                                    on_click=Box::new(handle_clear_error_log)
-                                    variant=ButtonVariant::Secondary
-                                    disabled=is_clearing_error_log
-                                >
-                                    {move || if is_clearing_error_log.get() {
-                                        t!("settings.error_log_clear_running")()
-                                    } else {
-                                        t!("settings.error_log_clear_button")()
-                                    }}
-                                </Button>
-                            </div>
-
-                            <Show
-                                when=move || !error_log_entries.get().is_empty()
-                                fallback=move || {
-                                    view! {
-                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                                            {t!("settings.error_log_empty")}
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                            <p class="text-sm font-medium text-gray-700">{t!("settings.device_current_label")}</p>
+                                            <p class="mt-1 font-mono text-sm text-slate-900 break-all">{move || saved_identifier.get()}</p>
                                         </div>
-                                    }
-                                }
-                            >
-                                <div class="space-y-3">
-                                    <For
-                                        each=move || error_log_entries.get()
-                                        key=|entry| entry.id.unwrap_or_default()
-                                        children=move |entry| {
-                                            let entry_id = entry.id.unwrap_or_default();
-                                            let is_expanded = Signal::derive(move || expanded_error_ids.get().contains(&entry_id));
-                                            let timestamp = format_error_log_timestamp(entry.timestamp);
-                                            let details = entry.context.clone().map(|context| context.details).unwrap_or_default();
-                                            let route = entry.context.as_ref().and_then(|context| context.route.clone());
-                                            let action = entry.context.as_ref().and_then(|context| context.user_action.clone());
-                                            let booth_id = entry.context.as_ref().and_then(|context| context.booth_id.clone());
-                                            let vendor_id = entry.context.as_ref().and_then(|context| context.vendor_id.clone());
-                                            let purchase_id = entry.context.as_ref().and_then(|context| context.purchase_id.clone());
-                                            let stack_trace_text = entry.stack_trace.clone();
-                                            let has_route = route.is_some();
-                                            let has_action = action.is_some();
-                                            let has_booth_id = booth_id.is_some();
-                                            let has_vendor_id = vendor_id.is_some();
-                                            let has_purchase_id = purchase_id.is_some();
-                                            let has_stack_trace = stack_trace_text.is_some();
-                                            let route_text = format!(
-                                                "{}: {}",
-                                                t!("settings.error_log_route_label")(),
-                                                route.clone().unwrap_or_default()
-                                            );
-                                            let action_text = format!(
-                                                "{}: {}",
-                                                t!("settings.error_log_action_label")(),
-                                                action.clone().unwrap_or_default()
-                                            );
-                                            let booth_text = format!(
-                                                "{}: {}",
-                                                t!("settings.error_log_booth_label")(),
-                                                booth_id.clone().unwrap_or_default()
-                                            );
-                                            let vendor_text = format!(
-                                                "{}: {}",
-                                                t!("settings.error_log_vendor_label")(),
-                                                vendor_id.clone().unwrap_or_default()
-                                            );
-                                            let purchase_text = format!(
-                                                "{}: {}",
-                                                t!("settings.error_log_purchase_label")(),
-                                                purchase_id.clone().unwrap_or_default()
-                                            );
-                                            let details_items = details
-                                                .iter()
-                                                .cloned()
-                                                .map(|detail| view! { <li class="list-disc ml-5">{detail}</li> })
-                                                .collect_view();
-                                            view! {
-                                                <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                                    <button
-                                                        type="button"
-                                                        class="flex w-full items-start justify-between gap-4 text-left"
-                                                        on:click=move |_| toggle_error_details(entry_id)
-                                                    >
-                                                        <div class="space-y-1">
-                                                            <p class="text-sm font-semibold text-slate-900">{entry.error_type.clone()}</p>
-                                                            <p class="text-sm text-gray-700">{entry.error_message.clone()}</p>
-                                                            <p class="text-xs text-gray-500">{timestamp.clone()}</p>
-                                                        </div>
-                                                        <span class="text-xs font-medium text-blue-600">
-                                                            {move || if is_expanded.get() {
-                                                                t!("settings.error_log_hide_details")()
-                                                            } else {
-                                                                t!("settings.error_log_show_details")()
-                                                            }}
-                                                        </span>
-                                                    </button>
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                            <p class="text-sm font-medium text-gray-700">{t!("settings.device_detected_label")}</p>
+                                            <p class="mt-1 text-sm text-slate-900">
+                                                {t!("settings.device_platform_info")()
+                                                    .replace("{platform}", &platform)
+                                                    .replace("{browser}", &browser)}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                                                    <Show when=move || is_expanded.get()>
-                                                        <div class="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
-                                                            <p><span class="font-medium text-slate-900">{t!("settings.error_log_session_label")}</span>{format!(": {}", entry.session_id)}</p>
-                                                            <p><span class="font-medium text-slate-900">{t!("settings.error_log_device_label")}</span>{format!(": {} / {} / {}", entry.device_info.identifier, entry.device_info.platform, entry.device_info.browser)}</p>
-                                                            {if has_route {
-                                                                Some(view! { <p>{route_text.clone()}</p> })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                            {if has_action {
-                                                                Some(view! { <p>{action_text.clone()}</p> })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                            {if has_booth_id {
-                                                                Some(view! { <p>{booth_text.clone()}</p> })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                            {if has_vendor_id {
-                                                                Some(view! { <p>{vendor_text.clone()}</p> })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                            {if has_purchase_id {
-                                                                Some(view! { <p>{purchase_text.clone()}</p> })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                            {if details.is_empty() {
-                                                                None
-                                                            } else {
-                                                                Some(view! {
-                                                                    <div>
-                                                                        <p class="font-medium text-slate-900">{t!("settings.error_log_details_label")}</p>
-                                                                        <ul class="mt-1 space-y-1">{details_items.clone()}</ul>
-                                                                    </div>
-                                                                })
-                                                            }}
-                                                            {if has_stack_trace {
-                                                                Some(view! {
-                                                                    <div>
-                                                                        <p class="font-medium text-slate-900">{t!("settings.error_log_stack_trace_label")}</p>
-                                                                        <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-800">{stack_trace_text.clone().unwrap_or_default()}</pre>
-                                                                    </div>
-                                                                })
-                                                            } else {
-                                                                None
-                                                            }}
-                                                        </div>
-                                                    </Show>
-                                                </div>
-                                            }
-                                        }
-                                    />
+                                    <div class="space-y-2">
+                                        <Input
+                                            value=device_identifier
+                                            label=t!("settings.device_edit_label")()
+                                            error=validation_error
+                                            placeholder="marias-laptop".to_string()
+                                            aria_label=t!("settings.device_edit_label")()
+                                        />
+                                        <p class="text-sm text-gray-500">{t!("settings.device_format_help")}</p>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-3">
+                                        <Button
+                                            on_click=Box::new(move || on_save.call(()))
+                                            disabled=Signal::derive(move || !can_save.get())
+                                        >
+                                            {t!("settings.device_save")}
+                                        </Button>
+                                        <Button
+                                            on_click=Box::new(move || on_reset.call(()))
+                                            variant=ButtonVariant::Secondary
+                                        >
+                                            {t!("settings.device_reset")}
+                                        </Button>
+                                    </div>
                                 </div>
-                            </Show>
-                        </div>
+                            }
+                            .into_view(),
+                            1 => view! {
+                                <div class="space-y-8">
+                                    <section class="space-y-4">
+                                        <div class="space-y-2">
+                                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.storage_health_section_title")}</h3>
+                                            <p class="text-sm text-gray-600">{t!("settings.storage_health_help_text")}</p>
+                                        </div>
 
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                <p class="text-sm font-medium text-gray-700">{t!("settings.device_current_label")}</p>
-                                <p class="mt-1 font-mono text-sm text-slate-900 break-all">{move || saved_identifier.get()}</p>
-                            </div>
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                <p class="text-sm font-medium text-gray-700">{t!("settings.device_detected_label")}</p>
-                                <p class="mt-1 text-sm text-slate-900">
-                                    {t!("settings.device_platform_info")()
-                                        .replace("{platform}", &platform)
-                                        .replace("{browser}", &browser)}
-                                </p>
-                            </div>
-                        </div>
+                                        <div class="grid gap-4 sm:grid-cols-2">
+                                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                                <p class="text-sm font-medium text-gray-700">{t!("settings.last_backup_label")}</p>
+                                                <p class="mt-1 text-sm text-slate-900">
+                                                    {move || if is_loading_diagnostics.get() {
+                                                        t!("common.loading")()
+                                                    } else {
+                                                        last_backup_label.get()
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                                <p class="text-sm font-medium text-gray-700">{t!("settings.integrity_status_label")}</p>
+                                                <p class="mt-1 text-sm text-slate-900">
+                                                    {move || match integrity_status.get() {
+                                                        Some(IntegrityStatus::Healthy) => t!("settings.integrity_status_healthy")(),
+                                                        Some(IntegrityStatus::IssuesFound { ref issues }) => t!("settings.integrity_status_issues_found")().replace("{count}", &issues.len().to_string()),
+                                                        None => t!("settings.integrity_not_checked")(),
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                        <div class="space-y-2">
-                            <Input
-                                value=device_identifier
-                                label=t!("settings.device_edit_label")()
-                                error=validation_error
-                                placeholder="marias-laptop".to_string()
-                                aria_label=t!("settings.device_edit_label")()
-                            />
-                            <p class="text-sm text-gray-500">{t!("settings.device_format_help")}</p>
-                        </div>
+                                        <div class="flex flex-wrap gap-3">
+                                            <Button
+                                                on_click=Box::new(move || on_run_integrity_check.call(()))
+                                                variant=ButtonVariant::Secondary
+                                                disabled=is_running_integrity_check
+                                            >
+                                                {move || if is_running_integrity_check.get() {
+                                                    t!("settings.integrity_check_running")()
+                                                } else {
+                                                    t!("settings.integrity_check_button")()
+                                                }}
+                                            </Button>
+                                        </div>
 
-                        <div class="flex flex-wrap gap-3">
-                            <Button
-                                on_click=Box::new(handle_save)
-                                disabled=Signal::derive(move || !can_save.get())
-                            >
-                                {t!("settings.device_save")}
-                            </Button>
-                            <Button
-                                on_click=Box::new(handle_reset)
-                                variant=ButtonVariant::Secondary
-                            >
-                                {t!("settings.device_reset")}
-                            </Button>
-                        </div>
-                    </div>
+                                        <Show when=move || matches!(integrity_status.get(), Some(IntegrityStatus::IssuesFound { .. }))>
+                                            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                                                <p class="text-sm font-medium text-amber-900">{t!("settings.integrity_status_issues_detail_title")}</p>
+                                                <ul class="mt-2 space-y-1 text-sm text-amber-900">
+                                                    {move || match integrity_status.get() {
+                                                        Some(IntegrityStatus::IssuesFound { issues }) => issues
+                                                            .into_iter()
+                                                            .map(|issue| view! { <li class="list-disc ml-5">{issue}</li> })
+                                                            .collect_view(),
+                                                        _ => ().into_view(),
+                                                    }}
+                                                </ul>
+                                            </div>
+                                        </Show>
+                                    </section>
+
+                                    <section class="space-y-4 border-t border-gray-200 pt-8">
+                                        <div class="space-y-2">
+                                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.error_log_section_title")}</h3>
+                                            <p class="text-sm text-gray-600">{t!("settings.error_log_help_text")}</p>
+                                        </div>
+
+                                        <div class="grid gap-4 sm:grid-cols-2">
+                                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                                <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_recent_count_label")}</p>
+                                                <p class="mt-1 text-sm text-slate-900">
+                                                    {move || if is_loading_error_log.get() {
+                                                        t!("common.loading")()
+                                                    } else {
+                                                        t!("settings.error_log_recent_count_value")()
+                                                            .replace("{count}", &recent_error_count.get().to_string())
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                                <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_entries_label")}</p>
+                                                <p class="mt-1 text-sm text-slate-900">{move || error_log_entries.get().len().to_string()}</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-wrap gap-3">
+                                            <Button
+                                                on_click=Box::new(move || on_export_diagnostics.call(()))
+                                                variant=ButtonVariant::Secondary
+                                                disabled=is_exporting_diagnostics
+                                            >
+                                                {move || if is_exporting_diagnostics.get() {
+                                                    t!("settings.error_log_export_running")()
+                                                } else {
+                                                    t!("settings.error_log_export_button")()
+                                                }}
+                                            </Button>
+                                            <Button
+                                                on_click=Box::new(move || on_clear_error_log.call(()))
+                                                variant=ButtonVariant::Secondary
+                                                disabled=is_clearing_error_log
+                                            >
+                                                {move || if is_clearing_error_log.get() {
+                                                    t!("settings.error_log_clear_running")()
+                                                } else {
+                                                    t!("settings.error_log_clear_button")()
+                                                }}
+                                            </Button>
+                                            <DropdownMenu
+                                                trigger={view! {
+                                                    <Button variant=ButtonVariant::Secondary>
+                                                        {t!("settings.error_log_more_actions_button")}
+                                                    </Button>
+                                                }.into_view()}
+                                                align="right".to_string()
+                                            >
+                                                <DropdownMenuItem on_click=Callback::new(move |_| on_print_error_log.call(()))>
+                                                    {t!("settings.error_log_print_button")}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem on_click=Callback::new(move |_| on_copy_error_log.call(()))>
+                                                    {t!("settings.error_log_copy_button")}
+                                                </DropdownMenuItem>
+                                            </DropdownMenu>
+                                        </div>
+
+                                        <Show
+                                            when=move || !error_log_entries.get().is_empty()
+                                            fallback=move || {
+                                                view! {
+                                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                                        {t!("settings.error_log_empty")}
+                                                    </div>
+                                                }
+                                            }
+                                        >
+                                            <div class="space-y-3">
+                                                <For
+                                                    each=move || error_log_entries.get()
+                                                    key=|entry| entry.id.unwrap_or_default()
+                                                    children=move |entry| {
+                                                        let entry_id = entry.id.unwrap_or_default();
+                                                        let is_expanded = Signal::derive(move || expanded_error_ids.get().contains(&entry_id));
+                                                        let timestamp = format_error_log_timestamp(entry.timestamp);
+                                                        let details = entry.context.clone().map(|context| context.details).unwrap_or_default();
+                                                        let route = entry.context.as_ref().and_then(|context| context.route.clone());
+                                                        let action = entry.context.as_ref().and_then(|context| context.user_action.clone());
+                                                        let booth_id = entry.context.as_ref().and_then(|context| context.booth_id.clone());
+                                                        let vendor_id = entry.context.as_ref().and_then(|context| context.vendor_id.clone());
+                                                        let purchase_id = entry.context.as_ref().and_then(|context| context.purchase_id.clone());
+                                                        let stack_trace_text = entry.stack_trace.clone();
+                                                        let has_route = route.is_some();
+                                                        let has_action = action.is_some();
+                                                        let has_booth_id = booth_id.is_some();
+                                                        let has_vendor_id = vendor_id.is_some();
+                                                        let has_purchase_id = purchase_id.is_some();
+                                                        let has_stack_trace = stack_trace_text.is_some();
+                                                        let route_text = format!(
+                                                            "{}: {}",
+                                                            t!("settings.error_log_route_label")(),
+                                                            route.clone().unwrap_or_default()
+                                                        );
+                                                        let action_text = format!(
+                                                            "{}: {}",
+                                                            t!("settings.error_log_action_label")(),
+                                                            action.clone().unwrap_or_default()
+                                                        );
+                                                        let booth_text = format!(
+                                                            "{}: {}",
+                                                            t!("settings.error_log_booth_label")(),
+                                                            booth_id.clone().unwrap_or_default()
+                                                        );
+                                                        let vendor_text = format!(
+                                                            "{}: {}",
+                                                            t!("settings.error_log_vendor_label")(),
+                                                            vendor_id.clone().unwrap_or_default()
+                                                        );
+                                                        let purchase_text = format!(
+                                                            "{}: {}",
+                                                            t!("settings.error_log_purchase_label")(),
+                                                            purchase_id.clone().unwrap_or_default()
+                                                        );
+                                                        let details_items = details
+                                                            .iter()
+                                                            .cloned()
+                                                            .map(|detail| view! { <li class="list-disc ml-5">{detail}</li> })
+                                                            .collect_view();
+                                                        view! {
+                                                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                                                                <button
+                                                                    type="button"
+                                                                    class="flex w-full items-start justify-between gap-4 text-left"
+                                                                    on:click=move |_| toggle_error_details(entry_id)
+                                                                >
+                                                                    <div class="space-y-1">
+                                                                        <p class="text-sm font-semibold text-slate-900">{entry.error_type.clone()}</p>
+                                                                        <p class="text-sm text-gray-700">{entry.error_message.clone()}</p>
+                                                                        <p class="text-xs text-gray-500">{timestamp.clone()}</p>
+                                                                    </div>
+                                                                    <span class="text-xs font-medium text-blue-600">
+                                                                        {move || if is_expanded.get() {
+                                                                            t!("settings.error_log_hide_details")()
+                                                                        } else {
+                                                                            t!("settings.error_log_show_details")()
+                                                                        }}
+                                                                    </span>
+                                                                </button>
+
+                                                                <Show when=move || is_expanded.get()>
+                                                                    <div class="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
+                                                                        <p><span class="font-medium text-slate-900">{t!("settings.error_log_session_label")}</span>{format!(": {}", entry.session_id)}</p>
+                                                                        <p><span class="font-medium text-slate-900">{t!("settings.error_log_device_label")}</span>{format!(": {} / {} / {}", entry.device_info.identifier, entry.device_info.platform, entry.device_info.browser)}</p>
+                                                                        {if has_route {
+                                                                            Some(view! { <p>{route_text.clone()}</p> })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                        {if has_action {
+                                                                            Some(view! { <p>{action_text.clone()}</p> })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                        {if has_booth_id {
+                                                                            Some(view! { <p>{booth_text.clone()}</p> })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                        {if has_vendor_id {
+                                                                            Some(view! { <p>{vendor_text.clone()}</p> })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                        {if has_purchase_id {
+                                                                            Some(view! { <p>{purchase_text.clone()}</p> })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                        {if details.is_empty() {
+                                                                            None
+                                                                        } else {
+                                                                            Some(view! {
+                                                                                <div>
+                                                                                    <p class="font-medium text-slate-900">{t!("settings.error_log_details_label")}</p>
+                                                                                    <ul class="mt-1 space-y-1">{details_items.clone()}</ul>
+                                                                                </div>
+                                                                            })
+                                                                        }}
+                                                                        {if has_stack_trace {
+                                                                            Some(view! {
+                                                                                <div>
+                                                                                    <p class="font-medium text-slate-900">{t!("settings.error_log_stack_trace_label")}</p>
+                                                                                    <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-800">{stack_trace_text.clone().unwrap_or_default()}</pre>
+                                                                                </div>
+                                                                            })
+                                                                        } else {
+                                                                            None
+                                                                        }}
+                                                                    </div>
+                                                                </Show>
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                            </div>
+                                        </Show>
+                                    </section>
+                                </div>
+                            }
+                            .into_view(),
+                            _ => view! {
+                                <div class="space-y-6">
+                                    <div class="space-y-2">
+                                        <h3 class="text-lg font-semibold text-slate-900">{t!("settings.app_info_section_title")}</h3>
+                                        <p class="text-sm text-gray-600">{t!("settings.app_info_help_text")}</p>
+                                    </div>
+
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                            <p class="text-sm font-medium text-gray-700">{t!("settings.app_version_label")}</p>
+                                            <p class="mt-1 font-mono text-sm text-slate-900">{APP_VERSION}</p>
+                                        </div>
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                            <p class="text-sm font-medium text-gray-700">{t!("settings.database_version_label")}</p>
+                                            <p class="mt-1 font-mono text-sm text-slate-900">{move || database_version_label.get()}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-3 pt-1 text-sm">
+                                        <a
+                                            href=REPOSITORY_URL
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="font-medium text-blue-600 hover:text-blue-700"
+                                        >
+                                            {t!("settings.repository_link")}
+                                        </a>
+                                        <a
+                                            href=DOCS_URL
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="font-medium text-blue-600 hover:text-blue-700"
+                                        >
+                                            {t!("settings.docs_link")}
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                            .into_view(),
+                        })
+                    />
                 </Card>
             </div>
         </Container>

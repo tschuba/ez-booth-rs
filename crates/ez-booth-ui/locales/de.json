@@ -29,6 +29,11 @@
   },
   "settings": {
     "title": "Einstellungen",
+    "tabs": {
+      "general": "Allgemein",
+      "diagnostics": "Diagnose",
+      "about": "Info"
+    },
     "app_info_section_title": "App-Informationen",
     "app_info_help_text": "Nutzen Sie diesen Bereich, um Supportfälle zu melden oder die laufende Version auf diesem Gerät zu prüfen.",
     "app_version_label": "App-Version",
@@ -60,6 +65,7 @@
     "error_log_print_failed": "Drucken des Fehlerprotokolls fehlgeschlagen: {error}",
     "error_log_print_downloaded": "Stattdessen wurde ein druckbares Fehlerprotokoll heruntergeladen",
     "error_log_copy_button": "In Zwischenablage kopieren",
+    "error_log_more_actions_button": "Weitere Aktionen",
     "error_log_copy_success": "Fehlerprotokoll kopiert",
     "error_log_copy_failed": "Kopieren des Fehlerprotokolls fehlgeschlagen: {error}",
     "error_log_clear_button": "Fehlerprotokoll löschen",
