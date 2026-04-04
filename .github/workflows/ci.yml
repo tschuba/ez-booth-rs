@@ -120,19 +120,19 @@ jobs:
         working-directory: crates/ez-booth-app
 
       - name: Download Windows launcher
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: launcher-windows
           path: crates/ez-booth-app/dist/
 
       - name: Download macOS launcher
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: launcher-macos
           path: crates/ez-booth-app/dist/
 
       - name: Download Linux launcher
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: launcher-linux
           path: crates/ez-booth-app/dist/
@@ -147,7 +147,7 @@ jobs:
         working-directory: crates/ez-booth-app
 
       - name: Upload WASM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v8
         with:
           name: wasm-dist
           path: crates/ez-booth-app/dist/
@@ -191,7 +191,7 @@ jobs:
         run: cp "${{ matrix.source }}" "${{ matrix.binary }}"
 
       - name: Upload launcher artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v8
         with:
           name: launcher-${{ matrix.platform }}
           path: ${{ matrix.binary }}
