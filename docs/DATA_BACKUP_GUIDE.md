@@ -124,9 +124,15 @@ Steps:
 
 Conflict strategies:
 
-- `Merge`: prefer the newer matching record when EZ Booth can compare timestamps safely
+- `Merge`: import new records, prefer strictly newer booth and purchase records, and keep the richer vendor name when multiple devices exported the same booth
 - `Skip`: keep existing records and ignore conflicting imported ones
 - `Replace`: overwrite existing conflicting records with imported data
+
+Important merge details:
+
+- If the same booth or purchase already exists and the timestamps are exactly equal, EZ Booth keeps the existing local record.
+- If the same vendor exists in both imports, EZ Booth keeps a non-empty vendor name and prefers the richer name if one device has more complete vendor text.
+- If two devices created different purchases, both purchases are kept as long as they have different purchase IDs.
 
 ### DE
 
@@ -144,9 +150,69 @@ Schritte:
 
 Konfliktstrategien:
 
-- `Merge`: bevorzugt den neueren passenden Datensatz, wenn EZ Booth Zeitstempel sicher vergleichen kann
+- `Merge`: importiert neue Datensaetze, bevorzugt bei Staenden und Kaeufen nur eindeutig neuere Datensaetze und behaelt bei Verkaeufern den aussagekraeftigeren Namen
 - `Skip`: behaelt vorhandene Datensaetze und ignoriert konfligierende importierte Datensaetze
 - `Replace`: ueberschreibt vorhandene konfligierende Datensaetze mit den importierten Daten
+
+Wichtige Merge-Details:
+
+- Wenn derselbe Stand oder Kauf bereits vorhanden ist und die Zeitstempel exakt gleich sind, behaelt EZ Booth den bereits lokalen Datensatz.
+- Wenn derselbe Verkaeufer in beiden Importen vorkommt, behaelt EZ Booth einen nicht-leeren Verkaeufernamen und bevorzugt den aussagekraeftigeren Namen.
+- Wenn zwei Geraete unterschiedliche Kaeufe erzeugt haben, bleiben beide Kaeufe erhalten, solange sie unterschiedliche Kauf-IDs haben.
+
+## 5a. Multi-Device Booth Workflow / Mehrgeraete-Workflow fuer einzelne Staende
+
+### EN
+
+This is the main recommended workflow when one booth is worked on across multiple devices.
+
+Recommended sequence:
+
+1. Start from one known-good booth backup.
+2. Import that booth backup on each additional device before entering more data.
+3. Let each device record its own new purchases.
+4. Export the booth again from each device.
+5. Import those booth backups on the target device with `Merge`.
+6. Verify the final booth totals, vendor list, and recent purchases.
+
+Best practices:
+
+- prefer booth backups for device-to-device booth work instead of full backups
+- import before creating new data on another device whenever possible
+- keep the exported files from each device until the merged result is verified
+- after a successful merge, create one fresh booth backup as the new recovery point
+
+Limits to understand:
+
+- EZ Booth does not try to guess whether two different purchase IDs are actually the same real-world sale
+- if two devices change the same booth or purchase at the same timestamp, the existing local record is kept during `Merge`
+- multi-file imports are applied one after another, so verify the result after importing several files
+
+### DE
+
+Dies ist der empfohlene Hauptablauf, wenn ein einzelner Stand auf mehreren Geraeten bearbeitet wird.
+
+Empfohlene Reihenfolge:
+
+1. Starten Sie mit einem bekannten gueltigen Stand-Backup.
+2. Importieren Sie dieses Stand-Backup auf jedem weiteren Geraet, bevor neue Daten erfasst werden.
+3. Lassen Sie jedes Geraet seine neuen Kaeufe erfassen.
+4. Exportieren Sie den Stand anschliessend erneut von jedem Geraet.
+5. Importieren Sie diese Stand-Backups auf dem Zielgeraet mit `Merge`.
+6. Pruefen Sie die finalen Stand-Summen, die Verkaeuferliste und die letzten Kaeufe.
+
+Empfohlene Praxis:
+
+- verwenden Sie fuer Geraete-zu-Geraete-Standarbeit bevorzugt Stand-Backups statt Voll-Backups
+- importieren Sie nach Moeglichkeit immer zuerst, bevor auf einem weiteren Geraet neue Daten erfasst werden
+- bewahren Sie die Exportdateien aller Geraete auf, bis das Merge-Ergebnis geprueft ist
+- erstellen Sie nach einem erfolgreichen Merge ein neues Stand-Backup als neuen Wiederherstellungspunkt
+
+Wichtige Grenzen:
+
+- EZ Booth versucht nicht zu erraten, ob zwei unterschiedliche Kauf-IDs denselben realen Verkauf meinen
+- wenn zwei Geraete denselben Stand oder Kauf mit exakt gleichem Zeitstempel aendern, bleibt beim `Merge` der bereits lokale Datensatz erhalten
+- mehrere Dateien werden nacheinander importiert; pruefen Sie deshalb das Ergebnis nach dem Import mehrerer Dateien
 
 ## 6. When To Create Backups / Wann Backups erstellt werden sollten
 
