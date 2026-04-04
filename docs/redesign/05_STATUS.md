@@ -1,6 +1,11 @@
 # Implementation Status
 
-**Last Updated:** 2026-03-28
+---
+**Document Status:** Active Reference
+**Last Updated:** 2026-04-04
+**Purpose:** Implementation history and current status tracking for the redesign and later product-readiness milestones.
+
+---
 
 ## Overview
 
@@ -10,7 +15,7 @@ This document tracks the progress of implementing the ez-booth-rs redesign as ou
 
 This file primarily tracks the original redesign roadmap (`Phase 1` through `Phase 5`).
 
-Later cleanup and product-readiness follow-up work is tracked separately in `docs/PHASE2_PROPOSAL.md` under a newer milestone-based plan:
+Later cleanup and product-readiness follow-up work is tracked separately in `docs/planning/PHASE2_PROPOSAL.md` under a newer milestone-based plan:
 - Milestone 1: Warning Reduction And Codebase Cleanup
 - Milestone 2: Operator Workflow Polish
 - Milestone 3: Documentation And Onboarding Refresh
@@ -181,7 +186,7 @@ Both naming systems are valid in the repository history. The roadmap below remai
 
 ## Phase 2: Product Readiness, UX Cleanup, And Maintainability
 
-This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOSAL.md`.
+This section tracks the newer cleanup initiative proposed in `docs/planning/PHASE2_PROPOSAL.md`.
 
 ### Milestone 1: Warning Reduction And Codebase Cleanup ✅ COMPLETE
 
@@ -206,9 +211,9 @@ This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOS
 **Completed:** 2026-03-28  
 **Notes:**
 - ✅ Delivered through PR `#31`
-- ✅ Added Module H to `docs/UAT_Ausfuehrungsplan_DE_EN.html`
-- ✅ Extended `docs/SAFARI_VALIDATION_CHECKLIST.md` for correction workflow validation
-- ✅ Added `docs/PHASE2_M2_VALIDATION_RESULTS.md` as a reusable sign-off template
+- ✅ Added Module H to `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
+- ✅ Extended `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` for correction workflow validation
+- ✅ Added `docs/validation/PHASE2_M2_VALIDATION_RESULTS.md` as a reusable sign-off template
 - ⚠️  Manual validation artifacts were prepared, but the results template was intentionally left unfilled when the work was merged
 
 ### Milestone 3: Documentation And Onboarding Refresh
@@ -400,7 +405,7 @@ This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOS
 **Status:** Planned  
 **Target:** Phase 3 (Post-MVP)  
 **Priority:** P3 - Convenience for existing users  
-**Details:** See `/changelog/17_MIGRATION_STRATEGY.md`
+**Details:** Migration remains planned future work. See `../COMPARISON_TO_ORIGINAL.md` and the redesign discussion in this directory.
 
 ### Advanced Features
 - [ ] Offline-first PWA capabilities
@@ -427,6 +432,11 @@ This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOS
 | **TOTAL** | **104** | **58** | **1** | **45** | **57%** |
 
 ## Recent Updates
+
+### 2026-04-04
+- Reorganized repository documentation by audience and purpose into `user-guides`, `validation`, `technical`, and `planning`
+- Added a friendly root `README.md`, a root `ARCHITECTURE.md`, and a consolidated `docs/redesign/REDESIGN_SUMMARY.md`
+- Replaced old redesign changelog references with stable surviving documentation before retiring the changelog directory from active use
 
 ### 2026-03-28
 - ✅ Phase 2 Milestone 1 and Milestone 2 are complete on `main` through PRs `#30` and `#31`
@@ -555,10 +565,10 @@ This section tracks the newer cleanup initiative proposed in `docs/PHASE2_PROPOS
 
 ## Next Steps
 
-1. Decide whether to execute retroactive manual validation for Phase 2 Milestone 2 and fill `docs/PHASE2_M2_VALIDATION_RESULTS.md`
-2. Prioritize whether Phase 2 Milestone 4 UX and reporting refinement should happen before broader roadmap work
-3. Continue Phase 3.2 checkout completion work, especially vendor auto-creation and reporting integration
-4. Keep repository docs aligned with milestone progress as future work lands
+1. Decide whether to execute retroactive manual validation for Phase 2 Milestone 2 and fill `docs/validation/PHASE2_M2_VALIDATION_RESULTS.md`
+2. Keep the new documentation structure aligned as future features land
+3. Prioritize whether Phase 2 Milestone 4 UX and reporting refinement should happen before broader roadmap work
+4. Continue product follow-up work such as migration planning, PWA delivery questions, and operator polish based on validation needs
 
 ---
 

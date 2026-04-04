@@ -154,8 +154,8 @@ Milestone 2 is complete when:
 ### Manual
 
 Use the existing documents created in Milestone 1:
-- `docs/SAFARI_VALIDATION_CHECKLIST.md`
-- `docs/UAT_Ausfuehrungsplan_DE_EN.html`
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
 
 For Milestone 2 specifically, add manual emphasis on:
 - purchase deletion and correction flows

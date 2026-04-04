@@ -516,10 +516,10 @@ These questions do not change the architectural choice of a PWA. They refine how
 
 ## Related Documents
 
-- `docs/DATA_STORAGE_ARCHITECTURE.md`
-- `docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md`
-- `docs/DATA_BACKUP_GUIDE.md`
-- `docs/SAFARI_VALIDATION_CHECKLIST.md`
-- `docs/VALIDATION_WORKFLOW.md`
+- `docs/technical/DATA_STORAGE_ARCHITECTURE.md`
+- `docs/planning/DATA_BACKUP_IMPLEMENTATION_PLAN.md`
+- `docs/user-guides/DATA_BACKUP_GUIDE.md`
+- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+- `docs/validation/VALIDATION_WORKFLOW.md`
 - `docs/BRANCH_STRATEGY.md`
 - `README.md`

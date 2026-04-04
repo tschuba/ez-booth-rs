@@ -108,9 +108,9 @@ Scope:
 - update `README.md` to reflect the real current status
 - document the current validation workflow and branch strategy more explicitly
 - document the meaning of the reusable validation artifacts:
-  - `docs/SAFARI_VALIDATION_CHECKLIST.md`
-  - `docs/UAT_Ausfuehrungsplan_DE_EN.html`
-  - `docs/PHASE1_M2_PREPARATION.md`
+  - `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
+  - `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
+  - `docs/planning/PHASE1_M2_PREPARATION.md`
 
 Success criteria:
 - new contributors can understand how to run, validate, and extend the app without relying on old roadmap text
@@ -155,4 +155,4 @@ Phase 2 is successful when:
 
 If a later phase introduces exports, imports, migrations, or release automation, those should be treated as separate product-readiness milestones rather than bundled into this cleanup phase.
 
-The currently agreed backup/recovery follow-up is captured in `docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md` so it can be executed as a separate track later.
+The currently agreed backup/recovery follow-up is captured in `docs/planning/DATA_BACKUP_IMPLEMENTATION_PLAN.md` so it can be executed as a separate track later.

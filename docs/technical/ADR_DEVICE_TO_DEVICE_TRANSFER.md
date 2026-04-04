@@ -390,7 +390,7 @@ This ADR leaves that design open for a follow-up decision, including whether the
 
 ## Related Documents
 
-- `docs/DATA_BACKUP_IMPLEMENTATION_PLAN.md`
-- `docs/VALIDATION_WORKFLOW.md`
+- `docs/planning/DATA_BACKUP_IMPLEMENTATION_PLAN.md`
+- `docs/validation/VALIDATION_WORKFLOW.md`
 - `docs/BRANCH_STRATEGY.md`
 - `README.md`

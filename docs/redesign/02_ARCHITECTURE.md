@@ -1,9 +1,16 @@
 # ez-booth-rs Architecture Design
 
+---
+**Document Status:** Active Reference
+**Last Updated:** 2026-04-04
+**Purpose:** Detailed architecture design document for the Rust/WASM redesign.
+
+---
+
 **Document Version:** 1.0  
 **Date:** March 19, 2026  
 **Status:** Design Phase  
-**Related Documents:** [SPEC.md](SPEC.md), [ANALYSIS.md](ANALYSIS.md)
+**Related Documents:** [00_SPEC.md](00_SPEC.md), [01_ANALYSIS.md](01_ANALYSIS.md), [REDESIGN_SUMMARY.md](REDESIGN_SUMMARY.md)
 
 ---
 
@@ -2515,7 +2522,7 @@ pub fn render_multi_vendor_report(
 | Bundle size impact | <20KB |
 | Report language accuracy | 100% |
 
-**For detailed implementation, see:** `/changelog/06_LOCALIZATION_ARCHITECTURE.md`
+**For detailed implementation, see:** `04_IMPLEMENTATION.md` and the current i18n implementation in `crates/ez-booth-ui`.
 
 ---
 
@@ -2608,7 +2615,7 @@ pub struct MigrationResult {
 - Can gather user feedback on must-have migration features
 - Reduces initial complexity
 
-**For complete migration strategy details, see:** `/changelog/17_MIGRATION_STRATEGY.md`
+**For current migration status, see:** `05_STATUS.md` and `../COMPARISON_TO_ORIGINAL.md`.
 
 ---
 
@@ -2798,7 +2805,7 @@ User clicks "Download Support Bundle" → generates ZIP with:
 
 **Total Effort:** ~54 hours (1.5 weeks)
 
-**For detailed specifications, see:** `/changelog/12_ERROR_HANDLING_SUPPORT.md`
+**For the current validation and operator-support direction, see:** `05_STATUS.md`, `../validation/VALIDATION_WORKFLOW.md`, and `../planning/PHASE2_PROPOSAL.md`.
 
 ---
 
