@@ -216,6 +216,31 @@ Operator notes: _________________________________________________
 
 Recovery notes: _________________________________________________
 
+## Scenario 10: Multi-Device Booth Merge
+
+- [ ] Create one booth with at least one vendor and one purchase on Device A
+- [ ] Export that booth backup from Device A
+- [ ] Import the booth backup on Device B
+- [ ] Add at least one new purchase on Device B
+- [ ] Export the booth backup from Device B
+- [ ] On Device A, import the Device B booth backup with `Merge`
+- [ ] Verify the original purchase from Device A is still present
+- [ ] Verify the new purchase from Device B is now present
+- [ ] Verify vendor names remain correct after merge
+- [ ] If the same booth was edited on both devices, verify the strictly newer booth update wins
+
+### Result Comparison
+
+| Check | Expected | Actual | Match |
+|-------|----------|--------|-------|
+| Original purchase still present | Yes | __________ | [ ] |
+| New purchase from second device present | Yes | __________ | [ ] |
+| Duplicate shared-history purchases created | No | __________ | [ ] |
+| Vendor names remain correct | Yes | __________ | [ ] |
+| Booth merge behavior understood | Yes | __________ | [ ] |
+
+Merge notes: _________________________________________________
+
 ## Console / Error Review
 
 - [ ] No uncaught console errors during checkout/report flow

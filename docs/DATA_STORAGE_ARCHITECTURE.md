@@ -119,9 +119,27 @@ Supported conflict strategies:
 
 Current merge behavior:
 
-- booths: newer `updated_at` wins
-- vendors: prefers incoming data while preserving an available name and earliest `created_at`
-- purchases: newer `timestamp` wins; if booth ownership changes, the old booth mapping is removed first
+- booths: strictly newer `updated_at` wins; equal timestamps keep the existing local booth record
+- vendors: preserves the earliest `created_at`, keeps non-empty names, and prefers the richer vendor name when multiple devices provide different names
+- purchases: strictly newer `timestamp` wins; equal timestamps keep the existing local purchase record; if booth ownership changes, the old booth mapping is removed first
+
+### Verified merge guarantees
+
+Focused browser-backed regression coverage now verifies these storage-layer guarantees for the current import implementation:
+
+- repeated imports of the same booth history do not duplicate already-imported records when the record IDs match
+- multi-device booth merges preserve unique purchases created independently on different devices
+- round-trip imports merge new records without re-adding shared history
+- full backup imports can merge one shared booth while preserving unrelated booths
+- same-purchase conflicts across devices resolve to the strictly newer purchase record
+- equal-timestamp booth and purchase conflicts keep the existing local record rather than flipping between payloads
+- vendor-name conflicts converge toward a non-empty and richer vendor name instead of blindly overwriting with the latest import
+
+### Important limits
+
+- purchases are identity-based, not content-deduplicated; EZ Booth does not collapse different purchase IDs even if the amounts look similar
+- multi-file import is sequential rather than atomic; a later file can fail after earlier files were already applied
+- `Merge` is a practical recovery and synchronization strategy for single-team offline workflows, not a collaborative multi-user conflict-resolution system
 
 The service returns `ImportSummary` so the UI can report:
 
@@ -179,6 +197,11 @@ Examples already covered in this track:
 - orphaned relationship rejection
 - delete-then-import booth recovery scenarios
 - UI refresh after successful import
+- repeated booth-history imports without duplicate records
+- multi-device booth merges with parallel purchases
+- round-trip merge behavior across repeated booth exports
+- equal-timestamp conflict behavior for booth and purchase records
+- larger multi-device booth merge count verification
 
 Manual validation artifacts for backup and recovery live in:
 
