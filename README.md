@@ -18,7 +18,21 @@ If you already know the original Java-based `ez-booth`, start with [What Changed
 
 ## Quick Start
 
-### Prerequisites
+### Just Want to Use It?
+
+Download ready-to-run releases from the [GitHub Releases page](https://github.com/tschuba/ez-booth-rs/releases).
+
+Each platform bundle for Windows, macOS, and Linux includes everything needed to run the app:
+
+- extract the archive
+- run the included launcher
+- the app opens in your browser automatically
+
+See the included `README.txt` in each download for platform-specific details.
+
+### Want to Build or Contribute?
+
+#### Prerequisites
 
 - [Rust via rustup](https://rustup.rs/)
 - `trunk`: `cargo install trunk`
@@ -26,7 +40,7 @@ If you already know the original Java-based `ez-booth`, start with [What Changed
 - WASM target: `rustup target add wasm32-unknown-unknown`
 - frontend dependencies: run `npm ci` in `crates/ez-booth-app`
 
-### Start the App
+#### Start the App
 
 ```bash
 cd crates/ez-booth-app
