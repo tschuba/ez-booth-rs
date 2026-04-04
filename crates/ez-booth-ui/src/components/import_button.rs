@@ -6,6 +6,7 @@ use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use web_sys::{Event, File as WebFile, FileReader, ProgressEvent};
 
 use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
+use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
@@ -65,6 +66,7 @@ pub fn ImportButton(
     let app_state = use_app_state();
     let booth_list_version = use_booth_list_version();
     let toast = use_toast();
+    let log_error = use_error_logger();
     let input_ref = create_node_ref::<html::Input>();
     let (is_reading, set_is_reading) = create_signal(false);
     let (is_importing, set_is_importing) = create_signal(false);
@@ -104,6 +106,7 @@ pub fn ImportButton(
         }
     };
 
+    let log_error_for_file_change = log_error.clone();
     let on_file_change = {
         let input_ref = input_ref.clone();
         let validator = Rc::clone(&validator);
@@ -133,6 +136,7 @@ pub fn ImportButton(
             let show_modal_signal = set_show_modal;
             let reading_signal = set_is_reading;
             let toast = toast.clone();
+            let log_error = log_error_for_file_change.clone();
             let validator_for_parse = Rc::clone(&validator);
 
             spawn_local(async move {
@@ -149,6 +153,16 @@ pub fn ImportButton(
 
                 reading_signal.set(false);
                 if parsed_candidates.is_empty() {
+                    log_error(ErrorLogDraft {
+                        error_type: "import_read_failed".to_string(),
+                        error_message: t!("backup.import_failed")(),
+                        stack_trace: stack_trace(),
+                        user_action: Some("read import files".to_string()),
+                        route: current_route(),
+                        vendor_id: None,
+                        purchase_id: None,
+                        details: vec!["no import candidates produced".to_string()],
+                    });
                     toast.error(t!("backup.import_failed")());
                     return;
                 }
@@ -195,6 +209,7 @@ pub fn ImportButton(
         set_is_importing.set(true);
         set_import_progress.set(Some((0, ready_candidates.len())));
         set_import_results.set(Vec::new());
+        let log_error = log_error.clone();
 
         spawn_local(async move {
             let state = match state_result {
@@ -249,6 +264,16 @@ pub fn ImportButton(
                         });
                     }
                     Err(err) => {
+                        log_error(ErrorLogDraft {
+                            error_type: "import_apply_failed".to_string(),
+                            error_message: err.to_string(),
+                            stack_trace: stack_trace(),
+                            user_action: Some("apply import".to_string()),
+                            route: current_route(),
+                            vendor_id: None,
+                            purchase_id: None,
+                            details: vec![format!("file={file_name}")],
+                        });
                         result_items.push(ImportResultItem {
                             file_name,
                             success: false,
@@ -302,6 +327,7 @@ pub fn ImportButton(
     };
 
     let on_strategy_change_action = store_value(on_strategy_change);
+    let handle_apply_import_action = store_value(handle_apply_import);
 
     let ready_count = Signal::derive(move || {
         candidates
@@ -360,7 +386,10 @@ pub fn ImportButton(
                                 {t!("common.close")}
                             </Button>
                             <Show when=move || has_ready_candidates.get()>
-                                <Button on_click=Box::new(handle_apply_import) disabled=is_importing.get()>
+                                <Button
+                                    on_click=Box::new(move || handle_apply_import_action.with_value(|handler| handler()))
+                                    disabled=is_importing.get()
+                                >
                                     {move || if is_importing.get() {
                                         t!("backup.import_in_progress")()
                                     } else {

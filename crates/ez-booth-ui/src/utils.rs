@@ -1,5 +1,5 @@
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, Blob, BlobPropertyBag, File};
+use web_sys::{window, Blob, BlobPropertyBag, File, HtmlAnchorElement, Url};
 
 use ez_booth_storage::export::{sanitize_filename_component, DeviceInfo};
 
@@ -51,6 +51,75 @@ pub fn create_json_file(file_name: &str, contents: &str) -> Result<File, String>
         &file_options,
     )
     .map_err(|err| format!("failed to create file: {err:?}"))
+}
+
+pub fn download_text_file(file_name: &str, contents: &str, mime_type: &str) -> Result<(), String> {
+    let window = window().ok_or_else(|| "window not available".to_string())?;
+    let document = window
+        .document()
+        .ok_or_else(|| "document not available".to_string())?;
+
+    let blob_parts = js_sys::Array::new();
+    blob_parts.push(&JsValue::from_str(contents));
+
+    let options = BlobPropertyBag::new();
+    options.set_type(mime_type);
+
+    let blob = Blob::new_with_str_sequence_and_options(&blob_parts, &options)
+        .map_err(|err| format!("failed to create blob: {err:?}"))?;
+    let url = Url::create_object_url_with_blob(&blob)
+        .map_err(|err| format!("failed to create object URL: {err:?}"))?;
+
+    let anchor = document
+        .create_element("a")
+        .map_err(|err| format!("failed to create anchor: {err:?}"))?
+        .dyn_into::<HtmlAnchorElement>()
+        .map_err(|_| "failed to cast anchor element".to_string())?;
+
+    anchor.set_href(&url);
+    anchor.set_download(file_name);
+
+    let body = document
+        .body()
+        .ok_or_else(|| "document body not available".to_string())?;
+
+    body.append_child(&anchor)
+        .map_err(|err| format!("failed to append anchor: {err:?}"))?;
+    anchor.click();
+    let _ = body.remove_child(&anchor);
+    Url::revoke_object_url(&url).map_err(|err| format!("failed to revoke object URL: {err:?}"))?;
+
+    Ok(())
+}
+
+pub async fn copy_text_to_clipboard(contents: &str) -> Result<(), String> {
+    let window = window().ok_or_else(|| "window not available".to_string())?;
+    let clipboard = window.navigator().clipboard();
+    wasm_bindgen_futures::JsFuture::from(clipboard.write_text(contents))
+        .await
+        .map(|_| ())
+        .map_err(|err| format!("failed to write to clipboard: {err:?}"))
+}
+
+pub fn open_print_window_html(html: &str) -> Result<(), String> {
+    let window = window().ok_or_else(|| "window not available".to_string())?;
+    let print_window = window
+        .open_with_url_and_target("about:blank", "_blank")
+        .map_err(|err| format!("failed to open print window: {err:?}"))?
+        .ok_or_else(|| "failed to open print window".to_string())?;
+
+    let document = print_window
+        .document()
+        .ok_or_else(|| "print window document not available".to_string())?;
+    let document_element = document
+        .document_element()
+        .ok_or_else(|| "print document element not available".to_string())?;
+    document_element.set_inner_html(html);
+
+    let _ = print_window.focus();
+    print_window
+        .print()
+        .map_err(|err| format!("failed to trigger print dialog: {err:?}"))
 }
 
 pub fn supports_native_share_with_files() -> bool {

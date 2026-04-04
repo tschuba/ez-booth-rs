@@ -1,15 +1,29 @@
+use chrono::Utc;
 use leptos::*;
 
 use crate::components::*;
+use crate::error_logging::{recent_error_cutoff, stack_trace, use_error_logger, ErrorLogDraft};
+use crate::selected_booth_context::use_selected_booth;
+use crate::settings_support::{
+    build_error_log_print_html, diagnostics_export_filename, diagnostics_last_backup_label,
+    error_log_print_filename, format_error_log_text, format_error_log_timestamp,
+    integrity_issue_count, DiagnosticsBoothSummary, DiagnosticsExportData, APP_VERSION, DOCS_URL,
+    REPOSITORY_URL,
+};
+use crate::state::use_app_state;
 use crate::t;
 use crate::utils::{
-    current_device_info, reset_device_identifier, save_device_identifier,
-    validate_device_identifier,
+    copy_text_to_clipboard, current_device_info, download_text_file, open_print_window_html,
+    reset_device_identifier, save_device_identifier, validate_device_identifier,
 };
+use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
+    let app_state = use_app_state();
     let toast = use_toast();
+    let log_error = use_error_logger();
+    let selected_booth = use_selected_booth();
     let device_info = current_device_info();
     let platform = device_info.platform.clone();
     let browser = device_info.browser.clone();
@@ -18,6 +32,65 @@ pub fn SettingsPage() -> impl IntoView {
     let (saved_identifier, set_saved_identifier) = create_signal(initial_identifier.clone());
     let device_identifier = create_rw_signal(initial_identifier);
     let (validation_error, set_validation_error) = create_signal(None::<String>);
+    let (storage_diagnostics, set_storage_diagnostics) = create_signal(None::<StorageDiagnostics>);
+    let (integrity_status, set_integrity_status) = create_signal(None::<IntegrityStatus>);
+    let (is_loading_diagnostics, set_is_loading_diagnostics) = create_signal(true);
+    let (is_running_integrity_check, set_is_running_integrity_check) = create_signal(false);
+    let (error_log_entries, set_error_log_entries) = create_signal(Vec::<ErrorLogEntry>::new());
+    let (recent_error_count, set_recent_error_count) = create_signal(0_usize);
+    let (is_loading_error_log, set_is_loading_error_log) = create_signal(true);
+    let (is_clearing_error_log, set_is_clearing_error_log) = create_signal(false);
+    let (is_exporting_diagnostics, set_is_exporting_diagnostics) = create_signal(false);
+    let (expanded_error_ids, set_expanded_error_ids) = create_signal(Vec::<u32>::new());
+
+    {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        spawn_local(async move {
+            let result = match app_state.get() {
+                Some(Ok(state)) => state.load_storage_diagnostics().await,
+                Some(Err(error)) => Err(error),
+                None => Err(t!("common.loading")()),
+            };
+
+            set_is_loading_diagnostics.set(false);
+
+            match result {
+                Ok(diagnostics) => set_storage_diagnostics.set(Some(diagnostics)),
+                Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+            }
+        });
+    }
+
+    {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        spawn_local(async move {
+            let result = match app_state.get() {
+                Some(Ok(state)) => {
+                    let cutoff = recent_error_cutoff();
+                    let entries = state.get_recent_errors(20).await;
+                    let count = state.count_errors_since(cutoff).await;
+                    match (entries, count) {
+                        (Ok(entries), Ok(count)) => Ok((entries, count)),
+                        (Err(error), _) | (_, Err(error)) => Err(error),
+                    }
+                }
+                Some(Err(error)) => Err(error),
+                None => Err(t!("common.loading")()),
+            };
+
+            set_is_loading_error_log.set(false);
+
+            match result {
+                Ok((entries, count)) => {
+                    set_error_log_entries.set(entries);
+                    set_recent_error_count.set(count);
+                }
+                Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+            }
+        });
+    }
 
     create_effect(move |_| {
         let value = device_identifier.get();
@@ -62,14 +135,612 @@ pub fn SettingsPage() -> impl IntoView {
         }
     };
 
+    let handle_run_integrity_check = {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        move || {
+            if is_running_integrity_check.get_untracked() {
+                return;
+            }
+
+            set_is_running_integrity_check.set(true);
+            let app_state = app_state.clone();
+            let toast = toast.clone();
+
+            spawn_local(async move {
+                let result = match app_state.get() {
+                    Some(Ok(state)) => state.run_integrity_check().await,
+                    Some(Err(error)) => Err(error),
+                    None => Err(t!("common.loading")()),
+                };
+
+                set_is_running_integrity_check.set(false);
+
+                match result {
+                    Ok(status) => {
+                        let issue_count = integrity_issue_count(&status);
+                        if issue_count == 0 {
+                            toast.success(t!("settings.integrity_status_healthy")());
+                        } else {
+                            toast.error(
+                                t!("settings.integrity_status_issues_found")()
+                                    .replace("{count}", &issue_count.to_string()),
+                            );
+                        }
+                        set_integrity_status.set(Some(status));
+                    }
+                    Err(error) => {
+                        toast.error(
+                            t!("settings.integrity_check_failed")().replace("{error}", &error),
+                        );
+                    }
+                }
+            });
+        }
+    };
+
+    let last_backup_label = Signal::derive(move || {
+        storage_diagnostics
+            .get()
+            .as_ref()
+            .and_then(diagnostics_last_backup_label)
+            .unwrap_or_else(|| t!("settings.last_backup_never")())
+    });
+
+    let database_version_label = Signal::derive(move || {
+        storage_diagnostics
+            .get()
+            .map(|diagnostics| format!("v{}", diagnostics.database_version))
+            .unwrap_or_else(|| "-".to_string())
+    });
+
+    let toggle_error_details = move |id: u32| {
+        set_expanded_error_ids.update(|ids| {
+            if ids.contains(&id) {
+                ids.retain(|existing| *existing != id);
+            } else {
+                ids.push(id);
+            }
+        });
+    };
+
+    let refresh_error_log = {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        move || {
+            let app_state = app_state.clone();
+            let toast = toast.clone();
+            set_is_loading_error_log.set(true);
+            spawn_local(async move {
+                let result = match app_state.get() {
+                    Some(Ok(state)) => {
+                        let cutoff = recent_error_cutoff();
+                        let entries = state.get_recent_errors(20).await;
+                        let count = state.count_errors_since(cutoff).await;
+                        match (entries, count) {
+                            (Ok(entries), Ok(count)) => Ok((entries, count)),
+                            (Err(error), _) | (_, Err(error)) => Err(error),
+                        }
+                    }
+                    Some(Err(error)) => Err(error),
+                    None => Err(t!("common.loading")()),
+                };
+
+                set_is_loading_error_log.set(false);
+
+                match result {
+                    Ok((entries, count)) => {
+                        set_error_log_entries.set(entries);
+                        set_recent_error_count.set(count);
+                    }
+                    Err(error) => toast.error(format!("{}: {error}", t!("common.error")())),
+                }
+            });
+        }
+    };
+
+    let handle_clear_error_log = {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        let refresh_error_log = refresh_error_log.clone();
+        let log_error_for_clear = log_error.clone();
+        move || {
+            if is_clearing_error_log.get_untracked() {
+                return;
+            }
+            set_is_clearing_error_log.set(true);
+
+            let app_state = app_state.clone();
+            let toast = toast.clone();
+            let refresh_error_log = refresh_error_log.clone();
+            let log_error = log_error_for_clear.clone();
+            spawn_local(async move {
+                let result = match app_state.get() {
+                    Some(Ok(state)) => state.clear_error_log().await,
+                    Some(Err(error)) => Err(error),
+                    None => Err(t!("common.loading")()),
+                };
+
+                set_is_clearing_error_log.set(false);
+
+                match result {
+                    Ok(()) => {
+                        toast.success(t!("settings.error_log_clear_success")());
+                        set_error_log_entries.set(Vec::new());
+                        set_recent_error_count.set(0);
+                        set_expanded_error_ids.set(Vec::new());
+                        refresh_error_log();
+                    }
+                    Err(error) => {
+                        log_error(ErrorLogDraft {
+                            error_type: "error_log_clear_failed".to_string(),
+                            error_message: error.clone(),
+                            stack_trace: stack_trace(),
+                            user_action: Some("clear error log".to_string()),
+                            route: crate::error_logging::current_route(),
+                            vendor_id: None,
+                            purchase_id: None,
+                            details: Vec::new(),
+                        });
+                        toast.error(
+                            t!("settings.error_log_clear_failed")().replace("{error}", &error),
+                        );
+                    }
+                }
+            });
+        }
+    };
+
+    let handle_export_diagnostics = {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        let log_error_for_export = log_error.clone();
+        move || {
+            if is_exporting_diagnostics.get_untracked() {
+                return;
+            }
+
+            set_is_exporting_diagnostics.set(true);
+            let app_state = app_state.clone();
+            let toast = toast.clone();
+            let selected_booth = selected_booth.get_untracked();
+            let device_info = current_device_info();
+            let integrity_snapshot = integrity_status
+                .get_untracked()
+                .unwrap_or(IntegrityStatus::Healthy);
+            let diagnostics_snapshot = storage_diagnostics.get_untracked();
+            let log_error = log_error_for_export.clone();
+
+            spawn_local(async move {
+                let result: Result<(), String> = async move {
+                    let state = match app_state.get() {
+                        Some(Ok(state)) => state,
+                        Some(Err(error)) => return Err(error),
+                        None => return Err(t!("common.loading")()),
+                    };
+
+                    let exported_at = Utc::now();
+                    let all_errors = state.get_recent_errors(100).await?;
+                    let booth_summary = if let Some(booth) = selected_booth.clone() {
+                        DiagnosticsBoothSummary {
+                            active_booth_id: Some(booth.id.as_str()),
+                            active_booth_description: Some(booth.description),
+                            vendor_count: state
+                                .vendor_repository
+                                .find_by_booth(&booth.id)
+                                .await
+                                .map_err(|err| err.to_string())?
+                                .len(),
+                            purchase_count: state
+                                .purchase_repository
+                                .find_by_booth(&booth.id)
+                                .await
+                                .map_err(|err| err.to_string())?
+                                .len(),
+                        }
+                    } else {
+                        DiagnosticsBoothSummary {
+                            active_booth_id: None,
+                            active_booth_description: None,
+                            vendor_count: 0,
+                            purchase_count: 0,
+                        }
+                    };
+
+                    let payload = DiagnosticsExportData {
+                        app_version: APP_VERSION.to_string(),
+                        database_version: diagnostics_snapshot
+                            .as_ref()
+                            .map(|diagnostics| diagnostics.database_version)
+                            .unwrap_or_default(),
+                        exported_at,
+                        device_identifier: device_info.identifier,
+                        device_platform: device_info.platform,
+                        device_browser: device_info.browser,
+                        session_id: state.session_id.clone(),
+                        last_backup_at: diagnostics_snapshot
+                            .and_then(|diagnostics| diagnostics.last_backup_at),
+                        integrity_status: integrity_snapshot,
+                        recent_error_count: recent_error_count.get_untracked(),
+                        errors: all_errors,
+                        booth_summary,
+                    };
+
+                    let json = serde_json::to_string_pretty(&payload).map_err(|error| {
+                        format!("failed to serialize diagnostics export: {error}")
+                    })?;
+                    download_text_file(
+                        &diagnostics_export_filename(exported_at),
+                        &json,
+                        "application/json;charset=utf-8",
+                    )
+                }
+                .await;
+
+                set_is_exporting_diagnostics.set(false);
+
+                match result {
+                    Ok(()) => toast.success(t!("settings.error_log_export_success")()),
+                    Err(error) => {
+                        log_error(ErrorLogDraft {
+                            error_type: "diagnostics_export_failed".to_string(),
+                            error_message: error.clone(),
+                            stack_trace: stack_trace(),
+                            user_action: Some("export diagnostics".to_string()),
+                            route: crate::error_logging::current_route(),
+                            vendor_id: None,
+                            purchase_id: None,
+                            details: Vec::new(),
+                        });
+                        toast.error(
+                            t!("settings.error_log_export_failed")().replace("{error}", &error),
+                        );
+                    }
+                }
+            });
+        }
+    };
+
+    let handle_copy_error_log = {
+        let toast = toast.clone();
+        move || {
+            let text = format_error_log_text(&error_log_entries.get_untracked());
+            spawn_local(async move {
+                match copy_text_to_clipboard(&text).await {
+                    Ok(()) => toast.success(t!("settings.error_log_copy_success")()),
+                    Err(error) => toast
+                        .error(t!("settings.error_log_copy_failed")().replace("{error}", &error)),
+                }
+            });
+        }
+    };
+
+    let handle_print_error_log = {
+        let toast = toast.clone();
+        move || {
+            let entries = error_log_entries.get_untracked();
+            let html =
+                build_error_log_print_html(&entries, &t!("settings.error_log_section_title")());
+            if let Err(error) = open_print_window_html(&html) {
+                let fallback_text = format_error_log_text(&entries);
+                if let Err(download_error) = download_text_file(
+                    &error_log_print_filename(Utc::now()),
+                    &fallback_text,
+                    "text/plain;charset=utf-8",
+                ) {
+                    toast.error(
+                        t!("settings.error_log_print_failed")()
+                            .replace("{error}", &format!("{error}; {download_error}")),
+                    );
+                } else {
+                    toast.info(t!("settings.error_log_print_downloaded")());
+                }
+            }
+        }
+    };
+
     view! {
         <Container class="mt-6 pb-24" aria_label=t!("settings.title")() as_landmark=true>
             <div class="mx-auto max-w-3xl">
                 <Card title_view={t!("settings.title").into_view()}>
                     <div class="space-y-6">
+                        <div class="space-y-2 border-b border-gray-200 pb-6">
+                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.app_info_section_title")}</h3>
+                            <p class="text-sm text-gray-600">{t!("settings.app_info_help_text")}</p>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.app_version_label")}</p>
+                                    <p class="mt-1 font-mono text-sm text-slate-900">{APP_VERSION}</p>
+                                </div>
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.database_version_label")}</p>
+                                    <p class="mt-1 font-mono text-sm text-slate-900">{move || database_version_label.get()}</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-3 pt-1 text-sm">
+                                <a
+                                    href=REPOSITORY_URL
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="font-medium text-blue-600 hover:text-blue-700"
+                                >
+                                    {t!("settings.repository_link")}
+                                </a>
+                                <a
+                                    href=DOCS_URL
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="font-medium text-blue-600 hover:text-blue-700"
+                                >
+                                    {t!("settings.docs_link")}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 border-b border-gray-200 pb-6">
+                            <div class="space-y-2">
+                                <h3 class="text-lg font-semibold text-slate-900">{t!("settings.storage_health_section_title")}</h3>
+                                <p class="text-sm text-gray-600">{t!("settings.storage_health_help_text")}</p>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.last_backup_label")}</p>
+                                    <p class="mt-1 text-sm text-slate-900">
+                                        {move || if is_loading_diagnostics.get() {
+                                            t!("common.loading")()
+                                        } else {
+                                            last_backup_label.get()
+                                        }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.integrity_status_label")}</p>
+                                    <p class="mt-1 text-sm text-slate-900">
+                                        {move || match integrity_status.get() {
+                                            Some(IntegrityStatus::Healthy) => t!("settings.integrity_status_healthy")(),
+                                            Some(IntegrityStatus::IssuesFound { ref issues }) => t!("settings.integrity_status_issues_found")().replace("{count}", &issues.len().to_string()),
+                                            None => t!("settings.integrity_not_checked")(),
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3">
+                                <Button
+                                    on_click=Box::new(handle_run_integrity_check)
+                                    variant=ButtonVariant::Secondary
+                                    disabled=is_running_integrity_check
+                                >
+                                    {move || if is_running_integrity_check.get() {
+                                        t!("settings.integrity_check_running")()
+                                    } else {
+                                        t!("settings.integrity_check_button")()
+                                    }}
+                                </Button>
+                            </div>
+
+                            <Show when=move || matches!(integrity_status.get(), Some(IntegrityStatus::IssuesFound { .. }))>
+                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-amber-900">{t!("settings.integrity_status_issues_detail_title")}</p>
+                                    <ul class="mt-2 space-y-1 text-sm text-amber-900">
+                                        {move || match integrity_status.get() {
+                                            Some(IntegrityStatus::IssuesFound { issues }) => issues
+                                                .into_iter()
+                                                .map(|issue| view! { <li class="list-disc ml-5">{issue}</li> })
+                                                .collect_view(),
+                                            _ => ().into_view(),
+                                        }}
+                                    </ul>
+                                </div>
+                            </Show>
+                        </div>
+
                         <div class="space-y-2">
                             <h3 class="text-lg font-semibold text-slate-900">{t!("settings.device_section_title")}</h3>
                             <p class="text-sm text-gray-600">{t!("settings.device_help_text")}</p>
+                        </div>
+
+                        <div class="space-y-4 border-t border-gray-200 pt-6">
+                            <div class="space-y-2">
+                                <h3 class="text-lg font-semibold text-slate-900">{t!("settings.error_log_section_title")}</h3>
+                                <p class="text-sm text-gray-600">{t!("settings.error_log_help_text")}</p>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_recent_count_label")}</p>
+                                    <p class="mt-1 text-sm text-slate-900">
+                                        {move || if is_loading_error_log.get() {
+                                            t!("common.loading")()
+                                        } else {
+                                            t!("settings.error_log_recent_count_value")()
+                                                .replace("{count}", &recent_error_count.get().to_string())
+                                        }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <p class="text-sm font-medium text-gray-700">{t!("settings.error_log_entries_label")}</p>
+                                    <p class="mt-1 text-sm text-slate-900">{move || error_log_entries.get().len().to_string()}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3">
+                                <Button
+                                    on_click=Box::new(handle_export_diagnostics)
+                                    variant=ButtonVariant::Secondary
+                                    disabled=is_exporting_diagnostics
+                                >
+                                    {move || if is_exporting_diagnostics.get() {
+                                        t!("settings.error_log_export_running")()
+                                    } else {
+                                        t!("settings.error_log_export_button")()
+                                    }}
+                                </Button>
+                                <Button
+                                    on_click=Box::new(handle_print_error_log)
+                                    variant=ButtonVariant::Secondary
+                                >
+                                    {t!("settings.error_log_print_button")}
+                                </Button>
+                                <Button
+                                    on_click=Box::new(handle_copy_error_log)
+                                    variant=ButtonVariant::Secondary
+                                >
+                                    {t!("settings.error_log_copy_button")}
+                                </Button>
+                                <Button
+                                    on_click=Box::new(handle_clear_error_log)
+                                    variant=ButtonVariant::Secondary
+                                    disabled=is_clearing_error_log
+                                >
+                                    {move || if is_clearing_error_log.get() {
+                                        t!("settings.error_log_clear_running")()
+                                    } else {
+                                        t!("settings.error_log_clear_button")()
+                                    }}
+                                </Button>
+                            </div>
+
+                            <Show
+                                when=move || !error_log_entries.get().is_empty()
+                                fallback=move || {
+                                    view! {
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                            {t!("settings.error_log_empty")}
+                                        </div>
+                                    }
+                                }
+                            >
+                                <div class="space-y-3">
+                                    <For
+                                        each=move || error_log_entries.get()
+                                        key=|entry| entry.id.unwrap_or_default()
+                                        children=move |entry| {
+                                            let entry_id = entry.id.unwrap_or_default();
+                                            let is_expanded = Signal::derive(move || expanded_error_ids.get().contains(&entry_id));
+                                            let timestamp = format_error_log_timestamp(entry.timestamp);
+                                            let details = entry.context.clone().map(|context| context.details).unwrap_or_default();
+                                            let route = entry.context.as_ref().and_then(|context| context.route.clone());
+                                            let action = entry.context.as_ref().and_then(|context| context.user_action.clone());
+                                            let booth_id = entry.context.as_ref().and_then(|context| context.booth_id.clone());
+                                            let vendor_id = entry.context.as_ref().and_then(|context| context.vendor_id.clone());
+                                            let purchase_id = entry.context.as_ref().and_then(|context| context.purchase_id.clone());
+                                            let stack_trace_text = entry.stack_trace.clone();
+                                            let has_route = route.is_some();
+                                            let has_action = action.is_some();
+                                            let has_booth_id = booth_id.is_some();
+                                            let has_vendor_id = vendor_id.is_some();
+                                            let has_purchase_id = purchase_id.is_some();
+                                            let has_stack_trace = stack_trace_text.is_some();
+                                            let route_text = format!(
+                                                "{}: {}",
+                                                t!("settings.error_log_route_label")(),
+                                                route.clone().unwrap_or_default()
+                                            );
+                                            let action_text = format!(
+                                                "{}: {}",
+                                                t!("settings.error_log_action_label")(),
+                                                action.clone().unwrap_or_default()
+                                            );
+                                            let booth_text = format!(
+                                                "{}: {}",
+                                                t!("settings.error_log_booth_label")(),
+                                                booth_id.clone().unwrap_or_default()
+                                            );
+                                            let vendor_text = format!(
+                                                "{}: {}",
+                                                t!("settings.error_log_vendor_label")(),
+                                                vendor_id.clone().unwrap_or_default()
+                                            );
+                                            let purchase_text = format!(
+                                                "{}: {}",
+                                                t!("settings.error_log_purchase_label")(),
+                                                purchase_id.clone().unwrap_or_default()
+                                            );
+                                            let details_items = details
+                                                .iter()
+                                                .cloned()
+                                                .map(|detail| view! { <li class="list-disc ml-5">{detail}</li> })
+                                                .collect_view();
+                                            view! {
+                                                <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                                                    <button
+                                                        type="button"
+                                                        class="flex w-full items-start justify-between gap-4 text-left"
+                                                        on:click=move |_| toggle_error_details(entry_id)
+                                                    >
+                                                        <div class="space-y-1">
+                                                            <p class="text-sm font-semibold text-slate-900">{entry.error_type.clone()}</p>
+                                                            <p class="text-sm text-gray-700">{entry.error_message.clone()}</p>
+                                                            <p class="text-xs text-gray-500">{timestamp.clone()}</p>
+                                                        </div>
+                                                        <span class="text-xs font-medium text-blue-600">
+                                                            {move || if is_expanded.get() {
+                                                                t!("settings.error_log_hide_details")()
+                                                            } else {
+                                                                t!("settings.error_log_show_details")()
+                                                            }}
+                                                        </span>
+                                                    </button>
+
+                                                    <Show when=move || is_expanded.get()>
+                                                        <div class="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
+                                                            <p><span class="font-medium text-slate-900">{t!("settings.error_log_session_label")}</span>{format!(": {}", entry.session_id)}</p>
+                                                            <p><span class="font-medium text-slate-900">{t!("settings.error_log_device_label")}</span>{format!(": {} / {} / {}", entry.device_info.identifier, entry.device_info.platform, entry.device_info.browser)}</p>
+                                                            {if has_route {
+                                                                Some(view! { <p>{route_text.clone()}</p> })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {if has_action {
+                                                                Some(view! { <p>{action_text.clone()}</p> })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {if has_booth_id {
+                                                                Some(view! { <p>{booth_text.clone()}</p> })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {if has_vendor_id {
+                                                                Some(view! { <p>{vendor_text.clone()}</p> })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {if has_purchase_id {
+                                                                Some(view! { <p>{purchase_text.clone()}</p> })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                            {if details.is_empty() {
+                                                                None
+                                                            } else {
+                                                                Some(view! {
+                                                                    <div>
+                                                                        <p class="font-medium text-slate-900">{t!("settings.error_log_details_label")}</p>
+                                                                        <ul class="mt-1 space-y-1">{details_items.clone()}</ul>
+                                                                    </div>
+                                                                })
+                                                            }}
+                                                            {if has_stack_trace {
+                                                                Some(view! {
+                                                                    <div>
+                                                                        <p class="font-medium text-slate-900">{t!("settings.error_log_stack_trace_label")}</p>
+                                                                        <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-800">{stack_trace_text.clone().unwrap_or_default()}</pre>
+                                                                    </div>
+                                                                })
+                                                            } else {
+                                                                None
+                                                            }}
+                                                        </div>
+                                                    </Show>
+                                                </div>
+                                            }
+                                        }
+                                    />
+                                </div>
+                            </Show>
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2">
