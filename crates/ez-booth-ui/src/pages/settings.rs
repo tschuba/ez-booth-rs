@@ -343,7 +343,6 @@ pub fn SettingsPage() -> impl IntoView {
             };
 
             set_is_clearing_error_log.set(true);
-            set_show_clear_error_log_confirm.set(false);
 
             let toast = toast.clone();
             let refresh_error_log = refresh_error_log.clone();
