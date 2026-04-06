@@ -686,6 +686,7 @@
   "components": {
     "toast": {
       "copied": "Kopiert!",
+      "copy_failed": "Kopieren fehlgeschlagen. Bitte manuell kopieren.",
       "copy": "Kopieren"
     },
     "modal": {
@@ -700,7 +701,8 @@
       "info": "Information",
       "dismiss": "Benachrichtigung schließen",
       "copy": "Kopieren",
-      "copied": "Kopiert!"
+      "copied": "Kopiert!",
+      "copy_failed": "Kopieren fehlgeschlagen. Bitte manuell kopieren."
     }
   }
 }

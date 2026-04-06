@@ -215,6 +215,7 @@ fn ToastItem(toast: Toast, on_dismiss: impl Fn() + 'static) -> impl IntoView {
                                     Ok(()) => use_toast().info(&t!("components.toast.copied")()),
                                     Err(error) => {
                                         log::warn!("Failed to copy toast message: {error}");
+                                        use_toast().error(&t!("components.toast.copy_failed")());
                                     }
                                 }
                             });
