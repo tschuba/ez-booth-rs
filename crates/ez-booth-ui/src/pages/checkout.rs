@@ -709,7 +709,13 @@ pub fn CheckoutPage() -> impl IntoView {
         create_signal(load_error_sound_enabled_preference());
     let last_error_sound_at = create_rw_signal(0_u128);
     let (active_input, set_active_input) = create_signal(ActiveInput::VendorId);
-    let (draft_notice_pending, set_draft_notice_pending) = create_signal(initial_draft_notice);
+
+    if let Some(notice) = initial_draft_notice {
+        match notice {
+            DraftNotice::Restored => toast.info(&t!("checkout.draft_restored")()),
+            DraftNotice::CorruptedCleared => toast.warning(&t!("checkout.draft_corrupted")()),
+        }
+    }
 
     // Cancel confirmation modal
     let (show_cancel_modal, set_show_cancel_modal) = create_signal(false);
@@ -855,16 +861,6 @@ pub fn CheckoutPage() -> impl IntoView {
             }
         });
     }
-
-    create_effect(move |_| {
-        if let Some(notice) = draft_notice_pending.get() {
-            match notice {
-                DraftNotice::Restored => toast.info(&t!("checkout.draft_restored")()),
-                DraftNotice::CorruptedCleared => toast.warning(&t!("checkout.draft_corrupted")()),
-            }
-            set_draft_notice_pending.set(None);
-        }
-    });
 
     // Load paginated purchases for selected booth
     create_effect(move |_| {
