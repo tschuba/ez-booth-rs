@@ -2426,7 +2426,19 @@ pub fn CheckoutPage() -> impl IntoView {
                                         }
                                     }
                                 >
-                                    <p class="text-gray-500 text-sm">{t!("checkout.no_items")}</p>
+                                    <div class="flex flex-col items-center justify-center py-8 text-center">
+                                        <svg
+                                            class="mb-3 h-12 w-12 text-gray-300"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.761 0-5 2.239-5 5v3h10v-3c0-2.761-2.239-5-5-5zm0 0V6m-3 0h6" />
+                                        </svg>
+                                        <p class="text-sm font-medium text-gray-700">{t!("checkout.no_items")}</p>
+                                        <p class="mt-1 text-xs text-gray-500">{t!("checkout.empty_state_hint")}</p>
+                                    </div>
                                 </Show>
                             </div>
                         </Card>

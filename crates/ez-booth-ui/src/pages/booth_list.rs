@@ -489,8 +489,8 @@ pub fn BoothListPage() -> impl IntoView {
     view! {
         <>
             <div class="print:hidden">
-                <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50 px-4 py-3 sm:px-6 lg:px-8">
-                    <div class="mx-auto max-w-7xl">
+                <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50 py-3">
+                    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                         <StorageWarningInfo class="border-amber-200/70 bg-gradient-to-r from-amber-50/85 via-orange-50/80 to-amber-100/85 shadow-sm".to_string()>
                             <ExportButton
                                 scope=ExportScope::All
@@ -512,7 +512,7 @@ pub fn BoothListPage() -> impl IntoView {
                                         when=move || booths.get().is_empty()
                                         fallback=move || {
                                             view! {
-                                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                                     <For
                                                         each=move || booths.get()
                                                         key=|booth| booth.id.as_str().to_string()
@@ -551,8 +551,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                 menu_item=true
                                                                             />
                                                                             <DropdownMenuItem
-                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
-                                                                                    event.stop_propagation();
+                                                                                on_click=Callback::new(move |_| {
                                                                                     set_copying_booth.set(Some(booth_for_copy.get_value()));
                                                                                     set_show_copy_modal.set(true);
                                                                                 })
@@ -565,8 +564,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                 {t!("booth.copy_button")()}
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuItem
-                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
-                                                                                    event.stop_propagation();
+                                                                                on_click=Callback::new(move |_| {
                                                                                     set_editing_booth.set(Some(booth_for_edit.get_value()));
                                                                                     set_show_edit_modal.set(true);
                                                                                 })
@@ -579,8 +577,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                                 {t!("booth.edit_button")()}
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuItem
-                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
-                                                                                    event.stop_propagation();
+                                                                                on_click=Callback::new(move |_| {
                                                                                     set_expanded_booth_summary.set(None);
                                                                                     set_expanded_booth_id.set(Some(booth_id_for_report.clone()));
                                                                                 })
@@ -594,8 +591,7 @@ pub fn BoothListPage() -> impl IntoView {
                                                                             </DropdownMenuItem>
                                                                             <div class="my-1 h-px bg-gray-200"></div>
                                                                             <DropdownMenuItem
-                                                                                on_click=Callback::new(move |event: ev::MouseEvent| {
-                                                                                    event.stop_propagation();
+                                                                                on_click=Callback::new(move |_| {
                                                                                     prompt_delete_booth(booth_for_delete.get_value());
                                                                                 })
                                                                                 class="text-red-600 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700".to_string()

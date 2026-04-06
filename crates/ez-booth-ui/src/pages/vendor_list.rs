@@ -433,27 +433,42 @@ pub fn VendorListPage() -> impl IntoView {
                                         </Show>
                                     </div>
 
-                                    // Top pagination controls
-                                    <Show when=move || !vendor_reports.get().is_empty()>
-                                        <div class="mb-4">
-                                            <Pagination
-                                                current_page=current_page
-                                                total_items=Signal::derive(move || vendor_reports.get().len())
-                                                page_size=page_size
-                                                on_page_change=move |page| set_current_page.set(page)
-                                                on_page_size_change=move |size| set_page_size.set(size)
-                                                translation_prefix="vendor.pagination"
-                                                show_page_size_selector=true
-                                            />
-                                        </div>
-                                    </Show>
+                                    <div class="mx-auto max-w-5xl">
+                                        // Top pagination controls
+                                        <Show when=move || !vendor_reports.get().is_empty()>
+                                            <div class="mb-4">
+                                                <Pagination
+                                                    current_page=current_page
+                                                    total_items=Signal::derive(move || vendor_reports.get().len())
+                                                    page_size=page_size
+                                                    on_page_change=move |page| set_current_page.set(page)
+                                                    on_page_size_change=move |size| set_page_size.set(size)
+                                                    translation_prefix="vendor.pagination"
+                                                    show_page_size_selector=true
+                                                />
+                                            </div>
+                                        </Show>
 
-                                    // Vendor list
-                                    <Show
-                                        when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()
-                                         fallback=move || view! { <p class="text-gray-500 text-center py-8">{t!("vendor.no_vendors")}</p> }
-                                    >
-                                        <div class="space-y-4">
+                                        // Vendor list
+                                        <Show
+                                            when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()
+                                             fallback=move || view! {
+                                                 <div class="flex flex-col items-center justify-center py-10 text-center">
+                                                     <svg
+                                                         class="mb-3 h-12 w-12 text-gray-300"
+                                                         fill="none"
+                                                         stroke="currentColor"
+                                                         viewBox="0 0 24 24"
+                                                         aria-hidden="true"
+                                                     >
+                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                                     </svg>
+                                                     <p class="text-sm font-medium text-gray-700">{t!("vendor.no_vendors")}</p>
+                                                     <p class="mt-1 text-xs text-gray-500">{t!("vendor.empty_state_hint")}</p>
+                                                 </div>
+                                             }
+                                        >
+                                            <div class="space-y-4">
                                             {/* Vendors with purchases */}
                                             {move || paginated_vendor_reports.get().into_iter().map(|report| {
                                                 // Clone all needed data upfront
@@ -614,7 +629,7 @@ pub fn VendorListPage() -> impl IntoView {
 
                                                             {/* Expansion toggle button */}
                                                             <div
-                                                                class="px-3 hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
+                                                                class="px-3 bg-white hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
                                                                 on:click=move |e| {
                                                                     e.stop_propagation();
                                                                     set_expanded_vendor_id.update(|current| {
@@ -861,8 +876,9 @@ pub fn VendorListPage() -> impl IntoView {
                                                 }
                                             }).collect_view()
                                              }}
-                                        </div>
-                                    </Show>
+                                            </div>
+                                        </Show>
+                                    </div>
                                 </Show>
                             </Show>
                         </Card>

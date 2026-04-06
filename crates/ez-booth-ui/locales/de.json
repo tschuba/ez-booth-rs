@@ -25,7 +25,9 @@
     "copyright": "Copyright © 2026 EZ Booth",
     "title": "EZ Booth",
     "page_title": "EZ Booth - Kassieren leicht gemacht",
-    "welcome": "Willkommen bei EZ Booth"
+    "welcome": "Willkommen bei EZ Booth",
+    "language_toggle_to_english": "Zu Englisch wechseln",
+    "language_toggle_to_german": "Zu Deutsch wechseln"
   },
   "settings": {
     "title": "Einstellungen",
@@ -262,6 +264,7 @@
     "no_booth_selected": "-- Veranstaltung auswählen --",
     "select_booth_prompt": "Bitte wählen Sie eine Veranstaltung aus, um Verkäufer anzuzeigen",
     "no_vendors": "Keine Verkäufer für diese Veranstaltung gefunden",
+    "empty_state_hint": "Verkäufer erscheinen hier, sobald Einkäufe getätigt wurden",
     "detail_title": "Verkäufer-Details",
     "created_at": "Erstellt",
     "gross_sales": "Bruttoumsatz",
@@ -378,6 +381,7 @@
     "repeat_item_success": "Letzter Artikel wurde wiederholt",
     "current_items": "Aktuelle Positionen",
     "no_items": "Noch keine Artikel hinzugefügt",
+    "empty_state_hint": "Fügen Sie Artikel über das Tastenfeld oben hinzu",
     "item_label": "Position",
     "vendor_label": "Verkäufer",
     "remove_item_confirm": "Unwiderruflich löschen?",
