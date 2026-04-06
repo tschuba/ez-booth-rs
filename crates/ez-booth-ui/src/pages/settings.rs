@@ -97,7 +97,9 @@ pub fn SettingsPage() -> impl IntoView {
     create_effect(move |_| {
         let hash = settings_tab_hash(active_tab.get());
         if let Some(window) = web_sys::window() {
-            if window.location().hash().ok().as_deref() != Some(hash) {
+            if window.location().pathname().ok().as_deref() == Some("/settings")
+                && window.location().hash().ok().as_deref() != Some(hash)
+            {
                 let _ = window.location().set_hash(hash.trim_start_matches('#'));
             }
         }
