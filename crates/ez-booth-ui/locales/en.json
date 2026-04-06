@@ -145,8 +145,10 @@
       "copy_failed": "Copying the default path failed: {error}",
       "not_found_title": "If the file is not there",
       "not_found_body": "Search your device for booth.db, or check where the original ez-booth app was installed. The browser cannot open that folder automatically, so you need to choose the file yourself.",
+      "use_file_picker": "Please use the file picker above to browse for your booth.db file.",
       "platform": {
         "macos": "this Mac",
+        "ios": "this iPhone or iPad",
         "windows": "this Windows PC",
         "linux": "this Linux device",
         "other": "this device"

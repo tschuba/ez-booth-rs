@@ -1,3 +1,5 @@
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -360,8 +362,8 @@ fn prepare_import_skip_invalid_filters_orphaned_records() {
     assert!(prepared.validation.issues.is_empty());
 }
 
-#[tokio::test]
-async fn replace_all_removes_existing_records_before_saving_new_ones() {
+#[test]
+fn replace_all_removes_existing_records_before_saving_new_ones() {
     let booth_repo = Arc::new(MockBoothRepository::default());
     let vendor_repo = Arc::new(MockVendorRepository::default());
     let purchase_repo = Arc::new(MockPurchaseRepository::default());
@@ -374,9 +376,11 @@ async fn replace_all_removes_existing_records_before_saving_new_ones() {
     let old_booth = test_booth("Old Booth");
     let old_vendor = test_vendor(old_booth.id, "1");
     let old_purchase = test_purchase(old_booth.id, PurchaseId::new(), domain::ItemId::new());
-    booth_repo.save(&old_booth).await.unwrap();
-    vendor_repo.save(&old_vendor).await.unwrap();
-    purchase_repo.save(&old_purchase).await.unwrap();
+    futures::executor::block_on(async {
+        booth_repo.save(&old_booth).await.unwrap();
+        vendor_repo.save(&old_vendor).await.unwrap();
+        purchase_repo.save(&old_purchase).await.unwrap();
+    });
 
     let new_booth = test_booth("New Booth");
     let new_vendor = test_vendor(new_booth.id, "9");
@@ -392,22 +396,22 @@ async fn replace_all_removes_existing_records_before_saving_new_ones() {
         note: None,
     };
 
-    let result = service
-        .replace_all(
-            vec![new_booth.clone()],
-            vec![new_vendor.clone()],
-            vec![new_purchase.clone()],
-        )
-        .await
-        .unwrap();
+    let result = futures::executor::block_on(service.replace_all(
+        vec![new_booth.clone()],
+        vec![new_vendor.clone()],
+        vec![new_purchase.clone()],
+    ))
+    .unwrap();
 
     assert_eq!(result.booths_migrated, 1);
     assert_eq!(result.vendors_migrated, 1);
     assert_eq!(result.purchases_migrated, 1);
 
-    assert_eq!(booth_repo.find_all().await.unwrap(), vec![new_booth]);
-    assert_eq!(vendor_repo.find_all().await.unwrap(), vec![new_vendor]);
-    assert_eq!(purchase_repo.find_all().await.unwrap(), vec![new_purchase]);
+    futures::executor::block_on(async {
+        assert_eq!(booth_repo.find_all().await.unwrap(), vec![new_booth]);
+        assert_eq!(vendor_repo.find_all().await.unwrap(), vec![new_vendor]);
+        assert_eq!(purchase_repo.find_all().await.unwrap(), vec![new_purchase]);
+    });
 }
 
 #[test]

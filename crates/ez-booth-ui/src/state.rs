@@ -69,7 +69,8 @@ impl AppState {
             vendor_repository.clone(),
             purchase_repository.clone(),
         ));
-        let migration_service = Arc::new(MigrationService::new(
+        let migration_service = Arc::new(MigrationService::new_with_database(
+            db.clone(),
             booth_repository.clone(),
             vendor_repository.clone(),
             purchase_repository.clone(),

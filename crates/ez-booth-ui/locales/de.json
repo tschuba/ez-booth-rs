@@ -145,8 +145,10 @@
       "copy_failed": "Kopieren des Standardpfads fehlgeschlagen: {error}",
       "not_found_title": "Falls die Datei dort nicht liegt",
       "not_found_body": "Suchen Sie auf dem Gerät nach booth.db oder prüfen Sie den Installationsort der ursprünglichen ez-booth-App. Der Browser kann diesen Ordner nicht automatisch öffnen, daher müssen Sie die Datei selbst auswählen.",
+      "use_file_picker": "Bitte verwenden Sie die Dateiauswahl oben, um Ihre booth.db-Datei zu suchen.",
       "platform": {
         "macos": "diesem Mac",
+        "ios": "diesem iPhone oder iPad",
         "windows": "diesem Windows-PC",
         "linux": "diesem Linux-Gerät",
         "other": "diesem Gerät"

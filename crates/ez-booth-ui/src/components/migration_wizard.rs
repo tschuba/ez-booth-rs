@@ -155,6 +155,7 @@ enum DetectedPlatform {
     MacOs,
     Windows,
     Linux,
+    Ios,
     Other,
 }
 
@@ -164,6 +165,7 @@ impl DetectedPlatform {
             Self::MacOs => t!("migration.file_location.platform.macos")(),
             Self::Windows => t!("migration.file_location.platform.windows")(),
             Self::Linux => t!("migration.file_location.platform.linux")(),
+            Self::Ios => t!("migration.file_location.platform.ios")(),
             Self::Other => t!("migration.file_location.platform.other")(),
         }
     }
@@ -171,6 +173,7 @@ impl DetectedPlatform {
     fn default_path(self) -> &'static str {
         match self {
             Self::Windows => "%USERPROFILE%\\Documents\\tschuba\\ez-booth\\booth.db",
+            Self::Ios => "",
             Self::MacOs | Self::Linux | Self::Other => "~/Documents/tschuba/ez-booth/booth.db",
         }
     }
@@ -191,7 +194,9 @@ impl IssueGroup {
 fn detect_platform() -> DetectedPlatform {
     let platform = current_device_info().platform.to_ascii_lowercase();
 
-    if platform.contains("mac") || platform.contains("iphone") || platform.contains("ipad") {
+    if platform.contains("iphone") || platform.contains("ipad") {
+        DetectedPlatform::Ios
+    } else if platform.contains("mac") {
         DetectedPlatform::MacOs
     } else if platform.contains("win") {
         DetectedPlatform::Windows
@@ -483,19 +488,35 @@ pub fn MigrationWizard() -> impl IntoView {
                         <p class="text-xs font-semibold uppercase tracking-wide text-blue-800">
                             {t!("migration.file_location.default_path_label")}
                         </p>
-                        <p class="mt-1 break-all font-mono text-xs text-slate-900 sm:text-sm">
-                            {detected_platform.default_path()}
-                        </p>
+                        {move || {
+                            if detected_platform == DetectedPlatform::Ios {
+                                view! {
+                                    <p class="mt-1 text-xs text-slate-900 sm:text-sm">
+                                        {t!("migration.file_location.use_file_picker")}
+                                    </p>
+                                }
+                                    .into_view()
+                            } else {
+                                view! {
+                                    <p class="mt-1 break-all font-mono text-xs text-slate-900 sm:text-sm">
+                                        {detected_platform.default_path()}
+                                    </p>
+                                }
+                                    .into_view()
+                            }
+                        }}
                     </div>
 
-                    <div class="flex flex-wrap gap-3">
-                        <Button
-                            on_click=Box::new(copy_default_path)
-                            variant=ButtonVariant::Secondary
-                        >
-                            {t!("migration.file_location.copy_button")}
-                        </Button>
-                    </div>
+                    <Show when=move || detected_platform != DetectedPlatform::Ios>
+                        <div class="flex flex-wrap gap-3">
+                            <Button
+                                on_click=Box::new(copy_default_path)
+                                variant=ButtonVariant::Secondary
+                            >
+                                {t!("migration.file_location.copy_button")}
+                            </Button>
+                        </div>
+                    </Show>
 
                     <div class="space-y-1 text-blue-900">
                         <p class="font-medium">{t!("migration.file_location.not_found_title")}</p>
@@ -828,6 +849,7 @@ async fn read_file_as_bytes(file: &WebFile) -> Result<Vec<u8>, String> {
                     err
                 )),
             );
+            return;
         }
 
         onload.forget();
