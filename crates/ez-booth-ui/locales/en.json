@@ -105,9 +105,6 @@
     "selected_label": "Selected event:",
     "selector_aria_label": "Select an event",
     "select_booth_cta": "Select Event",
-    "selector_help_tooltip": "Select an event to start working. Events group vendors and checkouts together.",
-    "selector_help_aria": "Help: how to select an event",
-    "selector_empty_hint": "Choose which event you want to work with",
     "no_booths_found": "No events yet",
     "create_first_booth": "Create your first event to get started",
     "empty_state": {

@@ -105,9 +105,6 @@
     "selected_label": "Ausgewählte Veranstaltung:",
     "selector_aria_label": "Veranstaltung auswählen",
     "select_booth_cta": "Veranstaltung auswählen",
-    "selector_help_tooltip": "Wählen Sie eine Veranstaltung aus, um zu beginnen. Veranstaltungen gruppieren Verkäufer und Kassiervorgänge zusammen.",
-    "selector_help_aria": "Hilfe: So wählen Sie eine Veranstaltung aus",
-    "selector_empty_hint": "Wählen Sie aus, mit welcher Veranstaltung Sie arbeiten möchten",
     "no_booths_found": "Noch keine Veranstaltungen",
     "create_first_booth": "Erstelle deine erste Veranstaltung um zu starten",
     "empty_state": {

@@ -92,7 +92,7 @@ pub fn BoothSelector() -> impl IntoView {
             }}
             node_ref=dropdown_ref
         >
-            <div class="flex items-center gap-2">
+            <div>
                 // Badge Button
                 <button
                     class={move || {
@@ -149,24 +149,7 @@ pub fn BoothSelector() -> impl IntoView {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                 </button>
-
-                <Show when=move || selected_booth.get().is_none()>
-                    <button
-                        type="button"
-                        class="rounded-full p-1 text-amber-500 transition-colors hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
-                        title={t!("booth.selector_help_tooltip")()}
-                        aria-label={t!("booth.selector_help_aria")()}
-                    >
-                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                </Show>
             </div>
-
-            <Show when=move || selected_booth.get().is_none()>
-                <p class="mt-1 hidden text-xs text-amber-700 md:block">{t!("booth.selector_empty_hint")}</p>
-            </Show>
 
             // Dropdown Menu with backdrop
             <Show when=move || is_open.get()>
