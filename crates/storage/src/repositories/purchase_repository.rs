@@ -255,9 +255,30 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
     async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
         let purchases = self.find_by_booth(booth_id).await?;
 
+        let transaction = self
+            .db
+            .transaction(&["purchases"], TransactionMode::ReadWrite)
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+
+        let store = transaction
+            .store("purchases")
+            .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+
         for purchase in &purchases {
-            self.delete_from_booth(booth_id, &purchase.id).await?;
+            let key_array = js_sys::Array::new();
+            key_array.push(&JsValue::from_str(&booth_id.as_str()));
+            key_array.push(&JsValue::from_str(&purchase.id.as_str()));
+
+            store
+                .delete(key_array.into())
+                .await
+                .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
         }
+
+        transaction
+            .done()
+            .await
+            .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
 
         Ok(purchases.len())
     }

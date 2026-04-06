@@ -20,7 +20,7 @@ fn serialize_decimal_as_string<S>(value: &Decimal, serializer: S) -> Result<S::O
 where
     S: serde::Serializer,
 {
-    serializer.serialize_str(&value.to_string())
+    serializer.serialize_str(&value.normalize().to_string())
 }
 
 fn deserialize_decimal_from_string<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
@@ -967,11 +967,11 @@ mod tests {
         };
 
         let serialized = serde_json::to_value(&summary).unwrap();
-        assert_eq!(serialized["total_revenue"], json!("76.0"));
-        assert_eq!(serialized["total_booth_revenue"], json!("17.0"));
+        assert_eq!(serialized["total_revenue"], json!("76"));
+        assert_eq!(serialized["total_booth_revenue"], json!("17"));
         assert_eq!(
             serialized["vendor_summaries"][0]["gross_sales"],
-            json!("66.0")
+            json!("66")
         );
 
         let round_tripped: ArchivedBoothSummary = serde_json::from_value(serialized).unwrap();
