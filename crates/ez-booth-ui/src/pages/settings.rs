@@ -21,12 +21,10 @@ use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
 
 const SETTINGS_TAB_GENERAL_ID: &str = "general";
 const SETTINGS_TAB_DIAGNOSTICS_ID: &str = "diagnostics";
-const SETTINGS_TAB_ABOUT_ID: &str = "about";
 
 fn settings_tab_index_from_hash(hash: &str) -> usize {
     match hash.trim_start_matches('#') {
         SETTINGS_TAB_DIAGNOSTICS_ID => 1,
-        SETTINGS_TAB_ABOUT_ID => 2,
         _ => 0,
     }
 }
@@ -34,7 +32,6 @@ fn settings_tab_index_from_hash(hash: &str) -> usize {
 fn settings_tab_hash(index: usize) -> &'static str {
     match index {
         1 => "#diagnostics",
-        2 => "#about",
         _ => "#general",
     }
 }
@@ -558,6 +555,92 @@ pub fn SettingsPage() -> impl IntoView {
     let on_confirm_clear_error_log = move || {
         handle_confirm_clear_error_log();
     };
+    let general_tab_view = move || {
+        view! {
+            <div class="space-y-6">
+                <div class="space-y-2">
+                    <h3 class="text-lg font-semibold text-slate-900">{t!("settings.device_section_title")}</h3>
+                    <p class="text-sm text-gray-600">{t!("settings.device_help_text")}</p>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p class="text-sm font-medium text-gray-700">{t!("settings.device_current_label")}</p>
+                        <p class="mt-1 font-mono text-sm text-slate-900 break-all">{move || saved_identifier.get()}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p class="text-sm font-medium text-gray-700">{t!("settings.device_detected_label")}</p>
+                        <p class="mt-1 text-sm text-slate-900">
+                            {t!("settings.device_platform_info")()
+                                .replace("{platform}", &platform)
+                                .replace("{browser}", &browser)}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <Input
+                        value=device_identifier
+                        label=t!("settings.device_edit_label")()
+                        error=validation_error
+                        placeholder="marias-laptop".to_string()
+                        aria_label=t!("settings.device_edit_label")()
+                    />
+                    <p class="text-sm text-gray-500">{t!("settings.device_format_help")}</p>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <Button
+                        on_click=Box::new(move || on_save.call(()))
+                        disabled=Signal::derive(move || !can_save.get())
+                    >
+                        {t!("settings.device_save")}
+                    </Button>
+                    <Button
+                        on_click=Box::new(move || on_reset.call(()))
+                        variant=ButtonVariant::Secondary
+                    >
+                        {t!("settings.device_reset")}
+                    </Button>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                    <h3 class="text-lg font-semibold text-slate-900">{t!("settings.app_info_section_title")}</h3>
+                    <p class="text-sm text-gray-600">{t!("settings.app_info_help_text")}</p>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p class="text-sm font-medium text-gray-700">{t!("settings.app_version_label")}</p>
+                        <p class="mt-1 font-mono text-sm text-slate-900">{APP_VERSION}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p class="text-sm font-medium text-gray-700">{t!("settings.database_version_label")}</p>
+                        <p class="mt-1 font-mono text-sm text-slate-900">{move || database_version_label.get()}</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 pt-1 text-sm">
+                    <a
+                        href=REPOSITORY_URL
+                        target="_blank"
+                        rel="noreferrer"
+                        class="font-medium text-blue-600 hover:text-blue-700"
+                    >
+                        {t!("settings.repository_link")}
+                    </a>
+                    <a
+                        href=DOCS_URL
+                        target="_blank"
+                        rel="noreferrer"
+                        class="font-medium text-blue-600 hover:text-blue-700"
+                    >
+                        {t!("settings.docs_link")}
+                    </a>
+                </div>
+            </div>
+        }
+    };
 
     view! {
         <Container class="mt-6 pb-24" aria_label=t!("settings.title")() as_landmark=true>
@@ -585,64 +668,10 @@ pub fn SettingsPage() -> impl IntoView {
                                 label: t!("settings.tabs.diagnostics")(),
                                 has_error: Signal::derive(|| false),
                             },
-                            TabItem {
-                                id: SETTINGS_TAB_ABOUT_ID.to_string(),
-                                label: t!("settings.tabs.about")(),
-                                has_error: Signal::derive(|| false),
-                            },
                         ]
                         active_tab=active_tab
                         children=Box::new(move |tab_index| match tab_index {
-                            0 => view! {
-                                <div class="space-y-6">
-                                    <div class="space-y-2">
-                                        <h3 class="text-lg font-semibold text-slate-900">{t!("settings.device_section_title")}</h3>
-                                        <p class="text-sm text-gray-600">{t!("settings.device_help_text")}</p>
-                                    </div>
-
-                                    <div class="grid gap-4 sm:grid-cols-2">
-                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                            <p class="text-sm font-medium text-gray-700">{t!("settings.device_current_label")}</p>
-                                            <p class="mt-1 font-mono text-sm text-slate-900 break-all">{move || saved_identifier.get()}</p>
-                                        </div>
-                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                            <p class="text-sm font-medium text-gray-700">{t!("settings.device_detected_label")}</p>
-                                            <p class="mt-1 text-sm text-slate-900">
-                                                {t!("settings.device_platform_info")()
-                                                    .replace("{platform}", &platform)
-                                                    .replace("{browser}", &browser)}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div class="space-y-2">
-                                        <Input
-                                            value=device_identifier
-                                            label=t!("settings.device_edit_label")()
-                                            error=validation_error
-                                            placeholder="marias-laptop".to_string()
-                                            aria_label=t!("settings.device_edit_label")()
-                                        />
-                                        <p class="text-sm text-gray-500">{t!("settings.device_format_help")}</p>
-                                    </div>
-
-                                    <div class="flex flex-wrap gap-3">
-                                        <Button
-                                            on_click=Box::new(move || on_save.call(()))
-                                            disabled=Signal::derive(move || !can_save.get())
-                                        >
-                                            {t!("settings.device_save")}
-                                        </Button>
-                                        <Button
-                                            on_click=Box::new(move || on_reset.call(()))
-                                            variant=ButtonVariant::Secondary
-                                        >
-                                            {t!("settings.device_reset")}
-                                        </Button>
-                                    </div>
-                                </div>
-                            }
-                            .into_view(),
+                            0 => general_tab_view().into_view(),
                             1 => view! {
                                 <div class="space-y-8">
                                     <section class="space-y-4">
@@ -917,45 +946,7 @@ pub fn SettingsPage() -> impl IntoView {
                                 </div>
                             }
                             .into_view(),
-                            _ => view! {
-                                <div class="space-y-6">
-                                    <div class="space-y-2">
-                                        <h3 class="text-lg font-semibold text-slate-900">{t!("settings.app_info_section_title")}</h3>
-                                        <p class="text-sm text-gray-600">{t!("settings.app_info_help_text")}</p>
-                                    </div>
-
-                                    <div class="grid gap-4 sm:grid-cols-2">
-                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                            <p class="text-sm font-medium text-gray-700">{t!("settings.app_version_label")}</p>
-                                            <p class="mt-1 font-mono text-sm text-slate-900">{APP_VERSION}</p>
-                                        </div>
-                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                            <p class="text-sm font-medium text-gray-700">{t!("settings.database_version_label")}</p>
-                                            <p class="mt-1 font-mono text-sm text-slate-900">{move || database_version_label.get()}</p>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-wrap gap-3 pt-1 text-sm">
-                                        <a
-                                            href=REPOSITORY_URL
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            class="font-medium text-blue-600 hover:text-blue-700"
-                                        >
-                                            {t!("settings.repository_link")}
-                                        </a>
-                                        <a
-                                            href=DOCS_URL
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            class="font-medium text-blue-600 hover:text-blue-700"
-                                        >
-                                            {t!("settings.docs_link")}
-                                        </a>
-                                    </div>
-                                </div>
-                            }
-                            .into_view(),
+                            _ => general_tab_view().into_view(),
                         })
                     />
                 </Card>

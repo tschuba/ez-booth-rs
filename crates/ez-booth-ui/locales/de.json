@@ -31,8 +31,7 @@
     "title": "Einstellungen",
     "tabs": {
       "general": "Allgemein",
-      "diagnostics": "Diagnose",
-      "about": "Info"
+      "diagnostics": "Diagnose"
     },
     "app_info_section_title": "App-Informationen",
     "app_info_help_text": "Nutzen Sie diesen Bereich, um Supportfälle zu melden oder die laufende Version auf diesem Gerät zu prüfen.",

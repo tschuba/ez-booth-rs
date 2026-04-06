@@ -31,8 +31,7 @@
     "title": "Settings",
     "tabs": {
       "general": "General",
-      "diagnostics": "Diagnostics",
-      "about": "About"
+      "diagnostics": "Diagnostics"
     },
     "app_info_section_title": "App Information",
     "app_info_help_text": "Use this section when reporting support issues or checking which build is running on this device.",
