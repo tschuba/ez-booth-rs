@@ -301,7 +301,6 @@ async fn test_archived_summary_persists_decimal_values() {
             last_purchase_at: None,
             vendor_summaries: vec![ArchivedVendorSummary {
                 vendor_id: domain::VendorId::new("1".to_string()),
-                vendor_name: Some("Anna".to_string()),
                 gross_sales: Decimal::from_str("66").unwrap(),
                 fees_due: Decimal::from_str("11.0").unwrap(),
                 net_payout: Decimal::from_str("55.0").unwrap(),

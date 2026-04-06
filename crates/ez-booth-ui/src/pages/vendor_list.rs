@@ -1022,7 +1022,6 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                 .into_iter()
                 .map(|report| {
                     let vendor_id = report.vendor.vendor_id.as_str().to_string();
-                    let vendor_name = report.vendor.name.clone();
                     let sales_sum = report.sales_sum;
                     let participation_fee = report.participation_fee;
                     let sales_fee = report.sales_fee;
@@ -1052,7 +1051,6 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                 <div class="text-base">
                                     <p class="font-semibold">
                                         {t!("vendor.id_label")()}{": "}{vendor_id.clone()}
-                                        {vendor_name.as_ref().map(|name| format!(" - {}", name))}
                                     </p>
                                     <p class="text-sm text-gray-700">{booth_description.clone()}</p>
                                     <p class="text-sm text-gray-600">{booth_date.format("%d.%m.%Y").to_string()}</p>

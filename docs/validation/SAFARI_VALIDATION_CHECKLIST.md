@@ -232,7 +232,7 @@ Recovery notes: _________________________________________________
 - [ ] On Device A, import the Device B booth backup with `Merge`
 - [ ] Verify the original purchase from Device A is still present
 - [ ] Verify the new purchase from Device B is now present
-- [ ] Verify vendor names remain correct after merge
+- [ ] Verify the expected vendor IDs remain present after merge
 - [ ] If the same booth was edited on both devices, verify the strictly newer booth update wins
 
 ### Result Comparison

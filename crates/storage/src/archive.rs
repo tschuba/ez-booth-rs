@@ -283,11 +283,6 @@ pub fn build_archived_summary(
         purchases.len()
     );
 
-    let vendor_name_lookup: HashMap<_, _> = vendors
-        .iter()
-        .map(|vendor| (vendor.vendor_id.clone(), vendor.name.clone()))
-        .collect();
-
     let charging_config = domain::ChargingConfig::from_booth(booth);
     let mut gross_sales_by_vendor: HashMap<_, VendorPayoutAccumulator> = HashMap::new();
     let mut first_purchase_at: Option<DateTime<Utc>> = None;
@@ -319,8 +314,7 @@ pub fn build_archived_summary(
         .map(|(vendor_id, accumulator)| {
             let payout = charging_config.calculate_payout(accumulator.gross_sales);
             ArchivedVendorSummary {
-                vendor_id: vendor_id.clone(),
-                vendor_name: vendor_name_lookup.get(&vendor_id).cloned().flatten(),
+                vendor_id,
                 gross_sales: payout.gross_sales,
                 fees_due: payout.fees_due,
                 net_payout: payout.net_payout,
@@ -564,12 +558,11 @@ mod tests {
     }
 
     #[test]
-    fn archived_summary_keeps_vendor_names_and_totals() {
+    fn archived_summary_keeps_vendor_totals() {
         let booth = booth();
         let vendors = vec![Vendor {
             vendor_id: VendorId::new("101".to_string()),
             booth_id: booth.id,
-            name: Some("Anna".to_string()),
             created_at: Utc::now(),
         }];
         let purchases = vec![Purchase {
@@ -585,10 +578,7 @@ mod tests {
         assert_eq!(summary.vendor_count, 1);
         assert_eq!(summary.purchase_count, 1);
         assert_eq!(summary.item_count, 1);
-        assert_eq!(
-            summary.vendor_summaries[0].vendor_name.as_deref(),
-            Some("Anna")
-        );
+        assert_eq!(summary.vendor_summaries[0].vendor_id.as_str(), "101");
         assert_eq!(summary.total_revenue, dec!(20.00));
     }
 }

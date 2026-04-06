@@ -1666,7 +1666,7 @@ pub fn render_multi_vendor_report(
                     <div class="total">{}: {}</div>
                 </div>"#,
                 t.report.vendor_receipt,
-                vendor.name,
+                vendor.vendor_id,
                 t.report.date,
                 t.report.item,
                 t.report.amount,
@@ -3724,27 +3724,27 @@ async fn test_storage_failure_recovery() {
 #[wasm_bindgen_test]
 async fn test_user_error_message_localization() {
     let error = AppError::Validation(ValidationError {
-        field: "vendor_name".to_string(),
-        message_key: "errors.validation.vendor_name_required".to_string(),
-        suggestion_key: Some("errors.validation.enter_valid_name".to_string()),
+        field: "vendor_id".to_string(),
+        message_key: "errors.validation.vendor_id_required".to_string(),
+        suggestion_key: Some("errors.validation.enter_valid_vendor_id".to_string()),
     });
     
     let i18n = I18n::new(Locale::De);
     let message = i18n.get(&error.message_key());
     
-    assert!(message.contains("Händlernamen"), "Should be in German");
+    assert!(message.contains("Verkäufer-ID"), "Should be in German");
 }
 
 #[wasm_bindgen_test]
 async fn test_diagnostic_export_no_sensitive_data() {
-    // Create test data with vendor names
+    // Create test data with vendor IDs
     create_test_vendors().await;
     
     let diagnostic = generate_diagnostic_report().await;
     let json = serde_json::to_string(&diagnostic).unwrap();
     
     // Verify no sensitive data leaked
-    assert!(!json.contains("Test Vendor"), "Should not contain vendor names");
+    assert!(!json.contains("TEST-VENDOR-ID"), "Should not contain raw vendor identifiers");
     assert!(!json.contains("test@email.com"), "Should not contain emails");
     
     // Verify required data present
@@ -3761,7 +3761,7 @@ async fn test_diagnostic_export_no_sensitive_data() {
 {
   "errors": {
     "validation": {
-      "vendor_name_required": "Bitte geben Sie einen Händlernamen ein.",
+      "vendor_id_required": "Bitte geben Sie eine Verkäufer-ID ein.",
       "commission_rate_invalid": "Provision muss zwischen 0% und 100% liegen.",
       "purchase_amount_required": "Bitte geben Sie einen Betrag ein.",
       "date_invalid": "Ungültiges Datum."

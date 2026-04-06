@@ -106,8 +106,7 @@ mod tests {
 
     fn sample_backup() -> BackupData {
         let booth = sample_booth();
-        let vendor =
-            Vendor::new(VendorId::new("12".to_string()), booth.id).with_name("Ada".to_string());
+        let vendor = Vendor::new(VendorId::new("12".to_string()), booth.id);
         let purchase = Purchase::new(
             booth.id,
             vec![PurchaseItem::new(dec!(42.00), vendor.vendor_id.clone()).unwrap()],

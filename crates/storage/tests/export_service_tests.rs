@@ -307,8 +307,7 @@ async fn test_export_all_collects_all_records_and_serializes() {
         Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
 
     let booth = create_test_booth("Spring Market 2026");
-    let vendor =
-        Vendor::new(VendorId::new("12".to_string()), booth.id).with_name("Ada Vendor".to_string());
+    let vendor = Vendor::new(VendorId::new("12".to_string()), booth.id);
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();

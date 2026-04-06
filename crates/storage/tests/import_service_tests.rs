@@ -35,12 +35,8 @@ fn create_test_booth(description: &str) -> Booth {
     .unwrap()
 }
 
-fn create_test_vendor(booth: &Booth, vendor_id: &str, name: Option<&str>) -> Vendor {
-    let vendor = Vendor::new(VendorId::new(vendor_id.to_string()), booth.id);
-    match name {
-        Some(name) => vendor.with_name(name.to_string()),
-        None => vendor,
-    }
+fn create_test_vendor(booth: &Booth, vendor_id: &str) -> Vendor {
+    Vendor::new(VendorId::new(vendor_id.to_string()), booth.id)
 }
 
 fn create_test_purchase(booth: &Booth, vendor_id: &VendorId) -> Purchase {
@@ -137,7 +133,7 @@ async fn build_service() -> (
 async fn import_all_saves_new_records() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Spring Market 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Ada Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     let summary = service
@@ -171,7 +167,7 @@ async fn import_all_saves_new_records() {
 async fn import_skip_leaves_existing_records_untouched() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Spring Market 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Existing Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
@@ -180,7 +176,7 @@ async fn import_skip_leaves_existing_records_untouched() {
 
     let mut incoming_booth = booth.clone();
     incoming_booth.description = "Updated Description".to_string();
-    let incoming_vendor = create_test_vendor(&booth, "12", Some("Imported Vendor"));
+    let incoming_vendor = create_test_vendor(&booth, "12");
     let mut incoming_purchase = purchase.clone();
     incoming_purchase.note = Some("Imported note".to_string());
 
@@ -203,7 +199,7 @@ async fn import_skip_leaves_existing_records_untouched() {
 async fn import_replace_overwrites_existing_records() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Spring Market 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Existing Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
@@ -212,7 +208,7 @@ async fn import_replace_overwrites_existing_records() {
 
     let mut incoming_booth = booth.clone();
     incoming_booth.description = "Updated Description".to_string();
-    let incoming_vendor = create_test_vendor(&incoming_booth, "12", Some("Imported Vendor"));
+    let incoming_vendor = create_test_vendor(&incoming_booth, "12");
     let mut incoming_purchase = purchase.clone();
     incoming_purchase.note = Some("Imported note".to_string());
 
@@ -241,7 +237,7 @@ async fn import_replace_overwrites_existing_records() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Imported Vendor"));
+    assert_eq!(saved_vendor.vendor_id, incoming_vendor.vendor_id);
 
     let saved_purchase = purchase_repo
         .find_by_id(&purchase.id)
@@ -255,7 +251,7 @@ async fn import_replace_overwrites_existing_records() {
 async fn import_merge_prefers_newer_booth_and_purchase_data() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let mut booth = create_test_booth("Spring Market 2026");
-    let vendor = create_test_vendor(&booth, "12", None);
+    let vendor = create_test_vendor(&booth, "12");
     let mut purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth.updated_at = Utc::now() - Duration::days(1);
@@ -269,7 +265,7 @@ async fn import_merge_prefers_newer_booth_and_purchase_data() {
     incoming_booth.description = "Merged Description".to_string();
     incoming_booth.updated_at = Utc::now();
 
-    let incoming_vendor = create_test_vendor(&incoming_booth, "12", Some("Imported Vendor"));
+    let incoming_vendor = create_test_vendor(&incoming_booth, "12");
 
     let mut incoming_purchase = purchase.clone();
     incoming_purchase.note = Some("Merged note".to_string());
@@ -297,7 +293,7 @@ async fn import_merge_prefers_newer_booth_and_purchase_data() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Imported Vendor"));
+    assert_eq!(saved_vendor.vendor_id, incoming_vendor.vendor_id);
 
     let saved_purchase = purchase_repo
         .find_by_id(&purchase.id)
@@ -308,54 +304,17 @@ async fn import_merge_prefers_newer_booth_and_purchase_data() {
 }
 
 #[wasm_bindgen_test]
-async fn import_merge_keeps_existing_vendor_name_when_incoming_is_shorter() {
+async fn import_merge_keeps_earliest_vendor_created_at() {
     let (booth_repo, vendor_repo, _purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Vendor Merge 2026");
-    let existing_vendor = create_test_vendor(&booth, "12", Some("Ada Lovelace Crafts"));
+    let mut existing_vendor = create_test_vendor(&booth, "12");
+    existing_vendor.created_at = Utc::now() - Duration::minutes(5);
 
     booth_repo.save(&booth).await.unwrap();
     vendor_repo.save(&existing_vendor).await.unwrap();
 
-    let incoming_vendor = create_test_vendor(&booth, "12", Some("Ada"));
-
-    let summary = service
-        .import_booth_backup(
-            BoothBackupData {
-                version: BACKUP_FORMAT_VERSION,
-                created_at: Utc::now(),
-                app_version: "test-version".to_string(),
-                checksum: None,
-                device_info: None,
-                booth: booth.clone(),
-                vendors: vec![incoming_vendor],
-                purchases: vec![],
-            },
-            ConflictStrategy::Merge,
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(summary.vendors_imported, 1);
-    assert_eq!(summary.conflicts_resolved, 2);
-
-    let saved_vendor = vendor_repo
-        .find_by_id(&booth.id, &existing_vendor.vendor_id)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Ada Lovelace Crafts"));
-}
-
-#[wasm_bindgen_test]
-async fn import_merge_uses_stable_vendor_name_when_both_lengths_match() {
-    let (booth_repo, vendor_repo, _purchase_repo, service) = build_service().await;
-    let booth = create_test_booth("Vendor Tie 2026");
-    let existing_vendor = create_test_vendor(&booth, "12", Some("Zed Shop"));
-
-    booth_repo.save(&booth).await.unwrap();
-    vendor_repo.save(&existing_vendor).await.unwrap();
-
-    let incoming_vendor = create_test_vendor(&booth, "12", Some("Ada Shop"));
+    let mut incoming_vendor = create_test_vendor(&booth, "12");
+    incoming_vendor.created_at = Utc::now();
 
     service
         .import_booth_backup(
@@ -379,7 +338,7 @@ async fn import_merge_uses_stable_vendor_name_when_both_lengths_match() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Ada Shop"));
+    assert_eq!(saved_vendor.created_at, existing_vendor.created_at);
 }
 
 #[wasm_bindgen_test]
@@ -420,7 +379,7 @@ async fn import_merge_with_equal_booth_timestamps_keeps_existing_record() {
 async fn import_merge_with_equal_purchase_timestamps_keeps_existing_record() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Equal Timestamp Purchase");
-    let vendor = create_test_vendor(&booth, "12", Some("Ada Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let mut existing_purchase = create_test_purchase(&booth, &vendor.vendor_id);
     let shared_timestamp = Utc::now();
     existing_purchase.timestamp = shared_timestamp;
@@ -462,7 +421,7 @@ async fn import_merge_with_equal_purchase_timestamps_keeps_existing_record() {
 async fn repeated_multi_device_import_of_shared_history_does_not_duplicate_records() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Shared History 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Shared Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     let device_a_backup = BoothBackupData {
@@ -523,7 +482,7 @@ async fn repeated_multi_device_import_of_shared_history_does_not_duplicate_recor
 async fn parallel_three_device_booth_merge_preserves_all_unique_purchases() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Parallel Merge 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Shared Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
 
     let mut purchase_a = create_test_purchase(&booth, &vendor.vendor_id);
     purchase_a.note = Some("device-a".to_string());
@@ -595,7 +554,7 @@ async fn parallel_three_device_booth_merge_preserves_all_unique_purchases() {
 async fn round_trip_import_merges_new_records_without_readding_shared_history() {
     let (_booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Round Trip 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Round Trip Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
 
     let mut original_purchase = create_test_purchase(&booth, &vendor.vendor_id);
     original_purchase.note = Some("original".to_string());
@@ -699,8 +658,8 @@ async fn import_all_from_multiple_devices_preserves_other_booths_while_merging_s
     let shared_booth = create_test_booth("Shared Booth 2026");
     let other_booth = create_test_booth("Other Booth 2026");
 
-    let shared_vendor = create_test_vendor(&shared_booth, "12", Some("Shared Vendor"));
-    let other_vendor = create_test_vendor(&other_booth, "55", Some("Other Vendor"));
+    let shared_vendor = create_test_vendor(&shared_booth, "12");
+    let other_vendor = create_test_vendor(&other_booth, "55");
 
     let shared_purchase = create_test_purchase(&shared_booth, &shared_vendor.vendor_id);
     let other_purchase = create_test_purchase(&other_booth, &other_vendor.vendor_id);
@@ -744,51 +703,10 @@ async fn import_all_from_multiple_devices_preserves_other_booths_while_merging_s
 }
 
 #[wasm_bindgen_test]
-async fn multi_device_vendor_name_merge_prefers_richer_name_across_exports() {
-    let (_booth_repo, vendor_repo, _purchase_repo, service) = build_service().await;
-    let booth = create_test_booth("Vendor Conflict 2026");
-
-    let unnamed_vendor = create_test_vendor(&booth, "12", None);
-    let short_name_vendor = create_test_vendor(&booth, "12", Some("Ada"));
-    let rich_name_vendor = create_test_vendor(&booth, "12", Some("Ada Lovelace Crafts"));
-
-    service
-        .import_booth_backup(
-            booth_backup_with_records(booth.clone(), vec![unnamed_vendor], vec![]),
-            ConflictStrategy::Merge,
-        )
-        .await
-        .unwrap();
-
-    service
-        .import_booth_backup(
-            booth_backup_with_records(booth.clone(), vec![short_name_vendor], vec![]),
-            ConflictStrategy::Merge,
-        )
-        .await
-        .unwrap();
-
-    service
-        .import_booth_backup(
-            booth_backup_with_records(booth.clone(), vec![rich_name_vendor], vec![]),
-            ConflictStrategy::Merge,
-        )
-        .await
-        .unwrap();
-
-    let saved_vendor = vendor_repo
-        .find_by_id(&booth.id, &VendorId::new("12".to_string()))
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Ada Lovelace Crafts"));
-}
-
-#[wasm_bindgen_test]
 async fn same_purchase_id_from_multiple_devices_keeps_newer_purchase_data() {
     let (_booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Purchase Conflict 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Conflict Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
 
     let mut older_purchase = create_test_purchase(&booth, &vendor.vendor_id);
     older_purchase.note = Some("older note".to_string());
@@ -836,8 +754,8 @@ async fn mixed_full_and_booth_imports_preserve_shared_history_without_duplicatio
     let shared_booth = create_test_booth("Mixed Shared Booth 2026");
     let extra_booth = create_test_booth("Mixed Extra Booth 2026");
 
-    let shared_vendor = create_test_vendor(&shared_booth, "12", Some("Shared Vendor"));
-    let extra_vendor = create_test_vendor(&extra_booth, "55", Some("Extra Vendor"));
+    let shared_vendor = create_test_vendor(&shared_booth, "12");
+    let extra_vendor = create_test_vendor(&extra_booth, "55");
 
     let shared_purchase = create_test_purchase(&shared_booth, &shared_vendor.vendor_id);
     let mut second_shared_purchase = create_test_purchase(&shared_booth, &shared_vendor.vendor_id);
@@ -893,14 +811,10 @@ async fn large_multi_device_merge_keeps_expected_record_counts() {
     let (_booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Stress Merge 2026");
 
-    let shared_vendor = create_test_vendor(&booth, "1", Some("Vendor 1"));
+    let shared_vendor = create_test_vendor(&booth, "1");
     let mut vendors = vec![shared_vendor.clone()];
     for vendor_number in 2..=6 {
-        vendors.push(create_test_vendor(
-            &booth,
-            &vendor_number.to_string(),
-            Some(&format!("Vendor {vendor_number}")),
-        ));
+        vendors.push(create_test_vendor(&booth, &vendor_number.to_string()));
     }
 
     let mut device_a_purchases = Vec::new();
@@ -922,7 +836,7 @@ async fn large_multi_device_merge_keeps_expected_record_counts() {
     }
 
     let mut device_b_vendors = vendors.clone();
-    device_b_vendors[0] = create_test_vendor(&booth, "1", Some("Vendor 1 Extended Name"));
+    device_b_vendors[0] = create_test_vendor(&booth, "1");
 
     let mut device_c_booth = booth.clone();
     device_c_booth.updated_at = Utc::now() + Duration::minutes(1);
@@ -955,7 +869,7 @@ async fn large_multi_device_merge_keeps_expected_record_counts() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(saved_vendor.name.as_deref(), Some("Vendor 1 Extended Name"));
+    assert_eq!(saved_vendor.vendor_id.as_str(), "1");
 
     let purchases = purchase_repo.find_by_booth(&booth.id).await.unwrap();
     assert_eq!(purchases.len(), 18);
@@ -965,7 +879,7 @@ async fn large_multi_device_merge_keeps_expected_record_counts() {
 async fn import_booth_backup_saves_only_that_scope() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Scoped Event 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Scoped Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     let summary = service
@@ -1004,7 +918,7 @@ async fn import_booth_backup_saves_only_that_scope() {
 async fn import_after_delete_recreates_booth_with_skip_strategy() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Spring Market 2026");
-    let vendor = create_test_vendor(&booth, "12", Some("Test Vendor"));
+    let vendor = create_test_vendor(&booth, "12");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
@@ -1063,7 +977,7 @@ async fn import_after_delete_recreates_booth_with_skip_strategy() {
 async fn import_after_delete_recreates_booth_with_replace_strategy() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Summer Festival 2026");
-    let vendor = create_test_vendor(&booth, "42", Some("Replaced Vendor"));
+    let vendor = create_test_vendor(&booth, "42");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
@@ -1111,7 +1025,7 @@ async fn import_after_delete_recreates_booth_with_replace_strategy() {
 async fn import_after_delete_recreates_booth_with_merge_strategy() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Autumn Market 2026");
-    let vendor = create_test_vendor(&booth, "99", Some("Merged Vendor"));
+    let vendor = create_test_vendor(&booth, "99");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
@@ -1159,7 +1073,7 @@ async fn import_after_delete_recreates_booth_with_merge_strategy() {
 async fn import_full_backup_after_delete_recreates_records() {
     let (booth_repo, vendor_repo, purchase_repo, service) = build_service().await;
     let booth = create_test_booth("Winter Festival 2026");
-    let vendor = create_test_vendor(&booth, "77", Some("Full Backup Vendor"));
+    let vendor = create_test_vendor(&booth, "77");
     let purchase = create_test_purchase(&booth, &vendor.vendor_id);
 
     booth_repo.save(&booth).await.unwrap();
