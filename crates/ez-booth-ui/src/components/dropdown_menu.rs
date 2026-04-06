@@ -354,7 +354,11 @@ pub fn DropdownMenuItem(
             )
             disabled=move || disabled.get()
             aria-disabled=move || if disabled.get() { Some("true") } else { None }
-            on:click=move |event| on_click.call(event)
+            on:click=move |event| {
+                if !disabled.get() {
+                    on_click.call(event)
+                }
+            }
         >
             {move || {
                 icon_stored.get_value().map(|icon| {
