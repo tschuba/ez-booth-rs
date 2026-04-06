@@ -87,10 +87,12 @@ pub fn SettingsPage() -> impl IntoView {
             .add_event_listener_with_callback("hashchange", listener.as_ref().unchecked_ref());
 
         on_cleanup(move || {
-            let _ = window.remove_event_listener_with_callback(
-                "hashchange",
-                listener.as_ref().unchecked_ref(),
-            );
+            if let Some(window) = web_sys::window() {
+                let _ = window.remove_event_listener_with_callback(
+                    "hashchange",
+                    listener.as_ref().unchecked_ref(),
+                );
+            }
         });
     });
 
