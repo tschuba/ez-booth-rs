@@ -2799,7 +2799,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         </Button>
                         <Button
                             variant=ButtonVariant::Danger
-                            disabled=!deletion_token_matches.get()
+                            disabled=Signal::derive(move || !deletion_token_matches.get())
                             on_click=Box::new(perform_delete_purchase.clone())
                         >
                             {t!("checkout.delete_modal.confirm")}
