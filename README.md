@@ -78,6 +78,7 @@ For a more guided setup and first-run walkthrough, see [Getting Started](docs/GE
 ### Booth Management
 
 - create, edit, close, reopen, and delete booth events
+- archive completed booth events behind a mandatory export flow
 - configure participation fees, sales fee percentages, and rounding rules
 - keep multiple booths on one device with independent data
 
@@ -94,12 +95,14 @@ For a more guided setup and first-run walkthrough, see [Getting Started](docs/GE
 - vendor handling with smart numeric and alphanumeric sorting
 - vendor payout reports with consistent fee breakdowns
 - booth summaries with payout-derived totals
+- archived booth summaries with vendor-level totals and print support
 - print-ready reporting workflows from the browser
 
 ### Data Safety
 
 - IndexedDB persistence for booths, vendors, and purchases
 - JSON export and import for full-database and per-booth backups
+- archive and restore workflow with export validation and audit logging
 - conflict handling with `Merge`, `Skip`, and `Replace`
 - browser storage warnings and backup guidance
 - corruption detection and partial-recovery messaging
@@ -109,11 +112,12 @@ For a more guided setup and first-run walkthrough, see [Getting Started](docs/GE
 What works today:
 
 - booth management with fee configuration and status handling
+- archive workflow from the booth list with mandatory export before removal of detailed records
 - vendor management and checkout persistence
-- reporting and printing flows
+- reporting and printing flows, including archived booth summary reports
 - legacy `booth.db` migration from `Settings > Migration`
 - bilingual German and English UI
-- backup and restore workflows
+- backup and restore workflows, including restoring archived booths via booth import
 - Chrome and Safari validation support
 - standalone launcher builds for local distribution
 

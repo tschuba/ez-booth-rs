@@ -21,6 +21,7 @@ pub fn VendorListPage() -> impl IntoView {
 
     // Use global selected booth context
     let selected_booth = selected_booth_context::use_selected_booth();
+    let booth_list_version = selected_booth_context::use_booth_list_version();
     let (is_loading, set_is_loading) = create_signal(true);
 
     // Accordion state - only one vendor can be expanded at a time
@@ -67,6 +68,16 @@ pub fn VendorListPage() -> impl IntoView {
     });
 
     let toast = use_toast();
+
+    create_effect(move |_| {
+        if let Some(booth) = selected_booth.get() {
+            if booth.is_archived() {
+                toast.error(&t!("archive.cannot_select")());
+                selected_booth.set(None);
+                booth_list_version.update(|version| *version += 1);
+            }
+        }
+    });
 
     let vendor_message = |key: &'static str, vendor_id: &VendorId| {
         translate_with_params(key, HashMap::from([("id", vendor_id.as_str().to_string())]))

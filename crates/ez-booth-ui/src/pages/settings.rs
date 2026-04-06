@@ -17,7 +17,9 @@ use crate::utils::{
     copy_text_to_clipboard, current_device_info, download_text_file, open_print_window_html,
     reset_device_identifier, save_device_identifier, validate_device_identifier,
 };
-use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
+use ez_booth_storage::{
+    ArchiveAuditEvent, ArchiveAuditEventType, ErrorLogEntry, IntegrityStatus, StorageDiagnostics,
+};
 
 const SETTINGS_TAB_GENERAL_ID: &str = "general";
 const SETTINGS_TAB_DIAGNOSTICS_ID: &str = "diagnostics";
@@ -91,8 +93,11 @@ pub fn SettingsPage() -> impl IntoView {
     let (is_loading_diagnostics, set_is_loading_diagnostics) = create_signal(true);
     let (is_running_integrity_check, set_is_running_integrity_check) = create_signal(false);
     let (error_log_entries, set_error_log_entries) = create_signal(Vec::<ErrorLogEntry>::new());
+    let (archive_audit_events, set_archive_audit_events) =
+        create_signal(Vec::<ArchiveAuditEvent>::new());
     let (recent_error_count, set_recent_error_count) = create_signal(0_usize);
     let (is_loading_error_log, set_is_loading_error_log) = create_signal(true);
+    let (is_loading_archive_history, set_is_loading_archive_history) = create_signal(true);
     let (is_clearing_error_log, set_is_clearing_error_log) = create_signal(false);
     let (is_exporting_diagnostics, set_is_exporting_diagnostics) = create_signal(false);
     let (show_clear_error_log_confirm, set_show_clear_error_log_confirm) = create_signal(false);
@@ -168,6 +173,33 @@ pub fn SettingsPage() -> impl IntoView {
             }
             Some(Err(error)) => {
                 set_is_loading_diagnostics.set(false);
+                toast.error(format!("{}: {error}", t!("common.error")()));
+            }
+            None => {}
+        });
+    }
+
+    {
+        let app_state = app_state.clone();
+        let toast = toast.clone();
+        create_effect(move |_| match app_state.get() {
+            Some(Ok(state)) => {
+                set_is_loading_archive_history.set(true);
+                let toast = toast.clone();
+                spawn_local(async move {
+                    let result = state.archive_service.list_audit_events().await;
+                    set_is_loading_archive_history.set(false);
+
+                    match result {
+                        Ok(events) => set_archive_audit_events.set(events),
+                        Err(error) => {
+                            toast.error(format!("{}: {error}", t!("common.error")()));
+                        }
+                    }
+                });
+            }
+            Some(Err(error)) => {
+                set_is_loading_archive_history.set(false);
                 toast.error(format!("{}: {error}", t!("common.error")()));
             }
             None => {}
@@ -499,6 +531,11 @@ pub fn SettingsPage() -> impl IntoView {
                         integrity_status: integrity_snapshot,
                         recent_error_count: recent_error_count.get_untracked(),
                         errors: all_errors,
+                        archive_audit_events: state
+                            .archive_service
+                            .list_audit_events()
+                            .await
+                            .map_err(|err| err.to_string())?,
                         booth_summary,
                     };
 
@@ -768,6 +805,73 @@ pub fn SettingsPage() -> impl IntoView {
                                                     }}
                                                 </ul>
                                             </div>
+                                        </Show>
+                                    </section>
+
+                                    <section class="space-y-4 border-t border-gray-200 pt-8">
+                                        <div class="space-y-2">
+                                            <h3 class="text-lg font-semibold text-slate-900">{t!("settings.archive_history_section_title")}</h3>
+                                            <p class="text-sm text-gray-600">{t!("settings.archive_history_help_text")}</p>
+                                        </div>
+
+                                        <Show
+                                            when=move || !is_loading_archive_history.get()
+                                            fallback=move || {
+                                                view! {
+                                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                                        {t!("common.loading")()}
+                                                    </div>
+                                                }
+                                            }
+                                        >
+                                            <Show
+                                                when=move || !archive_audit_events.get().is_empty()
+                                                fallback=move || {
+                                                    view! {
+                                                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                                            {t!("settings.archive_history_empty")()}
+                                                        </div>
+                                                    }
+                                                }
+                                            >
+                                                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                                                    <table class="min-w-full divide-y divide-gray-200 bg-white text-sm">
+                                                        <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                                            <tr>
+                                                                <th class="px-4 py-3">{t!("settings.archive_history_timestamp_label")()}</th>
+                                                                <th class="px-4 py-3">{t!("settings.archive_history_event_label")()}</th>
+                                                                <th class="px-4 py-3">{t!("settings.archive_history_booth_label")()}</th>
+                                                                <th class="px-4 py-3">{t!("settings.archive_history_device_label")()}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="divide-y divide-gray-200">
+                                                            <For
+                                                                each=move || archive_audit_events.get()
+                                                                key=|entry| entry.id.clone()
+                                                                children=move |entry| {
+                                                                    let action_label = match entry.event_type {
+                                                                        ArchiveAuditEventType::Archived => {
+                                                                            t!("settings.archive_history_event_archived")()
+                                                                        }
+                                                                        ArchiveAuditEventType::Restored => {
+                                                                            t!("settings.archive_history_event_restored")()
+                                                                        }
+                                                                    };
+
+                                                                    view! {
+                                                                        <tr>
+                                                                            <td class="px-4 py-3 text-slate-700">{format_error_log_timestamp(entry.timestamp)}</td>
+                                                                            <td class="px-4 py-3 font-medium text-slate-900">{action_label}</td>
+                                                                            <td class="px-4 py-3 text-slate-700">{entry.booth_description}</td>
+                                                                            <td class="px-4 py-3 text-slate-700">{entry.device_info.identifier}</td>
+                                                                        </tr>
+                                                                    }
+                                                                }
+                                                            />
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </Show>
                                         </Show>
                                     </section>
 

@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod diagnostics;
 pub mod error;
 pub mod error_log;
@@ -6,6 +7,10 @@ pub mod indexeddb;
 pub mod migration;
 pub mod repositories;
 
+pub use archive::{
+    archive_size_warning, save_export_record, ArchiveAuditEvent, ArchiveAuditEventType,
+    ArchiveOutcome, ArchivePreview, ArchiveService, ArchiveSizeWarning, ExportRecord,
+};
 pub use diagnostics::{
     create_session_id, load_storage_diagnostics, record_backup_completed, run_integrity_check,
     IntegrityStatus, StorageDiagnostics,

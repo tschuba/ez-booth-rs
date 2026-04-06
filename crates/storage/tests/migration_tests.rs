@@ -79,6 +79,28 @@ impl BoothRepository for MockBoothRepository {
         Ok(self.booths.lock().unwrap().clone())
     }
 
+    async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .booths
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|booth| !booth.is_archived())
+            .cloned()
+            .collect())
+    }
+
+    async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .booths
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|booth| booth.is_archived())
+            .cloned()
+            .collect())
+    }
+
     async fn find_by_description_and_date(
         &self,
         description: &str,
@@ -161,6 +183,13 @@ impl VendorRepository for MockVendorRepository {
         vendor_id: &VendorId,
     ) -> DomainResult<()> {
         self.delete(booth_id, vendor_id).await
+    }
+
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        let mut vendors = self.vendors.lock().unwrap();
+        let original_len = vendors.len();
+        vendors.retain(|vendor| vendor.booth_id != *booth_id);
+        Ok(original_len - vendors.len())
     }
 }
 
@@ -265,6 +294,13 @@ impl PurchaseRepository for MockPurchaseRepository {
             .unwrap()
             .retain(|purchase| !(purchase.booth_id == *booth_id && purchase.id == *id));
         Ok(())
+    }
+
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        let mut purchases = self.purchases.lock().unwrap();
+        let original_len = purchases.len();
+        purchases.retain(|purchase| purchase.booth_id != *booth_id);
+        Ok(original_len - purchases.len())
     }
 }
 

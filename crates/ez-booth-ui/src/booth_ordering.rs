@@ -9,6 +9,29 @@ pub fn sort_booths(booths: &mut [Booth]) {
     booths.sort_by(compare_booths);
 }
 
+pub fn split_booths(booths: &[Booth]) -> (Vec<Booth>, Vec<Booth>) {
+    let mut active = booths
+        .iter()
+        .filter(|booth| !booth.is_archived())
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut archived = booths
+        .iter()
+        .filter(|booth| booth.is_archived())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    sort_booths(&mut active);
+    archived.sort_by(|left, right| match (left.archived_at, right.archived_at) {
+        (Some(left), Some(right)) => right.cmp(&left),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => compare_booths(left, right),
+    });
+
+    (active, archived)
+}
+
 fn compare_booths(a: &Booth, b: &Booth) -> Ordering {
     match b.date.cmp(&a.date) {
         Ordering::Equal => {}
@@ -57,5 +80,19 @@ mod tests {
 
         let ordered: Vec<_> = booths.into_iter().map(|b| b.description).collect();
         assert_eq!(ordered, vec!["Omega", "Beta", "beta", "Alpha", "Gamma"]);
+    }
+
+    #[test]
+    fn split_booths_separates_archived_from_active() {
+        let mut archived = test_booth("Archived", "2026-03-20");
+        archived.archived_at = Some(chrono::Utc::now());
+
+        let booths = vec![test_booth("Active", "2026-03-21"), archived.clone()];
+        let (active, archived_list) = split_booths(&booths);
+
+        assert_eq!(active.len(), 1);
+        assert_eq!(archived_list.len(), 1);
+        assert_eq!(active[0].description, "Active");
+        assert_eq!(archived_list[0].description, archived.description);
     }
 }

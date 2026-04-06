@@ -186,6 +186,21 @@ mod tests {
             Ok(self.purchases.lock().unwrap().values().cloned().collect())
         }
 
+        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+            let mut purchases = self.purchases.lock().unwrap();
+            let ids = purchases
+                .values()
+                .filter(|purchase| purchase.booth_id == *booth_id)
+                .map(|purchase| purchase.id)
+                .collect::<Vec<_>>();
+
+            for id in &ids {
+                purchases.remove(id);
+            }
+
+            Ok(ids.len())
+        }
+
         async fn delete(&self, id: &PurchaseId) -> DomainResult<()> {
             self.purchases.lock().unwrap().remove(id);
             Ok(())

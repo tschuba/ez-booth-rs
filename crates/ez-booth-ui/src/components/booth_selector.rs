@@ -14,6 +14,7 @@ pub fn BoothSelector() -> impl IntoView {
     let selected_booth = selected_booth_context::use_selected_booth();
     let booth_list_version = selected_booth_context::use_booth_list_version();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
+    let (archived_booth_count, set_archived_booth_count) = create_signal(0usize);
     let (is_open, set_is_open) = create_signal(false);
     let app_state = use_app_state();
     let toast = use_toast();
@@ -32,7 +33,13 @@ pub fn BoothSelector() -> impl IntoView {
                         web_sys::console::log_1(
                             &format!("BoothSelector: Loaded {} booths", loaded_booths.len()).into(),
                         );
+                        let archived_count = loaded_booths
+                            .iter()
+                            .filter(|booth| booth.is_archived())
+                            .count();
                         sort_booths(&mut loaded_booths);
+                        loaded_booths.retain(|booth| !booth.is_archived());
+                        set_archived_booth_count.set(archived_count);
                         set_booths.set(loaded_booths);
                     }
                     Err(e) => {
@@ -170,8 +177,22 @@ pub fn BoothSelector() -> impl IntoView {
                                     <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                     </svg>
-                                    <p class="text-sm font-medium">{t!("booth.no_booths_found")()}</p>
-                                    <p class="text-xs mt-1">{t!("booth.create_first_booth")()}</p>
+                                    <p class="text-sm font-medium">
+                                        {move || if archived_booth_count.get() > 0 {
+                                            t!("booth.selector_all_archived")()
+                                        } else {
+                                            t!("booth.no_booths_found")()
+                                        }}
+                                    </p>
+                                    <p class="text-xs mt-1">
+                                        {move || if archived_booth_count.get() > 0 {
+                                            t!("booth.selector_count_with_archived")()
+                                                .replace("{active}", "0")
+                                                .replace("{archived}", &archived_booth_count.get().to_string())
+                                        } else {
+                                            t!("booth.create_first_booth")()
+                                        }}
+                                    </p>
                                 </div>
                             }.into_view()
                         } else {

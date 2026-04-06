@@ -10,6 +10,7 @@ use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLo
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
+use crate::utils::current_device_info;
 use ez_booth_storage::export::{
     BackupData, BoothBackupData, ConflictStrategy, ImportError, ImportSummary, ImportValidator,
     ValidationFailure,
@@ -245,7 +246,11 @@ pub fn ImportButton(
                     ParsedImportData::Booth(data) => {
                         state
                             .import_service
-                            .import_booth_backup(data, strategy)
+                            .import_booth_backup_restoring_archived(
+                                data,
+                                strategy,
+                                current_device_info(),
+                            )
                             .await
                     }
                 };

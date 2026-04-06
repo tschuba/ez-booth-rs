@@ -2,7 +2,7 @@ use crate::error::StorageError;
 use rexie::{Index, ObjectStore, Rexie, TransactionMode};
 
 const DB_NAME: &str = "ez_booth_v1";
-pub const DB_VERSION: u32 = 4;
+pub const DB_VERSION: u32 = 5;
 
 pub struct Database {
     db: Rexie,
@@ -41,6 +41,13 @@ impl Database {
                 ObjectStore::new("error_logs")
                     .auto_increment(true)
                     .add_index(Index::new("timestamp", "timestamp")),
+            )
+            .add_object_store(ObjectStore::new("export_records").key_path("booth_id"))
+            .add_object_store(
+                ObjectStore::new("archive_audit_log")
+                    .key_path("id")
+                    .add_index(Index::new("timestamp", "timestamp"))
+                    .add_index(Index::new("booth_id", "booth_id")),
             )
             .add_object_store(ObjectStore::new("metadata").key_path("key"))
             .build()

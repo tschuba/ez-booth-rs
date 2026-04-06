@@ -82,6 +82,24 @@ impl BoothRepository for MockBoothRepository {
         Ok(self.booths.clone())
     }
 
+    async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .booths
+            .iter()
+            .filter(|booth| !booth.is_archived())
+            .cloned()
+            .collect())
+    }
+
+    async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .booths
+            .iter()
+            .filter(|booth| booth.is_archived())
+            .cloned()
+            .collect())
+    }
+
     async fn find_by_description_and_date(
         &self,
         description: &str,
@@ -145,6 +163,14 @@ impl VendorRepository for MockVendorRepository {
         _vendor_id: &VendorId,
     ) -> DomainResult<()> {
         Ok(())
+    }
+
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        Ok(self
+            .vendors
+            .iter()
+            .filter(|vendor| vendor.booth_id == *booth_id)
+            .count())
     }
 }
 
@@ -247,6 +273,14 @@ impl PurchaseRepository for MockPurchaseRepository {
     async fn delete_from_booth(&self, _booth_id: &BoothId, _id: &PurchaseId) -> DomainResult<()> {
         Ok(())
     }
+
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        Ok(self
+            .purchases
+            .iter()
+            .filter(|purchase| purchase.booth_id == *booth_id)
+            .count())
+    }
 }
 
 fn mock_service(
@@ -258,6 +292,7 @@ fn mock_service(
         Arc::new(MockBoothRepository { booths }),
         Arc::new(MockVendorRepository { vendors }),
         Arc::new(MockPurchaseRepository { purchases }),
+        None,
         "test-version",
     )
 }
@@ -284,6 +319,7 @@ async fn test_export_all_collects_all_records_and_serializes() {
         booth_repo.clone(),
         vendor_repo.clone(),
         purchase_repo.clone(),
+        None,
         "test-version",
     );
 
@@ -338,6 +374,7 @@ async fn test_export_booth_filters_to_requested_booth() {
         booth_repo.clone(),
         vendor_repo.clone(),
         purchase_repo.clone(),
+        None,
         "test-version",
     );
 
@@ -378,8 +415,13 @@ async fn test_export_booth_returns_not_found_for_missing_booth() {
     let purchase_repo: Arc<dyn PurchaseRepository> =
         Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
 
-    let service =
-        ExportService::with_app_version(booth_repo, vendor_repo, purchase_repo, "test-version");
+    let service = ExportService::with_app_version(
+        booth_repo,
+        vendor_repo,
+        purchase_repo,
+        None,
+        "test-version",
+    );
 
     let missing_booth_id = booth_a_like_id();
     let error = service.export_booth(&missing_booth_id).await.unwrap_err();

@@ -164,6 +164,13 @@ mod tests {
             Ok(self.vendors.lock().unwrap().values().cloned().collect())
         }
 
+        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+            let mut vendors = self.vendors.lock().unwrap();
+            let before = vendors.len();
+            vendors.retain(|(current_booth_id, _), _| current_booth_id != booth_id);
+            Ok(before.saturating_sub(vendors.len()))
+        }
+
         async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()> {
             self.vendors
                 .lock()
@@ -215,6 +222,24 @@ mod tests {
 
         async fn find_all(&self) -> DomainResult<Vec<Booth>> {
             Ok(self.booths.lock().unwrap().values().cloned().collect())
+        }
+
+        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .find_all()
+                .await?
+                .into_iter()
+                .filter(|booth| !booth.is_archived())
+                .collect())
+        }
+
+        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .find_all()
+                .await?
+                .into_iter()
+                .filter(|booth| booth.is_archived())
+                .collect())
         }
 
         async fn find_by_description_and_date(

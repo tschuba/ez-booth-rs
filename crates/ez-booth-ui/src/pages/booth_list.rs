@@ -1,4 +1,4 @@
-use crate::booth_ordering::sort_booths;
+use crate::booth_ordering::{sort_booths, split_booths};
 use crate::components::*;
 use crate::error_translator::translate_domain_error;
 use crate::formatting::format_date_with_contextual_year as format_display_date;
@@ -6,6 +6,7 @@ use crate::i18n::{translate_with_params, use_locale};
 use crate::selected_booth_context::use_selected_booth;
 use crate::state::*;
 use crate::t;
+use chrono::Local;
 use domain::models::booth::Booth;
 use domain::models::{BoothId, BoothSummary};
 use leptos::html;
@@ -38,6 +39,48 @@ fn focus_and_select_input(input_ref: &NodeRef<html::Input>) {
     }
 }
 
+const SHOW_ARCHIVED_SECTION_STORAGE_KEY: &str = "ez-booth-show-archived-section";
+
+fn load_show_archived_section_preference() -> bool {
+    window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .and_then(|storage| {
+            storage
+                .get_item(SHOW_ARCHIVED_SECTION_STORAGE_KEY)
+                .ok()
+                .flatten()
+        })
+        .and_then(|value| value.parse::<bool>().ok())
+        .unwrap_or(true)
+}
+
+fn persist_show_archived_section_preference(show_archived_section: bool) {
+    if let Some(storage) = window().and_then(|window| window.local_storage().ok().flatten()) {
+        let _ = storage.set_item(
+            SHOW_ARCHIVED_SECTION_STORAGE_KEY,
+            &show_archived_section.to_string(),
+        );
+    }
+}
+
+fn format_archived_timestamp(
+    timestamp: chrono::DateTime<chrono::Utc>,
+    locale: crate::i18n::Locale,
+) -> String {
+    let local_timestamp = timestamp.with_timezone(&Local);
+
+    match locale {
+        crate::i18n::Locale::De
+        | crate::i18n::Locale::DeDE
+        | crate::i18n::Locale::DeAT
+        | crate::i18n::Locale::DeCH => local_timestamp.format("%d.%m.%Y %H:%M").to_string(),
+        crate::i18n::Locale::En
+        | crate::i18n::Locale::EnUS
+        | crate::i18n::Locale::EnGB
+        | crate::i18n::Locale::EnEU => local_timestamp.format("%b %d, %Y %I:%M %p").to_string(),
+    }
+}
+
 #[component]
 pub fn BoothListPage() -> impl IntoView {
     let app_state = use_app_state();
@@ -45,6 +88,10 @@ pub fn BoothListPage() -> impl IntoView {
     let selected_booth = use_selected_booth();
     let booth_list_version = crate::selected_booth_context::use_booth_list_version();
     let (booths, set_booths) = create_signal(Vec::<Booth>::new());
+    let (show_archive_modal, set_show_archive_modal) = create_signal(false);
+    let (archiving_booth, set_archiving_booth) = create_signal(None::<Booth>);
+    let (show_archived_section, set_show_archived_section) =
+        create_signal(load_show_archived_section_preference());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
     let (show_copy_modal, set_show_copy_modal) = create_signal(false);
@@ -94,6 +141,12 @@ pub fn BoothListPage() -> impl IntoView {
     let format_date =
         move |date: chrono::NaiveDate| -> String { format_display_date(date, locale.get()) };
 
+    let booth_sections = Signal::derive(move || split_booths(&booths.get()));
+
+    create_effect(move |_| {
+        persist_show_archived_section_preference(show_archived_section.get());
+    });
+
     let close_report_modal = move || {
         set_expanded_booth_id.set(None);
         set_expanded_booth_summary.set(None);
@@ -128,6 +181,16 @@ pub fn BoothListPage() -> impl IntoView {
     create_effect(move |_| {
         let state_result = app_state.get();
         let booth_id = expanded_booth_id.get();
+        let expanded_booth = booth_id
+            .and_then(|booth_id| booths.get().into_iter().find(|booth| booth.id == booth_id));
+
+        if let Some(booth) = expanded_booth {
+            if booth.is_archived() {
+                set_expanded_booth_summary.set(None);
+                set_is_loading_report.set(false);
+                return;
+            }
+        }
 
         if let (Some(Ok(state)), Some(booth_id)) = (state_result, booth_id) {
             set_is_loading_report.set(true);
@@ -184,7 +247,9 @@ pub fn BoothListPage() -> impl IntoView {
                             match state.booth_repository.find_all().await {
                                 Ok(mut loaded_booths) => {
                                     if loaded_booths.len() == 1 {
-                                        selected_booth.set(Some(booth.clone()));
+                                        if !booth.is_archived() {
+                                            selected_booth.set(Some(booth.clone()));
+                                        }
                                         toast.success(
                                             &t!("booth.success.created_and_selected")()
                                                 .replace("{description}", &booth.description),
@@ -275,7 +340,9 @@ pub fn BoothListPage() -> impl IntoView {
                             match state.booth_repository.find_all().await {
                                 Ok(mut loaded_booths) => {
                                     if loaded_booths.len() == 1 {
-                                        selected_booth.set(Some(copied.clone()));
+                                        if !copied.is_archived() {
+                                            selected_booth.set(Some(copied.clone()));
+                                        }
                                         toast.success(
                                             &t!("booth.success.copied_and_selected")()
                                                 .replace("{description}", &copied.description),
@@ -372,6 +439,12 @@ pub fn BoothListPage() -> impl IntoView {
 
     let handle_switch_to_booth = move || {
         if let Some(booth) = switch_target_booth.get() {
+            if booth.is_archived() {
+                toast.error(&t!("archive.cannot_select")());
+                close_switch_modal();
+                return;
+            }
+
             let description = booth.description.clone();
             selected_booth.set(Some(booth));
             toast.success(&t!("booth.success.selected")().replace("{description}", &description));
@@ -451,7 +524,11 @@ pub fn BoothListPage() -> impl IntoView {
                     format!(
                         "{} - {}",
                         booth.description,
-                        t!("report.booth_summary_report")()
+                        if booth.is_archived() {
+                            t!("archive.summary_title")()
+                        } else {
+                            t!("report.booth_summary_report")()
+                        }
                     )
                 })
         })
@@ -486,6 +563,74 @@ pub fn BoothListPage() -> impl IntoView {
             .into_view()
     };
 
+    let close_archive_modal = move || {
+        set_show_archive_modal.set(false);
+        set_archiving_booth.set(None);
+    };
+
+    let handle_archive_completed = move || {
+        if let Some(booth) = archiving_booth.get() {
+            if let Some(selected) = selected_booth.get() {
+                if selected.id == booth.id {
+                    selected_booth.set(None);
+                }
+            }
+        }
+        close_archive_modal();
+        if let Some(Ok(state)) = app_state.get() {
+            refresh_booths(state);
+        }
+    };
+
+    let open_archive_modal = move |booth: Booth| {
+        set_archiving_booth.set(Some(booth));
+        set_show_archive_modal.set(true);
+    };
+
+    let active_booth_cards = move || {
+        let (active_booths, _) = booth_sections.get();
+        active_booths
+            .into_iter()
+            .map(|booth| {
+                booth_card_view(
+                    booth,
+                    false,
+                    format_date,
+                    set_copying_booth,
+                    set_show_copy_modal,
+                    set_editing_booth,
+                    set_show_edit_modal,
+                    set_expanded_booth_summary,
+                    set_expanded_booth_id,
+                    prompt_delete_booth,
+                    open_archive_modal,
+                )
+            })
+            .collect_view()
+    };
+
+    let archived_booth_cards = move || {
+        let (_, archived_booths) = booth_sections.get();
+        archived_booths
+            .into_iter()
+            .map(|booth| {
+                booth_card_view(
+                    booth,
+                    true,
+                    format_date,
+                    set_copying_booth,
+                    set_show_copy_modal,
+                    set_editing_booth,
+                    set_show_edit_modal,
+                    set_expanded_booth_summary,
+                    set_expanded_booth_id,
+                    prompt_delete_booth,
+                    open_archive_modal,
+                )
+            })
+            .collect_view()
+    };
+
     view! {
         <>
             <div class="print:hidden">
@@ -512,117 +657,44 @@ pub fn BoothListPage() -> impl IntoView {
                                         when=move || booths.get().is_empty()
                                         fallback=move || {
                                             view! {
-                                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                                    <For
-                                                        each=move || booths.get()
-                                                        key=|booth| booth.id.as_str().to_string()
-                                                        children=move |booth| {
-                                                            let booth_description = store_value(booth.description.clone());
-                                                            let booth_date = booth.date;
-                                                            let booth_id = booth.id.clone();
-                                                            let booth_id_for_report = booth_id.clone();
-                                                            let booth_for_edit = store_value(booth.clone());
-                                                            let booth_for_copy = store_value(booth.clone());
-                                                            let booth_for_delete = store_value(booth.clone());
+                                                <div class="space-y-8">
+                                                    <section class="space-y-4">
+                                                        <div class="flex items-center justify-between gap-4">
+                                                            <div>
+                                                                <h2 class="text-lg font-semibold text-slate-900">{t!("booth.active_section_title")()}</h2>
+                                                                <p class="text-sm text-gray-600">{t!("booth.active_section_description")()}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {active_booth_cards()}
+                                                        </div>
+                                                    </section>
 
-                                                            view! {
-                                                                <article
-                                                                    class="booth-card group relative h-full rounded-lg border border-gray-200 bg-white p-6 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
-                                                                    aria_label=booth_description.get_value()
-                                                                    role="region"
+                                                    <Show when=move || !booth_sections.get().1.is_empty()>
+                                                        <section class="space-y-4 border-t border-gray-200 pt-8">
+                                                            <div class="flex items-center justify-between gap-4">
+                                                                <div>
+                                                                    <h2 class="text-lg font-semibold text-slate-900">{t!("booth.archived_section_title")()}</h2>
+                                                                    <p class="text-sm text-gray-600">{t!("booth.archived_section_description")()}</p>
+                                                                </div>
+                                                                <Button
+                                                                    variant=ButtonVariant::Secondary
+                                                                    on_click=Box::new(move || set_show_archived_section.update(|value| *value = !*value))
                                                                 >
-                                                                    <div class="absolute right-4 top-4">
-                                                                        <DropdownMenu
-                                                                            trigger=view! {
-                                                                                <Button
-                                                                                    variant=ButtonVariant::Secondary
-                                                                                    class="h-12 w-12 p-0".to_string()
-                                                                                    title=t!("booth.actions_menu")()
-                                                                                    aria_label=t!("booth.actions_menu_aria")()
-                                                                                >
-                                                                                    <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                        <path d="M12 5a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"></path>
-                                                                                    </svg>
-                                                                                </Button>
-                                                                            }
-                                                                        >
-                                                                            <ExportButton
-                                                                                scope=ExportScope::Booth(booth_id.clone())
-                                                                                menu_item=true
-                                                                            />
-                                                                            <DropdownMenuItem
-                                                                                on_click=Callback::new(move |_| {
-                                                                                    set_copying_booth.set(Some(booth_for_copy.get_value()));
-                                                                                    set_show_copy_modal.set(true);
-                                                                                })
-                                                                                icon=view! {
-                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                                                                    </svg>
-                                                                                }.into_view()
-                                                                            >
-                                                                                {t!("booth.copy_button")()}
-                                                                            </DropdownMenuItem>
-                                                                            <DropdownMenuItem
-                                                                                on_click=Callback::new(move |_| {
-                                                                                    set_editing_booth.set(Some(booth_for_edit.get_value()));
-                                                                                    set_show_edit_modal.set(true);
-                                                                                })
-                                                                                icon=view! {
-                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                                                                    </svg>
-                                                                                }.into_view()
-                                                                            >
-                                                                                {t!("booth.edit_button")()}
-                                                                            </DropdownMenuItem>
-                                                                            <DropdownMenuItem
-                                                                                on_click=Callback::new(move |_| {
-                                                                                    set_expanded_booth_summary.set(None);
-                                                                                    set_expanded_booth_id.set(Some(booth_id_for_report.clone()));
-                                                                                })
-                                                                                icon=view! {
-                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                                                                                    </svg>
-                                                                                }.into_view()
-                                                                            >
-                                                                                {t!("booth.view_report")()}
-                                                                            </DropdownMenuItem>
-                                                                            <div class="my-1 h-px bg-gray-200"></div>
-                                                                            <DropdownMenuItem
-                                                                                on_click=Callback::new(move |_| {
-                                                                                    prompt_delete_booth(booth_for_delete.get_value());
-                                                                                })
-                                                                                class="text-red-600 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700".to_string()
-                                                                                icon=view! {
-                                                                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                                                    </svg>
-                                                                                }.into_view()
-                                                                            >
-                                                                                {t!("booth.delete_button")()}
-                                                                            </DropdownMenuItem>
-                                                                        </DropdownMenu>
-                                                                    </div>
-                                                                    <div class="flex h-full flex-col gap-4">
-                                                                        <div class="flex gap-4 pr-16">
-                                                                            <div class="min-w-0 flex-1 space-y-3">
-                                                                                <h3 class="text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-700">
-                                                                                    {booth_description.get_value()}
-                                                                                </h3>
-                                                                                <div class="min-w-0 flex-1">
-                                                                                    <p class="text-gray-600">
-                                                                                        {t!("booth.date_prefix")} " " {move || format_date(booth_date)}
-                                                                                    </p>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </article>
-                                                            }
-                                                        }
-                                                    />
+                                                                    {move || if show_archived_section.get() {
+                                                                        t!("archive.hide_archived")()
+                                                                    } else {
+                                                                        t!("archive.show_archived")()
+                                                                    }}
+                                                                </Button>
+                                                            </div>
+                                                            <Show when=move || show_archived_section.get()>
+                                                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                                    {archived_booth_cards()}
+                                                                </div>
+                                                            </Show>
+                                                        </section>
+                                                    </Show>
                                                 </div>
                                             }
                                         }
@@ -707,15 +779,35 @@ pub fn BoothListPage() -> impl IntoView {
                                             when=move || is_loading_report.get()
                                             fallback=move || {
                                                 view! {
-                                                    <Show when=move || expanded_booth_summary.get().is_some()>
-                                                        {move || {
-                                                            expanded_booth_summary.get().map(|summary| {
-                                                                view! {
-                                                                    <BoothSummaryDisplay summary=summary />
-                                                                }
-                                                            })
-                                                        }}
-                                                    </Show>
+                                                    {move || {
+                                                        expanded_booth_id.get().and_then(|booth_id| {
+                                                            booths
+                                                                .get()
+                                                                .into_iter()
+                                                                .find(|booth| booth.id == booth_id)
+                                                                .map(|booth| {
+                                                                    if booth.is_archived() {
+                                                                        view! {
+                                                                            <ArchivedBoothSummaryDisplay booth=booth />
+                                                                        }
+                                                                        .into_view()
+                                                                    } else {
+                                                                        view! {
+                                                                            <Show when=move || expanded_booth_summary.get().is_some()>
+                                                                                {move || {
+                                                                                    expanded_booth_summary.get().map(|summary| {
+                                                                                        view! {
+                                                                                            <BoothSummaryDisplay summary=summary />
+                                                                                        }
+                                                                                    })
+                                                                                }}
+                                                                            </Show>
+                                                                        }
+                                                                        .into_view()
+                                                                    }
+                                                                })
+                                                        })
+                                                    }}
                                                 }
                                             }
                                         >
@@ -746,6 +838,17 @@ pub fn BoothListPage() -> impl IntoView {
                             <span class="hidden sm:inline">{t!("booth.create")}</span>
                         </button>
                     </div>
+
+                    {move || archiving_booth.get().map(|booth| {
+                        view! {
+                            <ArchiveWizard
+                                booth=booth
+                                show=Signal::derive(move || show_archive_modal.get())
+                                on_close=close_archive_modal
+                                on_archived=handle_archive_completed
+                            />
+                        }
+                    })}
 
                     <Modal
                         show=show_create_modal
@@ -1007,9 +1110,153 @@ pub fn BoothListPage() -> impl IntoView {
                         })
                     }}
                 </Show>
+
+                <Show when=move || expanded_booth_id.get().is_some() && expanded_booth_summary.get().is_none()>
+                    {move || {
+                        expanded_booth_id.get().and_then(|booth_id| {
+                            booths
+                                .get()
+                                .into_iter()
+                                .find(|booth| booth.id == booth_id && booth.is_archived())
+                                .map(|booth| {
+                                    view! {
+                                        <PrintArchivedBoothSummary booth=booth />
+                                    }
+                                })
+                        })
+                    }}
+                </Show>
             </div>
         </>
     }
+}
+
+fn booth_card_view(
+    booth: Booth,
+    is_archived: bool,
+    format_date: impl Fn(chrono::NaiveDate) -> String + Copy + 'static,
+    set_copying_booth: WriteSignal<Option<Booth>>,
+    set_show_copy_modal: WriteSignal<bool>,
+    set_editing_booth: WriteSignal<Option<Booth>>,
+    set_show_edit_modal: WriteSignal<bool>,
+    set_expanded_booth_summary: WriteSignal<Option<BoothSummary>>,
+    set_expanded_booth_id: WriteSignal<Option<BoothId>>,
+    prompt_delete_booth: impl Fn(Booth) + Copy + 'static,
+    open_archive_modal: impl Fn(Booth) + Copy + 'static,
+) -> View {
+    let booth_description = store_value(booth.description.clone());
+    let booth_date = booth.date;
+    let booth_id = booth.id;
+    let booth_id_for_report = booth.id;
+    let archived_timestamp = booth.archived_at.map(|timestamp| {
+        let locale = use_locale().get_untracked();
+        t!("archive.archived_at_label")() + ": " + &format_archived_timestamp(timestamp, locale)
+    });
+    let archived_timestamp = store_value(archived_timestamp);
+    let booth_for_edit = store_value(booth.clone());
+    let booth_for_copy = store_value(booth.clone());
+    let booth_for_delete = store_value(booth.clone());
+    let booth_for_archive = store_value(booth.clone());
+    let archived_class = if is_archived {
+        "border-slate-300 bg-slate-50"
+    } else {
+        "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
+    };
+
+    view! {
+        <article
+            class=format!(
+                "booth-card group relative h-full rounded-lg p-6 shadow-md transition-all duration-200 {}",
+                archived_class
+            )
+            aria_label=booth_description.get_value()
+            role="region"
+        >
+            <div class="absolute right-4 top-4">
+                <DropdownMenu
+                    trigger=view! {
+                        <Button
+                            variant=ButtonVariant::Secondary
+                            class="h-12 w-12 p-0".to_string()
+                            title=t!("booth.actions_menu")()
+                            aria_label=t!("booth.actions_menu_aria")()
+                        >
+                            <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 5a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"></path>
+                            </svg>
+                        </Button>
+                    }
+                >
+                    <ExportButton scope=ExportScope::Booth(booth_id) menu_item=true />
+                    <DropdownMenuItem
+                        on_click=Callback::new(move |_| {
+                            set_copying_booth.set(Some(booth_for_copy.get_value()));
+                            set_show_copy_modal.set(true);
+                        })
+                    >
+                        {t!("booth.copy_button")()}
+                    </DropdownMenuItem>
+                    <Show when=move || !is_archived>
+                        <DropdownMenuItem
+                            on_click=Callback::new(move |_| {
+                                set_editing_booth.set(Some(booth_for_edit.get_value()));
+                                set_show_edit_modal.set(true);
+                            })
+                        >
+                            {t!("booth.edit_button")()}
+                        </DropdownMenuItem>
+                    </Show>
+                    <DropdownMenuItem
+                        on_click=Callback::new(move |_| {
+                            set_expanded_booth_summary.set(None);
+                            set_expanded_booth_id.set(Some(booth_id_for_report));
+                        })
+                    >
+                        {move || if is_archived { t!("archive.view_summary")() } else { t!("booth.view_report")() }}
+                    </DropdownMenuItem>
+                    <Show when=move || !is_archived>
+                        <DropdownMenuItem
+                            on_click=Callback::new(move |_| open_archive_modal(booth_for_archive.get_value()))
+                            class="text-amber-700 hover:bg-amber-50 hover:text-amber-800 focus:bg-amber-50 focus:text-amber-800".to_string()
+                        >
+                            {t!("archive.archive_button")()}
+                        </DropdownMenuItem>
+                    </Show>
+                    <Show when=move || !is_archived>
+                        <div class="my-1 h-px bg-gray-200"></div>
+                        <DropdownMenuItem
+                            on_click=Callback::new(move |_| prompt_delete_booth(booth_for_delete.get_value()))
+                            class="text-red-600 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700".to_string()
+                        >
+                            {t!("booth.delete_button")()}
+                        </DropdownMenuItem>
+                    </Show>
+                </DropdownMenu>
+            </div>
+            <div class="flex h-full flex-col gap-4">
+                <div class="flex gap-4 pr-16">
+                    <div class="min-w-0 flex-1 space-y-3">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-semibold text-gray-900">{booth_description.get_value()}</h3>
+                            <Show when=move || is_archived>
+                                <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">{t!("archive.archived_badge")()}</span>
+                            </Show>
+                        </div>
+                        <div class="min-w-0 flex-1 space-y-1">
+                            <p class="text-gray-600">{t!("booth.date_prefix")} " " {move || format_date(booth_date)}</p>
+                            <Show when=move || is_archived>
+                                <p class="text-sm text-slate-600">{t!("archive.archived_card_hint")()}</p>
+                                <Show when=move || archived_timestamp.with_value(|value| value.is_some())>
+                                    <p class="text-xs text-slate-500">{archived_timestamp.with_value(|value| value.clone().unwrap_or_default())}</p>
+                                </Show>
+                            </Show>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+    }
+    .into_view()
 }
 
 #[cfg(test)]

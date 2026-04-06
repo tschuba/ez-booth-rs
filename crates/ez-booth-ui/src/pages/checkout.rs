@@ -659,6 +659,7 @@ pub fn CheckoutPage() -> impl IntoView {
 
     // Use global selected booth context
     let selected_booth = selected_booth_context::use_selected_booth();
+    let booth_list_version = selected_booth_context::use_booth_list_version();
 
     // Purchases for current booth (paginated)
     let (purchases, set_purchases) = create_signal(Vec::<Purchase>::new());
@@ -840,6 +841,16 @@ pub fn CheckoutPage() -> impl IntoView {
 
     let amount_stepping =
         create_memo(move |_| selected_booth.get().and_then(|booth| booth.amount_stepping));
+
+    create_effect(move |_| {
+        if let Some(booth) = selected_booth.get() {
+            if booth.is_archived() {
+                toast.error(&t!("archive.cannot_select")());
+                selected_booth.set(None);
+                booth_list_version.update(|version| *version += 1);
+            }
+        }
+    });
 
     let show_rules_modal = create_rw_signal(false);
 
