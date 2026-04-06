@@ -33,7 +33,8 @@
     "title": "Einstellungen",
     "tabs": {
       "general": "Allgemein",
-      "diagnostics": "Diagnose"
+      "diagnostics": "Diagnose",
+      "migration": "Migration"
     },
     "app_info_section_title": "App-Informationen",
     "app_info_help_text": "Nutzen Sie diesen Bereich, um Supportfälle zu melden oder die laufende Version auf diesem Gerät zu prüfen.",
@@ -101,6 +102,53 @@
     "device_reset": "Auf automatisch erzeugt zurücksetzen",
     "device_save_success": "Gerätename gespeichert",
     "device_reset_success": "Gerätename zurückgesetzt"
+  },
+  "migration": {
+    "title": "Aus altem booth.db importieren",
+    "description": "Validieren und migrieren Sie Daten aus der ursprünglichen ez-booth-SQLite-Datenbank in diesen Browser.",
+    "warning_title": "Dies ersetzt die Browser-Daten auf diesem Gerät",
+    "warning_body": "Bevor die Migration angewendet wird, lädt die App automatisch ein JSON-Backup der aktuellen Browser-Daten herunter.",
+    "status": {
+      "reading": "SQLite-Datei wird gelesen...",
+      "ready_clean": "Validierung erfolgreich. Die Daten sind bereit für den Import.",
+      "ready_issues": "Die Validierung wurde mit Problemen abgeschlossen. Bitte vor dem Import prüfen.",
+      "backing_up": "Backup wird vor der Migration heruntergeladen...",
+      "importing": "Browser-Daten werden durch migrierte Datensätze ersetzt...",
+      "done": "Migration abgeschlossen."
+    },
+    "actions": {
+      "choose_file": "booth.db auswählen",
+      "validating": "Prüft...",
+      "importing": "Importiert...",
+      "import_clean_only": "Validierte Datensätze importieren",
+      "skip_invalid": "Ungültige Datensätze überspringen und importieren"
+    },
+    "summary": {
+      "booths": "Gefundene Veranstaltungen",
+      "vendors": "Gefundene Verkäufer",
+      "purchases": "Gefundene Käufe"
+    },
+    "validation": {
+      "clean": "Es wurden keine Validierungsprobleme gefunden.",
+      "issues_found": "Die Validierung hat {count} Problem(e) gefunden.",
+      "skip_summary": "Wenn Sie mit Überspringen fortfahren, werden {vendors} Verkäufer und {purchases} Käufe aus der Migration entfernt."
+    },
+    "success": {
+      "summary": "Die Migration hat {booths} Veranstaltung(en), {vendors} Verkäufer und {purchases} Käufe importiert. Übersprungen wurden {skipped_vendors} Verkäufer und {skipped_purchases} Käufe."
+    },
+    "errors": {
+      "state_unavailable": "Der Anwendungszustand ist noch nicht bereit.",
+      "file_read_failed": "Die ausgewählte SQLite-Datei konnte nicht gelesen werden",
+      "backup_failed": "Backup vor der Migration fehlgeschlagen: {error}",
+      "import_failed": "Migration fehlgeschlagen: {error}"
+    },
+    "issue": {
+      "purchase_total_mismatch": "Kauf {purchase_id} hat eine Summenabweichung: erwartet {expected}, erhalten {actual}.",
+      "vendor_missing_booth": "Verkäufer {vendor_id} verweist auf die fehlende Veranstaltung {booth_id}.",
+      "purchase_missing_booth": "Kauf {purchase_id} verweist auf die fehlende Veranstaltung {booth_id}.",
+      "purchase_without_items": "Kauf {purchase_id} enthält keine Positionen.",
+      "purchase_item_missing_vendor": "Kauf {purchase_id}, Position {item_id}, verweist auf den fehlenden Verkäufer {vendor_id} in Veranstaltung {booth_id}."
+    }
   },
   "booth": {
     "title": "Veranstaltung",

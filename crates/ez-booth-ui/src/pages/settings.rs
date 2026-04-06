@@ -21,10 +21,12 @@ use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
 
 const SETTINGS_TAB_GENERAL_ID: &str = "general";
 const SETTINGS_TAB_DIAGNOSTICS_ID: &str = "diagnostics";
+const SETTINGS_TAB_MIGRATION_ID: &str = "migration";
 
 fn settings_tab_index_from_hash(hash: &str) -> usize {
     match hash.trim_start_matches('#') {
         SETTINGS_TAB_DIAGNOSTICS_ID => 1,
+        SETTINGS_TAB_MIGRATION_ID => 2,
         _ => 0,
     }
 }
@@ -32,6 +34,7 @@ fn settings_tab_index_from_hash(hash: &str) -> usize {
 fn settings_tab_hash(index: usize) -> &'static str {
     match index {
         1 => "#diagnostics",
+        2 => "#migration",
         _ => "#general",
     }
 }
@@ -656,6 +659,11 @@ pub fn SettingsPage() -> impl IntoView {
                                 label: t!("settings.tabs.diagnostics")(),
                                 has_error: Signal::derive(|| false),
                             },
+                            TabItem {
+                                id: SETTINGS_TAB_MIGRATION_ID.to_string(),
+                                label: t!("settings.tabs.migration")(),
+                                has_error: Signal::derive(|| false),
+                            },
                         ]
                         active_tab=active_tab
                         children=Box::new(move |tab_index| match tab_index {
@@ -932,6 +940,10 @@ pub fn SettingsPage() -> impl IntoView {
                                         </Show>
                                     </section>
                                 </div>
+                            }
+                            .into_view(),
+                            2 => view! {
+                                <MigrationWizard />
                             }
                             .into_view(),
                             _ => general_tab_view().into_view(),
