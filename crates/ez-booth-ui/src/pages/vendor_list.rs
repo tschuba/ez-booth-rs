@@ -628,7 +628,7 @@ pub fn VendorListPage() -> impl IntoView {
 
                                                             {/* Expansion toggle button */}
                                                             <div
-                                                                class="px-3 hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
+                                                                class="px-3 bg-white hover:bg-blue-50 transition-colors h-full flex items-center cursor-pointer"
                                                                 on:click=move |e| {
                                                                     e.stop_propagation();
                                                                     set_expanded_vendor_id.update(|current| {
