@@ -221,10 +221,7 @@ pub fn SettingsPage() -> impl IntoView {
                     toast.error(format!("{}: {error}", t!("common.error")()));
                     return;
                 }
-                None => {
-                    toast.info(t!("common.loading")());
-                    return;
-                }
+                None => return,
             };
 
             set_is_running_integrity_check.set(true);
@@ -293,10 +290,7 @@ pub fn SettingsPage() -> impl IntoView {
                     toast.error(format!("{}: {error}", t!("common.error")()));
                     return;
                 }
-                None => {
-                    toast.info(t!("common.loading")());
-                    return;
-                }
+                None => return,
             };
 
             let toast = toast.clone();
@@ -337,10 +331,7 @@ pub fn SettingsPage() -> impl IntoView {
                     toast.error(format!("{}: {error}", t!("common.error")()));
                     return;
                 }
-                None => {
-                    toast.info(t!("common.loading")());
-                    return;
-                }
+                None => return,
             };
 
             set_is_clearing_error_log.set(true);
@@ -404,10 +395,7 @@ pub fn SettingsPage() -> impl IntoView {
                     toast.error(format!("{}: {error}", t!("common.error")()));
                     return;
                 }
-                None => {
-                    toast.info(t!("common.loading")());
-                    return;
-                }
+                None => return,
             };
 
             set_is_exporting_diagnostics.set(true);

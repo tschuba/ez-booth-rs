@@ -83,62 +83,90 @@ pub fn BoothSelector() -> impl IntoView {
 
     view! {
         <div
-            class="relative ml-6"
+            class={move || {
+                if selected_booth.get().is_some() {
+                    "relative ml-6".to_string()
+                } else {
+                    "relative w-full md:ml-6 md:w-auto".to_string()
+                }
+            }}
             node_ref=dropdown_ref
         >
-            // Badge Button
-            <button
-                class={move || {
-                    let base = "flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2";
-                    let variant = if selected_booth.get().is_some() {
-                        "bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200"
-                    } else {
-                        "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-                    };
-                    format!("{} {}", base, variant)
-                }}
-                on:click=move |_| set_is_open.update(|open| *open = !*open)
-                aria-expanded=move || is_open.get()
-                aria-label=move || t!("booth.selector_aria_label")()
-            >
-                {move || {
-                    if let Some(booth) = selected_booth.get() {
-                        let date_str = format_date(booth.date, locale.get());
-                        view! {
-                            <>
-                                // Date
-                                <span class="text-sm font-medium">{date_str}</span>
-                                // Separator
-                                <span class="text-gray-400" aria-hidden="true">"•"</span>
-                                // Description
-                                <span class="text-sm font-semibold max-w-[200px] truncate">{booth.description}</span>
-                            </>
-                        }.into_view()
-                    } else {
-                        view! {
-                            <>
-                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <span class="text-sm font-medium">{t!("booth.select_booth_cta")()}</span>
-                            </>
-                        }.into_view()
-                    }
-                }}
-                // Dropdown chevron icon
-                <svg
-                    class={move || format!(
-                        "w-4 h-4 transition-transform duration-200 {}",
-                        if is_open.get() { "rotate-180" } else { "" }
-                    )}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
+            <div class="flex items-center gap-2">
+                // Badge Button
+                <button
+                    class={move || {
+                        let base = "flex items-center gap-2 rounded-full px-4 py-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2";
+                        let width = if selected_booth.get().is_some() {
+                            ""
+                        } else {
+                            "w-full justify-between md:w-auto md:justify-start"
+                        };
+                        let variant = if selected_booth.get().is_some() {
+                            "border border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100 focus:ring-blue-500"
+                        } else {
+                            "border border-amber-300 bg-amber-50 text-amber-900 shadow-sm hover:bg-amber-100 focus:ring-amber-500"
+                        };
+                        format!("{} {} {}", base, width, variant)
+                    }}
+                    on:click=move |_| set_is_open.update(|open| *open = !*open)
+                    aria-expanded=move || is_open.get()
+                    aria-label=move || t!("booth.selector_aria_label")()
                 >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+                    {move || {
+                        if let Some(booth) = selected_booth.get() {
+                            let date_str = format_date(booth.date, locale.get());
+                            view! {
+                                <>
+                                    <span class="text-sm font-medium">{date_str}</span>
+                                    <span class="text-gray-400" aria-hidden="true">"•"</span>
+                                    <span class="max-w-[200px] text-sm font-semibold truncate">{booth.description}</span>
+                                </>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <>
+                                    <span class="flex items-center gap-2">
+                                        <svg class="h-5 w-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                        <span class="text-sm font-semibold">{t!("booth.select_booth_cta")()}</span>
+                                    </span>
+                                </>
+                            }.into_view()
+                        }
+                    }}
+                    <svg
+                        class={move || format!(
+                            "h-4 w-4 transition-transform duration-200 {}",
+                            if is_open.get() { "rotate-180" } else { "" }
+                        )}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <Show when=move || selected_booth.get().is_none()>
+                    <button
+                        type="button"
+                        class="rounded-full p-1 text-amber-500 transition-colors hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                        title={t!("booth.selector_help_tooltip")()}
+                        aria-label={t!("booth.selector_help_aria")()}
+                    >
+                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </Show>
+            </div>
+
+            <Show when=move || selected_booth.get().is_none()>
+                <p class="mt-1 hidden text-xs text-amber-700 md:block">{t!("booth.selector_empty_hint")}</p>
+            </Show>
 
             // Dropdown Menu with backdrop
             <Show when=move || is_open.get()>
@@ -150,7 +178,7 @@ pub fn BoothSelector() -> impl IntoView {
                     ></div>
 
                     // Dropdown menu
-                    <div class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 max-h-96 overflow-y-auto">
+                    <div class="absolute right-0 z-50 mt-2 max-h-96 w-[calc(100vw-2rem)] max-w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-2 shadow-xl">
                     {move || {
                         let booth_list = booths.get();
                         if booth_list.is_empty() {

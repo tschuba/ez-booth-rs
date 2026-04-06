@@ -61,6 +61,7 @@ pub fn App() -> impl IntoView {
     provide_context(app_state);
 
     let locale = use_locale();
+    let selected_booth = selected_booth_context::use_selected_booth();
 
     // Update document title when locale changes
     {
@@ -84,11 +85,18 @@ pub fn App() -> impl IntoView {
                         // Header (hidden during print)
                         <header>
                             <Container>
-                                <div class="flex items-center justify-between py-4">
-                                    <a href="/" class="text-2xl font-bold text-blue-600">
+                                <div class="flex flex-wrap items-center justify-between gap-3 py-4 md:flex-nowrap">
+                                    <a href="/" class="shrink-0 text-2xl font-bold text-blue-600">
                                         {t!("app.title")}
                                     </a>
-                                    <BoothSelector />
+                                    <div class="hidden md:block">
+                                        <BoothSelector />
+                                    </div>
+                                    <div class="md:hidden">
+                                        <Show when=move || selected_booth.get().is_some()>
+                                            <BoothSelector />
+                                        </Show>
+                                    </div>
                                     <nav class="flex items-center space-x-4">
                                         <a href="/booths" class="text-gray-700 hover:text-blue-600">
                                             {t!("booth.list_title")}
@@ -160,11 +168,19 @@ pub fn App() -> impl IntoView {
                                          </a>
                                      </nav>
                                  </div>
-                             </Container>
-                        </header>
+                              </Container>
+                         </header>
 
-                        <AppViewHeader />
-                    </div>
+                         <Show when=move || selected_booth.get().is_none()>
+                             <div class="border-b border-amber-200 bg-amber-50 py-3 md:hidden">
+                                 <Container>
+                                     <BoothSelector />
+                                 </Container>
+                             </div>
+                         </Show>
+
+                         <AppViewHeader />
+                     </div>
 
                     // Main content (remove padding during print)
                     <main class="pb-28 pt-36 print:py-0">
