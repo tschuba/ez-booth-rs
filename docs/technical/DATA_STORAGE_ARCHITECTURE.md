@@ -126,7 +126,7 @@ Supported conflict strategies:
 Current merge behavior:
 
 - booths: strictly newer `updated_at` wins; equal timestamps keep the existing local booth record
-- vendors: preserves the earliest `created_at`, keeps non-empty names, and prefers the richer vendor name when multiple devices provide different names
+- vendors: preserves the earliest `created_at` when multiple devices provide the same vendor record
 - purchases: strictly newer `timestamp` wins; equal timestamps keep the existing local purchase record; if booth ownership changes, the old booth mapping is removed first
 
 ### Verified merge guarantees
@@ -139,7 +139,7 @@ Focused browser-backed regression coverage now verifies these storage-layer guar
 - full backup imports can merge one shared booth while preserving unrelated booths
 - same-purchase conflicts across devices resolve to the strictly newer purchase record
 - equal-timestamp booth and purchase conflicts keep the existing local record rather than flipping between payloads
-- vendor-name conflicts converge toward a non-empty and richer vendor name instead of blindly overwriting with the latest import
+- vendor merges preserve the earliest creation timestamp instead of blindly overwriting with the latest import
 
 ### Important limits
 

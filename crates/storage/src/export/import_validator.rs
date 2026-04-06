@@ -325,7 +325,7 @@ mod tests {
     }
 
     fn sample_vendor(booth_id: BoothId) -> Vendor {
-        Vendor::new(VendorId::new("12".to_string()), booth_id).with_name("Ada Vendor".to_string())
+        Vendor::new(VendorId::new("12".to_string()), booth_id)
     }
 
     fn sample_purchase(booth_id: BoothId, vendor_id: &domain::VendorId) -> Purchase {

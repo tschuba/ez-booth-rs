@@ -191,9 +191,7 @@ impl ImportService {
                     summary.conflicts_resolved += 1;
                 }
                 ConflictStrategy::Merge => {
-                    let merged_name = merge_vendor_name(&existing, &incoming);
                     let merged = Vendor {
-                        name: merged_name,
                         created_at: incoming.created_at.min(existing.created_at),
                         ..incoming
                     };
@@ -258,31 +256,4 @@ impl ImportService {
 
         Ok(())
     }
-}
-
-fn merge_vendor_name(existing: &Vendor, incoming: &Vendor) -> Option<String> {
-    match (
-        normalize_vendor_name(existing.name.as_ref()),
-        normalize_vendor_name(incoming.name.as_ref()),
-    ) {
-        (Some(existing_name), Some(incoming_name)) => {
-            if existing_name.len() > incoming_name.len() {
-                Some(existing_name.to_string())
-            } else if incoming_name.len() > existing_name.len() {
-                Some(incoming_name.to_string())
-            } else if existing_name <= incoming_name {
-                Some(existing_name.to_string())
-            } else {
-                Some(incoming_name.to_string())
-            }
-        }
-        (Some(existing_name), None) => Some(existing_name.to_string()),
-        (None, Some(incoming_name)) => Some(incoming_name.to_string()),
-        (None, None) => None,
-    }
-}
-
-fn normalize_vendor_name(name: Option<&String>) -> Option<&str> {
-    name.map(|value| value.trim())
-        .filter(|value| !value.is_empty())
 }

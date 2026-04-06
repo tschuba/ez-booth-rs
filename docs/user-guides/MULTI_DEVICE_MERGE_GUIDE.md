@@ -71,7 +71,7 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 - chooses the strictly newer booth record when the same booth was updated on multiple devices
 - chooses the strictly newer purchase record when the same purchase ID was updated on multiple devices
 - keeps the local record when booth or purchase timestamps are exactly equal
-- keeps a non-empty vendor name and prefers the richer vendor name when names differ
+- preserves the earliest vendor creation timestamp when the same vendor exists on multiple devices
 
 ### DE
 
@@ -80,7 +80,7 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 - wählt den eindeutig neueren Stand-Datensatz, wenn derselbe Stand auf mehreren Geräten aktualisiert wurde
 - wählt den eindeutig neueren Kauf-Datensatz, wenn dieselbe Kauf-ID auf mehreren Geräten aktualisiert wurde
 - behält den lokalen Datensatz, wenn Stand- oder Kauf-Zeitstempel exakt gleich sind
-- behält einen nicht-leeren Verkäufernamen und bevorzugt den aussagekräftigeren Verkäufernamen, wenn Namen unterschiedlich sind
+- behält den frühesten Erstellungszeitpunkt eines Verkäufers, wenn derselbe Verkäufer auf mehreren Geräten vorhanden ist
 
 ---
 
@@ -128,7 +128,7 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 - the expected booth is present
 - vendor count looks correct
-- recently added vendors still have the expected names
+- the expected vendor IDs are still present
 - purchase count matches the combined expected count from all devices
 - latest purchase notes or corrections are present where expected
 - booth totals match the combined purchases
@@ -138,7 +138,7 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 - der erwartete Stand ist vorhanden
 - die Verkäuferanzahl sieht korrekt aus
-- kürzlich hinzugefügte Verkäufer haben noch die erwarteten Namen
+- die erwarteten Verkäufer-IDs sind weiterhin vorhanden
 - die Kaufanzahl stimmt mit der kombinierten erwarteten Anzahl von allen Geräten überein
 - neueste Kauf-Notizen oder Korrekturen sind vorhanden, wo erwartet
 - die Stand-Summen stimmen mit den kombinierten Käufen überein
@@ -188,7 +188,7 @@ The storage-layer merge behavior for this workflow has automated browser-backed 
 - parallel multi-device booth purchase merges
 - round-trip imports
 - same-purchase conflict resolution by newer timestamp
-- richer vendor-name convergence
+- vendor records preserve the earliest creation timestamp during merge
 - mixed booth-backup and full-backup merge sequences
 
 For cross-browser operator validation, also use:
@@ -205,7 +205,7 @@ Das Merge-Verhalten auf Storage-Ebene für diesen Arbeitsablauf hat automatisier
 - parallele geräteübergreifende Stand-Kauf-Merges
 - Roundtrip-Importe
 - Konfliktlösung bei identischen Käufen anhand des neueren Zeitstempels
-- Konvergenz aussagekräftigerer Verkäufernamen
+- Erhalt des frühesten Erstellungszeitpunkts von Verkäuferdatensätzen beim Merge
 - gemischte Stand-Backup- und Voll-Backup-Merge-Sequenzen
 
 Für browserübergreifende Operator-Validierung verwenden Sie auch:

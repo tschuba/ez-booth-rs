@@ -94,7 +94,6 @@ pub fn ArchivedBoothSummaryDisplay(booth: Booth) -> impl IntoView {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t!("report.vendor_id")()}</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t!("archive.vendor_name")()}</th>
                                 <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{t!("report.gross_sales")()}</th>
                                 <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{t!("report.fees_due")()}</th>
                                 <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{t!("report.net_payout")()}</th>
@@ -155,7 +154,6 @@ pub fn PrintArchivedBoothSummary(booth: Booth) -> impl IntoView {
                 <thead>
                     <tr class="border-b-2 border-gray-800">
                         <th class="px-4 py-3 text-left font-bold">{t!("report.vendor_id")()}</th>
-                        <th class="px-4 py-3 text-left font-bold">{t!("archive.vendor_name")()}</th>
                         <th class="px-4 py-3 text-right font-bold">{t!("report.gross_sales")()}</th>
                         <th class="px-4 py-3 text-right font-bold">{t!("report.fees_due")()}</th>
                         <th class="px-4 py-3 text-right font-bold">{t!("report.net_payout")()}</th>
@@ -169,7 +167,6 @@ pub fn PrintArchivedBoothSummary(booth: Booth) -> impl IntoView {
                         children=move |vendor| view! {
                             <tr class="border-b border-gray-300">
                                 <td class="px-4 py-3 font-medium">{vendor.vendor_id.to_string()}</td>
-                                <td class="px-4 py-3">{vendor.vendor_name.unwrap_or_else(|| "-".to_string())}</td>
                                 <td class="px-4 py-3 text-right">{format_currency(vendor.gross_sales, locale.get())}</td>
                                 <td class="px-4 py-3 text-right">{format_currency(vendor.fees_due, locale.get())}</td>
                                 <td class="px-4 py-3 text-right font-semibold">{format_currency(vendor.net_payout, locale.get())}</td>
@@ -186,7 +183,6 @@ pub fn PrintArchivedBoothSummary(booth: Booth) -> impl IntoView {
 
 fn vendor_row(vendor: ArchivedVendorSummary, locale: RwSignal<crate::i18n::Locale>) -> View {
     let vendor_id = vendor.vendor_id.to_string();
-    let vendor_name = vendor.vendor_name.unwrap_or_else(|| "-".to_string());
     let gross_sales = vendor.gross_sales;
     let fees_due = vendor.fees_due;
     let net_payout = vendor.net_payout;
@@ -195,7 +191,6 @@ fn vendor_row(vendor: ArchivedVendorSummary, locale: RwSignal<crate::i18n::Local
     view! {
         <tr class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm font-medium text-gray-900">{vendor_id}</td>
-            <td class="px-4 py-3 text-sm text-gray-700">{vendor_name}</td>
             <td class="px-4 py-3 text-right text-sm text-gray-700">{move || format_currency(gross_sales, locale.get())}</td>
             <td class="px-4 py-3 text-right text-sm text-gray-700">{move || format_currency(fees_due, locale.get())}</td>
             <td class="px-4 py-3 text-right text-sm font-semibold text-gray-900">{move || format_currency(net_payout, locale.get())}</td>

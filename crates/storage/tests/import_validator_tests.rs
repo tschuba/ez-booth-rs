@@ -23,7 +23,7 @@ fn sample_booth() -> Booth {
 }
 
 fn sample_vendor(booth_id: BoothId) -> Vendor {
-    Vendor::new(VendorId::new("12".to_string()), booth_id).with_name("Ada Vendor".to_string())
+    Vendor::new(VendorId::new("12".to_string()), booth_id)
 }
 
 fn sample_purchase(booth_id: BoothId, vendor_id: &VendorId) -> Purchase {
@@ -71,6 +71,20 @@ fn accepts_backup_without_checksum_for_backward_compatibility() {
         .unwrap();
 
     assert_eq!(data.checksum, None);
+}
+
+#[test]
+fn accepts_legacy_vendor_name_field_for_backward_compatibility() {
+    let validator = ImportValidator::new();
+    let mut raw: serde_json::Value = serde_json::to_value(sample_backup()).unwrap();
+    raw["vendors"][0]["name"] = serde_json::Value::String("Legacy Vendor Name".to_string());
+
+    let data = validator
+        .validate_backup(&serde_json::to_string(&raw).unwrap())
+        .unwrap();
+
+    assert_eq!(data.vendors.len(), 1);
+    assert_eq!(data.vendors[0].vendor_id.as_str(), "12");
 }
 
 #[test]

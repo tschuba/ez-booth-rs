@@ -565,7 +565,6 @@ mod tests {
         Vendor {
             vendor_id: VendorId::new(vendor_id.to_string()),
             booth_id: booth_id.clone(),
-            name: Some(format!("Vendor {}", vendor_id)),
             created_at: Utc::now(),
         }
     }

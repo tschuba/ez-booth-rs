@@ -458,8 +458,6 @@ pub struct ArchivedBoothSummary {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArchivedVendorSummary {
     pub vendor_id: VendorId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub vendor_name: Option<String>,
     #[serde(
         serialize_with = "serialize_decimal_as_string",
         deserialize_with = "deserialize_decimal_from_string"
@@ -929,7 +927,6 @@ mod tests {
             last_purchase_at: None,
             vendor_summaries: vec![ArchivedVendorSummary {
                 vendor_id: VendorId::new("101".to_string()),
-                vendor_name: Some("Anna".to_string()),
                 gross_sales: Decimal::new(100, 0),
                 fees_due: Decimal::new(20, 0),
                 net_payout: Decimal::new(80, 0),
@@ -958,7 +955,6 @@ mod tests {
             last_purchase_at: None,
             vendor_summaries: vec![ArchivedVendorSummary {
                 vendor_id: VendorId::new("1".to_string()),
-                vendor_name: Some("Anna".to_string()),
                 gross_sales: Decimal::new(660, 1),
                 fees_due: Decimal::new(110, 1),
                 net_payout: Decimal::new(550, 1),

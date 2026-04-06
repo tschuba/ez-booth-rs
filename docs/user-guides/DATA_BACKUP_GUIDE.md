@@ -130,14 +130,14 @@ Steps:
 
 Conflict strategies:
 
-- `Merge`: import new records, prefer strictly newer booth and purchase records, and keep the richer vendor name when multiple devices exported the same booth
+- `Merge`: import new records, prefer strictly newer booth and purchase records, and preserve the earliest vendor creation timestamp when multiple devices exported the same booth
 - `Skip`: keep existing records and ignore conflicting imported ones
 - `Replace`: overwrite existing conflicting records with imported data
 
 Important merge details:
 
 - If the same booth or purchase already exists and the timestamps are exactly equal, EZ Booth keeps the existing local record.
-- If the same vendor exists in both imports, EZ Booth keeps a non-empty vendor name and prefers the richer name if one device has more complete vendor text.
+- If the same vendor exists in both imports, EZ Booth keeps the earliest `created_at` timestamp for that vendor.
 - If two devices created different purchases, both purchases are kept as long as they have different purchase IDs.
 
 ### DE
@@ -156,7 +156,7 @@ Schritte:
 
 Konfliktstrategien:
 
-- `Merge`: importiert neue Datensätze, bevorzugt bei Ständen und Käufen nur eindeutig neuere Datensätze und behält bei Verkäufern den aussagekräftigeren Namen
+- `Merge`: importiert neue Datensätze, bevorzugt bei Ständen und Käufen nur eindeutig neuere Datensätze und behält bei Verkäufern den frühesten `created_at`-Zeitstempel
 - `Skip`: behält vorhandene Datensätze und ignoriert konfligierende importierte Datensätze
 - `Replace`: überschreibt vorhandene konfligierende Datensätze mit den importierten Daten
 
