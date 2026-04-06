@@ -8,7 +8,7 @@ use ez_booth_storage::repositories::{
 };
 use ez_booth_storage::{
     create_session_id, load_storage_diagnostics, run_integrity_check, ErrorLogEntry,
-    ErrorLogRepository, IntegrityStatus, StorageDiagnostics,
+    ErrorLogRepository, IntegrityStatus, MigrationService, StorageDiagnostics,
 };
 use leptos::*;
 use std::sync::Arc;
@@ -26,6 +26,7 @@ pub struct AppState {
     pub indexed_purchase_repository: Arc<IndexedDbPurchaseRepository>,
     pub export_service: Arc<ExportService>,
     pub import_service: Arc<ImportService>,
+    pub migration_service: Arc<MigrationService>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository, IndexedDbBoothRepository>>,
     pub report_service: Arc<
         ReportService<
@@ -68,6 +69,12 @@ impl AppState {
             vendor_repository.clone(),
             purchase_repository.clone(),
         ));
+        let migration_service = Arc::new(MigrationService::new_with_database(
+            db.clone(),
+            booth_repository.clone(),
+            vendor_repository.clone(),
+            purchase_repository.clone(),
+        ));
 
         // Create services (use separate instances for service layer)
         let vendor_service = Arc::new(VendorService::new(
@@ -92,6 +99,7 @@ impl AppState {
             indexed_purchase_repository,
             export_service,
             import_service,
+            migration_service,
             vendor_service,
             report_service,
         })

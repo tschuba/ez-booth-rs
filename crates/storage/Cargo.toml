@@ -50,6 +50,9 @@ uuid = { workspace = true }
 # Decimal
 rust_decimal = { workspace = true }
 
+# SQLite parsing for legacy migration
+rusqlite = { version = "0.39", features = ["serialize"] }
+
 # Async trait
 async-trait = "0.1"
 

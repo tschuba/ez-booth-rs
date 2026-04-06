@@ -22,6 +22,9 @@ crates/ez-booth-app/styles/app.css
 # OpenCode session data
 .opencode/
 
+# Local environment overrides
+.envrc
+
 # Local browser driver cache
 .local/
 

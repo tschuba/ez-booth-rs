@@ -1,6 +1,6 @@
 use chrono::Utc;
 use leptos::*;
-use wasm_bindgen::{closure::Closure, JsCast};
+use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 use crate::components::*;
 use crate::error_logging::{recent_error_cutoff, stack_trace, use_error_logger, ErrorLogDraft};
@@ -21,19 +21,55 @@ use ez_booth_storage::{ErrorLogEntry, IntegrityStatus, StorageDiagnostics};
 
 const SETTINGS_TAB_GENERAL_ID: &str = "general";
 const SETTINGS_TAB_DIAGNOSTICS_ID: &str = "diagnostics";
+const SETTINGS_TAB_MIGRATION_ID: &str = "migration";
 
-fn settings_tab_index_from_hash(hash: &str) -> usize {
-    match hash.trim_start_matches('#') {
+fn settings_tab_index_from_id(tab_id: &str) -> usize {
+    match tab_id {
         SETTINGS_TAB_DIAGNOSTICS_ID => 1,
+        SETTINGS_TAB_MIGRATION_ID => 2,
         _ => 0,
     }
+}
+
+fn settings_tab_index_from_hash(hash: &str) -> usize {
+    settings_tab_index_from_id(hash.trim_start_matches('#'))
 }
 
 fn settings_tab_hash(index: usize) -> &'static str {
     match index {
         1 => "#diagnostics",
+        2 => "#migration",
         _ => "#general",
     }
+}
+
+fn settings_tab_id(index: usize) -> &'static str {
+    match index {
+        1 => SETTINGS_TAB_DIAGNOSTICS_ID,
+        2 => SETTINGS_TAB_MIGRATION_ID,
+        _ => SETTINGS_TAB_GENERAL_ID,
+    }
+}
+
+fn settings_tab_index_from_location() -> usize {
+    let Some(window) = web_sys::window() else {
+        return 0;
+    };
+
+    if let Ok(search) = window.location().search() {
+        if let Ok(params) = web_sys::UrlSearchParams::new_with_str(&search) {
+            if let Some(tab) = params.get("tab") {
+                return settings_tab_index_from_id(&tab);
+            }
+        }
+    }
+
+    window
+        .location()
+        .hash()
+        .ok()
+        .map(|hash| settings_tab_index_from_hash(&hash))
+        .unwrap_or(0)
 }
 
 #[component]
@@ -61,10 +97,7 @@ pub fn SettingsPage() -> impl IntoView {
     let (is_exporting_diagnostics, set_is_exporting_diagnostics) = create_signal(false);
     let (show_clear_error_log_confirm, set_show_clear_error_log_confirm) = create_signal(false);
     let (expanded_error_ids, set_expanded_error_ids) = create_signal(Vec::<u32>::new());
-    let initial_tab = web_sys::window()
-        .and_then(|window| window.location().hash().ok())
-        .map(|hash| settings_tab_index_from_hash(&hash))
-        .unwrap_or(0);
+    let initial_tab = settings_tab_index_from_location();
     let active_tab = create_rw_signal(initial_tab);
 
     create_effect(move |_| {
@@ -73,10 +106,8 @@ pub fn SettingsPage() -> impl IntoView {
         };
 
         let listener = Closure::wrap(Box::new(move |_event: web_sys::Event| {
-            if let Some(window) = web_sys::window() {
-                if let Ok(hash) = window.location().hash() {
-                    active_tab.set(settings_tab_index_from_hash(&hash));
-                }
+            if web_sys::window().is_some() {
+                active_tab.set(settings_tab_index_from_location());
             }
         }) as Box<dyn FnMut(_)>);
 
@@ -94,12 +125,26 @@ pub fn SettingsPage() -> impl IntoView {
     });
 
     create_effect(move |_| {
-        let hash = settings_tab_hash(active_tab.get());
+        let active_index = active_tab.get();
+        let hash = settings_tab_hash(active_index);
+        let tab_id = settings_tab_id(active_index);
+
         if let Some(window) = web_sys::window() {
-            if window.location().pathname().ok().as_deref() == Some("/settings")
-                && window.location().hash().ok().as_deref() != Some(hash)
-            {
-                let _ = window.location().set_hash(hash.trim_start_matches('#'));
+            if window.location().pathname().ok().as_deref() == Some("/settings") {
+                if let Ok(current_href) = window.location().href() {
+                    if let Ok(url) = web_sys::Url::new(&current_href) {
+                        url.search_params().set("tab", tab_id);
+                        url.set_hash(hash);
+
+                        if let Ok(history) = window.history() {
+                            let _ = history.replace_state_with_url(
+                                &JsValue::NULL,
+                                "",
+                                Some(&url.href()),
+                            );
+                        }
+                    }
+                }
             }
         }
     });
@@ -656,6 +701,11 @@ pub fn SettingsPage() -> impl IntoView {
                                 label: t!("settings.tabs.diagnostics")(),
                                 has_error: Signal::derive(|| false),
                             },
+                            TabItem {
+                                id: SETTINGS_TAB_MIGRATION_ID.to_string(),
+                                label: t!("settings.tabs.migration")(),
+                                has_error: Signal::derive(|| false),
+                            },
                         ]
                         active_tab=active_tab
                         children=Box::new(move |tab_index| match tab_index {
@@ -932,6 +982,10 @@ pub fn SettingsPage() -> impl IntoView {
                                         </Show>
                                     </section>
                                 </div>
+                            }
+                            .into_view(),
+                            2 => view! {
+                                <MigrationWizard />
                             }
                             .into_view(),
                             _ => general_tab_view().into_view(),

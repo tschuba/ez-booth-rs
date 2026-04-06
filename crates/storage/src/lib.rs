@@ -3,6 +3,7 @@ pub mod error;
 pub mod error_log;
 pub mod export;
 pub mod indexeddb;
+pub mod migration;
 pub mod repositories;
 
 pub use diagnostics::{
@@ -15,4 +16,9 @@ pub use error_log::{
     ERROR_LOG_RETENTION_LIMIT,
 };
 pub use indexeddb::Database;
+pub use migration::{
+    LegacyBooth, LegacyPurchase, LegacyPurchaseItem, LegacyVendor, MigrationError,
+    MigrationIssueStrategy, MigrationParseSummary, MigrationResult, MigrationService,
+    MigrationValidationSummary, SqliteParser, ValidationIssue,
+};
 pub use repositories::{ErrorLogRepository, IndexedDbErrorLogRepository};

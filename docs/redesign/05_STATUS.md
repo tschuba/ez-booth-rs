@@ -401,17 +401,19 @@ This section tracks the newer cleanup initiative proposed in `docs/planning/PHAS
 ## Future Enhancements (P2 - Post-Launch)
 
 ### Data Migration from ez-booth (P3)
-- [ ] Implement SQLite parsing via sql.js
-- [ ] Create data transformation layer
-- [ ] Build migration wizard UI
-- [ ] Add validation and error handling
-- [ ] Write migration documentation
-- [ ] Test with real ez-booth databases
+- [x] Implement SQLite parsing via `rusqlite` in the browser-compatible migration path
+- [x] Create data transformation layer
+- [x] Build migration wizard UI
+- [x] Add validation and error handling
+- [x] Write migration documentation
+- [x] Test with real ez-booth databases
+- [x] Add platform-specific `booth.db` location guidance with clipboard copy support
+- [x] Add empty-state discoverability from the booth list
 
-**Status:** Planned  
-**Target:** Phase 3 (Post-MVP)  
+**Status:** Complete  
+**Completed:** 2026-04-06  
 **Priority:** P3 - Convenience for existing users  
-**Details:** Migration remains planned future work. See `../COMPARISON_TO_ORIGINAL.md` and the redesign discussion in this directory.
+**Details:** Migration is available from `Settings > Migration`, including manual `booth.db` upload, grouped validation messaging, automatic backup before replacement, and empty-state discoverability. See `../COMPARISON_TO_ORIGINAL.md` and the redesign discussion in this directory.
 
 ### Advanced Features
 - [ ] Offline-first PWA capabilities

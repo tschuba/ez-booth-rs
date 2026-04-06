@@ -39,7 +39,28 @@ See the included `README.txt` in each download for platform-specific details.
 - `trunk`: `cargo install trunk`
 - `wasm-pack`: `cargo install wasm-pack`
 - WASM target: `rustup target add wasm32-unknown-unknown`
+- LLVM with WebAssembly support for the SQLite migration feature:
+  - macOS: `brew install llvm direnv`
+  - Linux: system `clang` usually already works
+  - Windows: install LLVM from [releases.llvm.org](https://releases.llvm.org/) (untested)
 - frontend dependencies: run `npm ci` in `crates/ez-booth-app`
+
+On macOS, use a project-local `CC` override so builds use Homebrew LLVM instead of Apple clang:
+
+```bash
+brew install llvm direnv
+cp .envrc.example .envrc
+direnv allow
+```
+
+Then add the `direnv` hook to your shell once:
+
+```bash
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+If you use bash, replace `zsh` with `bash`.
 
 #### Start the App
 
@@ -90,6 +111,7 @@ What works today:
 - booth management with fee configuration and status handling
 - vendor management and checkout persistence
 - reporting and printing flows
+- legacy `booth.db` migration from `Settings > Migration`
 - bilingual German and English UI
 - backup and restore workflows
 - Chrome and Safari validation support
@@ -97,9 +119,10 @@ What works today:
 
 Not available yet:
 
-- automatic migration from original `ez-booth` SQLite data
 - cloud sync or server-backed remote storage
 - full PWA installation flow for field deployment
+
+If you are migrating from the original Java-based `ez-booth`, open `Settings > Migration` and choose the legacy `booth.db` file manually. The default location is usually `~/Documents/tschuba/ez-booth/booth.db` on macOS/Linux or `%USERPROFILE%\Documents\tschuba\ez-booth\booth.db` on Windows.
 
 See [docs/redesign/05_STATUS.md](docs/redesign/05_STATUS.md) for the broader implementation history and current status tracking.
 
@@ -220,6 +243,13 @@ Maintainers should follow [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 - if the launcher build fails, update Rust with `rustup update`
 - if browser changes do not appear, hard-refresh the page
 - if ports `8080-8089` are busy, stop the conflicting process and retry
+
+### WASM LLVM Setup
+
+- if a WASM build fails with `No available targets are compatible with triple "wasm32-unknown-unknown"`, your C compiler does not have WebAssembly support
+- on macOS, install `llvm` and `direnv` with Homebrew, then run `cp .envrc.example .envrc && direnv allow`
+- on Linux, install `llvm` and `clang` if your system compiler is missing WASM support
+- on Windows, install LLVM and point `CC` at `clang.exe` if needed
 
 ### Browser Data and Downloads
 

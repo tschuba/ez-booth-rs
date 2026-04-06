@@ -32,6 +32,10 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - Install Trunk: `cargo install trunk`.
 - Install `wasm-pack` for browser tests: `cargo install wasm-pack`.
 - Add the WASM target: `rustup target add wasm32-unknown-unknown`.
+- Install LLVM with WebAssembly support for the SQLite migration feature:
+  - macOS: `brew install llvm direnv`, then `cp .envrc.example .envrc && direnv allow`
+  - Linux: system `clang` usually sufficient
+  - Windows: install LLVM from `releases.llvm.org` (untested)
 - In `crates/ez-booth-app`, install frontend tooling before Trunk builds: `npm ci`.
 - Safari browser tests require one-time enablement: `sudo safaridriver --enable`.
 
