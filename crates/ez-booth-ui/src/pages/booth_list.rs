@@ -1,12 +1,11 @@
 use crate::booth_ordering::{sort_booths, split_booths};
 use crate::components::*;
 use crate::error_translator::translate_domain_error;
-use crate::formatting::format_date_with_contextual_year as format_display_date;
+use crate::formatting::{format_date_with_contextual_year as format_display_date, format_datetime};
 use crate::i18n::{translate_with_params, use_locale};
 use crate::selected_booth_context::use_selected_booth;
 use crate::state::*;
 use crate::t;
-use chrono::Local;
 use domain::models::booth::Booth;
 use domain::models::{BoothId, BoothSummary};
 use leptos::html;
@@ -60,24 +59,6 @@ fn persist_show_archived_section_preference(show_archived_section: bool) {
             SHOW_ARCHIVED_SECTION_STORAGE_KEY,
             &show_archived_section.to_string(),
         );
-    }
-}
-
-fn format_archived_timestamp(
-    timestamp: chrono::DateTime<chrono::Utc>,
-    locale: crate::i18n::Locale,
-) -> String {
-    let local_timestamp = timestamp.with_timezone(&Local);
-
-    match locale {
-        crate::i18n::Locale::De
-        | crate::i18n::Locale::DeDE
-        | crate::i18n::Locale::DeAT
-        | crate::i18n::Locale::DeCH => local_timestamp.format("%d.%m.%Y %H:%M").to_string(),
-        crate::i18n::Locale::En
-        | crate::i18n::Locale::EnUS
-        | crate::i18n::Locale::EnGB
-        | crate::i18n::Locale::EnEU => local_timestamp.format("%b %d, %Y %I:%M %p").to_string(),
     }
 }
 
@@ -1146,13 +1127,15 @@ fn booth_card_view(
 ) -> View {
     let booth_description = store_value(booth.description.clone());
     let booth_date = booth.date;
+    let booth_archived_at = booth.archived_at;
     let booth_id = booth.id;
     let booth_id_for_report = booth.id;
-    let archived_timestamp = booth.archived_at.map(|timestamp| {
-        let locale = use_locale().get_untracked();
-        t!("archive.archived_at_label")() + ": " + &format_archived_timestamp(timestamp, locale)
+    let locale = use_locale();
+    let archived_timestamp = create_memo(move |_| {
+        booth_archived_at.map(|timestamp| {
+            t!("archive.archived_at_label")() + ": " + &format_datetime(timestamp, locale.get())
+        })
     });
-    let archived_timestamp = store_value(archived_timestamp);
     let booth_for_edit = store_value(booth.clone());
     let booth_for_copy = store_value(booth.clone());
     let booth_for_delete = store_value(booth.clone());
@@ -1245,9 +1228,8 @@ fn booth_card_view(
                         <div class="min-w-0 flex-1 space-y-1">
                             <p class="text-gray-600">{t!("booth.date_prefix")} " " {move || format_date(booth_date)}</p>
                             <Show when=move || is_archived>
-                                <p class="text-sm text-slate-600">{t!("archive.archived_card_hint")()}</p>
-                                <Show when=move || archived_timestamp.with_value(|value| value.is_some())>
-                                    <p class="text-xs text-slate-500">{archived_timestamp.with_value(|value| value.clone().unwrap_or_default())}</p>
+                                <Show when=move || archived_timestamp.get().is_some()>
+                                    <p class="text-xs text-slate-500">{move || archived_timestamp.get().unwrap_or_default()}</p>
                                 </Show>
                             </Show>
                         </div>

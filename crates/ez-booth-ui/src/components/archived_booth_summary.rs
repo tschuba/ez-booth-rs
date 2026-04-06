@@ -1,9 +1,8 @@
-use chrono::Local;
 use leptos::*;
 use log::warn;
 
 use crate::components::pagination::Pagination;
-use crate::formatting::{format_currency, format_date_with_contextual_year};
+use crate::formatting::{format_currency, format_date_with_contextual_year, format_datetime};
 use crate::i18n::use_locale;
 use crate::t;
 use domain::models::booth::{ArchivedVendorSummary, Booth};
@@ -11,14 +10,12 @@ use domain::models::booth::{ArchivedVendorSummary, Booth};
 #[component]
 pub fn ArchivedBoothSummaryDisplay(booth: Booth) -> impl IntoView {
     let locale = use_locale();
-    let archived_label = booth.archived_at.map(|timestamp| {
-        t!("archive.archived_at")().replace(
-            "{timestamp}",
-            &timestamp
-                .with_timezone(&Local)
-                .format("%Y-%m-%d %H:%M")
-                .to_string(),
-        )
+    let archived_at = booth.archived_at;
+    let archived_label = create_memo(move |_| {
+        archived_at.map(|timestamp| {
+            t!("archive.archived_at")()
+                .replace("{timestamp}", &format_datetime(timestamp, locale.get()))
+        })
     });
 
     let Some(summary) = booth.archived_summary.clone() else {
@@ -56,7 +53,7 @@ pub fn ArchivedBoothSummaryDisplay(booth: Booth) -> impl IntoView {
                         <h3 class="text-lg font-semibold text-slate-900">{booth.description.clone()}</h3>
                         <p class="text-sm text-slate-600">{format_date_with_contextual_year(booth.date, locale.get())}</p>
                     </div>
-                    <div class="text-sm text-slate-600">{archived_label.unwrap_or_default()}</div>
+                    <div class="text-sm text-slate-600">{move || archived_label.get().unwrap_or_default()}</div>
                 </div>
             </div>
 
@@ -118,6 +115,13 @@ pub fn ArchivedBoothSummaryDisplay(booth: Booth) -> impl IntoView {
 #[component]
 pub fn PrintArchivedBoothSummary(booth: Booth) -> impl IntoView {
     let locale = use_locale();
+    let archived_at = booth.archived_at;
+    let archived_label = create_memo(move |_| {
+        archived_at.map(|timestamp| {
+            t!("archive.archived_at")()
+                .replace("{timestamp}", &format_datetime(timestamp, locale.get()))
+        })
+    });
 
     let Some(summary) = booth.archived_summary.clone() else {
         warn!(
@@ -134,6 +138,9 @@ pub fn PrintArchivedBoothSummary(booth: Booth) -> impl IntoView {
             <div class="mb-8 border-b-2 border-gray-800 pb-4">
                 <h1 class="text-3xl font-bold">{booth.description.clone()}</h1>
                 <p class="text-lg text-gray-700">{format_date_with_contextual_year(booth.date, locale.get())}</p>
+                <Show when=move || archived_label.get().is_some()>
+                    <p class="mt-2 text-base text-gray-600">{move || archived_label.get().unwrap_or_default()}</p>
+                </Show>
             </div>
 
             <div class="mb-8 grid grid-cols-4 gap-6">
