@@ -794,6 +794,9 @@ pub fn CheckoutPage() -> impl IntoView {
             )
     });
 
+    // Each async effect keeps its own cloned error logger so the callback can
+    // be moved into spawned tasks without coupling unrelated effect lifetimes.
+    // The descriptive names document which flow owns each clone.
     let log_error_for_load = log_error.clone();
     create_effect(move |_| {
         persist_keyboard_visible_preference(keyboard_visible.get());
