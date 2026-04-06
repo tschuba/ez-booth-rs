@@ -693,7 +693,6 @@
     "archived_at": "Archived: {timestamp}",
     "archived_at_label": "Archived",
     "summary_title": "Archived Summary",
-    "archived_card_hint": "Read-only summary retained. Checkout details were removed.",
     "review_title": "Archive Event",
     "export_title": "Required Backup",
     "confirm_title": "Final Confirmation",

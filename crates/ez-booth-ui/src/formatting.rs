@@ -49,11 +49,15 @@ pub fn format_percentage_smart(percent: Decimal, locale: Locale) -> String {
     }
 }
 
-/// Format a chrono DateTime<Local> with locale-aware date and time
+/// Format a local or converted timestamp with locale-aware date and time.
 /// German: 25.03.2026 14:30
 /// English: Mar 25, 2026 2:30 PM
-#[allow(dead_code)]
-pub fn format_datetime(date: DateTime<Local>, locale: Locale) -> String {
+pub fn format_datetime<Tz: chrono::TimeZone>(date: DateTime<Tz>, locale: Locale) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let date = date.with_timezone(&Local);
+
     match locale {
         Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
             date.format("%d.%m.%Y %H:%M").to_string()

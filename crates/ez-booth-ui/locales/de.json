@@ -693,7 +693,6 @@
     "archived_at": "Archiviert: {timestamp}",
     "archived_at_label": "Archiviert",
     "summary_title": "Archivierte Zusammenfassung",
-    "archived_card_hint": "Nur die Zusammenfassung bleibt sichtbar. Kassiervorgänge wurden entfernt.",
     "review_title": "Veranstaltung archivieren",
     "export_title": "Backup erforderlich",
     "confirm_title": "Abschließende Bestätigung",
