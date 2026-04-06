@@ -252,6 +252,16 @@ impl PurchaseRepository for IndexedDbPurchaseRepository {
         Ok(purchases)
     }
 
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        let purchases = self.find_by_booth(booth_id).await?;
+
+        for purchase in &purchases {
+            self.delete_from_booth(booth_id, &purchase.id).await?;
+        }
+
+        Ok(purchases.len())
+    }
+
     async fn delete(&self, id: &PurchaseId) -> DomainResult<()> {
         info!(
             "IndexedDbPurchaseRepository::delete called for id: {:?}",

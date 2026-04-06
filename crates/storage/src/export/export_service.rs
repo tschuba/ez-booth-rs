@@ -14,6 +14,8 @@ use super::backup_format::{
 };
 use super::checksum::{compute_backup_checksum, compute_booth_checksum};
 use super::error::ExportError;
+use crate::archive::ExportRecord;
+use crate::indexeddb::Database;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SerializedBackup {
@@ -26,6 +28,7 @@ pub struct ExportService {
     booth_repository: Arc<dyn BoothRepository>,
     vendor_repository: Arc<dyn VendorRepository>,
     purchase_repository: Arc<dyn PurchaseRepository>,
+    database: Option<Arc<Database>>,
     app_version: String,
 }
 
@@ -39,6 +42,22 @@ impl ExportService {
             booth_repository,
             vendor_repository,
             purchase_repository,
+            None,
+            env!("CARGO_PKG_VERSION"),
+        )
+    }
+
+    pub fn with_database(
+        booth_repository: Arc<dyn BoothRepository>,
+        vendor_repository: Arc<dyn VendorRepository>,
+        purchase_repository: Arc<dyn PurchaseRepository>,
+        database: Arc<Database>,
+    ) -> Self {
+        Self::with_app_version(
+            booth_repository,
+            vendor_repository,
+            purchase_repository,
+            Some(database),
             env!("CARGO_PKG_VERSION"),
         )
     }
@@ -47,12 +66,14 @@ impl ExportService {
         booth_repository: Arc<dyn BoothRepository>,
         vendor_repository: Arc<dyn VendorRepository>,
         purchase_repository: Arc<dyn PurchaseRepository>,
+        database: Option<Arc<Database>>,
         app_version: impl Into<String>,
     ) -> Self {
         Self {
             booth_repository,
             vendor_repository,
             purchase_repository,
+            database,
             app_version: app_version.into(),
         }
     }
@@ -170,6 +191,39 @@ impl ExportService {
             json: serde_json::to_string_pretty(&payload)
                 .map_err(|err| ExportError::Serialization(err.to_string()))?,
         })
+    }
+
+    pub async fn record_booth_export(
+        &self,
+        booth_id: &BoothId,
+        serialized: &SerializedBackup,
+    ) -> Result<Option<ExportRecord>, ExportError> {
+        let Some(database) = &self.database else {
+            return Ok(None);
+        };
+
+        let checksum = serde_json::from_str::<serde_json::Value>(&serialized.json)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("checksum")
+                    .and_then(|checksum| checksum.as_str().map(|value| value.to_string()))
+            })
+            .ok_or_else(|| ExportError::Serialization("missing export checksum".to_string()))?;
+
+        let record = ExportRecord {
+            booth_id: *booth_id,
+            timestamp: chrono::Utc::now(),
+            checksum,
+            file_name: serialized.file_name.clone(),
+            file_size_bytes: serialized.json.len(),
+        };
+
+        crate::archive::save_export_record(database, &record)
+            .await
+            .map_err(|err| ExportError::Serialization(err.to_string()))?;
+
+        Ok(Some(record))
     }
 
     fn filter_orphaned_records(

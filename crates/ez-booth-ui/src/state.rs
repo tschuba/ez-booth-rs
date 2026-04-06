@@ -7,8 +7,8 @@ use ez_booth_storage::repositories::{
     IndexedDbVendorRepository,
 };
 use ez_booth_storage::{
-    create_session_id, load_storage_diagnostics, run_integrity_check, ErrorLogEntry,
-    ErrorLogRepository, IntegrityStatus, MigrationService, StorageDiagnostics,
+    create_session_id, load_storage_diagnostics, run_integrity_check, ArchiveService,
+    ErrorLogEntry, ErrorLogRepository, IntegrityStatus, MigrationService, StorageDiagnostics,
 };
 use leptos::*;
 use std::sync::Arc;
@@ -25,6 +25,7 @@ pub struct AppState {
     pub purchase_repository: Arc<dyn PurchaseRepository>,
     pub indexed_purchase_repository: Arc<IndexedDbPurchaseRepository>,
     pub export_service: Arc<ExportService>,
+    pub archive_service: Arc<ArchiveService>,
     pub import_service: Arc<ImportService>,
     pub migration_service: Arc<MigrationService>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository, IndexedDbBoothRepository>>,
@@ -59,15 +60,18 @@ impl AppState {
             Arc::new(IndexedDbVendorRepository::new(db.clone()));
         let indexed_purchase_repository = Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
         let purchase_repository: Arc<dyn PurchaseRepository> = indexed_purchase_repository.clone();
-        let export_service = Arc::new(ExportService::new(
+        let export_service = Arc::new(ExportService::with_database(
             booth_repository.clone(),
             vendor_repository.clone(),
             purchase_repository.clone(),
+            db.clone(),
         ));
-        let import_service = Arc::new(ImportService::new(
+        let archive_service = Arc::new(ArchiveService::new(db.clone()));
+        let import_service = Arc::new(ImportService::with_archive_service(
             booth_repository.clone(),
             vendor_repository.clone(),
             purchase_repository.clone(),
+            Some(archive_service.clone()),
         ));
         let migration_service = Arc::new(MigrationService::new_with_database(
             db.clone(),
@@ -98,6 +102,7 @@ impl AppState {
             purchase_repository,
             indexed_purchase_repository,
             export_service,
+            archive_service,
             import_service,
             migration_service,
             vendor_service,

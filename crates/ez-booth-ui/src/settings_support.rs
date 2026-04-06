@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local, Utc};
 use ez_booth_storage::diagnostics::{IntegrityStatus, StorageDiagnostics};
+use ez_booth_storage::ArchiveAuditEvent;
 use ez_booth_storage::ErrorLogEntry;
 use serde::Serialize;
 
@@ -20,6 +21,7 @@ pub struct DiagnosticsExportData {
     pub integrity_status: IntegrityStatus,
     pub recent_error_count: usize,
     pub errors: Vec<ErrorLogEntry>,
+    pub archive_audit_events: Vec<ArchiveAuditEvent>,
     pub booth_summary: DiagnosticsBoothSummary,
 }
 

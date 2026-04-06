@@ -383,6 +383,14 @@ mod tests {
             Ok(purchases.values().flat_map(|v| v.clone()).collect())
         }
 
+        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+            let mut purchases = self.purchases.lock().unwrap();
+            Ok(purchases
+                .remove(booth_id)
+                .map(|items| items.len())
+                .unwrap_or(0))
+        }
+
         async fn delete(&self, _id: &crate::models::PurchaseId) -> DomainResult<()> {
             Ok(())
         }
@@ -428,6 +436,24 @@ mod tests {
         async fn find_all(&self) -> DomainResult<Vec<Booth>> {
             let booths = self.booths.lock().unwrap();
             Ok(booths.values().cloned().collect())
+        }
+
+        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .find_all()
+                .await?
+                .into_iter()
+                .filter(|booth| !booth.is_archived())
+                .collect())
+        }
+
+        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .find_all()
+                .await?
+                .into_iter()
+                .filter(|booth| booth.is_archived())
+                .collect())
         }
 
         async fn find_by_description_and_date(
@@ -494,6 +520,13 @@ mod tests {
             Ok(vendors.values().cloned().collect())
         }
 
+        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+            let mut vendors = self.vendors.lock().unwrap();
+            let before = vendors.len();
+            vendors.retain(|(current_booth_id, _), _| current_booth_id != booth_id);
+            Ok(before.saturating_sub(vendors.len()))
+        }
+
         async fn delete(&self, _booth_id: &BoothId, _vendor_id: &VendorId) -> DomainResult<()> {
             Ok(())
         }
@@ -521,6 +554,8 @@ mod tests {
             vendor_id_omission_rules: crate::models::VendorIdOmissionRules::empty(),
             keyboard_config: crate::models::CheckoutKeyboardConfig::default(),
             amount_stepping: None,
+            archived_at: None,
+            archived_summary: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

@@ -302,6 +302,24 @@ cargo tarpaulin --workspace --out Html
 
 While automated tests cover logic and storage, manual browser testing is still needed for:
 
+### Archive And Restore Workflow
+- [ ] Archive action is only available from the booth list for active booths
+- [ ] Archive wizard requires a successful booth export before confirmation is enabled
+- [ ] Large booth warning appears when archive thresholds are exceeded
+- [ ] Confirming archive moves the booth into the archived section and removes it from active selection
+- [ ] Archived booth remains viewable but cannot be selected for checkout or vendor operations
+- [ ] Archived booth summary report shows vendor totals without transaction detail rows
+- [ ] Importing the exported booth backup restores the archived booth to active use
+- [ ] Diagnostics export includes archive audit events for the archive and restore actions
+- [ ] Archived booth print view displays correct non-zero monetary values
+- [ ] Archived booth modal title shows translated archived summary text
+- [ ] Archiving a booth in one tab clears the selection in other tabs
+- [ ] Archived booths cannot be deleted from the booth list UI
+- [ ] Archive history is visible in Settings diagnostics
+- [ ] Archived booth cards show a localized archived timestamp
+- [ ] Booth selector explains when all booths are archived
+- [ ] Archived section visibility persists across reloads
+
 ### Create Operation
 - [ ] Valid form submission creates booth
 - [ ] Empty fields show validation errors
@@ -348,6 +366,8 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] Enter negative amount and verify checkout rejects it
 - [ ] Trigger draft persistence by entering checkout items, then refresh
 - [ ] Verify draft recovery behaves as expected
+- [ ] Export and archive the booth, then verify the archived summary print view still renders correctly in Safari
+- [ ] Re-import the booth backup and verify the booth becomes selectable again
 - [ ] Corrupt one purchase record and verify a visible warning explains that only recoverable data is shown
 - [ ] Confirm there are no uncaught console errors during checkout/report flows
 

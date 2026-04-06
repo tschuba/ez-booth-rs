@@ -135,6 +135,16 @@ impl VendorRepository for IndexedDbVendorRepository {
         Ok(vendors)
     }
 
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
+        let vendors = self.find_by_booth(booth_id).await?;
+
+        for vendor in &vendors {
+            self.delete_from_booth(booth_id, &vendor.vendor_id).await?;
+        }
+
+        Ok(vendors.len())
+    }
+
     async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()> {
         let transaction = self
             .db

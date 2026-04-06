@@ -76,7 +76,13 @@ impl<R: BoothRepository> BoothService<R> {
 
     /// Delete a booth
     pub async fn delete_booth(&self, id: BoothId) -> DomainResult<()> {
-        self.repository.delete(&id).await
+        let booth = self.get_booth(id).await?;
+
+        if booth.is_archived() {
+            return Err(DomainError::Validation(ValidationError::BoothArchived));
+        }
+
+        self.repository.delete(&booth.id).await
     }
 
     async fn save_booth(&self, booth: &Booth) -> DomainResult<()> {
@@ -87,6 +93,10 @@ impl<R: BoothRepository> BoothService<R> {
     }
 
     fn validate_booth(&self, booth: &Booth) -> DomainResult<()> {
+        if booth.is_archived() {
+            return Err(DomainError::Validation(ValidationError::BoothArchived));
+        }
+
         booth.fees.validate_ranges()?;
 
         match &booth.vendor_id_validation {
@@ -166,6 +176,28 @@ mod tests {
 
         async fn find_all(&self) -> DomainResult<Vec<Booth>> {
             Ok(self.booths.lock().unwrap().values().cloned().collect())
+        }
+
+        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .booths
+                .lock()
+                .unwrap()
+                .values()
+                .filter(|booth| !booth.is_archived())
+                .cloned()
+                .collect())
+        }
+
+        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+            Ok(self
+                .booths
+                .lock()
+                .unwrap()
+                .values()
+                .filter(|booth| booth.is_archived())
+                .cloned()
+                .collect())
         }
 
         async fn find_by_description_and_date(
@@ -413,6 +445,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_booth_rejects_archived_booths() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo);
+
+        let mut booth = Booth::new(
+            "Archived Booth".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+            FeeConfig {
+                participation_fee: dec!(5.0),
+                sales_fee_percent: dec!(10.0),
+                rounding_step: dec!(0.50),
+            },
+        )
+        .unwrap();
+
+        booth
+            .archive(crate::models::ArchivedBoothSummary {
+                total_revenue: dec!(10.0),
+                total_booth_revenue: dec!(2.0),
+                vendor_count: 1,
+                purchase_count: 1,
+                item_count: 1,
+                first_purchase_at: None,
+                last_purchase_at: None,
+                vendor_summaries: Vec::new(),
+            })
+            .unwrap();
+
+        let result = service.update_booth(booth).await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(ValidationError::BoothArchived))
+        ));
+    }
+
+    #[tokio::test]
     async fn test_copy_booth_copies_configuration_only() {
         let repo = MockBoothRepository::new();
         let service = BoothService::new(repo);
@@ -453,5 +522,93 @@ mod tests {
             source.vendor_id_omission_rules
         );
         assert_eq!(copied.keyboard_config, source.keyboard_config);
+    }
+
+    #[tokio::test]
+    async fn test_delete_booth_rejects_archived() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo.clone());
+
+        let mut booth = Booth::new(
+            "Archived Booth".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+            FeeConfig {
+                participation_fee: dec!(5.0),
+                sales_fee_percent: dec!(10.0),
+                rounding_step: dec!(0.50),
+            },
+        )
+        .unwrap();
+
+        booth
+            .archive(crate::models::ArchivedBoothSummary {
+                total_revenue: dec!(10.0),
+                total_booth_revenue: dec!(2.0),
+                vendor_count: 1,
+                purchase_count: 1,
+                item_count: 1,
+                first_purchase_at: None,
+                last_purchase_at: None,
+                vendor_summaries: Vec::new(),
+            })
+            .unwrap();
+
+        repo.save(&booth).await.unwrap();
+
+        let result = service.delete_booth(booth.id).await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Validation(ValidationError::BoothArchived))
+        ));
+        assert!(repo.find_by_id(&booth.id).await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_copy_booth_from_archived_source_creates_active_copy() {
+        let repo = MockBoothRepository::new();
+        let service = BoothService::new(repo.clone());
+
+        let mut source = service
+            .create_booth(
+                "Archived Source".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 22).unwrap(),
+                FeeConfig {
+                    participation_fee: dec!(5.0),
+                    sales_fee_percent: dec!(10.0),
+                    rounding_step: dec!(0.50),
+                },
+            )
+            .await
+            .unwrap();
+        source.vendor_id_validation = VendorIdValidation::Regex(r"^V\d{3}$".to_string());
+        service.update_booth(source.clone()).await.unwrap();
+        source
+            .archive(crate::models::ArchivedBoothSummary {
+                total_revenue: dec!(25.0),
+                total_booth_revenue: dec!(4.0),
+                vendor_count: 2,
+                purchase_count: 2,
+                item_count: 3,
+                first_purchase_at: None,
+                last_purchase_at: None,
+                vendor_summaries: Vec::new(),
+            })
+            .unwrap();
+        repo.save(&source).await.unwrap();
+
+        let copied = service
+            .copy_booth(
+                source.id,
+                "Copied Archived Booth".to_string(),
+                NaiveDate::from_ymd_opt(2026, 3, 29).unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(!copied.is_archived());
+        assert_eq!(copied.description, "Copied Archived Booth");
+        assert_eq!(copied.fees, source.fees);
+        assert_eq!(copied.vendor_id_validation, source.vendor_id_validation);
     }
 }

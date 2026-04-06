@@ -4,6 +4,8 @@ use domain::{Booth, BoothRepository, Purchase, PurchaseRepository, Vendor, Vendo
 
 use super::backup_format::{BackupData, BoothBackupData};
 use super::error::{ImportError, SkippedRecord};
+use crate::archive::ArchiveService;
+use crate::export::DeviceInfo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConflictStrategy {
@@ -26,6 +28,7 @@ pub struct ImportService {
     booth_repository: Arc<dyn BoothRepository>,
     vendor_repository: Arc<dyn VendorRepository>,
     purchase_repository: Arc<dyn PurchaseRepository>,
+    archive_service: Option<Arc<ArchiveService>>,
 }
 
 impl ImportService {
@@ -34,10 +37,25 @@ impl ImportService {
         vendor_repository: Arc<dyn VendorRepository>,
         purchase_repository: Arc<dyn PurchaseRepository>,
     ) -> Self {
+        Self::with_archive_service(
+            booth_repository,
+            vendor_repository,
+            purchase_repository,
+            None,
+        )
+    }
+
+    pub fn with_archive_service(
+        booth_repository: Arc<dyn BoothRepository>,
+        vendor_repository: Arc<dyn VendorRepository>,
+        purchase_repository: Arc<dyn PurchaseRepository>,
+        archive_service: Option<Arc<ArchiveService>>,
+    ) -> Self {
         Self {
             booth_repository,
             vendor_repository,
             purchase_repository,
+            archive_service,
         }
     }
 
@@ -87,6 +105,25 @@ impl ImportService {
         }
 
         Ok(summary)
+    }
+
+    pub async fn import_booth_backup_restoring_archived(
+        &self,
+        data: BoothBackupData,
+        strategy: ConflictStrategy,
+        device_info: DeviceInfo,
+    ) -> Result<ImportSummary, ImportError> {
+        if let Some(existing) = self.booth_repository.find_by_id(&data.booth.id).await? {
+            if existing.is_archived() {
+                if let Some(archive_service) = &self.archive_service {
+                    archive_service
+                        .restore_booth(&data.booth.id, device_info)
+                        .await?;
+                }
+            }
+        }
+
+        self.import_booth_backup(data, strategy).await
     }
 
     async fn import_booth_record(

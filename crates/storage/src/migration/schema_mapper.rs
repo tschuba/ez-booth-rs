@@ -45,6 +45,8 @@ fn map_booth(legacy: LegacyBooth) -> Result<Booth, MigrationError> {
         vendor_id_omission_rules: Default::default(),
         keyboard_config: Default::default(),
         amount_stepping: None,
+        archived_at: None,
+        archived_summary: None,
         created_at: now,
         updated_at: now,
     })

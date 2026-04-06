@@ -15,6 +15,18 @@ pub struct SelectedBoothContext(pub RwSignal<Option<Booth>>);
 #[derive(Clone, Copy, Debug)]
 pub struct BoothListVersionContext(pub RwSignal<u32>);
 
+fn clear_selected_booth(
+    booth_signal: &RwSignal<Option<Booth>>,
+    booth_list_version: Option<&RwSignal<u32>>,
+) {
+    save_selected_booth_id(None);
+    booth_signal.set(None);
+
+    if let Some(version_signal) = booth_list_version {
+        version_signal.update(|version| *version += 1);
+    }
+}
+
 /// Get localStorage from the browser window
 fn get_local_storage() -> Option<web_sys::Storage> {
     let window = window()?;
@@ -92,6 +104,7 @@ pub fn use_booth_list_version() -> RwSignal<u32> {
 #[component]
 pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
     let booth_signal = provide_selected_booth_context();
+    let booth_list_version = use_booth_list_version();
 
     // Restore selected booth from localStorage on mount
     // Track if we've already attempted restoration
@@ -169,6 +182,11 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
             // Validate that the booth still exists
             match booth_repository.find_by_id(&stored_booth_id).await {
                 Ok(Some(booth)) => {
+                    if booth.is_archived() {
+                        clear_selected_booth(&booth_signal, Some(&booth_list_version));
+                        return;
+                    }
+
                     web_sys::console::log_1(
                         &format!("Booth restored: {}", booth.description).into(),
                     );
@@ -265,6 +283,14 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
                                 spawn_local(async move {
                                     match booth_repository.find_by_id(&booth_id).await {
                                         Ok(Some(booth)) => {
+                                            if booth.is_archived() {
+                                                clear_selected_booth(
+                                                    &booth_signal,
+                                                    Some(&booth_list_version),
+                                                );
+                                                return;
+                                            }
+
                                             web_sys::console::log_1(
                                                 &format!(
                                                     "Storage event: loaded booth {}",
@@ -294,6 +320,31 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
                             }
                         }
                     }
+                }
+            } else if event.key().as_deref() == Some(BOOTH_LIST_VERSION_STORAGE_KEY) {
+                if let Some(Ok(state)) = app_state.get() {
+                    let booth_repository = state.booth_repository.clone();
+                    let booth_signal = booth_signal;
+                    let booth_list_version = booth_list_version;
+
+                    spawn_local(async move {
+                        let Some(selected_booth) = booth_signal.get_untracked() else {
+                            return;
+                        };
+
+                        match booth_repository.find_by_id(&selected_booth.id).await {
+                            Ok(Some(booth)) if booth.is_archived() => {
+                                clear_selected_booth(&booth_signal, Some(&booth_list_version));
+                            }
+                            Ok(Some(booth)) => {
+                                booth_signal.set(Some(booth));
+                            }
+                            Ok(None) => {
+                                clear_selected_booth(&booth_signal, None);
+                            }
+                            Err(_) => {}
+                        }
+                    });
                 }
             }
         };

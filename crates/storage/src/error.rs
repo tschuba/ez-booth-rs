@@ -55,3 +55,12 @@ impl From<StorageError> for domain::DomainError {
         }
     }
 }
+
+impl From<domain::DomainError> for StorageError {
+    fn from(err: domain::DomainError) -> Self {
+        match err {
+            domain::DomainError::NotFound(msg) => StorageError::NotFound(msg),
+            other => StorageError::TransactionError(other.to_string()),
+        }
+    }
+}

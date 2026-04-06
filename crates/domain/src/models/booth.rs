@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
+use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, OnceLock};
 
@@ -14,6 +15,21 @@ use crate::validation::{
 const OMISSION_RULES_VERSION: u8 = 1;
 const MAX_OMISSION_RULES: usize = 100;
 const MAX_WILDCARD_PATTERN_LEN: usize = 100;
+
+fn serialize_decimal_as_string<S>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+fn deserialize_decimal_from_string<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    value.parse().map_err(D::Error::custom)
+}
 
 fn default_vendor_id_digits_min() -> usize {
     1
@@ -406,8 +422,60 @@ pub struct Booth {
     #[serde(default)]
     pub amount_stepping: Option<Decimal>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<DateTime<Utc>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_summary: Option<ArchivedBoothSummary>,
+
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArchivedBoothSummary {
+    #[serde(
+        serialize_with = "serialize_decimal_as_string",
+        deserialize_with = "deserialize_decimal_from_string"
+    )]
+    pub total_revenue: Decimal,
+    #[serde(
+        serialize_with = "serialize_decimal_as_string",
+        deserialize_with = "deserialize_decimal_from_string"
+    )]
+    pub total_booth_revenue: Decimal,
+    pub vendor_count: usize,
+    pub purchase_count: usize,
+    pub item_count: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_purchase_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_purchase_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub vendor_summaries: Vec<ArchivedVendorSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArchivedVendorSummary {
+    pub vendor_id: VendorId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vendor_name: Option<String>,
+    #[serde(
+        serialize_with = "serialize_decimal_as_string",
+        deserialize_with = "deserialize_decimal_from_string"
+    )]
+    pub gross_sales: Decimal,
+    #[serde(
+        serialize_with = "serialize_decimal_as_string",
+        deserialize_with = "deserialize_decimal_from_string"
+    )]
+    pub fees_due: Decimal,
+    #[serde(
+        serialize_with = "serialize_decimal_as_string",
+        deserialize_with = "deserialize_decimal_from_string"
+    )]
+    pub net_payout: Decimal,
+    pub item_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -516,6 +584,8 @@ impl Booth {
             vendor_id_omission_rules: VendorIdOmissionRules::empty(),
             keyboard_config: CheckoutKeyboardConfig::default(),
             amount_stepping,
+            archived_at: None,
+            archived_summary: None,
             created_at: now,
             updated_at: now,
         };
@@ -548,6 +618,35 @@ impl Booth {
         } else {
             self.amount_stepping = None;
         }
+        self.updated_at = Utc::now();
+        Ok(())
+    }
+
+    pub fn is_archived(&self) -> bool {
+        self.archived_at.is_some()
+    }
+
+    pub fn archive(&mut self, summary: ArchivedBoothSummary) -> Result<(), DomainError> {
+        if self.is_archived() {
+            return Err(DomainError::Validation(
+                ValidationError::BoothAlreadyArchived,
+            ));
+        }
+
+        let now = Utc::now();
+        self.archived_at = Some(now);
+        self.archived_summary = Some(summary);
+        self.updated_at = now;
+        Ok(())
+    }
+
+    pub fn restore(&mut self) -> Result<(), DomainError> {
+        if !self.is_archived() {
+            return Err(DomainError::Validation(ValidationError::BoothNotArchived));
+        }
+
+        self.archived_at = None;
+        self.archived_summary = None;
         self.updated_at = Utc::now();
         Ok(())
     }
@@ -587,6 +686,7 @@ pub struct VendorBoothSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::VendorId;
     use serde_json::json;
 
     fn test_fees() -> FeeConfig {
@@ -806,6 +906,104 @@ mod tests {
             booth.update_amount_stepping(Some(Decimal::ZERO)),
             Err(DomainError::Validation(
                 ValidationError::AmountSteppingInvalid
+            ))
+        ));
+    }
+
+    #[test]
+    fn archived_booth_round_trips_archive_state() {
+        let mut booth = Booth::new(
+            "Spring Fair".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        let summary = ArchivedBoothSummary {
+            total_revenue: Decimal::new(100, 0),
+            total_booth_revenue: Decimal::new(20, 0),
+            vendor_count: 2,
+            purchase_count: 3,
+            item_count: 4,
+            first_purchase_at: None,
+            last_purchase_at: None,
+            vendor_summaries: vec![ArchivedVendorSummary {
+                vendor_id: VendorId::new("101".to_string()),
+                vendor_name: Some("Anna".to_string()),
+                gross_sales: Decimal::new(100, 0),
+                fees_due: Decimal::new(20, 0),
+                net_payout: Decimal::new(80, 0),
+                item_count: 4,
+            }],
+        };
+
+        booth.archive(summary.clone()).unwrap();
+        assert!(booth.is_archived());
+        assert_eq!(booth.archived_summary, Some(summary));
+
+        booth.restore().unwrap();
+        assert!(!booth.is_archived());
+        assert!(booth.archived_summary.is_none());
+    }
+
+    #[test]
+    fn archived_summary_decimal_fields_round_trip_as_strings() {
+        let summary = ArchivedBoothSummary {
+            total_revenue: Decimal::new(760, 1),
+            total_booth_revenue: Decimal::new(170, 1),
+            vendor_count: 5,
+            purchase_count: 8,
+            item_count: 10,
+            first_purchase_at: None,
+            last_purchase_at: None,
+            vendor_summaries: vec![ArchivedVendorSummary {
+                vendor_id: VendorId::new("1".to_string()),
+                vendor_name: Some("Anna".to_string()),
+                gross_sales: Decimal::new(660, 1),
+                fees_due: Decimal::new(110, 1),
+                net_payout: Decimal::new(550, 1),
+                item_count: 6,
+            }],
+        };
+
+        let serialized = serde_json::to_value(&summary).unwrap();
+        assert_eq!(serialized["total_revenue"], json!("76.0"));
+        assert_eq!(serialized["total_booth_revenue"], json!("17.0"));
+        assert_eq!(
+            serialized["vendor_summaries"][0]["gross_sales"],
+            json!("66.0")
+        );
+
+        let round_tripped: ArchivedBoothSummary = serde_json::from_value(serialized).unwrap();
+        assert_eq!(round_tripped, summary);
+    }
+
+    #[test]
+    fn archive_rejects_duplicate_archive_calls() {
+        let mut booth = Booth::new(
+            "Spring Fair".to_string(),
+            NaiveDate::from_ymd_opt(2026, 3, 25).unwrap(),
+            test_fees(),
+        )
+        .unwrap();
+
+        let summary = ArchivedBoothSummary {
+            total_revenue: Decimal::ZERO,
+            total_booth_revenue: Decimal::ZERO,
+            vendor_count: 0,
+            purchase_count: 0,
+            item_count: 0,
+            first_purchase_at: None,
+            last_purchase_at: None,
+            vendor_summaries: Vec::new(),
+        };
+
+        booth.archive(summary.clone()).unwrap();
+
+        assert!(matches!(
+            booth.archive(summary),
+            Err(DomainError::Validation(
+                ValidationError::BoothAlreadyArchived
             ))
         ));
     }

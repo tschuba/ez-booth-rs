@@ -1,3 +1,5 @@
+mod archive_wizard;
+mod archived_booth_summary;
 mod booth_form;
 mod booth_selector;
 mod booth_summary_report;
@@ -26,6 +28,8 @@ mod booth_form_tests;
 
 // Re-export components
 pub use crate::utils::format_error_message;
+pub use archive_wizard::*;
+pub use archived_booth_summary::*;
 pub use booth_form::*;
 pub use booth_selector::*;
 pub use booth_summary_report::*;

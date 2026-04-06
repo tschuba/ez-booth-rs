@@ -22,6 +22,7 @@ Use the smallest validation set that still proves the change is safe. Automated 
 
 Run a manual session when a change affects any of these areas:
 
+- archive, restore, or destructive data-retention workflows
 - checkout correction or deletion flows
 - recovery guidance, draft restore, or corrupted-storage messaging
 - report totals, payout trust, or print layout
@@ -37,6 +38,7 @@ Use this for focused Safari sessions. It is the quickest reusable checklist for 
 Best for:
 - confirming a bug fix in Safari
 - checking totals after destructive actions
+- checking archive summary rendering and restore flows in Safari
 - capturing pass/fail evidence during development
 
 ### `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
@@ -46,7 +48,7 @@ Use this when the tester should follow an on-screen or printable guided script. 
 Best for:
 - structured acceptance testing
 - mixed German/English sessions
-- repeatable operator exercises such as Module H correction and deletion workflows
+- repeatable operator exercises such as correction, deletion, archive, and restore workflows
 
 ### `docs/planning/PHASE1_M2_PREPARATION.md`
 
@@ -72,8 +74,13 @@ Best for:
 3. Pick the manual artifact that matches the risk:
    - Safari-focused issue: use `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
    - operator walkthrough or sign-off: use `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html`
-4. If the work belongs to a milestone, copy results into the milestone result file.
-5. Reference the validation in the pull request description.
+4. For archive or restore changes, include these checkpoints in the session:
+   - export is completed and validated before archive confirmation
+   - archived booths move out of active selection and into the archived list section
+   - archived print/report output shows summary data only
+   - importing the archived booth backup restores the booth for active use
+5. If the work belongs to a milestone, copy results into the milestone result file.
+6. Reference the validation in the pull request description.
 
 ## Example Result Entry
 

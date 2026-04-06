@@ -4,7 +4,7 @@
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 use chrono::NaiveDate;
-use domain::models::booth::{Booth, FeeConfig};
+use domain::models::booth::{ArchivedBoothSummary, ArchivedVendorSummary, Booth, FeeConfig};
 use domain::repositories::BoothRepository;
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::IndexedDbBoothRepository;
@@ -281,4 +281,61 @@ async fn test_find_by_description_and_date_trims_lookup_value() {
 
     assert!(found.is_some());
     assert_eq!(found.unwrap().id, booth_id);
+}
+
+#[wasm_bindgen_test]
+async fn test_archived_summary_persists_decimal_values() {
+    let db = Arc::new(create_test_db().await);
+    let repo = IndexedDbBoothRepository::new(db);
+
+    let mut booth = create_test_booth("Archived Booth");
+    let booth_id = booth.id;
+    booth
+        .archive(ArchivedBoothSummary {
+            total_revenue: Decimal::from_str("76").unwrap(),
+            total_booth_revenue: Decimal::from_str("17.0").unwrap(),
+            vendor_count: 5,
+            purchase_count: 8,
+            item_count: 10,
+            first_purchase_at: None,
+            last_purchase_at: None,
+            vendor_summaries: vec![ArchivedVendorSummary {
+                vendor_id: domain::VendorId::new("1".to_string()),
+                vendor_name: Some("Anna".to_string()),
+                gross_sales: Decimal::from_str("66").unwrap(),
+                fees_due: Decimal::from_str("11.0").unwrap(),
+                net_payout: Decimal::from_str("55.0").unwrap(),
+                item_count: 6,
+            }],
+        })
+        .unwrap();
+
+    repo.save(&booth).await.unwrap();
+
+    let found = repo.find_by_id(&booth_id).await.unwrap().unwrap();
+    let summary = found
+        .archived_summary
+        .expect("archived summary should load");
+
+    assert_eq!(summary.total_revenue, Decimal::from_str("76").unwrap());
+    assert_eq!(
+        summary.total_booth_revenue,
+        Decimal::from_str("17.0").unwrap()
+    );
+    assert_eq!(summary.vendor_count, 5);
+    assert_eq!(summary.purchase_count, 8);
+    assert_eq!(summary.item_count, 10);
+    assert_eq!(summary.vendor_summaries.len(), 1);
+    assert_eq!(
+        summary.vendor_summaries[0].gross_sales,
+        Decimal::from_str("66").unwrap()
+    );
+    assert_eq!(
+        summary.vendor_summaries[0].fees_due,
+        Decimal::from_str("11.0").unwrap()
+    );
+    assert_eq!(
+        summary.vendor_summaries[0].net_payout,
+        Decimal::from_str("55.0").unwrap()
+    );
 }

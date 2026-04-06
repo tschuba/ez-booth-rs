@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use domain::{Booth, BoothId, BoothRepository, DomainResult};
 use js_sys;
+use log::{debug, error, info, warn};
 use rexie::TransactionMode;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
@@ -42,6 +43,23 @@ impl BoothRepository for IndexedDbBoothRepository {
 
         let value = to_value(booth).map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
+        if booth.is_archived() {
+            if let Some(summary) = &booth.archived_summary {
+                info!(
+                    "Saving archived booth {} with revenue {}, booth revenue {}, vendor summaries {}",
+                    booth.id,
+                    summary.total_revenue,
+                    summary.total_booth_revenue,
+                    summary.vendor_summaries.len()
+                );
+            } else {
+                warn!(
+                    "Saving archived booth {} without archived summary",
+                    booth.id
+                );
+            }
+        }
+
         store
             .put(&value, None)
             .await
@@ -76,6 +94,23 @@ impl BoothRepository for IndexedDbBoothRepository {
             Some(value) => {
                 let booth: Booth = from_value(value)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+
+                if booth.is_archived() {
+                    match booth.archived_summary.as_ref() {
+                        Some(summary) => info!(
+                            "Loaded archived booth {} with revenue {}, booth revenue {}, vendor summaries {}",
+                            booth.id,
+                            summary.total_revenue,
+                            summary.total_booth_revenue,
+                            summary.vendor_summaries.len()
+                        ),
+                        None => warn!(
+                            "Loaded archived booth {} without archived summary",
+                            booth.id
+                        ),
+                    }
+                }
+
                 Ok(Some(booth))
             }
             None => Ok(None),
@@ -99,10 +134,52 @@ impl BoothRepository for IndexedDbBoothRepository {
 
         let booths: Vec<Booth> = values
             .into_iter()
-            .filter_map(|value| from_value(value).ok())
+            .filter_map(|value| match from_value::<Booth>(value) {
+                Ok(booth) => {
+                    if booth.is_archived() {
+                        match booth.archived_summary.as_ref() {
+                            Some(summary) => debug!(
+                                "Loaded archived booth {} from list with revenue {}, booth revenue {}, vendor summaries {}",
+                                booth.id,
+                                summary.total_revenue,
+                                summary.total_booth_revenue,
+                                summary.vendor_summaries.len()
+                            ),
+                            None => warn!(
+                                "Loaded archived booth {} from list without archived summary",
+                                booth.id
+                            ),
+                        }
+                    }
+
+                    Some(booth)
+                }
+                Err(err) => {
+                    error!("Failed to deserialize booth from IndexedDB: {}", err);
+                    None
+                }
+            })
             .collect();
 
         Ok(booths)
+    }
+
+    async fn find_active(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .find_all()
+            .await?
+            .into_iter()
+            .filter(|booth| !booth.is_archived())
+            .collect())
+    }
+
+    async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
+        Ok(self
+            .find_all()
+            .await?
+            .into_iter()
+            .filter(|booth| booth.is_archived())
+            .collect())
     }
 
     async fn find_by_description_and_date(
@@ -132,6 +209,23 @@ impl BoothRepository for IndexedDbBoothRepository {
             Some(value) => {
                 let booth: Booth = from_value(value)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+
+                if booth.is_archived() {
+                    match booth.archived_summary.as_ref() {
+                        Some(summary) => debug!(
+                            "Loaded archived booth {} by description/date with revenue {}, booth revenue {}, vendor summaries {}",
+                            booth.id,
+                            summary.total_revenue,
+                            summary.total_booth_revenue,
+                            summary.vendor_summaries.len()
+                        ),
+                        None => warn!(
+                            "Loaded archived booth {} by description/date without archived summary",
+                            booth.id
+                        ),
+                    }
+                }
+
                 Ok(Some(booth))
             }
             None => Ok(None),

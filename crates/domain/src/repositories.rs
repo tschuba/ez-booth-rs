@@ -21,6 +21,12 @@ pub trait BoothRepository {
     /// Find all booths
     async fn find_all(&self) -> DomainResult<Vec<Booth>>;
 
+    /// Find all active booths
+    async fn find_active(&self) -> DomainResult<Vec<Booth>>;
+
+    /// Find all archived booths
+    async fn find_archived(&self) -> DomainResult<Vec<Booth>>;
+
     /// Find a booth by description and date
     async fn find_by_description_and_date(
         &self,
@@ -50,6 +56,9 @@ pub trait VendorRepository {
 
     /// Find all vendors across all booths
     async fn find_all(&self) -> DomainResult<Vec<Vendor>>;
+
+    /// Delete all vendors for a booth and return the deleted count
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize>;
 
     /// Delete a vendor
     async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()>;
@@ -112,6 +121,9 @@ pub trait PurchaseRepository {
 
     /// Find all purchases
     async fn find_all(&self) -> DomainResult<Vec<Purchase>>;
+
+    /// Delete all purchases for a booth and return the deleted count
+    async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize>;
 
     /// Delete a purchase by ID
     async fn delete(&self, id: &PurchaseId) -> DomainResult<()>;
