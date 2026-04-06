@@ -3,7 +3,12 @@ use domain::services::{BoothService, ReportService, VendorService};
 use ez_booth_storage::export::{ExportService, ImportService};
 use ez_booth_storage::indexeddb::Database;
 use ez_booth_storage::repositories::{
-    IndexedDbBoothRepository, IndexedDbPurchaseRepository, IndexedDbVendorRepository,
+    IndexedDbBoothRepository, IndexedDbErrorLogRepository, IndexedDbPurchaseRepository,
+    IndexedDbVendorRepository,
+};
+use ez_booth_storage::{
+    create_session_id, load_storage_diagnostics, run_integrity_check, ErrorLogEntry,
+    ErrorLogRepository, IntegrityStatus, StorageDiagnostics,
 };
 use leptos::*;
 use std::sync::Arc;
@@ -11,6 +16,9 @@ use std::sync::Arc;
 /// Application state containing repositories and services
 #[derive(Clone)]
 pub struct AppState {
+    pub database: Arc<Database>,
+    pub session_id: String,
+    pub error_log_repository: Arc<dyn ErrorLogRepository>,
     pub booth_repository: Arc<dyn BoothRepository>,
     pub booth_service: Arc<BoothService<IndexedDbBoothRepository>>,
     pub vendor_repository: Arc<dyn VendorRepository>,
@@ -37,8 +45,13 @@ impl AppState {
             .map_err(|e| format!("Failed to initialize database: {:?}", e))?;
 
         let db = Arc::new(db);
+        let session_id = create_session_id(&db)
+            .await
+            .map_err(|e| format!("Failed to initialize error logging session: {:?}", e))?;
 
         // Create repositories
+        let error_log_repository: Arc<dyn ErrorLogRepository> =
+            Arc::new(IndexedDbErrorLogRepository::new(db.clone()));
         let booth_repository: Arc<dyn BoothRepository> =
             Arc::new(IndexedDbBoothRepository::new(db.clone()));
         let vendor_repository: Arc<dyn VendorRepository> =
@@ -69,6 +82,9 @@ impl AppState {
         ));
 
         Ok(Self {
+            database: db,
+            session_id,
+            error_log_repository,
             booth_repository,
             booth_service,
             vendor_repository,
@@ -79,6 +95,49 @@ impl AppState {
             vendor_service,
             report_service,
         })
+    }
+
+    pub async fn load_storage_diagnostics(&self) -> Result<StorageDiagnostics, String> {
+        load_storage_diagnostics(&self.database)
+            .await
+            .map_err(|err| format!("Failed to load storage diagnostics: {err}"))
+    }
+
+    pub async fn run_integrity_check(&self) -> Result<IntegrityStatus, String> {
+        run_integrity_check(&self.database)
+            .await
+            .map_err(|err| format!("Failed to run integrity check: {err}"))
+    }
+
+    pub async fn log_error(&self, entry: &ErrorLogEntry) -> Result<ErrorLogEntry, String> {
+        self.error_log_repository
+            .log_error(entry)
+            .await
+            .map_err(|err| format!("Failed to log error: {err}"))
+    }
+
+    pub async fn get_recent_errors(&self, limit: usize) -> Result<Vec<ErrorLogEntry>, String> {
+        self.error_log_repository
+            .get_recent_errors(limit)
+            .await
+            .map_err(|err| format!("Failed to load error log: {err}"))
+    }
+
+    pub async fn count_errors_since(
+        &self,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<usize, String> {
+        self.error_log_repository
+            .count_errors_since(since)
+            .await
+            .map_err(|err| format!("Failed to count errors: {err}"))
+    }
+
+    pub async fn clear_error_log(&self) -> Result<(), String> {
+        self.error_log_repository
+            .clear_all()
+            .await
+            .map_err(|err| format!("Failed to clear error log: {err}"))
     }
 }
 

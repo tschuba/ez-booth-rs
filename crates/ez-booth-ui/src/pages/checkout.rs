@@ -1,5 +1,6 @@
 use crate::audio::play_error_sound;
 use crate::components::*;
+use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::error_translator::translate_domain_error;
 use crate::formatting::{
     decimal_separator, format_currency, format_decimal_for_input, is_allowed_amount_key,
@@ -654,6 +655,7 @@ fn persist_form_data(booth_id: Option<String>, data: &CheckoutFormData) -> Resul
 pub fn CheckoutPage() -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
+    let log_error = use_error_logger();
 
     // Use global selected booth context
     let selected_booth = selected_booth_context::use_selected_booth();
@@ -707,7 +709,13 @@ pub fn CheckoutPage() -> impl IntoView {
         create_signal(load_error_sound_enabled_preference());
     let last_error_sound_at = create_rw_signal(0_u128);
     let (active_input, set_active_input) = create_signal(ActiveInput::VendorId);
-    let (draft_notice_pending, set_draft_notice_pending) = create_signal(initial_draft_notice);
+
+    if let Some(notice) = initial_draft_notice {
+        match notice {
+            DraftNotice::Restored => toast.info(&t!("checkout.draft_restored")()),
+            DraftNotice::CorruptedCleared => toast.warning(&t!("checkout.draft_corrupted")()),
+        }
+    }
 
     // Cancel confirmation modal
     let (show_cancel_modal, set_show_cancel_modal) = create_signal(false);
@@ -743,11 +751,22 @@ pub fn CheckoutPage() -> impl IntoView {
     {
         let form_data = form_data.clone();
         let selected_booth = selected_booth.clone();
+        let log_error = log_error.clone();
         create_effect(move |_| {
             let data = form_data.get();
             let booth_id = selected_booth.get().map(|b| b.id.as_str());
             if let Err(err) = persist_form_data(booth_id, &data) {
                 error!("Checkout draft persistence failed: {}", err);
+                log_error(ErrorLogDraft {
+                    error_type: "checkout_draft_save_failed".to_string(),
+                    error_message: err.clone(),
+                    stack_trace: stack_trace(),
+                    user_action: Some("persist checkout draft".to_string()),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: Vec::new(),
+                });
                 toast.error(&t!("checkout.draft_save_failed")());
                 play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             }
@@ -775,6 +794,10 @@ pub fn CheckoutPage() -> impl IntoView {
             )
     });
 
+    // Each async effect keeps its own cloned error logger so the callback can
+    // be moved into spawned tasks without coupling unrelated effect lifetimes.
+    // The descriptive names document which flow owns each clone.
+    let log_error_for_load = log_error.clone();
     create_effect(move |_| {
         persist_keyboard_visible_preference(keyboard_visible.get());
     });
@@ -842,16 +865,6 @@ pub fn CheckoutPage() -> impl IntoView {
         });
     }
 
-    create_effect(move |_| {
-        if let Some(notice) = draft_notice_pending.get() {
-            match notice {
-                DraftNotice::Restored => toast.info(&t!("checkout.draft_restored")()),
-                DraftNotice::CorruptedCleared => toast.warning(&t!("checkout.draft_corrupted")()),
-            }
-            set_draft_notice_pending.set(None);
-        }
-    });
-
     // Load paginated purchases for selected booth
     create_effect(move |_| {
         let state_result = app_state.get();
@@ -879,6 +892,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let booth_id = booth.id.clone();
             let warning_booth_id = booth.id.as_str();
             let set_last_partial_recovery_warning = set_last_partial_recovery_warning.clone();
+            let log_error = log_error_for_load.clone();
 
             spawn_local(async move {
                 match state
@@ -929,6 +943,16 @@ pub fn CheckoutPage() -> impl IntoView {
                         }
                     }
                     Err(e) => {
+                        log_error(ErrorLogDraft {
+                            error_type: "checkout_load_purchases_failed".to_string(),
+                            error_message: e.to_string(),
+                            stack_trace: stack_trace(),
+                            user_action: Some("load purchases".to_string()),
+                            route: current_route(),
+                            vendor_id: None,
+                            purchase_id: None,
+                            details: vec![format!("booth_id={booth_id}")],
+                        });
                         let error_msg = translate_with_params(
                             "checkout.errors.load_purchases_failed",
                             HashMap::from([("error", format_error_message(&e))]),
@@ -1333,6 +1357,7 @@ pub fn CheckoutPage() -> impl IntoView {
         }
     };
 
+    let log_error_for_submit = log_error.clone();
     let submit_purchase = move || {
         let state_result = app_state.get();
         let booth = selected_booth.get();
@@ -1404,11 +1429,31 @@ pub fn CheckoutPage() -> impl IntoView {
         {
             Ok(items) => items,
             Err(err @ DomainError::Validation(_)) => {
+                log_error_for_submit(ErrorLogDraft {
+                    error_type: "checkout_validation_error".to_string(),
+                    error_message: err.to_string(),
+                    stack_trace: stack_trace(),
+                    user_action: Some("build purchase items".to_string()),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: vec!["phase=purchase_items".to_string()],
+                });
                 toast.error(&translate_domain_error(&err));
                 play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
             Err(err) => {
+                log_error_for_submit(ErrorLogDraft {
+                    error_type: "checkout_build_purchase_items_failed".to_string(),
+                    error_message: err.to_string(),
+                    stack_trace: stack_trace(),
+                    user_action: Some("build purchase items".to_string()),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: Vec::new(),
+                });
                 toast.error(&translate_with_params(
                     "checkout.errors.validation_failed",
                     HashMap::from([("error", err.to_string())]),
@@ -1421,11 +1466,31 @@ pub fn CheckoutPage() -> impl IntoView {
         let purchase = match Purchase::new(booth.id.clone(), purchase_items) {
             Ok(purchase) => purchase,
             Err(err @ DomainError::Validation(_)) => {
+                log_error_for_submit(ErrorLogDraft {
+                    error_type: "checkout_validation_error".to_string(),
+                    error_message: err.to_string(),
+                    stack_trace: stack_trace(),
+                    user_action: Some("create purchase".to_string()),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: vec!["phase=purchase_create".to_string()],
+                });
                 toast.error(&translate_domain_error(&err));
                 play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                 return;
             }
             Err(err) => {
+                log_error_for_submit(ErrorLogDraft {
+                    error_type: "checkout_create_purchase_failed".to_string(),
+                    error_message: err.to_string(),
+                    stack_trace: stack_trace(),
+                    user_action: Some("create purchase".to_string()),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: Vec::new(),
+                });
                 toast.error(&translate_with_params(
                     "checkout.errors.validation_failed",
                     HashMap::from([("error", err.to_string())]),
@@ -1440,6 +1505,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let purchase_clone = purchase.clone();
             let vendor_input_ref_clone = vendor_input_ref_for_add.clone();
             let amount_input_ref_clone = amount_input_ref_for_add.clone();
+            let log_error = log_error_for_submit.clone();
             spawn_local(async move {
                 // Collect unique vendor IDs from all items
                 let unique_vendor_ids: Vec<VendorId> = {
@@ -1458,15 +1524,26 @@ pub fn CheckoutPage() -> impl IntoView {
                 // Get or create all vendors involved in this purchase
                 for vendor_id in unique_vendor_ids {
                     let vendor_id_str = vendor_id.as_str().to_string();
+                    let vendor_id_for_lookup = vendor_id_str.clone();
                     match state
                         .vendor_service
-                        .get_or_create(booth_id_clone.clone(), vendor_id_str)
+                        .get_or_create(booth_id_clone.clone(), vendor_id_for_lookup)
                         .await
                     {
                         Ok(_vendor) => {
                             // Vendor successfully retrieved or created
                         }
                         Err(e) => {
+                            log_error(ErrorLogDraft {
+                                error_type: "checkout_vendor_create_failed".to_string(),
+                                error_message: e.to_string(),
+                                stack_trace: stack_trace(),
+                                user_action: Some("ensure vendor exists".to_string()),
+                                route: current_route(),
+                                vendor_id: Some(vendor_id_str.clone()),
+                                purchase_id: None,
+                                details: vec![format!("booth_id={}", booth_id_clone)],
+                            });
                             let error_msg = translate_with_params(
                                 "checkout.errors.vendor_create_failed",
                                 HashMap::from([("error", format_error_message(&e))]),
@@ -1518,6 +1595,16 @@ pub fn CheckoutPage() -> impl IntoView {
                         }
                     }
                     Err(e) => {
+                        log_error(ErrorLogDraft {
+                            error_type: "checkout_save_purchase_failed".to_string(),
+                            error_message: e.to_string(),
+                            stack_trace: stack_trace(),
+                            user_action: Some("save purchase".to_string()),
+                            route: current_route(),
+                            vendor_id: None,
+                            purchase_id: Some(purchase_clone.id.as_str()),
+                            details: vec![format!("booth_id={}", purchase_clone.booth_id)],
+                        });
                         let error_msg = translate_with_params(
                             "checkout.errors.save_purchase_failed",
                             HashMap::from([("error", format_error_message(&e))]),
@@ -1591,6 +1678,7 @@ pub fn CheckoutPage() -> impl IntoView {
         let set_delete_confirmation_input = set_delete_confirmation_input.clone();
         let set_purchase_to_delete = set_purchase_to_delete.clone();
         let toast = toast.clone();
+        let log_error = log_error.clone();
         move || {
             let pending = pending_deletion.get();
             if pending.purchase_id.is_none() {
@@ -1625,6 +1713,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let state_result = app_state.get();
 
             if let Some(Ok(state)) = state_result {
+                let log_error = log_error.clone();
                 spawn_local(async move {
                     info!("Calling purchase_repository.delete_from_booth for purchase_id: {:?}, booth_id: {:?}", purchase_id, booth_id);
                     match state
@@ -1648,6 +1737,16 @@ pub fn CheckoutPage() -> impl IntoView {
                         }
                         Err(e) => {
                             error!("Failed to delete purchase_id {:?}: {:?}", purchase_id, e);
+                            log_error(ErrorLogDraft {
+                                error_type: "checkout_delete_purchase_failed".to_string(),
+                                error_message: e.to_string(),
+                                stack_trace: stack_trace(),
+                                user_action: Some("delete purchase".to_string()),
+                                route: current_route(),
+                                vendor_id: None,
+                                purchase_id: Some(purchase_id.as_str()),
+                                details: vec![format!("booth_id={}", booth_id)],
+                            });
 
                             // Reset deletion state even on error so user can retry
                             set_pending_deletion.set(PendingDeletion::default());
@@ -1675,6 +1774,8 @@ pub fn CheckoutPage() -> impl IntoView {
             }
         }
     };
+    let submit_purchase_action = store_value(submit_purchase);
+    let perform_delete_purchase_action = store_value(perform_delete_purchase.clone());
 
     let cancel_delete_purchase = {
         let set_pending_deletion = set_pending_deletion.clone();
@@ -1771,8 +1872,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                 view! {
                                     <Show
                                         when=move || is_loading.get()
-                                        fallback=move || view! {
-                                            <div class="space-y-6">
+                                        fallback=move || {
+                                            view! { <div class="space-y-6">
                                                 <div class="grid gap-6 md:grid-cols-2 md:items-start">
                                                     <div>
                                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -1793,7 +1894,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         on:focus=move |_| {
                                                             set_active_input.set(ActiveInput::VendorId);
                                                         }
-                                                    on:input=move |ev| {
+                                                        on:input=move |ev| {
                                                             item_delete_signal.set(None);
                                                             set_purchase_to_delete.set(None);
                                                             let value = event_target_value(&ev);
@@ -2173,7 +2274,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         on_click=Box::new(move || {
                                                             item_delete_signal.set(None);
                                                             set_purchase_to_delete.set(None);
-                                                            submit_purchase();
+                                                            submit_purchase_action.with_value(|submit| submit());
                                                         })
                                                     >
                                                         <span class="inline-flex items-center justify-center gap-4">
@@ -2196,6 +2297,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     </Button>
                                                 </div>
                                             </div>
+                                        }
                                         }
                                         >
                                             <p class="text-gray-600">{t!("checkout.loading_message")}</p>
@@ -2387,7 +2489,8 @@ pub fn CheckoutPage() -> impl IntoView {
                         <Card title_view={t!("checkout.recent_transactions_title").into_view()}>
                             <Show
                                 when=move || purchases.get().is_empty() && !is_loading.get()
-                                fallback=move || view! {
+                                fallback=move || {
+                                    view! {
                                         <div class="space-y-2">
                                         {/* Explanatory hint text */}
                                             <p class="text-xs text-gray-500 mb-3 px-1">
@@ -2646,6 +2749,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                             </Show>
                                         </div>
                                     }
+                                }
                             >
                                 <p class="text-gray-500">{t!("checkout.no_transactions_message")}</p>
                             </Show>
@@ -2714,7 +2818,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         on:keydown=move |ev: web_sys::KeyboardEvent| {
                             if ev.key() == "Enter" && deletion_token_matches.get() {
                                 ev.prevent_default();
-                                perform_delete_purchase();
+                                perform_delete_purchase_action.with_value(|handler| handler());
                             }
                         }
                     />

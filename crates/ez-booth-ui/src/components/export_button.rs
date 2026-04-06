@@ -1,11 +1,12 @@
-use wasm_bindgen::JsCast;
-use web_sys::{window, Blob, BlobPropertyBag, HtmlAnchorElement, Url};
-
 use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem};
+use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::state::use_app_state;
 use crate::t;
-use crate::utils::{current_device_info, share_json_file, supports_native_share_with_files};
+use crate::utils::{
+    current_device_info, download_text_file, share_json_file, supports_native_share_with_files,
+};
 use domain::BoothId;
+use ez_booth_storage::record_backup_completed;
 use leptos::*;
 
 #[allow(dead_code)]
@@ -25,6 +26,7 @@ pub fn ExportButton(
 ) -> impl IntoView {
     let app_state = use_app_state();
     let toast = use_toast();
+    let log_error = use_error_logger();
     let (is_exporting, set_is_exporting) = create_signal(false);
     let share_supported = supports_native_share_with_files();
     let primary_class = class.clone().unwrap_or_default();
@@ -54,27 +56,40 @@ pub fn ExportButton(
         }
     };
 
+    let log_error_for_export = log_error.clone();
     let handle_export = move || {
         if is_exporting.get_untracked() {
             return;
         }
 
-        start_export(scope, app_state, toast, set_is_exporting, false);
+        let app_state = app_state;
+        let toast = toast;
+        let log_error = log_error_for_export.clone();
+        start_export(scope, app_state, toast, set_is_exporting, false, log_error);
     };
 
+    let log_error_for_share = log_error.clone();
     let handle_share = move || {
         if is_exporting.get_untracked() || !share_supported {
             return;
         }
 
-        start_export(scope, app_state, toast, set_is_exporting, true);
+        let app_state = app_state;
+        let toast = toast;
+        let log_error = log_error_for_share.clone();
+        start_export(scope, app_state, toast, set_is_exporting, true, log_error);
     };
+
+    let handle_export_action = store_value(handle_export.clone());
+    let handle_share_action = store_value(handle_share.clone());
+    let handle_export_click = Callback::new(move |_| handle_export());
+    let handle_share_click = Callback::new(move |_| handle_share());
 
     if menu_item {
         view! {
             <>
                 <DropdownMenuItem
-                    on_click=Callback::new(move |_| handle_export())
+                    on_click=handle_export_click
                     icon=menu_icon()
                 >
                     {move || if is_exporting.get() {
@@ -85,7 +100,7 @@ pub fn ExportButton(
                 </DropdownMenuItem>
                 <Show when=move || share_supported>
                     <DropdownMenuItem
-                        on_click=Callback::new(move |_| handle_share())
+                        on_click=handle_share_click
                         icon=view! {
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C9.886 12.42 11.44 12 13 12c3.314 0 6 1.79 6 4s-2.686 4-6 4-6-1.79-6-4c0-.262.038-.518.11-.765M15 6l-3-3m0 0L9 6m3-3v10"></path>
@@ -102,7 +117,9 @@ pub fn ExportButton(
         view! {
             <div class="flex flex-wrap items-center gap-2">
                 <Button
-                    on_click=Box::new(handle_export)
+                    on_click=Box::new(move || {
+                        handle_export_action.with_value(|handler| handler())
+                    })
                     variant=variant.unwrap_or(ButtonVariant::Primary)
                     size=size.unwrap_or(ButtonSize::Medium)
                     class=primary_class.clone()
@@ -118,7 +135,9 @@ pub fn ExportButton(
                 </Button>
                 <Show when=move || share_supported>
                     <Button
-                        on_click=Box::new(handle_share)
+                        on_click=Box::new(move || {
+                            handle_share_action.with_value(|handler| handler())
+                        })
                         variant=ButtonVariant::Secondary
                         size=size.unwrap_or(ButtonSize::Medium)
                         class=secondary_class.clone()
@@ -141,6 +160,7 @@ fn start_export(
     toast: crate::components::ToastContext,
     set_is_exporting: WriteSignal<bool>,
     share_after_export: bool,
+    log_error: impl Fn(ErrorLogDraft) + Clone + 'static,
 ) {
     let state_result = app_state.get();
     set_is_exporting.set(true);
@@ -196,9 +216,17 @@ fn start_export(
                 .await
                 .map_err(|err| err.to_string())?;
             } else {
-                trigger_download(&serialized.file_name, &serialized.json)
-                    .map_err(|err| err.to_string())?;
+                download_text_file(
+                    &serialized.file_name,
+                    &serialized.json,
+                    "application/json;charset=utf-8",
+                )
+                .map_err(|err| err.to_string())?;
             }
+
+            record_backup_completed(&state.database, chrono::Utc::now())
+                .await
+                .map_err(|err| err.to_string())?;
 
             Ok::<(), String>(())
         }
@@ -219,6 +247,30 @@ fn start_export(
                 toast.success(key);
             }
             Err(error) => {
+                log_error(ErrorLogDraft {
+                    error_type: if share_after_export {
+                        "share_failed".to_string()
+                    } else {
+                        "export_failed".to_string()
+                    },
+                    error_message: error.clone(),
+                    stack_trace: stack_trace(),
+                    user_action: Some(if share_after_export {
+                        "share backup".to_string()
+                    } else {
+                        "export backup".to_string()
+                    }),
+                    route: current_route(),
+                    vendor_id: None,
+                    purchase_id: None,
+                    details: vec![format!(
+                        "scope={}",
+                        match scope {
+                            ExportScope::All => "all",
+                            ExportScope::Booth(_) => "booth",
+                        }
+                    )],
+                });
                 let message = if share_after_export {
                     t!("backup.share_failed")()
                 } else {
@@ -228,43 +280,4 @@ fn start_export(
             }
         }
     });
-}
-
-fn trigger_download(file_name: &str, contents: &str) -> Result<(), String> {
-    let window = window().ok_or_else(|| "window not available".to_string())?;
-    let document = window
-        .document()
-        .ok_or_else(|| "document not available".to_string())?;
-
-    let blob_parts = js_sys::Array::new();
-    blob_parts.push(&wasm_bindgen::JsValue::from_str(contents));
-
-    let options = BlobPropertyBag::new();
-    options.set_type("application/json;charset=utf-8");
-
-    let blob = Blob::new_with_str_sequence_and_options(&blob_parts, &options)
-        .map_err(|err| format!("failed to create blob: {err:?}"))?;
-    let url = Url::create_object_url_with_blob(&blob)
-        .map_err(|err| format!("failed to create object URL: {err:?}"))?;
-
-    let anchor = document
-        .create_element("a")
-        .map_err(|err| format!("failed to create anchor: {err:?}"))?
-        .dyn_into::<HtmlAnchorElement>()
-        .map_err(|_| "failed to cast anchor element".to_string())?;
-
-    anchor.set_href(&url);
-    anchor.set_download(file_name);
-
-    let body = document
-        .body()
-        .ok_or_else(|| "document body not available".to_string())?;
-
-    body.append_child(&anchor)
-        .map_err(|err| format!("failed to append anchor: {err:?}"))?;
-    anchor.click();
-    let _ = body.remove_child(&anchor);
-    Url::revoke_object_url(&url).map_err(|err| format!("failed to revoke object URL: {err:?}"))?;
-
-    Ok(())
 }
