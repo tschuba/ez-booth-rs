@@ -58,6 +58,8 @@ The older redesign documents describe a future path for importing or transformin
 
 That remains planned work rather than a current user-facing capability.
 
+See `SQLITE_MIGRATION_IMPLEMENTATION_PLAN.md`.
+
 ### Progressive Web App Support
 
 The app already fits a web-first architecture, but a fuller installable PWA workflow is still future work.
