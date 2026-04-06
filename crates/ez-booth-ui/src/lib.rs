@@ -97,76 +97,82 @@ pub fn App() -> impl IntoView {
                                             <BoothSelector />
                                         </Show>
                                     </div>
-                                    <nav class="flex items-center space-x-4">
-                                        <a href="/booths" class="text-gray-700 hover:text-blue-600">
-                                            {t!("booth.list_title")}
-                                        </a>
-                                        <a href="/vendors" class="text-gray-700 hover:text-blue-600">
-                                            {t!("vendor.list_title")}
-                                        </a>
-                                         <a href="/checkout" class="text-gray-700 hover:text-blue-600">
-                                             {t!("checkout.title")}
-                                         </a>
-                                         // Language switcher with globe icon
-                                     <button
-                                         class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm"
-                                         on:click=move |_| {
-                                                 let new_locale = match locale.get() {
-                                                     Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
-                                                     Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
-                                                 };
-                                                 locale.set(new_locale);
-                                             }
-                                         >
-                                            // Globe SVG icon
-                                            <svg
-                                                class="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg"
+                                    <nav class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                        <div class="flex items-center space-x-4">
+                                            <a href="/booths" class="text-gray-700 transition-colors hover:text-blue-600">
+                                                {t!("booth.list_title")}
+                                            </a>
+                                            <a href="/vendors" class="text-gray-700 transition-colors hover:text-blue-600">
+                                                {t!("vendor.list_title")}
+                                            </a>
+                                            <a href="/checkout" class="text-gray-700 transition-colors hover:text-blue-600">
+                                                {t!("checkout.title")}
+                                            </a>
+                                        </div>
+                                        <div class="hidden h-6 w-px bg-gray-300 md:block" aria-hidden="true"></div>
+                                        <div class="flex items-center space-x-4">
+                                            <button
+                                                class="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
+                                                on:click=move |_| {
+                                                    let new_locale = match locale.get() {
+                                                        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => Locale::En,
+                                                        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => Locale::De,
+                                                    };
+                                                    locale.set(new_locale);
+                                                }
+                                                aria-label=move || {
+                                                    match locale.get() {
+                                                        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => {
+                                                            t!("app.language_toggle_to_english")()
+                                                        }
+                                                        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => {
+                                                            t!("app.language_toggle_to_german")()
+                                                        }
+                                                    }
+                                                }
                                             >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    stroke-width="2"
-                                                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-                                                />
-                                            </svg>
-
-                                            // Language code
-                                            <span>
-                                                {move || match locale.get() {
-                                                    Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "EN",
-                                                    Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "DE",
-                                                }}
-                                            </span>
-                                         </button>
-                                         <a href="/settings" class="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 text-sm">
-                                             <svg
-                                                 class="h-4 w-4"
-                                                 fill="none"
-                                                 stroke="currentColor"
-                                                 viewBox="0 0 24 24"
-                                                 xmlns="http://www.w3.org/2000/svg"
-                                                 aria-hidden="true"
-                                             >
-                                                 <path
-                                                     stroke-linecap="round"
-                                                     stroke-linejoin="round"
-                                                     stroke-width="2"
-                                                     d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35A1.724 1.724 0 005.38 7.753c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.573-1.066z"
-                                                 />
-                                                 <path
-                                                     stroke-linecap="round"
-                                                     stroke-linejoin="round"
-                                                     stroke-width="2"
-                                                     d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                 />
-                                             </svg>
-                                             <span>{t!("settings.title")}</span>
-                                         </a>
-                                     </nav>
+                                                <span class="text-2xl leading-none" aria-hidden="true">
+                                                    {move || match locale.get() {
+                                                        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "🇬🇧",
+                                                        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "🇩🇪",
+                                                    }}
+                                                </span>
+                                                <span class="text-sm">
+                                                    {move || match locale.get() {
+                                                        Locale::De | Locale::DeDE | Locale::DeAT | Locale::DeCH => "EN",
+                                                        Locale::En | Locale::EnUS | Locale::EnGB | Locale::EnEU => "DE",
+                                                    }}
+                                                </span>
+                                            </button>
+                                            <a
+                                                href="/settings"
+                                                class="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
+                                            >
+                                                <svg
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35A1.724 1.724 0 005.38 7.753c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.573-1.066z"
+                                                    />
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                    />
+                                                </svg>
+                                                <span>{t!("settings.title")}</span>
+                                            </a>
+                                        </div>
+                                    </nav>
                                  </div>
                               </Container>
                          </header>

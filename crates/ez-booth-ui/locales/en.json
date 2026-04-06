@@ -25,7 +25,9 @@
     "copyright": "Copyright © 2026 EZ Booth",
     "title": "EZ Booth",
     "page_title": "EZ Booth - Checkout Made Easy",
-    "welcome": "Welcome to EZ Booth"
+    "welcome": "Welcome to EZ Booth",
+    "language_toggle_to_english": "Switch to English",
+    "language_toggle_to_german": "Switch to German"
   },
   "settings": {
     "title": "Settings",
