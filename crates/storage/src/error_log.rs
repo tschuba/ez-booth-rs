@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 pub const ERROR_LOG_RETENTION_DAYS: i64 = 7;
@@ -73,6 +74,10 @@ pub fn retention_ids_to_delete(entries: &[ErrorLogEntry], now: DateTime<Utc>) ->
         .iter()
         .filter_map(|entry| match entry.id {
             Some(id) if !keep_ids.contains(&id) => Some(id),
+            None => {
+                warn!("Error log entry without ID found during retention cleanup");
+                None
+            }
             _ => None,
         })
         .collect()
