@@ -111,6 +111,7 @@ What works today:
 - booth management with fee configuration and status handling
 - vendor management and checkout persistence
 - reporting and printing flows
+- legacy `booth.db` migration from `Settings > Migration`
 - bilingual German and English UI
 - backup and restore workflows
 - Chrome and Safari validation support
@@ -118,9 +119,10 @@ What works today:
 
 Not available yet:
 
-- automatic migration from original `ez-booth` SQLite data
 - cloud sync or server-backed remote storage
 - full PWA installation flow for field deployment
+
+If you are migrating from the original Java-based `ez-booth`, open `Settings > Migration` and choose the legacy `booth.db` file manually. The default location is usually `~/Documents/tschuba/ez-booth/booth.db` on macOS/Linux or `%USERPROFILE%\Documents\tschuba\ez-booth\booth.db` on Windows.
 
 See [docs/redesign/05_STATUS.md](docs/redesign/05_STATUS.md) for the broader implementation history and current status tracking.
 

@@ -647,6 +647,35 @@ pub fn BoothListPage() -> impl IntoView {
                                                 >
                                                     {t!("booth.create")}
                                                 </Button>
+
+                                                <div class="my-8 flex items-center gap-3 text-sm text-gray-400">
+                                                    <div class="h-px flex-1 bg-gray-200"></div>
+                                                    <span class="font-medium uppercase tracking-wide">
+                                                        {t!("booth.empty_state.or")}
+                                                    </span>
+                                                    <div class="h-px flex-1 bg-gray-200"></div>
+                                                </div>
+
+                                                <div class="mx-auto max-w-xl">
+                                                    <p class="mb-4 text-lg font-semibold text-gray-700">
+                                                        {t!("booth.empty_state.migration_heading")}
+                                                    </p>
+                                                    <p class="mb-6 text-gray-600">
+                                                        {t!("booth.empty_state.migration_body")}
+                                                    </p>
+                                                    <Button
+                                                        on_click=Box::new(move || {
+                                                            if let Some(window) = window() {
+                                                                let _ = window
+                                                                    .location()
+                                                                    .set_href("/settings?tab=migration");
+                                                            }
+                                                        })
+                                                        variant=ButtonVariant::Secondary
+                                                    >
+                                                        {t!("booth.empty_state.migration_button")}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </Card>
                                     </Show>

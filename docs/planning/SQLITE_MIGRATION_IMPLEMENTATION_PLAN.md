@@ -245,13 +245,14 @@ crates/ez-booth-ui/src/pages/settings.rs
 
 1. Open Settings and switch to the new `Migration` tab.
 2. Read the warning that migration replaces current browser data.
-3. Upload a single `booth.db` file.
-4. The app parses and validates the SQLite data.
-5. If validation succeeds, the app automatically downloads a JSON backup of current local data.
-6. The app shows a summary of booths, vendors, and purchases to be migrated.
-7. The operator confirms replacement.
-8. The migration writes transformed data into IndexedDB.
-9. The app shows a migration success summary.
+3. Review the always-visible file location help with the typical `booth.db` path for the current platform.
+4. Copy the default path if needed, then upload a single `booth.db` file manually.
+5. The app parses and validates the SQLite data.
+6. If validation succeeds, the app automatically downloads a JSON backup of current local data.
+7. The app shows a summary of booths, vendors, and purchases to be migrated.
+8. The operator confirms replacement.
+9. The migration writes transformed data into IndexedDB.
+10. The app shows a migration success summary.
 
 ### Internal flow
 
@@ -281,6 +282,8 @@ The UI should emphasize:
 - automatic backup behavior
 - counts of booths, vendors, and purchases found in the legacy file
 - validation failures with actionable messages
+- file-location guidance because browsers cannot preselect the legacy database folder
+- migration discoverability from the empty booth list for first-run users with legacy data
 
 ## Implementation Phases
 
@@ -312,6 +315,8 @@ The UI should emphasize:
 - wire uploaded file handling to the storage migration service
 - trigger automatic JSON backup download before replacement
 - add bilingual EN/DE strings for migration-related copy
+- show platform-specific `booth.db` location help with clipboard copy support
+- add empty-state navigation from the booth list to `Settings?tab=migration`
 
 ### Phase 5: Validation And Manual Verification
 
@@ -351,6 +356,7 @@ Minimum manual validation should include:
 - confirm purchase count matches the legacy source
 - compare at least one booth's totals and reporting outputs against the legacy data
 - verify the backup file downloads before replacement
+- verify the file-location help and clipboard copy action
 - verify the workflow in both Chrome and Safari
 
 ## Risks And Mitigations

@@ -120,8 +120,8 @@
       "choose_file": "booth.db auswählen",
       "validating": "Prüft...",
       "importing": "Importiert...",
-      "import_clean_only": "Validierte Datensätze importieren",
-      "skip_invalid": "Ungültige Datensätze überspringen und importieren"
+      "import_clean_only": "Nur validierte Datensätze importieren",
+      "skip_invalid": "Ungültige überspringen und importieren"
     },
     "summary": {
       "booths": "Gefundene Veranstaltungen",
@@ -131,7 +131,26 @@
     "validation": {
       "clean": "Es wurden keine Validierungsprobleme gefunden.",
       "issues_found": "Die Validierung hat {count} Problem(e) gefunden.",
-      "skip_summary": "Wenn Sie mit Überspringen fortfahren, werden {vendors} Verkäufer und {purchases} Käufe aus der Migration entfernt."
+      "skip_summary": "Wenn Sie mit Überspringen fortfahren, werden {vendors} Verkäufer und {purchases} Käufe aus der Migration entfernt.",
+      "action_guidance": "Wählen Sie, wie mit der Migration fortgefahren werden soll:",
+      "action_guidance_clean": "\u2022 \"Nur validierte Datensätze importieren\" bleibt deaktiviert, solange Probleme gefunden wurden, weil diese Option nur einen vollständig sauberen Import erlaubt.",
+      "action_guidance_skip": "\u2022 \"Ungültige überspringen und importieren\" importiert die gültigen Datensätze und lässt die problematischen Datensätze aus."
+    },
+    "file_location": {
+      "title": "Originale booth.db-Datei finden",
+      "description": "Auf {platform} liegt die SQLite-Datenbank der ursprünglichen ez-booth normalerweise hier:",
+      "default_path_label": "Typischer Speicherort",
+      "copy_button": "Pfad kopieren",
+      "copy_success": "Standardpfad für booth.db kopiert",
+      "copy_failed": "Kopieren des Standardpfads fehlgeschlagen: {error}",
+      "not_found_title": "Falls die Datei dort nicht liegt",
+      "not_found_body": "Suchen Sie auf dem Gerät nach booth.db oder prüfen Sie den Installationsort der ursprünglichen ez-booth-App. Der Browser kann diesen Ordner nicht automatisch öffnen, daher müssen Sie die Datei selbst auswählen.",
+      "platform": {
+        "macos": "diesem Mac",
+        "windows": "diesem Windows-PC",
+        "linux": "diesem Linux-Gerät",
+        "other": "diesem Gerät"
+      }
     },
     "success": {
       "summary": "Die Migration hat {booths} Veranstaltung(en), {vendors} Verkäufer und {purchases} Käufe importiert. Übersprungen wurden {skipped_vendors} Verkäufer und {skipped_purchases} Käufe."
@@ -142,6 +161,41 @@
       "backup_failed": "Backup vor der Migration fehlgeschlagen: {error}",
       "import_failed": "Migration fehlgeschlagen: {error}"
     },
+    "issue_category": {
+      "purchase_total_mismatch": {
+        "title": "Abweichende Berechnungen",
+        "impact": "Bei {count} Kauf/Käufen stimmt die Summe nicht mit den Positionen überein",
+        "explanation": "Einige Käufe ergeben in der Summe der Positionen nicht den Gesamtbetrag, der in der alten Datenbank gespeichert ist.",
+        "guidance": "Bitte prüfen Sie diese Fälle sorgfältig vor dem Import. Wenn Sie fortfahren, werden die aus den Positionen neu berechneten Summen übernommen."
+      },
+      "vendor_missing_booth": {
+        "title": "Verkäufer mit fehlender Veranstaltung",
+        "impact": "{count} Verkäuferdatensatz/-sätze kann/können keiner Veranstaltung zugeordnet werden",
+        "explanation": "Einige Verkäuferdatensätze verweisen auf eine Veranstaltung, die in der alten Datenbank nicht mehr vorhanden ist.",
+        "guidance": "Wenn Sie fortfahren, werden diese Verkäufer übersprungen, weil keine passende Veranstaltung mehr existiert."
+      },
+      "purchase_missing_booth": {
+        "title": "Käufe mit fehlender Veranstaltung",
+        "impact": "{count} Kaufdatensatz/-sätze kann/können keiner Veranstaltung zugeordnet werden",
+        "explanation": "Einige Käufe verweisen auf eine Veranstaltung, die in der alten Datenbank nicht mehr vorhanden ist.",
+        "guidance": "Wenn Sie fortfahren, werden diese Käufe übersprungen, weil keine passende Veranstaltung mehr existiert."
+      },
+      "purchase_item_missing_vendor": {
+        "title": "Kaufpositionen mit fehlendem Verkäufer",
+        "impact": "{count} Kaufposition(en) verweist/verweisen auf einen fehlenden Verkäufer",
+        "explanation": "Einige Kaufpositionen verweisen auf Verkäuferdatensätze, die in der alten Datenbank nicht mehr vorhanden sind.",
+        "guidance": "Wenn Sie fortfahren, werden die betroffenen Käufe übersprungen, damit keine unvollständigen Verkäufe importiert werden."
+      },
+      "purchase_without_items": {
+        "title": "Leere Käufe",
+        "impact": "{count} Kauf/Käufe enthält/enthalten keine Positionen",
+        "explanation": "Einige Käufe wurden ohne Positionen gespeichert.",
+        "guidance": "Wenn Sie fortfahren, werden diese leeren Käufe übersprungen, weil sie nicht sicher importiert werden können."
+      }
+    },
+    "show_details": "Technische Details anzeigen",
+    "hide_details": "Technische Details ausblenden",
+    "technical_details": "Technische Details",
     "issue": {
       "purchase_total_mismatch": "Kauf {purchase_id} hat eine Summenabweichung: erwartet {expected}, erhalten {actual}.",
       "vendor_missing_booth": "Verkäufer {vendor_id} verweist auf die fehlende Veranstaltung {booth_id}.",
@@ -161,7 +215,11 @@
       "heading": "Noch keine Veranstaltungen",
       "requirement": "Du benötigst mindestens eine Veranstaltung",
       "features": "um die Kassen- und Berichtsfunktionen zu nutzen.",
-      "get_started": "Erstelle deine erste Veranstaltung, um loszulegen!"
+      "get_started": "Erstelle deine erste Veranstaltung, um loszulegen!",
+      "or": "Oder",
+      "migration_heading": "Sie haben die ursprüngliche ez-booth bereits genutzt?",
+      "migration_body": "Öffnen Sie das Migrationswerkzeug in den Einstellungen und importieren Sie Ihre vorhandene booth.db, statt neu zu beginnen.",
+      "migration_button": "Aus ursprünglicher ez-booth importieren"
     },
     "created": "Veranstaltung erstellt.",
     "deleted": "Veranstaltung gelöscht.",

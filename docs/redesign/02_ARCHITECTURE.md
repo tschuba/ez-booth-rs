@@ -2569,11 +2569,15 @@ The migration transforms ez-booth's SQLite schema to ez-booth-rs's JSON format:
 
 **Migration Wizard:**
 1. **Welcome Screen** - "Import from ez-booth" option (prominently displayed if no data exists)
-2. **Instructions** - Show default database location (`~/Documents/tschuba/ez-booth/booth.db`)
-3. **Upload** - File picker for `booth.db`
+2. **Instructions** - Show the default database location for the current platform and offer a copy-to-clipboard action
+3. **Upload** - File picker for `booth.db` (manual selection only; browsers cannot preselect the folder)
 4. **Processing** - Progress bar with validation and transformation steps
 5. **Preview** - Display booth/vendor/transaction counts before final import
 6. **Confirmation** - Complete import or cancel with detailed error reporting
+
+**Discoverability:**
+- If no booth data exists yet, the empty booth list should show a secondary migration call-to-action.
+- That call-to-action should deep-link to `Settings` with the migration tab preselected via `?tab=migration`.
 
 **Error Handling:**
 - Schema version detection and validation
