@@ -1,6 +1,8 @@
 use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 
+use crate::components::{Icon, LuX};
+
 /// Modal size variants
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -113,7 +115,7 @@ pub fn Modal(
                 // Overlay
                 <div
                     class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-                    aria-hidden="true"
+
                     on:click=overlay_click
                 ></div>
 
@@ -159,19 +161,7 @@ pub fn Modal(
                                             on:click=close_button_click
                                             aria-label="Close modal"
                                         >
-                                            <svg
-                                                class="w-6 h-6"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    stroke-width="2"
-                                                    d="M6 18L18 6M6 6l12 12"
-                                                />
-                                            </svg>
+                                            <Icon icon=LuX class="w-6 h-6" />
                                         </button>
                                     </Show>
                                 </div>

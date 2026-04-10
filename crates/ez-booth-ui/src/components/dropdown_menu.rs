@@ -363,7 +363,7 @@ pub fn DropdownMenuItem(
             {move || {
                 icon_stored.get_value().map(|icon| {
                     view! {
-                        <span class="shrink-0 opacity-70" aria-hidden="true">
+                        <span class="shrink-0 opacity-70">
                             {icon}
                         </span>
                     }

@@ -1,4 +1,5 @@
 use crate::components::pagination_prefs::PAGE_SIZE_OPTIONS;
+use crate::components::{Icon, LuChevronLeft, LuChevronRight, LuChevronsLeft, LuChevronsRight};
 use crate::t;
 use leptos::*;
 
@@ -99,9 +100,7 @@ pub fn Pagination(
                     aria-label={move || t!(format!("{}.first", translation_prefix).as_str())()}
                     title={move || t!(format!("{}.first", translation_prefix).as_str())()}
                 >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
+                    <Icon icon=LuChevronsLeft class="w-4 h-4" />
                 </button>
 
                 {/* Previous page - < icon */}
@@ -117,9 +116,7 @@ pub fn Pagination(
                     aria-label={move || t!(format!("{}.previous", translation_prefix).as_str())()}
                     title={move || t!(format!("{}.previous", translation_prefix).as_str())()}
                 >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <Icon icon=LuChevronLeft class="w-4 h-4" />
                 </button>
 
                 {/* Next page - > icon */}
@@ -139,9 +136,7 @@ pub fn Pagination(
                     aria-label={move || t!(format!("{}.next", translation_prefix).as_str())()}
                     title={move || t!(format!("{}.next", translation_prefix).as_str())()}
                 >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+                    <Icon icon=LuChevronRight class="w-4 h-4" />
                 </button>
 
                 {/* Last page - >| icon */}
@@ -160,9 +155,7 @@ pub fn Pagination(
                     aria-label={move || t!(format!("{}.last", translation_prefix).as_str())()}
                     title={move || t!(format!("{}.last", translation_prefix).as_str())()}
                 >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
+                    <Icon icon=LuChevronsRight class="w-4 h-4" />
                 </button>
             </div>
         </div>

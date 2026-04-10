@@ -1,5 +1,7 @@
 use crate::booth_ordering::sort_booths;
-use crate::components::toast::use_toast;
+use crate::components::{
+    toast::use_toast, Icon, LuCalendar, LuCheck, LuChevronDown, LuInbox, LuStore,
+};
 use crate::formatting::format_date;
 use crate::i18n::use_locale;
 use crate::selected_booth_context;
@@ -126,7 +128,7 @@ pub fn BoothSelector() -> impl IntoView {
                             view! {
                                 <>
                                     <span class="text-sm font-medium">{date_str}</span>
-                                    <span class="text-gray-400" aria-hidden="true">"•"</span>
+                                    <span class="text-gray-400">"•"</span>
                                     <span class="max-w-[200px] text-sm font-semibold truncate">{booth.description}</span>
                                 </>
                             }.into_view()
@@ -134,27 +136,21 @@ pub fn BoothSelector() -> impl IntoView {
                             view! {
                                 <>
                                     <span class="flex items-center gap-2">
-                                        <svg class="h-5 w-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                        </svg>
+                                        <Icon icon=LuStore class="h-5 w-5 text-amber-700" />
                                         <span class="text-sm font-semibold">{t!("booth.select_booth_cta")()}</span>
                                     </span>
                                 </>
                             }.into_view()
                         }
                     }}
-                    <svg
-                        class={move || format!(
-                            "h-4 w-4 transition-transform duration-200 {}",
-                            if is_open.get() { "rotate-180" } else { "" }
-                        )}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
+                    <Show
+                        when=move || is_open.get()
+                        fallback=move || {
+                            view! { <Icon icon=LuChevronDown class="h-4 w-4 transition-transform duration-200" /> }
+                        }
                     >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                        <Icon icon=LuChevronDown class="h-4 w-4 rotate-180 transition-transform duration-200" />
+                    </Show>
                 </button>
             </div>
 
@@ -174,9 +170,7 @@ pub fn BoothSelector() -> impl IntoView {
                         if booth_list.is_empty() {
                             view! {
                                 <div class="px-4 py-8 text-center text-gray-500">
-                                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                    </svg>
+                                    <Icon icon=LuInbox class="w-12 h-12 mx-auto mb-3 text-gray-400" />
                                     <p class="text-sm font-medium">
                                         {move || if archived_booth_count.get() > 0 {
                                             t!("booth.selector_all_archived")()
@@ -221,15 +215,11 @@ pub fn BoothSelector() -> impl IntoView {
                                             <div class="flex items-center gap-2 mb-1">
                                                 <span class="text-sm font-semibold text-gray-900">{booth.description}</span>
                                                 {is_selected.then(|| view! {
-                                                    <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                                    </svg>
+                                                    <Icon icon=LuCheck class="w-4 h-4 text-blue-600" />
                                                 })}
                                             </div>
                                             <div class="flex items-center gap-2 text-xs text-gray-500">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
+                                                <Icon icon=LuCalendar class="w-3 h-3" />
                                                 <span>{date_str}</span>
                                             </div>
                                         </div>

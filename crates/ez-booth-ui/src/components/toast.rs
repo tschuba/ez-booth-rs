@@ -1,3 +1,4 @@
+use crate::components::{Icon, LuCopy, LuX};
 use crate::{t, utils::copy_text_to_clipboard};
 use leptos::*;
 use std::time::Duration;
@@ -222,16 +223,7 @@ fn ToastItem(toast: Toast, on_dismiss: impl Fn() + 'static) -> impl IntoView {
                         }
                         aria-label=t!("components.toast.copy")()
                     >
-                        <svg
-                            class="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            viewBox="0 0 24 24"
-                        >
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
+                        <Icon icon=LuCopy class="w-4 h-4" />
                     </button>
                 })}
                 <button
@@ -240,19 +232,7 @@ fn ToastItem(toast: Toast, on_dismiss: impl Fn() + 'static) -> impl IntoView {
                     on:click=move |_| on_dismiss()
                     aria-label="Dismiss notification"
                 >
-                    <svg
-                        class="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12"
-                        />
-                    </svg>
+                    <Icon icon=LuX class="w-4 h-4" />
                 </button>
             </div>
         </div>
