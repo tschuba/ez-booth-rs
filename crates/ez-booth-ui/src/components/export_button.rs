@@ -1,4 +1,7 @@
-use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem};
+use crate::components::{
+    use_toast, Button, ButtonSize, ButtonVariant, DropdownMenuItem, Icon, LuDownload, LuShare2,
+    SpinnerIcon,
+};
 use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::state::use_app_state;
 use crate::t;
@@ -39,20 +42,9 @@ pub fn ExportButton(
 
     let menu_icon = move || {
         if is_exporting.get() {
-            view! {
-                <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M12 2a10 10 0 0 1 10 10h-3a7 7 0 0 0-7-7V2z"></path>
-                </svg>
-            }
-                .into_view()
+            view! { <SpinnerIcon class="h-5 w-5 animate-spin".to_string() /> }.into_view()
         } else {
-            view! {
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-            }
-                .into_view()
+            view! { <Icon icon=LuDownload class="h-5 w-5" /> }.into_view()
         }
     };
 
@@ -102,9 +94,7 @@ pub fn ExportButton(
                     <DropdownMenuItem
                         on_click=handle_share_click
                         icon=view! {
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C9.886 12.42 11.44 12 13 12c3.314 0 6 1.79 6 4s-2.686 4-6 4-6-1.79-6-4c0-.262.038-.518.11-.765M15 6l-3-3m0 0L9 6m3-3v10"></path>
-                            </svg>
+                            <Icon icon=LuShare2 class="h-5 w-5" />
                         }.into_view()
                     >
                         {t!("backup.share_booth")()}

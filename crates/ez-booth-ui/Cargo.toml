@@ -44,6 +44,10 @@ regex = "1.12.3"
 log = "0.4"
 wasm-logger = "0.2"
 
+# Icons
+leptos_icons = "0.3"
+icondata = "0.3"
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 rust_decimal_macros = "1.40"

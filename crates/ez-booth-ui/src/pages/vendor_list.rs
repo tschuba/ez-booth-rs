@@ -465,15 +465,7 @@ pub fn VendorListPage() -> impl IntoView {
                                             when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()
                                              fallback=move || view! {
                                                  <div class="flex flex-col items-center justify-center py-10 text-center">
-                                                     <svg
-                                                         class="mb-3 h-12 w-12 text-gray-300"
-                                                         fill="none"
-                                                         stroke="currentColor"
-                                                         viewBox="0 0 24 24"
-                                                         aria-hidden="true"
-                                                     >
-                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                                     </svg>
+                                                     <Icon icon=LuUsers class="mb-3 h-12 w-12 text-gray-300" />
                                                      <p class="text-sm font-medium text-gray-700">{t!("vendor.no_vendors")}</p>
                                                      <p class="mt-1 text-xs text-gray-500">{t!("vendor.empty_state_hint")}</p>
                                                  </div>
@@ -609,9 +601,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                         )
                                                                     >
                                                                         {/* Print icon - matches FAB */}
-                                                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                                                        </svg>
+                                                                        <Icon icon=LuPrinter class="w-6 h-6" />
                                                                     </button>
 
                                                                     {/* Performance metrics - directly adjacent to print button */}
@@ -688,14 +678,14 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 aria-label=move || if is_expanded.get() { t!("common.close")() } else { t!("vendor.view_details")() }
                                                             >
                                                                 {/* Chevron icon */}
-                                                                <svg
-                                                                    class=move || format!("w-5 h-5 text-gray-400 hover:text-blue-600 transition-all {}", if is_expanded.get() { "rotate-180" } else { "" })
-                                                                    fill="none"
-                                                                    stroke="currentColor"
-                                                                    viewBox="0 0 24 24"
+                                                                <Show
+                                                                    when=move || is_expanded.get()
+                                                                    fallback=move || {
+                                                                        view! { <Icon icon=LuChevronDown class="w-5 h-5 text-gray-400 hover:text-blue-600 transition-all" /> }
+                                                                    }
                                                                 >
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                                </svg>
+                                                                    <Icon icon=LuChevronDown class="w-5 h-5 rotate-180 text-gray-400 hover:text-blue-600 transition-all" />
+                                                                </Show>
                                                             </div>
                                                         </div>
 
@@ -909,9 +899,7 @@ pub fn VendorListPage() -> impl IntoView {
                         >
                             <span class="sr-only">{t!("vendor.clear_selection")()}</span>
                             {/* Clear selection icon - list with X marks */}
-                            <svg class="w-7 h-7" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M10 12.6l.7.7 1.6-1.6 1.6 1.6.8-.7L13 11l1.7-1.6-.8-.8-1.6 1.7-1.6-1.7-.7.8 1.6 1.6-1.6 1.6zM1 4h14V3H1v1zm0 3h14V6H1v1zm8 2.5V9H1v1h8v-.5zM9 13v-1H1v1h8z" />
-                            </svg>
+                            <Icon icon=LuListX class="w-7 h-7" />
                         </button>
 
                         {/* Print button - with text */}
@@ -935,9 +923,7 @@ pub fn VendorListPage() -> impl IntoView {
                             }}
                             class="px-6 py-4 rounded-full font-semibold text-lg shadow-2xl transition-all bg-gradient-to-br from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-2xl hover:scale-105 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:hover:scale-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-3"
                         >
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                            </svg>
+                            <Icon icon=LuPrinter class="w-6 h-6" />
                             {move || {
                                 if is_loading.get() {
                                     t!("common.loading")()

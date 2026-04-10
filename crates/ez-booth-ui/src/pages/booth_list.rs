@@ -535,9 +535,7 @@ pub fn BoothListPage() -> impl IntoView {
                 title={t!("report.print_report")()}
                 aria-label={t!("report.print_report")()}
             >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                </svg>
+                <Icon icon=LuPrinter class="h-4 w-4" />
                 <span>{t!("report.print_report")}</span>
             </button>
         }
@@ -813,9 +811,7 @@ pub fn BoothListPage() -> impl IntoView {
                             title={t!("booth.create")()}
                             aria-label={t!("booth.create_aria_label")()}
                         >
-                            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
+                            <Icon icon=LuPlus class="h-5 w-5 shrink-0" />
                             <span class="hidden sm:inline">{t!("booth.create")}</span>
                         </button>
                     </div>
@@ -1164,9 +1160,7 @@ fn booth_card_view(
                             title=t!("booth.actions_menu")()
                             aria_label=t!("booth.actions_menu_aria")()
                         >
-                            <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 5a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z"></path>
-                            </svg>
+                            <Icon icon=LuMoreVertical class="h-7 w-7" />
                         </Button>
                     }
                 >
