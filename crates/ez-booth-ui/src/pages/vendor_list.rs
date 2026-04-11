@@ -1240,14 +1240,13 @@ fn VendorCorrectionEditor(
     on_save: Callback<(Vendor, Decimal, Option<String>)>,
 ) -> impl IntoView {
     let locale = use_locale();
-    let (desired_payout_input, set_desired_payout_input) =
-        create_signal(format_decimal_for_input(report.total_revenue, locale.get(), 2));
-    let (note_input, set_note_input) = create_signal(
-        report
-            .payout_correction_note
-            .clone()
-            .unwrap_or_default(),
-    );
+    let (desired_payout_input, set_desired_payout_input) = create_signal(format_decimal_for_input(
+        report.total_revenue,
+        locale.get(),
+        2,
+    ));
+    let (note_input, set_note_input) =
+        create_signal(report.payout_correction_note.clone().unwrap_or_default());
 
     let (waive_participation, set_waive_participation) = create_signal(false);
     let (waive_revenue, set_waive_revenue) = create_signal(false);
