@@ -19,6 +19,7 @@ mod tests {
             participation_fee: "10.00".to_string(),
             sales_fee_percent: "15.00".to_string(),
             rounding_step: "0.50".to_string(),
+            fee_charge_strategy: "sales_fee_first".to_string(),
             amount_stepping: String::new(),
             vendor_validation_type: "digits_only".to_string(),
             vendor_validation_regex: String::new(),

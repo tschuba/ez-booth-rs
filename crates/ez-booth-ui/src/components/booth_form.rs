@@ -10,7 +10,7 @@ use chrono::NaiveDate;
 use domain::error::DomainError;
 use domain::error_code::ValidationError;
 use domain::models::booth::{
-    Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
+    Booth, FeeChargeStrategy, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
 };
 use domain::validation::{validate_digits_only_constraints, validate_regex_pattern};
 use leptos::*;
@@ -25,6 +25,7 @@ pub struct BoothFormData {
     pub participation_fee: String,
     pub sales_fee_percent: String,
     pub rounding_step: String,
+    pub fee_charge_strategy: String,
     pub amount_stepping: String,
     pub vendor_validation_type: String, // "unrestricted", "digits_only", or "regex"
     pub vendor_validation_regex: String,
@@ -64,6 +65,7 @@ impl BoothFormData {
             participation_fee: format_decimal_for_input(Decimal::ONE, locale, 2),
             sales_fee_percent: format_decimal_for_input(Decimal::from(15), locale, 2),
             rounding_step: format_decimal_for_input(Decimal::new(50, 2), locale, 2),
+            fee_charge_strategy: "sales_fee_first".to_string(),
             amount_stepping: String::new(),
             vendor_validation_type: "digits_only".to_string(), // Default to digits only
             vendor_validation_regex: String::new(),
@@ -103,6 +105,11 @@ impl BoothFormData {
             participation_fee: format_decimal_for_input(booth.fees.participation_fee, locale, 2),
             sales_fee_percent: format_decimal_for_input(booth.fees.sales_fee_percent, locale, 2),
             rounding_step: format_decimal_for_input(booth.fees.rounding_step, locale, 2),
+            fee_charge_strategy: match booth.fee_charge_strategy {
+                FeeChargeStrategy::SalesFeeFirst => "sales_fee_first".to_string(),
+                FeeChargeStrategy::BothFeesIfProfitable => "both_fees_if_profitable".to_string(),
+                FeeChargeStrategy::BothFees => "both_fees".to_string(),
+            },
             amount_stepping: booth
                 .amount_stepping
                 .map(|step| format_decimal_for_input(step, locale, 2))
@@ -155,6 +162,12 @@ impl BoothFormData {
             rounding_step,
         };
 
+        let fee_charge_strategy = match self.fee_charge_strategy.as_str() {
+            "both_fees_if_profitable" => FeeChargeStrategy::BothFeesIfProfitable,
+            "both_fees" => FeeChargeStrategy::BothFees,
+            _ => FeeChargeStrategy::SalesFeeFirst,
+        };
+
         // Parse vendor validation rule
         let vendor_id_validation = match self.vendor_validation_type.as_str() {
             "unrestricted" => VendorIdValidation::Unrestricted,
@@ -173,6 +186,7 @@ impl BoothFormData {
         // Create Booth (this validates the fee ranges)
         let mut booth = Booth::new(self.description.clone(), date, fees)?;
         self.vendor_omission_rules.validate()?;
+        booth.fee_charge_strategy = fee_charge_strategy;
         booth.vendor_id_validation = vendor_id_validation;
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
         booth.update_amount_stepping(amount_stepping)?;
@@ -217,6 +231,12 @@ impl BoothFormData {
         };
         fees.validate_ranges()?;
 
+        let fee_charge_strategy = match self.fee_charge_strategy.as_str() {
+            "both_fees_if_profitable" => FeeChargeStrategy::BothFeesIfProfitable,
+            "both_fees" => FeeChargeStrategy::BothFees,
+            _ => FeeChargeStrategy::SalesFeeFirst,
+        };
+
         // Parse vendor validation rule
         let vendor_id_validation = match self.vendor_validation_type.as_str() {
             "unrestricted" => VendorIdValidation::Unrestricted,
@@ -237,6 +257,7 @@ impl BoothFormData {
         booth.update_description(self.description.clone());
         booth.date = date;
         booth.update_fees(fees);
+        booth.fee_charge_strategy = fee_charge_strategy;
         booth.vendor_id_validation = vendor_id_validation;
         booth.vendor_id_omission_rules = self.vendor_omission_rules.clone();
         booth.update_amount_stepping(amount_stepping)?;
@@ -392,6 +413,7 @@ pub fn BoothForm(
     let participation_fee = create_rw_signal(form_data.get_untracked().participation_fee);
     let sales_fee_percent = create_rw_signal(form_data.get_untracked().sales_fee_percent);
     let rounding_step = create_rw_signal(form_data.get_untracked().rounding_step);
+    let fee_charge_strategy = create_rw_signal(form_data.get_untracked().fee_charge_strategy);
     let amount_stepping = create_rw_signal(form_data.get_untracked().amount_stepping);
     let vendor_validation_type = create_rw_signal(form_data.get_untracked().vendor_validation_type);
     let vendor_validation_regex =
@@ -711,6 +733,7 @@ pub fn BoothForm(
             participation_fee: participation_fee.get(),
             sales_fee_percent: sales_fee_percent.get(),
             rounding_step: rounding_step.get(),
+            fee_charge_strategy: fee_charge_strategy.get(),
             amount_stepping: amount_stepping.get(),
             vendor_validation_type: vendor_validation_type.get(),
             vendor_validation_regex: vendor_validation_regex.get(),
@@ -813,6 +836,23 @@ pub fn BoothForm(
                                             <p class="mt-1 text-sm text-gray-600">
                                                 {t!("booth.rounding_step_help")()}
                                             </p>
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">
+                                                {t!("booth.fee_charge_strategy_label")()}
+                                            </label>
+                                            <select
+                                                class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                on:change=move |ev| {
+                                                    fee_charge_strategy.set(event_target_value(&ev));
+                                                }
+                                                prop:value=fee_charge_strategy
+                                            >
+                                                <option value="sales_fee_first">{t!("booth.fee_charge_strategy_sales_first")()}</option>
+                                                <option value="both_fees_if_profitable">{t!("booth.fee_charge_strategy_both_if_profitable")()}</option>
+                                                <option value="both_fees">{t!("booth.fee_charge_strategy_both")()}</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>

@@ -608,9 +608,19 @@ pub fn VendorListPage() -> impl IntoView {
                                                                     <div class="flex flex-col items-end gap-1">
                                                                         <div class="text-right">
                                                                             <div class="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
-                                                                                {t!("vendor.net_payout")()}
+                                                                                {if report.total_revenue.is_sign_negative() {
+                                                                                    t!("vendor.amount_owed")()
+                                                                                } else {
+                                                                                    t!("vendor.net_settlement")()
+                                                                                }}
                                                                             </div>
-                                                                            <div class="text-2xl font-bold text-green-700">
+                                                                            <div
+                                                                                class=if report.total_revenue.is_sign_negative() {
+                                                                                    "text-2xl font-bold text-red-700"
+                                                                                } else {
+                                                                                    "text-2xl font-bold text-green-700"
+                                                                                }
+                                                                            >
                                                                                 {format_currency(report.total_revenue, locale.get())}
                                                                             </div>
                                                                         </div>
@@ -1060,8 +1070,25 @@ fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
                                         <span>{move || format!("-{}", format_currency(sales_fee, locale.get()))}</span>
                                     </div>
                                     <div class="flex justify-between py-1 border-t-2 border-gray-800">
-                                        <span class="text-base font-bold">{t!("vendor.net_payout")}{"："}</span>
-                                        <span class="text-lg font-bold">{move || format_currency(total_revenue, locale.get())}</span>
+                                        <span class="text-base font-bold">
+                                            {if total_revenue.is_sign_negative() {
+                                                t!("vendor.amount_owed")()
+                                            } else {
+                                                t!("vendor.net_settlement")()
+                                            }}
+                                            {"："}
+                                        </span>
+                                        <span
+                                            class=move || {
+                                                if total_revenue.is_sign_negative() {
+                                                    "text-lg font-bold text-red-700"
+                                                } else {
+                                                    "text-lg font-bold text-green-700"
+                                                }
+                                            }
+                                        >
+                                            {move || format_currency(total_revenue, locale.get())}
+                                        </span>
                                     </div>
                                 </div>
                             </div>

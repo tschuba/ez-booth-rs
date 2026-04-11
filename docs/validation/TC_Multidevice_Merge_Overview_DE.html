@@ -204,8 +204,9 @@
         <li>Prüfung der Ergebnisse <strong>nach Merge</strong> auf beiden Geräten.</li>
       </ul>
       <div class="critical-note">
-        <strong>Kontrollfälle:</strong> Es werden explizit beide Grenzfälle geprüft:
-        <em>Netto = 0,00 €</em> und <em>Netto &lt; 0,00 € vor Begrenzung auf 0,00 €</em>.
+        <strong>Kontrollfälle:</strong> Es werden explizit beide Grenzfälle unter dem Modell
+        <code>both_fees</code> geprüft:
+        <em>Netto = 0,00 €</em> und <em>Netto &lt; 0,00 € vor Rundung</em>.
       </div>
     </section>
 
@@ -226,6 +227,7 @@
           <tr><td>Teilnahmegebühr</td><td>1,00 €</td></tr>
           <tr><td>Umsatzbeteiligung</td><td>15 %</td></tr>
           <tr><td>Rundungsschritt</td><td>0,50 €</td></tr>
+          <tr><td>Gebührenmodell</td><td><code>both_fees</code> (beide Gebühren immer)</td></tr>
         </tbody>
       </table>
     </section>
@@ -305,7 +307,7 @@
 
       <div class="note">
         <strong>Prüfregel Grenzfälle:</strong>
-        Verkäufer 7 prüft den Fall <strong>Netto &lt; 0,00 € vor Begrenzung</strong> (Umsatz 1,00 €), Verkäufer 8 den Fall <strong>Netto = 0,00 €</strong> (Umsatz 0,50 €).
+        Verkäufer 7 prüft den Fall <strong>Netto &lt; 0,00 € vor Rundung</strong> (Umsatz 1,00 €), Verkäufer 8 den Fall <strong>Netto = 0,00 €</strong> (Umsatz 0,50 €).
       </div>
     </section>
 
@@ -367,7 +369,7 @@
             <td>☐ OK / ☐ NOK</td>
           </tr>
           <tr>
-            <td>Kontrollfall Netto &lt; 0 korrekt begrenzt</td>
+            <td>Kontrollfall Netto &lt; 0 vor Rundung korrekt</td>
             <td>Verkäufer 7: Brutto 1,00 € · Netto 0,00 € · Gebühren 1,00 €</td>
             <td>☐ OK / ☐ NOK</td>
             <td>☐ OK / ☐ NOK</td>

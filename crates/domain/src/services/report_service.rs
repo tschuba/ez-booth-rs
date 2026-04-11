@@ -60,10 +60,14 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
 
         // Generate vendor summaries
         let mut vendor_summaries: Vec<VendorBoothSummary> = Vec::new();
+        let mut total_participation_fees = Decimal::ZERO;
+        let mut total_sales_fees = Decimal::ZERO;
         for (vendor_id, vendor_item_list) in vendor_items.iter() {
             let gross_sales: Decimal = vendor_item_list.iter().map(|(_, item)| item.amount).sum();
 
             let payout = charging_config.calculate_payout(gross_sales);
+            total_participation_fees += payout.participation_fee();
+            total_sales_fees += payout.sales_fee();
 
             // Count total items for this vendor
             let item_count: usize = vendor_item_list.len();
@@ -87,14 +91,6 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         let unique_vendors = vendor_items.len();
 
         // Calculate booth revenue metrics
-        let total_participation_fees: Decimal = vendor_summaries
-            .iter()
-            .map(|_| charging_config.participation_fee)
-            .sum();
-        let total_sales_fees: Decimal = vendor_summaries
-            .iter()
-            .map(|v| v.fees_due - charging_config.participation_fee)
-            .sum();
         let total_booth_revenue = total_participation_fees + total_sales_fees;
 
         debug_assert_eq!(
@@ -186,8 +182,8 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
             booth,
             items,
             sales_sum: payout.gross_sales,
-            participation_fee: charging_config.participation_fee,
-            sales_fee: payout.fees_due - charging_config.participation_fee,
+            participation_fee: payout.participation_fee(),
+            sales_fee: payout.sales_fee(),
             total_revenue: payout.net_payout,
         })
     }
@@ -540,7 +536,9 @@ mod tests {
         }
     }
 
-    fn create_test_booth() -> Booth {
+    fn create_test_booth_with_strategy(
+        fee_charge_strategy: crate::models::FeeChargeStrategy,
+    ) -> Booth {
         Booth {
             id: BoothId::new(),
             description: "Test Booth".to_string(),
@@ -550,6 +548,7 @@ mod tests {
                 sales_fee_percent: dec!(10.0),
                 rounding_step: dec!(0.50),
             },
+            fee_charge_strategy,
             vendor_id_validation: crate::models::VendorIdValidation::default(),
             vendor_id_omission_rules: crate::models::VendorIdOmissionRules::empty(),
             keyboard_config: crate::models::CheckoutKeyboardConfig::default(),
@@ -559,6 +558,10 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
+    }
+
+    fn create_test_booth() -> Booth {
+        create_test_booth_with_strategy(crate::models::FeeChargeStrategy::BothFees)
     }
 
     fn create_test_vendor(booth_id: &BoothId, vendor_id: &str) -> Vendor {
@@ -903,5 +906,87 @@ mod tests {
             summary.total_booth_revenue,
             summary.total_participation_fees + summary.total_sales_fees
         );
+    }
+
+    #[tokio::test]
+    async fn test_booth_summary_totals_sales_fee_first() {
+        let booth = create_test_booth_with_strategy(crate::models::FeeChargeStrategy::SalesFeeFirst);
+        let vendor = create_test_vendor(&booth.id, "1");
+
+        let purchase_repo = MockPurchaseRepository::new();
+        let booth_repo = MockBoothRepository::new();
+        let vendor_repo = MockVendorRepository::new();
+
+        booth_repo.add_booth(booth.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor.clone());
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+
+        let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
+        let summary = service.generate_booth_summary(&booth.id, None).await.unwrap();
+
+        assert_eq!(summary.total_participation_fees, dec!(0.00));
+        assert_eq!(summary.total_sales_fees, dec!(0.50));
+        assert_eq!(summary.total_booth_revenue, dec!(0.50));
+    }
+
+    #[tokio::test]
+    async fn test_booth_summary_totals_both_fees_if_profitable() {
+        let booth =
+            create_test_booth_with_strategy(crate::models::FeeChargeStrategy::BothFeesIfProfitable);
+        let vendor = create_test_vendor(&booth.id, "1");
+
+        let purchase_repo = MockPurchaseRepository::new();
+        let booth_repo = MockBoothRepository::new();
+        let vendor_repo = MockVendorRepository::new();
+
+        booth_repo.add_booth(booth.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor.clone());
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+
+        let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
+        let summary = service.generate_booth_summary(&booth.id, None).await.unwrap();
+
+        assert_eq!(summary.total_participation_fees, dec!(0.00));
+        assert_eq!(summary.total_sales_fees, dec!(0.00));
+        assert_eq!(summary.total_booth_revenue, dec!(0.00));
+    }
+
+    #[tokio::test]
+    async fn test_booth_summary_totals_both_fees() {
+        let booth = create_test_booth_with_strategy(crate::models::FeeChargeStrategy::BothFees);
+        let vendor = create_test_vendor(&booth.id, "1");
+
+        let purchase_repo = MockPurchaseRepository::new();
+        let booth_repo = MockBoothRepository::new();
+        let vendor_repo = MockVendorRepository::new();
+
+        booth_repo.add_booth(booth.clone());
+        vendor_repo.add_vendor(booth.id.clone(), vendor.clone());
+        purchase_repo.add_purchase(
+            Purchase::new(
+                booth.id.clone(),
+                vec![PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()).unwrap()],
+            )
+            .unwrap(),
+        );
+
+        let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
+        let summary = service.generate_booth_summary(&booth.id, None).await.unwrap();
+
+        assert_eq!(summary.total_participation_fees, dec!(5.00));
+        assert_eq!(summary.total_sales_fees, dec!(0.50));
+        assert_eq!(summary.total_booth_revenue, dec!(5.50));
     }
 }

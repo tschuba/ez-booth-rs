@@ -62,7 +62,15 @@ fn vendor_row_view(vs: &VendorBoothSummary, locale: RwSignal<crate::i18n::Locale
     view! {
         <tr class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm font-medium text-gray-900">{vendor_id_str}</td>
-            <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+            <td
+                class=move || {
+                    if net_payout.is_sign_negative() {
+                        "px-4 py-3 text-sm font-semibold text-red-700 text-right"
+                    } else {
+                        "px-4 py-3 text-sm font-semibold text-green-700 text-right"
+                    }
+                }
+            >
                 {move || format_currency(net_payout, locale.get())}
             </td>
             <td class="px-4 py-3 text-sm text-gray-700 text-right">
@@ -188,7 +196,7 @@ pub fn BoothSummaryDisplay(summary: BoothSummary) -> impl IntoView {
                                         {t!("report.vendor_id")}
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {t!("report.net_payout")}
+                                        {t!("report.net_settlement")}
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         {t!("report.gross_sales")}
@@ -255,7 +263,15 @@ pub fn PrintBoothSummary(
             view! {
                 <tr class="border-b border-gray-300">
                     <td class="px-4 py-3 font-medium">{vendor_id_str}</td>
-                    <td class="px-4 py-3 text-right font-semibold">
+                    <td
+                        class=move || {
+                            if net_payout.is_sign_negative() {
+                                "px-4 py-3 text-right font-semibold text-red-700"
+                            } else {
+                                "px-4 py-3 text-right font-semibold text-green-700"
+                            }
+                        }
+                    >
                         {move || format_currency(net_payout, locale.get())}
                     </td>
                     <td class="px-4 py-3 text-right">
@@ -339,7 +355,7 @@ pub fn PrintBoothSummary(
                         <thead>
                             <tr class="border-b-2 border-gray-800">
                                 <th class="px-4 py-3 text-left font-bold">{t!("report.vendor_id")}</th>
-                                <th class="px-4 py-3 text-right font-bold">{t!("report.net_payout")}</th>
+                                <th class="px-4 py-3 text-right font-bold">{t!("report.net_settlement")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.gross_sales")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.fees_due")}</th>
                                 <th class="px-4 py-3 text-right font-bold">{t!("report.item_count")}</th>

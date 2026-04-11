@@ -65,6 +65,7 @@ impl<R: BoothRepository> BoothService<R> {
     ) -> DomainResult<Booth> {
         let source = self.get_booth(source_id).await?;
         let mut booth = Booth::new(new_description, new_date, source.fees.clone())?;
+        booth.fee_charge_strategy = source.fee_charge_strategy.clone();
         booth.vendor_id_validation = source.vendor_id_validation.clone();
         booth.vendor_id_omission_rules = source.vendor_id_omission_rules.clone();
         booth.keyboard_config = source.keyboard_config.clone();

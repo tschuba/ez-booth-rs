@@ -6,231 +6,180 @@ parent: User Guides
 
 # Gebührenberechnung / Fee Calculation
 
-Diese Dokumentation erklärt, wie die Gebühren und Auszahlungen für Verkäufer berechnet werden.
-
-*This document explains how fees and payouts are calculated for vendors.*
+Diese Dokumentation erklärt die Gebührenlogik je Gebührenmodell inklusive Rundung und Beispielrechnungen.  
+*This document explains fee logic per strategy, including rounding and worked examples.*
 
 ---
 
 ## Überblick / Overview
 
-**Deutsch:**
-Das System berechnet für jeden Verkäufer die Netto-Auszahlung, indem es von den Bruttoverkäufen die Gebühren abzieht. Der Rundungsschritt wird auf die Netto-Auszahlung angewendet, um dem Verkäufer einen sauberen, gerundeten Betrag auszuzahlen.
+**Deutsch:**  
+Die App berechnet pro Verkäufer eine **Netto-Abrechnung** (*Net Settlement*).  
+Die Rundung wird auf die Netto-Abrechnung angewendet.
 
-**English:**
-The system calculates the net payout for each vendor by subtracting fees from gross sales. The rounding step is applied to the net payout to give the vendor a clean, rounded amount.
+- **Netto-Abrechnung $\ge 0$**: Auszahlung an Verkäufer
+- **Netto-Abrechnung $< 0$**: Vom Verkäufer geschuldeter Betrag
 
----
+**English:**  
+The app calculates a **Net Settlement** per vendor.  
+Rounding is applied to net settlement.
 
-## Gebührenstruktur / Fee Structure
-
-Es gibt zwei Arten von Gebühren:
-
-*There are two types of fees:*
-
-1. **Standgebühr / Participation Fee**: Ein fester Betrag, der einmalig erhoben wird / *A fixed amount charged once*
-2. **Umsatzbeteiligung / Revenue Share**: Ein Prozentsatz der Bruttoverkäufe / *A percentage of gross sales*
+- **Net Settlement $\ge 0$**: amount paid to vendor
+- **Net Settlement $< 0$**: amount owed by vendor
 
 ---
 
-## Berechnungslogik / Calculation Logic
+## Gebührenbestandteile / Fee Components
 
-### Schritt 1: Bruttoverkäufe / Step 1: Gross Sales
+1. **Teilnahmegebühr / Participation Fee (TG)**: fester Betrag  
+2. **Umsatzbeteiligung / Sales Fee (UB)**: Prozentsatz auf Bruttoumsatz
 
-Die Summe aller Verkäufe des Verkäufers.
-
-*The sum of all vendor's sales.*
-
-```
-Bruttoverkäufe = Summe aller Artikelpreise
-Gross Sales = Sum of all item prices
-```
-
-### Schritt 2: Theoretische Netto-Auszahlung / Step 2: Theoretical Net Payout
-
-Berechne die Netto-Auszahlung vor der Rundung:
-
-*Calculate the net payout before rounding:*
-
-```
-Theoretische Verkaufsgebühr = Bruttoverkäufe × (Umsatzbeteiligung% / 100)
-Theoretische Netto = Bruttoverkäufe - Standgebühr - Theoretische Verkaufsgebühr
-
-Theoretical Sales Fee = Gross Sales × (Revenue Share% / 100)
-Theoretical Net = Gross Sales - Participation Fee - Theoretical Sales Fee
-```
-
-### Schritt 3: Rundung / Step 3: Rounding
-
-Runde die Netto-Auszahlung auf den nächsten Rundungsschritt:
-
-*Round the net payout to the nearest rounding step:*
-
-```
-Netto-Auszahlung = Runde(Theoretische Netto) auf Rundungsschritt
-Net Payout = Round(Theoretical Net) to Rounding Step
-```
-
-**Rundungsverhalten / Rounding Behavior:**
-- Bei **0,50 €**: Rundung auf 0,00 €, 0,50 €, 1,00 €, 1,50 €, usw. / *Round to 0.00 €, 0.50 €, 1.00 €, 1.50 €, etc.*
-- Bei **1,00 €**: Rundung auf volle Euro / *Round to full euros*
-- Bei **0,25 €**: Rundung auf Vierteleuro / *Round to quarter euros*
-- Bei **0,00 €**: Rundung auf Cent (2 Dezimalstellen) / *Round to cents (2 decimal places)*
-
-**Rundungsregel / Rounding Rule:** Kaufmännische Rundung (0,5 wird aufgerundet) / *Commercial rounding (0.5 rounds up)*
-
-### Schritt 4: Tatsächliche Gebühren / Step 4: Actual Fees
-
-Berechne die tatsächlichen Gebühren als Differenz:
-
-*Calculate the actual fees as the difference:*
-
-```
-Gebühren gesamt = Bruttoverkäufe - Netto-Auszahlung
-Total Fees = Gross Sales - Net Payout
-```
+Konfiguration kommt aus der Veranstaltung:
+- Teilnahmegebühr
+- Umsatzbeteiligung in %
+- Rundungsschritt
 
 ---
 
-## Beispielrechnung / Example Calculation
+## Gebührenmodelle / Fee Strategies
 
-### Konfiguration / Configuration
+### 1) `sales_fee_first` (Default)
 
-- **Standgebühr / Participation Fee**: 10,00 €
-- **Umsatzbeteiligung / Revenue Share**: 15%
-- **Rundungsschritt / Rounding Step**: 0,50 €
+**Deutsch:** UB wird immer berücksichtigt. TG nur, wenn nach UB genug verbleibt:  
+$VU - UB_{threshold} > TG$
 
-### Berechnung / Calculation
+**English:** Sales fee is always considered. Participation fee is charged only if enough remains after UB:  
+$VU - UB_{threshold} > TG$
 
-**Schritt 1: Bruttoverkäufe / Step 1: Gross Sales**
-```
-Bruttoverkäufe = 518,11 €
-Gross Sales = 518.11 €
-```
+### 2) `both_fees_if_profitable`
 
-**Schritt 2: Theoretische Netto-Auszahlung / Step 2: Theoretical Net Payout**
-```
-Theoretische Verkaufsgebühr = 518,11 € × 15% = 77,72 €
-Theoretische Netto = 518,11 € - 10,00 € - 77,72 € = 430,39 €
+**Deutsch:** Beide Gebühren nur, wenn zusammen kleiner als Umsatz:  
+$TG + UB_{threshold} < VU$  
+Sonst: keine Gebühren.
 
-Theoretical Sales Fee = 518.11 € × 15% = 77.72 €
-Theoretical Net = 518.11 € - 10.00 € - 77.72 € = 430.39 €
-```
+**English:** Both fees only if their sum is below gross sales:  
+$TG + UB_{threshold} < VU$  
+Otherwise: no fees.
 
-**Schritt 3: Rundung / Step 3: Rounding**
-```
-Netto-Auszahlung = Runde(430,39 €) auf 0,50 € = 430,50 €
-Net Payout = Round(430.39 €) to 0.50 € = 430.50 €
-```
+### 3) `both_fees`
 
-**Schritt 4: Tatsächliche Gebühren / Step 4: Actual Fees**
-```
-Gebühren gesamt = 518,11 € - 430,50 € = 87,61 €
-Total Fees = 518.11 € - 430.50 € = 87.61 €
-```
-
-### Endergebnis / Final Result
-
-| Beschreibung / Description | Betrag / Amount |
-|---------------------------|-----------------|
-| **Bruttoverkäufe** / *Gross Sales* | 518,11 € |
-| **Gebühren gesamt** / *Total Fees* | 87,61 € |
-| **Netto-Auszahlung** / *Net Payout* | **430,50 €** |
+**Deutsch:** Beide Gebühren immer. Netto kann negativ werden.  
+**English:** Both fees always apply. Net can become negative.
 
 ---
 
-## Weitere Beispiele / Additional Examples
+## Rundung / Rounding
 
-### Beispiel 2: Rundungsschritt 1,00 € / Example 2: Rounding Step 1.00 €
+### Begriffe / Terms
 
-**Konfiguration / Configuration:**
-- Standgebühr / Participation Fee: 5,00 €
-- Umsatzbeteiligung / Revenue Share: 10%
-- Rundungsschritt / Rounding Step: 1,00 €
+- $UB_{raw} = VU \times \frac{UB\%}{100}$
+- $UB_{threshold} = round\_to\_step(UB_{raw})$ (für Schwellwertprüfung)
+- $Netto = round\_to\_step(VU - TG^\* - UB_{raw})$
 
-**Berechnung mit 100,50 € Bruttoverkäufe / Calculation with 100.50 € Gross Sales:**
+$TG^\*$ ist je Modell entweder TG oder 0.
 
-1. Theoretische Verkaufsgebühr = 100,50 € × 10% = 10,05 €
-2. Theoretische Netto = 100,50 € - 5,00 € - 10,05 € = 85,45 €
-3. **Netto-Auszahlung = 85,00 €** (gerundet auf volle Euro / *rounded to full euro*)
-4. Gebühren gesamt = 100,50 € - 85,00 € = 15,50 €
+### Regel / Rule
 
-### Beispiel 3: Rundungsschritt 0,25 € / Example 3: Rounding Step 0.25 €
-
-**Konfiguration / Configuration:**
-- Standgebühr / Participation Fee: 2,00 €
-- Umsatzbeteiligung / Revenue Share: 12%
-- Rundungsschritt / Rounding Step: 0,25 €
-
-**Berechnung mit 50,00 € Bruttoverkäufe / Calculation with 50.00 € Gross Sales:**
-
-1. Theoretische Verkaufsgebühr = 50,00 € × 12% = 6,00 €
-2. Theoretische Netto = 50,00 € - 2,00 € - 6,00 € = 42,00 €
-3. **Netto-Auszahlung = 42,00 €** (bereits gerundet / *already rounded*)
-4. Gebühren gesamt = 50,00 € - 42,00 € = 8,00 €
-
-### Beispiel 4: Kein Rundungsschritt (0,00 €) / Example 4: No Rounding Step (0.00 €)
-
-**Konfiguration / Configuration:**
-- Standgebühr / Participation Fee: 3,00 €
-- Umsatzbeteiligung / Revenue Share: 8%
-- Rundungsschritt / Rounding Step: 0,00 €
-
-**Berechnung mit 47,33 € Bruttoverkäufe / Calculation with 47.33 € Gross Sales:**
-
-1. Theoretische Verkaufsgebühr = 47,33 € × 8% = 3,79 €
-2. Theoretische Netto = 47,33 € - 3,00 € - 3,79 € = 40,54 €
-3. **Netto-Auszahlung = 40,54 €** (gerundet auf Cent / *rounded to cents*)
-4. Gebühren gesamt = 47,33 € - 40,54 € = 6,79 €
+- Bei Rundungsschritt `0.00`: kaufmännisch auf 2 Dezimalstellen
+- Sonst: kaufmännisch auf Vielfache des Rundungsschritts
 
 ---
 
-## Vorteile dieser Methode / Benefits of This Method
+## Strategie-Beispiele (Szenario 1) / Strategy Examples (Scenario 1)
 
-**Deutsch:**
+**Parameter:**  
+- TG = **1.10 €**
+- UB = **10 %**
+- Rundungsschritt = **0.10 €**
 
-1. **Klare Auszahlungsbeträge**: Verkäufer erhalten saubere, gerundete Beträge (z.B. 430,50 € statt 430,39 €)
-2. **Einfaches Handling**: Bargeldauszahlungen sind einfacher, da weniger kleine Münzen benötigt werden
-3. **Faire Berechnung**: Die Rundung erfolgt transparent und nachvollziehbar
-4. **Flexibilität**: Der Rundungsschritt kann an die Bedürfnisse angepasst werden
+### `sales_fee_first`
 
-**English:**
+- **A) VU = 1.20 €**  
+  $UB_{threshold}=0.10$; $1.20-0.10 = 1.10 \nleqslant 1.10$ (nicht größer) → TG entfällt  
+  Netto = **1.10 €**
 
-1. **Clean Payout Amounts**: Vendors receive clean, rounded amounts (e.g., 430.50 € instead of 430.39 €)
-2. **Easy Handling**: Cash payouts are easier since fewer small coins are needed
-3. **Fair Calculation**: The rounding is transparent and traceable
-4. **Flexibility**: The rounding step can be adjusted to meet needs
+- **B) VU = 2.00 €**  
+  $UB_{threshold}=0.20$; $2.00-0.20 = 1.80 > 1.10$ → TG aktiv  
+  Netto = **0.70 €**
 
----
+### `both_fees_if_profitable`
 
-## Hinweise / Notes
+- **A) VU = 1.20 €**  
+  $TG + UB_{threshold} = 1.10 + 0.10 = 1.20$ (nicht kleiner) → keine Gebühren  
+  Netto = **1.20 €**
 
-**Deutsch:**
+- **B) VU = 2.00 €**  
+  $1.10 + 0.20 = 1.30 < 2.00$ → beide Gebühren aktiv  
+  Netto = **0.70 €**
 
-- Die Rundung erfolgt **immer zur Netto-Auszahlung**, nicht zu den Gebühren
-- Die Standgebühr wird **nie gerundet** und bleibt immer der konfigurierte Betrag
-- Die Verkaufsgebühr wird **automatisch angepasst**, damit die Rechnung aufgeht
-- Bei einem Rundungsschritt von 0,00 € wird auf **2 Dezimalstellen** (Cent) gerundet
+### `both_fees`
 
-**English:**
+- **A) VU = 1.20 €**  
+  Netto = **0.00 €**
 
-- Rounding is **always applied to the net payout**, not to the fees
-- The participation fee is **never rounded** and always stays the configured amount
-- The revenue share is **automatically adjusted** to make the calculation work
-- With a rounding step of 0.00 €, rounding is done to **2 decimal places** (cents)
+- **B) VU = 1.00 €**  
+  Netto = **-0.20 €**
 
----
+### Vergleich (VU = 1.20 €)
 
-## Technische Implementierung / Technical Implementation
-
-Die Berechnung wird in der Datei `crates/domain/src/services/dto.rs` durch die Methode `ChargingConfig::calculate_payout()` durchgeführt.
-
-*The calculation is performed in the file `crates/domain/src/services/dto.rs` by the method `ChargingConfig::calculate_payout()`.*
-
-Siehe auch die umfassenden Tests in derselben Datei für weitere Beispiele.
-
-*See also the comprehensive tests in the same file for more examples.*
+| Strategie | Netto |
+|---|---:|
+| `sales_fee_first` | 1.10 € |
+| `both_fees_if_profitable` | 1.20 € |
+| `both_fees` | 0.00 € |
 
 ---
 
-**Letzte Aktualisierung / Last Updated:** März 2026
+## Strategie-Beispiele (Szenario 2) / Strategy Examples (Scenario 2)
+
+**Parameter:**  
+- TG = **1.10 €**
+- UB = **10 %**
+- Rundungsschritt = **0.50 €**
+
+### `sales_fee_first`
+
+- **A) VU = 1.00 €**  
+  $UB_{threshold}=0.00$; $1.00-0.00 \le 1.10$ → TG entfällt  
+  Netto = **1.00 €** (UB wirkt durch Rundung effektiv 0)
+
+- **B) VU = 5.00 €**  
+  $UB_{threshold}=0.50$; $5.00-0.50 > 1.10$ → TG aktiv  
+  Netto = **3.50 €**
+
+### `both_fees_if_profitable`
+
+- **A) VU = 1.00 €**  
+  $1.10 + 0.00 \not< 1.00$ → keine Gebühren  
+  Netto = **1.00 €**
+
+- **B) VU = 5.00 €**  
+  $1.10 + 0.50 < 5.00$ → beide Gebühren aktiv  
+  Netto = **3.50 €**
+
+### `both_fees`
+
+- **A) VU = 1.00 €**  
+  Netto = **0.00 €**
+
+- **B) VU = 5.00 €**  
+  Netto = **3.50 €**
+
+### Vergleich (VU = 1.00 €)
+
+| Strategie | Netto |
+|---|---:|
+| `sales_fee_first` | 1.00 € |
+| `both_fees_if_profitable` | 1.00 € |
+| `both_fees` | 0.00 € |
+
+---
+
+## Technische Referenz / Technical Reference
+
+Berechnung in: `crates/domain/src/services/dto.rs`  
+Methode: `ChargingConfig::calculate_payout()`
+
+---
+
+**Letzte Aktualisierung / Last Updated:** April 2026

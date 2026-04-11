@@ -43,17 +43,19 @@ impl ChargedFees {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VendorPayout {
     pub gross_sales: Decimal,
+    pub charged_participation_fee: Decimal,
+    pub charged_sales_fee: Decimal,
     pub fees_due: Decimal,
     pub net_payout: Decimal,
 }
 
 impl VendorPayout {
-    pub fn participation_fee(&self, config: &ChargingConfig) -> Decimal {
-        config.participation_fee
+    pub fn participation_fee(&self) -> Decimal {
+        self.charged_participation_fee
     }
 
-    pub fn sales_fee(&self, config: &ChargingConfig) -> Decimal {
-        self.fees_due - config.participation_fee
+    pub fn sales_fee(&self) -> Decimal {
+        self.charged_sales_fee
     }
 }
 
@@ -62,6 +64,7 @@ pub struct ChargingConfig {
     pub participation_fee: Decimal,
     pub sales_fee: Decimal,
     pub rounding_step: Decimal,
+    pub fee_charge_strategy: FeeChargeStrategy,
 }
 
 impl ChargingConfig {
@@ -70,6 +73,7 @@ impl ChargingConfig {
             participation_fee: booth.fees.participation_fee,
             sales_fee: booth.fees.sales_fee_percent,
             rounding_step: booth.fees.rounding_step,
+            fee_charge_strategy: booth.fee_charge_strategy.clone(),
         }
     }
 
@@ -94,30 +98,52 @@ impl ChargingConfig {
         note = "Use calculate_payout() for consistent fee calculations"
     )]
     pub fn calculate_fees(&self, value: Decimal) -> ChargedFees {
-        let sales_fee_raw = self.sales_fee * value / dec!(100);
-        let sales_fee = self.round_to_step(sales_fee_raw);
-
+        let payout = self.calculate_payout(value);
         ChargedFees {
-            participation_fee: self.participation_fee,
-            sales_fee,
+            participation_fee: payout.participation_fee(),
+            sales_fee: payout.sales_fee(),
         }
     }
 
-    /// Calculate vendor payout with rounding applied to net payout
-    /// The net payout is rounded to the rounding step, and fees are adjusted to match
+    /// Calculate vendor payout with rounding applied to net payout.
+    /// Threshold checks use a rounded sales-fee value (`ub_threshold`) while payout remains net-rounded.
     pub fn calculate_payout(&self, gross_sales: Decimal) -> VendorPayout {
-        // Calculate the theoretical net payout before rounding
         let sales_fee_raw = self.sales_fee * gross_sales / dec!(100);
-        let theoretical_net = gross_sales - self.participation_fee - sales_fee_raw;
+        let ub_threshold = self.round_to_step(sales_fee_raw);
 
-        // Round the net payout to the rounding step
+        let (applied_participation_fee, applied_sales_fee_raw) = match self.fee_charge_strategy {
+            FeeChargeStrategy::BothFees => (self.participation_fee, sales_fee_raw),
+            FeeChargeStrategy::BothFeesIfProfitable => {
+                if self.participation_fee + ub_threshold < gross_sales {
+                    (self.participation_fee, sales_fee_raw)
+                } else {
+                    (Decimal::ZERO, Decimal::ZERO)
+                }
+            }
+            FeeChargeStrategy::SalesFeeFirst => {
+                if gross_sales - ub_threshold > self.participation_fee {
+                    (self.participation_fee, sales_fee_raw)
+                } else {
+                    (Decimal::ZERO, sales_fee_raw)
+                }
+            }
+        };
+
+        let theoretical_net = gross_sales - applied_participation_fee - applied_sales_fee_raw;
         let net_payout = self.round_to_step(theoretical_net);
-
-        // Calculate actual fees as the difference
         let fees_due = gross_sales - net_payout;
+
+        let charged_participation_fee = if fees_due <= Decimal::ZERO {
+            Decimal::ZERO
+        } else {
+            applied_participation_fee.min(fees_due)
+        };
+        let charged_sales_fee = fees_due - charged_participation_fee;
 
         VendorPayout {
             gross_sales,
+            charged_participation_fee,
+            charged_sales_fee,
             fees_due,
             net_payout,
         }
@@ -196,23 +222,24 @@ mod tests {
             participation_fee: dec!(1.00),
             sales_fee: dec!(15.0), // 15%
             rounding_step: dec!(0.50),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // 15% of 23.50 = 3.525 -> should round to 3.50
         let payout = config.calculate_payout(dec!(23.50));
-        assert_eq!(payout.sales_fee(&config), dec!(3.50));
+        assert_eq!(payout.sales_fee(), dec!(3.50));
 
         // 15% of 24.00 = 3.60 -> should round to 3.50
         let payout = config.calculate_payout(dec!(24.00));
-        assert_eq!(payout.sales_fee(&config), dec!(3.50));
+        assert_eq!(payout.sales_fee(), dec!(3.50));
 
         // Payout-authoritative fee component after net rounding lands at 3.50
         let payout = config.calculate_payout(dec!(25.00));
-        assert_eq!(payout.sales_fee(&config), dec!(3.50));
+        assert_eq!(payout.sales_fee(), dec!(3.50));
 
         // 15% of 27.00 = 4.05 -> should round to 4.00
         let payout = config.calculate_payout(dec!(27.00));
-        assert_eq!(payout.sales_fee(&config), dec!(4.00));
+        assert_eq!(payout.sales_fee(), dec!(4.00));
     }
 
     #[test]
@@ -221,19 +248,20 @@ mod tests {
             participation_fee: dec!(1.00),
             sales_fee: dec!(10.0), // 10%
             rounding_step: dec!(0.25),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // 10% of 23.00 = 2.30 -> should round to 2.25
         let payout = config.calculate_payout(dec!(23.00));
-        assert_eq!(payout.sales_fee(&config), dec!(2.25));
+        assert_eq!(payout.sales_fee(), dec!(2.25));
 
         // 10% of 24.00 = 2.40 -> should round to 2.50
         let payout = config.calculate_payout(dec!(24.00));
-        assert_eq!(payout.sales_fee(&config), dec!(2.50));
+        assert_eq!(payout.sales_fee(), dec!(2.50));
 
         // 10% of 26.75 = 2.675 -> should round to 2.75
         let payout = config.calculate_payout(dec!(26.75));
-        assert_eq!(payout.sales_fee(&config), dec!(2.75));
+        assert_eq!(payout.sales_fee(), dec!(2.75));
     }
 
     #[test]
@@ -242,23 +270,24 @@ mod tests {
             participation_fee: dec!(5.00),
             sales_fee: dec!(15.0), // 15%
             rounding_step: dec!(1.00),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // Payout-authoritative fee component after net rounding lands at 1.00
         let payout = config.calculate_payout(dec!(10.00));
-        assert_eq!(payout.sales_fee(&config), dec!(1.00));
+        assert_eq!(payout.sales_fee(), dec!(1.00));
 
         // 15% of 20.00 = 3.00 -> should stay 3.00
         let payout = config.calculate_payout(dec!(20.00));
-        assert_eq!(payout.sales_fee(&config), dec!(3.00));
+        assert_eq!(payout.sales_fee(), dec!(3.00));
 
         // 15% of 23.00 = 3.45 -> should round to 3.00
         let payout = config.calculate_payout(dec!(23.00));
-        assert_eq!(payout.sales_fee(&config), dec!(3.00));
+        assert_eq!(payout.sales_fee(), dec!(3.00));
 
         // 15% of 27.00 = 4.05 -> should round to 4.00
         let payout = config.calculate_payout(dec!(27.00));
-        assert_eq!(payout.sales_fee(&config), dec!(4.00));
+        assert_eq!(payout.sales_fee(), dec!(4.00));
     }
 
     #[test]
@@ -267,6 +296,7 @@ mod tests {
             participation_fee: dec!(10.00),
             sales_fee: dec!(15.0),
             rounding_step: dec!(0.50),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         for gross_sales in [
@@ -279,7 +309,7 @@ mod tests {
             let payout = config.calculate_payout(gross_sales);
             let theoretical_sales_fee = (config.sales_fee * gross_sales / dec!(100))
                 .round_dp_with_strategy(2, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
-            let payout_sales_fee = payout.sales_fee(&config);
+            let payout_sales_fee = payout.sales_fee();
             let diff = (theoretical_sales_fee - payout_sales_fee).abs();
             assert!(diff <= config.rounding_step);
         }
@@ -291,6 +321,7 @@ mod tests {
             participation_fee: dec!(10.00),
             sales_fee: dec!(15.0),
             rounding_step: dec!(0.50),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         let mut total_fees_due = Decimal::ZERO;
@@ -313,15 +344,16 @@ mod tests {
             participation_fee: dec!(1.00),
             sales_fee: dec!(15.0), // 15%
             rounding_step: dec!(0.00),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // 15% of 23.33 = 3.4995 -> should round to 3.50 (2 decimal places)
         let payout = config.calculate_payout(dec!(23.33));
-        assert_eq!(payout.sales_fee(&config), dec!(3.50));
+        assert_eq!(payout.sales_fee(), dec!(3.50));
 
         // 15% of 23.34 = 3.501 -> should round to 3.50 (2 decimal places)
         let payout = config.calculate_payout(dec!(23.34));
-        assert_eq!(payout.sales_fee(&config), dec!(3.50));
+        assert_eq!(payout.sales_fee(), dec!(3.50));
     }
 
     #[test]
@@ -330,13 +362,14 @@ mod tests {
             participation_fee: dec!(1.50),
             sales_fee: dec!(15.0),
             rounding_step: dec!(0.50),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // Participation fee should always be the configured amount
         let payout = config.calculate_payout(dec!(100.00));
-        assert_eq!(payout.participation_fee(&config), dec!(1.50));
+        assert_eq!(payout.participation_fee(), dec!(1.50));
         // Revenue share: 15% of 100 = 15.00 (already a multiple of 0.50)
-        assert_eq!(payout.sales_fee(&config), dec!(15.00));
+        assert_eq!(payout.sales_fee(), dec!(15.00));
     }
 
     #[test]
@@ -345,6 +378,7 @@ mod tests {
             participation_fee: dec!(10.00),
             sales_fee: dec!(15.0), // 15%
             rounding_step: dec!(0.50),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // Example: gross_sales = 518.11
@@ -363,6 +397,7 @@ mod tests {
             participation_fee: dec!(5.00),
             sales_fee: dec!(10.0), // 10%
             rounding_step: dec!(1.00),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // Example: gross_sales = 100.00
@@ -390,6 +425,7 @@ mod tests {
             participation_fee: dec!(2.00),
             sales_fee: dec!(12.5), // 12.5%
             rounding_step: dec!(0.00),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
         };
 
         // Example: gross_sales = 50.00
@@ -409,5 +445,58 @@ mod tests {
         assert_eq!(payout.gross_sales, dec!(47.33));
         assert_eq!(payout.net_payout, dec!(39.41));
         assert_eq!(payout.fees_due, dec!(7.92));
+    }
+
+    #[test]
+    fn test_fee_strategy_sales_fee_first() {
+        let config = ChargingConfig {
+            participation_fee: dec!(1.10),
+            sales_fee: dec!(10.0),
+            rounding_step: dec!(0.10),
+            fee_charge_strategy: FeeChargeStrategy::SalesFeeFirst,
+        };
+
+        let payout_low = config.calculate_payout(dec!(1.20));
+        assert_eq!(payout_low.participation_fee(), dec!(0.00));
+        assert_eq!(payout_low.sales_fee(), dec!(0.10));
+        assert_eq!(payout_low.net_payout, dec!(1.10));
+
+        let payout_high = config.calculate_payout(dec!(2.00));
+        assert_eq!(payout_high.participation_fee(), dec!(1.10));
+        assert_eq!(payout_high.sales_fee(), dec!(0.20));
+        assert_eq!(payout_high.net_payout, dec!(0.70));
+    }
+
+    #[test]
+    fn test_fee_strategy_both_fees_if_profitable() {
+        let config = ChargingConfig {
+            participation_fee: dec!(1.10),
+            sales_fee: dec!(10.0),
+            rounding_step: dec!(0.10),
+            fee_charge_strategy: FeeChargeStrategy::BothFeesIfProfitable,
+        };
+
+        let payout_boundary = config.calculate_payout(dec!(1.20));
+        assert_eq!(payout_boundary.fees_due, dec!(0.00));
+        assert_eq!(payout_boundary.net_payout, dec!(1.20));
+
+        let payout_profitable = config.calculate_payout(dec!(2.00));
+        assert_eq!(payout_profitable.participation_fee(), dec!(1.10));
+        assert_eq!(payout_profitable.sales_fee(), dec!(0.20));
+        assert_eq!(payout_profitable.net_payout, dec!(0.70));
+    }
+
+    #[test]
+    fn test_fee_strategy_both_fees_allows_negative_settlement() {
+        let config = ChargingConfig {
+            participation_fee: dec!(1.10),
+            sales_fee: dec!(10.0),
+            rounding_step: dec!(0.10),
+            fee_charge_strategy: FeeChargeStrategy::BothFees,
+        };
+
+        let payout = config.calculate_payout(dec!(1.00));
+        assert!(payout.net_payout.is_sign_negative());
+        assert_eq!(payout.net_payout, dec!(-0.20));
     }
 }

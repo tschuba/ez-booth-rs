@@ -332,6 +332,7 @@ mod tests {
             participation_fee: dec!(5.00),
             sales_fee: dec!(10.0), // 10%
             rounding_step: dec!(0.50),
+            fee_charge_strategy: crate::models::FeeChargeStrategy::BothFees,
         };
 
         let payout = service.calculate_payout(dec!(100.00), &config);

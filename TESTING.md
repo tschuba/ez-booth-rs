@@ -354,6 +354,16 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] No console errors
 - [ ] Loading states show appropriately
 
+### Fee Strategy Validation (SalesFeeFirst / BothFeesIfProfitable / BothFees)
+- [ ] Create booth with participation fee `1.10`, sales fee `10`, rounding `0.10`, strategy `SalesFeeFirst`
+- [ ] Verify `VU=1.20` results in net settlement `1.10` (TG not charged)
+- [ ] Verify `VU=2.00` results in net settlement `0.70` (both fees charged)
+- [ ] Switch strategy to `BothFeesIfProfitable`; verify `VU=1.20` results in net settlement `1.20` (no fees)
+- [ ] Switch strategy to `BothFees`; verify `VU=1.00` results in net settlement `-0.20` and UI shows `Amount Owed`
+- [ ] Repeat with rounding `0.50`:
+  - [ ] Verify `VU=1.00` gives `SalesFeeFirst=1.00`, `BothFeesIfProfitable=1.00`, `BothFees=0.00`
+  - [ ] Verify `VU=5.00` gives `3.50` for all three strategies
+
 ### Safari Checkout And Report Validation
 - [ ] Start app with `trunk serve` from `crates/ez-booth-app`
 - [ ] Open app in Safari

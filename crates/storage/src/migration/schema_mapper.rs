@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use domain::{
-    Booth, BoothId, FeeConfig, ItemId, Purchase, PurchaseId, PurchaseItem, Vendor, VendorId,
+    Booth, BoothId, FeeChargeStrategy, FeeConfig, ItemId, Purchase, PurchaseId, PurchaseItem,
+    Vendor, VendorId,
 };
 use uuid::Uuid;
 
@@ -41,6 +42,7 @@ fn map_booth(legacy: LegacyBooth) -> Result<Booth, MigrationError> {
         description: legacy.description,
         date,
         fees,
+        fee_charge_strategy: FeeChargeStrategy::default(),
         vendor_id_validation: Default::default(),
         vendor_id_omission_rules: Default::default(),
         keyboard_config: Default::default(),

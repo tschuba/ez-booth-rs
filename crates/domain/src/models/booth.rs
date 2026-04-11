@@ -399,6 +399,15 @@ impl<'de> Deserialize<'de> for VendorIdValidation {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum FeeChargeStrategy {
+    #[default]
+    SalesFeeFirst,
+    BothFeesIfProfitable,
+    BothFees,
+}
+
 /// Represents a bazaar booth/event
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Booth {
@@ -409,6 +418,9 @@ pub struct Booth {
     pub date: NaiveDate,
 
     pub fees: FeeConfig,
+
+    #[serde(default)]
+    pub fee_charge_strategy: FeeChargeStrategy,
 
     #[serde(default)]
     pub vendor_id_validation: VendorIdValidation,
@@ -578,6 +590,7 @@ impl Booth {
             description,
             date,
             fees,
+            fee_charge_strategy: FeeChargeStrategy::default(),
             vendor_id_validation: VendorIdValidation::default(),
             vendor_id_omission_rules: VendorIdOmissionRules::empty(),
             keyboard_config: CheckoutKeyboardConfig::default(),
