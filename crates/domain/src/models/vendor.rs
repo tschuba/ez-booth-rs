@@ -11,6 +11,10 @@ pub struct Vendor {
     pub vendor_id: VendorId,
     pub booth_id: BoothId,
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub payout_correction: Option<Decimal>,
+    #[serde(default)]
+    pub payout_correction_note: Option<String>,
 }
 
 impl Vendor {
@@ -19,6 +23,8 @@ impl Vendor {
             vendor_id,
             booth_id,
             created_at: Utc::now(),
+            payout_correction: None,
+            payout_correction_note: None,
         }
     }
 }

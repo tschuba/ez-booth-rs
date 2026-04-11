@@ -43,6 +43,18 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
             purchases = Self::filter_by_date_range(purchases, range);
         }
 
+        // Load vendor metadata (including manual payout corrections)
+        let vendors = self.vendor_repository.find_by_booth(booth_id).await?;
+        let correction_by_vendor: HashMap<VendorId, Decimal> = vendors
+            .into_iter()
+            .map(|vendor| {
+                (
+                    vendor.vendor_id,
+                    vendor.payout_correction.unwrap_or(Decimal::ZERO),
+                )
+            })
+            .collect();
+
         // Group purchase items by vendor
         let mut vendor_items: HashMap<VendorId, Vec<(&Purchase, &crate::models::PurchaseItem)>> =
             HashMap::new();
@@ -64,6 +76,12 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
             let gross_sales: Decimal = vendor_item_list.iter().map(|(_, item)| item.amount).sum();
 
             let payout = charging_config.calculate_payout(gross_sales);
+            let correction = correction_by_vendor
+                .get(vendor_id)
+                .copied()
+                .unwrap_or(Decimal::ZERO);
+            let net_payout = payout.net_payout + correction;
+            let fees_due = payout.gross_sales - net_payout;
 
             // Count total items for this vendor
             let item_count: usize = vendor_item_list.len();
@@ -71,8 +89,8 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
             vendor_summaries.push(VendorBoothSummary {
                 vendor_id: vendor_id.clone(),
                 gross_sales: payout.gross_sales,
-                fees_due: payout.fees_due,
-                net_payout: payout.net_payout,
+                fees_due,
+                net_payout,
                 item_count,
             });
         }
@@ -180,15 +198,21 @@ impl<PR: PurchaseRepository, BR: BoothRepository, VR: VendorRepository> ReportSe
         // Calculate payout with rounding applied to net payout
         let charging_config = ChargingConfig::from_booth(&booth);
         let payout = charging_config.calculate_payout(sales_sum);
+        let payout_correction = vendor.payout_correction.unwrap_or(Decimal::ZERO);
+        let base_total_revenue = payout.net_payout;
+        let total_revenue = base_total_revenue + payout_correction;
 
         Ok(VendorReportData {
+            payout_correction_note: vendor.payout_correction_note.clone(),
             vendor,
             booth,
             items,
             sales_sum: payout.gross_sales,
             participation_fee: charging_config.participation_fee,
             sales_fee: payout.fees_due - charging_config.participation_fee,
-            total_revenue: payout.net_payout,
+            base_total_revenue,
+            payout_correction,
+            total_revenue,
         })
     }
 
@@ -566,6 +590,8 @@ mod tests {
             vendor_id: VendorId::new(vendor_id.to_string()),
             booth_id: booth_id.clone(),
             created_at: Utc::now(),
+            payout_correction: None,
+            payout_correction_note: None,
         }
     }
 
@@ -669,7 +695,9 @@ mod tests {
         assert_eq!(report.sales_sum, dec!(23.00)); // 10 + 5 + 8
         assert_eq!(report.participation_fee, dec!(5.00));
         assert_eq!(report.sales_fee, dec!(2.50)); // 10% of 23.00 = 2.30, rounded to nearest 0.50 = 2.50
-        assert_eq!(report.total_revenue, dec!(15.50)); // 23.00 - 5.00 - 2.50
+        assert_eq!(report.base_total_revenue, dec!(15.50)); // 23.00 - 5.00 - 2.50
+        assert_eq!(report.payout_correction, dec!(0.00));
+        assert_eq!(report.total_revenue, dec!(15.50));
         assert_eq!(report.items.len(), 3);
     }
 

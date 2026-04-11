@@ -564,6 +564,8 @@ mod tests {
             vendor_id: VendorId::new("101".to_string()),
             booth_id: booth.id,
             created_at: Utc::now(),
+            payout_correction: None,
+            payout_correction_note: None,
         }];
         let purchases = vec![Purchase {
             id: domain::PurchaseId::new(),

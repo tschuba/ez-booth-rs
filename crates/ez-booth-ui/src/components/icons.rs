@@ -4,8 +4,8 @@ pub use leptos_icons::Icon;
 pub use icondata::{
     LuAlertTriangle, LuCalendar, LuCheck, LuChevronDown, LuChevronLeft, LuChevronRight,
     LuChevronsLeft, LuChevronsRight, LuCopy, LuDownload, LuInbox, LuInfo, LuKeyboard, LuListX,
-    LuLoader2, LuMoreVertical, LuPlus, LuPrinter, LuSettings, LuShare2, LuStore, LuTrash2, LuUsers,
-    LuVolume2, LuVolumeX, LuX,
+    LuLoader2, LuMoreVertical, LuPenSquare, LuPlus, LuPrinter, LuSettings, LuShare2, LuStore,
+    LuTrash2, LuUsers, LuVolume2, LuVolumeX, LuX,
 };
 
 #[component]

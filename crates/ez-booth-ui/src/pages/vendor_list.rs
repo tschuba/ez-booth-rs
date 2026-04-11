@@ -1,7 +1,7 @@
 use crate::components::pagination::Pagination;
 use crate::components::pagination_prefs::use_pagination_preference;
 use crate::components::*;
-use crate::formatting::format_currency;
+use crate::formatting::{format_currency, format_decimal_for_input, parse_decimal_input};
 use crate::i18n::{translate_with_params, use_locale};
 use crate::selected_booth_context;
 use crate::state::*;
@@ -40,12 +40,64 @@ pub fn VendorListPage() -> impl IntoView {
     let (pending_vendor_deletion, set_pending_vendor_deletion) =
         create_signal::<Option<Vendor>>(None);
     let (show_delete_modal, set_show_delete_modal) = create_signal(false);
+    let (pending_vendor_correction, set_pending_vendor_correction) =
+        create_signal::<Option<VendorReportData>>(None);
+    let (show_correction_modal, set_show_correction_modal) = create_signal(false);
     let (reload_vendors_toggle, set_reload_vendors_toggle) = create_signal(false);
 
     // Pagination state with readiness flag
     let (page_size, set_page_size, page_size_ready) =
         use_pagination_preference("vendor_page_size", 10);
     let (current_page, set_current_page) = create_signal(0);
+    let (filter_non_positive, set_filter_non_positive) = create_signal(false);
+    let (filter_corrected, set_filter_corrected) = create_signal(false);
+
+    let filtered_vendor_reports = create_memo(move |_| {
+        let reports = vendor_reports.get();
+        let non_positive = filter_non_positive.get();
+        let corrected = filter_corrected.get();
+
+        if !non_positive && !corrected {
+            return reports;
+        }
+
+        reports
+            .into_iter()
+            .filter(|report| {
+                let matches_non_positive = !non_positive || report.total_revenue <= Decimal::ZERO;
+                let matches_corrected = !corrected
+                    || report.payout_correction != Decimal::ZERO
+                    || report
+                        .payout_correction_note
+                        .as_ref()
+                        .is_some_and(|note| !note.trim().is_empty());
+
+                matches_non_positive && matches_corrected
+            })
+            .collect()
+    });
+
+    let non_positive_vendor_count = create_memo(move |_| {
+        vendor_reports
+            .get()
+            .iter()
+            .filter(|report| report.total_revenue <= Decimal::ZERO)
+            .count()
+    });
+
+    let corrected_vendor_count = create_memo(move |_| {
+        vendor_reports
+            .get()
+            .iter()
+            .filter(|report| {
+                report.payout_correction != Decimal::ZERO
+                    || report
+                        .payout_correction_note
+                        .as_ref()
+                        .is_some_and(|note| !note.trim().is_empty())
+            })
+            .count()
+    });
 
     // Create paginated vendor reports - only slice when preference is ready
     let paginated_vendor_reports = create_memo(move |_| {
@@ -54,7 +106,7 @@ pub fn VendorListPage() -> impl IntoView {
             return Vec::new();
         }
 
-        let reports = vendor_reports.get();
+        let reports = filtered_vendor_reports.get();
         let size = page_size.get();
         let page = current_page.get();
         let start = page * size;
@@ -87,6 +139,8 @@ pub fn VendorListPage() -> impl IntoView {
     create_effect(move |_| {
         let _ = vendor_reports.get();
         let _ = page_size.get();
+        let _ = filter_non_positive.get();
+        let _ = filter_corrected.get();
         set_current_page.set(0);
     });
 
@@ -393,6 +447,38 @@ pub fn VendorListPage() -> impl IntoView {
         }
     };
 
+    let save_vendor_correction = {
+        let app_state = app_state.clone();
+        let set_reload_vendors_toggle = set_reload_vendors_toggle.clone();
+        let toast = toast.clone();
+        let set_show_correction_modal = set_show_correction_modal.clone();
+        move |(mut vendor, correction, note): (Vendor, Decimal, Option<String>)| {
+            let state_result = app_state.get();
+            if let Some(Ok(state)) = state_result {
+                vendor.payout_correction = if correction == Decimal::ZERO {
+                    None
+                } else {
+                    Some(correction)
+                };
+                vendor.payout_correction_note = note;
+                spawn_local(async move {
+                    match state.vendor_repository.save(&vendor).await {
+                        Ok(_) => {
+                            set_reload_vendors_toggle.update(|v| *v = !*v);
+                            set_show_correction_modal.set(false);
+                            toast.success(&t!("vendor.correction_saved")());
+                        }
+                        Err(_) => {
+                            toast.error(&t!("vendor.errors.save_correction_failed")());
+                        }
+                    }
+                });
+            } else {
+                toast.error(&t!("vendor.errors.save_correction_failed")());
+            }
+        }
+    };
+
     view! {
         <>
             // Aria-live region for accessibility announcements
@@ -421,26 +507,102 @@ pub fn VendorListPage() -> impl IntoView {
                                     // Helper text section
                                     <div class="mb-6">
                                         <Show when=move || !vendor_reports.get().is_empty()>
-                                            <p class="text-sm text-gray-600">
-                                                {move || {
-                                                    let total_count = vendor_reports.get().len();
-                                                    let selected_count = selected_vendor_ids.get().len();
-                                                    if selected_count > 0 {
-                                                        format!("{} {} {} {}",
-                                                            selected_count,
-                                                            t!("vendor.vendors_selected_of")(),
-                                                            total_count,
-                                                            t!("vendor.vendors_with_purchases")()
-                                                        )
-                                                    } else {
-                                                        format!("{} {} {}",
-                                                            total_count,
-                                                            t!("vendor.vendors_with_purchases")(),
-                                                            t!("vendor.click_vendors_hint")()
-                                                        )
-                                                    }
-                                                }}
-                                            </p>
+                                            <div class="space-y-3">
+                                                <p class="text-sm text-gray-600">
+                                                    {move || {
+                                                        let total_count = vendor_reports.get().len();
+                                                        let shown_count = filtered_vendor_reports.get().len();
+                                                        let selected_count = selected_vendor_ids.get().len();
+                                                        let non_positive = filter_non_positive.get();
+                                                        let corrected = filter_corrected.get();
+                                                        let filters_active = non_positive || corrected;
+
+                                                        if filters_active {
+                                                            let showing_text = translate_with_params(
+                                                                "vendor.filter_showing",
+                                                                HashMap::from([
+                                                                    ("shown", shown_count.to_string()),
+                                                                    ("total", total_count.to_string()),
+                                                                ]),
+                                                            );
+
+                                                            if selected_count > 0 {
+                                                                format!(
+                                                                    "{} · {} {} {} {}",
+                                                                    showing_text,
+                                                                    selected_count,
+                                                                    t!("vendor.vendors_selected_of")(),
+                                                                    shown_count,
+                                                                    t!("vendor.vendors")()
+                                                                )
+                                                            } else {
+                                                                format!(
+                                                                    "{} {}",
+                                                                    showing_text,
+                                                                    t!("vendor.click_vendors_hint")()
+                                                                )
+                                                            }
+                                                        } else if selected_count > 0 {
+                                                            format!(
+                                                                "{} {} {} {}",
+                                                                selected_count,
+                                                                t!("vendor.vendors_selected_of")(),
+                                                                total_count,
+                                                                t!("vendor.vendors_with_purchases")()
+                                                            )
+                                                        } else {
+                                                            format!(
+                                                                "{} {} {}",
+                                                                total_count,
+                                                                t!("vendor.vendors_with_purchases")(),
+                                                                t!("vendor.click_vendors_hint")()
+                                                            )
+                                                        }
+                                                    }}
+                                                </p>
+
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="text-sm font-medium text-gray-700">
+                                                        {t!("vendor.filter_label")()}
+                                                    </span>
+                                                    <button
+                                                        class=move || {
+                                                            if filter_non_positive.get() {
+                                                                "rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900"
+                                                            } else {
+                                                                "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                            }
+                                                        }
+                                                        on:click=move |_| {
+                                                            set_filter_non_positive.update(|v| *v = !*v);
+                                                        }
+                                                    >
+                                                        {move || format!(
+                                                            "{} ({})",
+                                                            t!("vendor.filter_non_positive")(),
+                                                            non_positive_vendor_count.get()
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        class=move || {
+                                                            if filter_corrected.get() {
+                                                                "rounded-full border border-blue-400 bg-blue-100 px-3 py-1 text-sm font-medium text-blue-900"
+                                                            } else {
+                                                                "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                            }
+                                                        }
+                                                        on:click=move |_| {
+                                                            set_filter_corrected.update(|v| *v = !*v);
+                                                        }
+                                                    >
+                                                        {move || format!(
+                                                            "{} ({})",
+                                                            t!("vendor.filter_corrected")(),
+                                                            corrected_vendor_count.get()
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </Show>
                                     </div>
 
@@ -450,7 +612,7 @@ pub fn VendorListPage() -> impl IntoView {
                                             <div class="mb-4">
                                                 <Pagination
                                                     current_page=current_page
-                                                    total_items=Signal::derive(move || vendor_reports.get().len())
+                                                    total_items=Signal::derive(move || filtered_vendor_reports.get().len())
                                                     page_size=page_size
                                                     on_page_change=move |page| set_current_page.set(page)
                                                     on_page_size_change=move |size| set_page_size.set(size)
@@ -476,6 +638,8 @@ pub fn VendorListPage() -> impl IntoView {
                                             {move || paginated_vendor_reports.get().into_iter().map(|report| {
                                                 // Clone all needed data upfront
                                                 let report_data = report.clone();
+                                                let report_data_for_correction = report_data.clone();
+                                                let report_data_for_print = report_data.clone();
                                                 let vendor_id = report.vendor.vendor_id.clone();
                                                 let vendor_id_for_class1 = vendor_id.clone();
                                                 let vendor_id_for_expanded = vendor_id.clone();
@@ -567,6 +731,24 @@ pub fn VendorListPage() -> impl IntoView {
                                                                         <span class="text-xs text-gray-500 uppercase tracking-wide">{t!("vendor.id_label")()}</span>
                                                                         <span class="text-lg font-bold text-gray-900">{vendor_id_str.clone()}</span>
                                                                     </div>
+                                                                    <div class="flex flex-wrap gap-2 mt-1">
+                                                                        <Show when=move || report.total_revenue <= Decimal::ZERO>
+                                                                            <span class="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-semibold">
+                                                                                {t!("vendor.warning_payout_non_positive")()}
+                                                                            </span>
+                                                                        </Show>
+                                                                        <Show when=move || {
+                                                                            report.payout_correction != Decimal::ZERO
+                                                                                || report
+                                                                                    .payout_correction_note
+                                                                                    .as_ref()
+                                                                                    .is_some_and(|note| !note.trim().is_empty())
+                                                                        }>
+                                                                            <span class="rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs font-semibold">
+                                                                                {t!("vendor.corrected_badge")()}
+                                                                            </span>
+                                                                        </Show>
+                                                                    </div>
                                                                     <div class="text-sm text-gray-600">
                                                                         <span class="font-medium">{report.items.len()}</span>
                                                                         <span class="ml-1">{t!("checkout.running_totals.items")()}</span>
@@ -574,12 +756,32 @@ pub fn VendorListPage() -> impl IntoView {
                                                                 </div>
 
                                                                 {/* Zone 2+3: Print button + Payout metrics grouped together */}
-                                                                <div class="flex items-center gap-3">
+                                                                    <div class="flex items-center gap-3">
+                                                                        <button
+                                                                            on:click=move |e| {
+                                                                                e.stop_propagation();
+                                                                                set_pending_vendor_correction.set(Some(report_data_for_correction.clone()));
+                                                                                set_show_correction_modal.set(true);
+                                                                            }
+                                                                            title={t!("vendor.open_correction_editor")()}
+                                                                            aria-label={t!("vendor.open_correction_editor")()}
+                                                                            class=move || format!(
+                                                                                "px-3 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 {}",
+                                                                                if is_expanded.get() {
+                                                                                    "opacity-100"
+                                                                                } else {
+                                                                                    "opacity-0 group-hover:opacity-100"
+                                                                                }
+                                                                            )
+                                                                        >
+                                                                            <span class="sr-only">{t!("vendor.correction_action")()}</span>
+                                                                            <Icon icon=LuPenSquare class="w-5 h-5" />
+                                                                        </button>
                                                                     {/* Print button - hover visible when collapsed, always visible when expanded */}
                                                                     <button
                                                                         on:click=move |e| {
                                                                             e.stop_propagation();
-                                                                            set_reports_for_print.set(vec![report_data.clone()]);
+                                                                            set_reports_for_print.set(vec![report_data_for_print.clone()]);
                                                                             set_timeout(
                                                                                 move || {
                                                                                     if let Some(window) = web_sys::window() {
@@ -610,7 +812,13 @@ pub fn VendorListPage() -> impl IntoView {
                                                                             <div class="text-xs text-gray-500 uppercase tracking-wide mb-0.5">
                                                                                 {t!("vendor.net_payout")()}
                                                                             </div>
-                                                                            <div class="text-2xl font-bold text-green-700">
+                                                                            <div class=move || {
+                                                                                if report.total_revenue <= Decimal::ZERO {
+                                                                                    "text-2xl font-bold text-red-700"
+                                                                                } else {
+                                                                                    "text-2xl font-bold text-green-700"
+                                                                                }
+                                                                            }>
                                                                                 {format_currency(report.total_revenue, locale.get())}
                                                                             </div>
                                                                         </div>
@@ -748,6 +956,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                             <p class="text-xl font-bold text-blue-700">{format_currency(report.participation_fee + report.sales_fee, locale.get())}</p>
                                                                                             <p class="text-xs text-gray-600 mt-1">{t!("vendor.fees_sum_explanation")()}</p>
                                                                                         </div>
+
                                                                                     </div>
                                                                                 </div>
 
@@ -815,7 +1024,7 @@ pub fn VendorListPage() -> impl IntoView {
                                                 <div class="mt-4">
                                                     <Pagination
                                                         current_page=current_page
-                                                        total_items=Signal::derive(move || vendor_reports.get().len())
+                                                        total_items=Signal::derive(move || filtered_vendor_reports.get().len())
                                                         page_size=page_size
                                                         on_page_change=move |page| set_current_page.set(page)
                                                         on_page_size_change=move |size| set_page_size.set(size)
@@ -952,6 +1161,32 @@ pub fn VendorListPage() -> impl IntoView {
             </div>
         </>
 
+        <Modal
+            show=show_correction_modal
+            on_close=Box::new(move || {
+                set_pending_vendor_correction.set(None);
+                set_show_correction_modal.set(false);
+            })
+            title=Signal::derive(move || t!("vendor.correction_modal_title")())
+            size=ModalSize::Large
+        >
+            <Show when=move || pending_vendor_correction.get().is_some()>
+                {move || {
+                    if let Some(report) = pending_vendor_correction.get() {
+                        view! {
+                            <VendorCorrectionEditor
+                                report=report
+                                on_save=Callback::new(save_vendor_correction.clone())
+                            />
+                        }
+                        .into_view()
+                    } else {
+                        View::default()
+                    }
+                }}
+            </Show>
+        </Modal>
+
         {/* Vendor deletion confirmation modal */}
         <Modal
             show=show_delete_modal
@@ -999,6 +1234,185 @@ pub fn VendorListPage() -> impl IntoView {
 }
 
 // Reuse PrintVendorReports component from reports page
+#[component]
+fn VendorCorrectionEditor(
+    report: VendorReportData,
+    on_save: Callback<(Vendor, Decimal, Option<String>)>,
+) -> impl IntoView {
+    let locale = use_locale();
+    let (desired_payout_input, set_desired_payout_input) = create_signal(format_decimal_for_input(
+        report.total_revenue,
+        locale.get(),
+        2,
+    ));
+    let (note_input, set_note_input) =
+        create_signal(report.payout_correction_note.clone().unwrap_or_default());
+
+    let (waive_participation, set_waive_participation) = create_signal(false);
+    let (waive_revenue, set_waive_revenue) = create_signal(false);
+
+    let set_desired = move |value: Decimal| {
+        set_desired_payout_input.set(format_decimal_for_input(value, locale.get(), 2));
+    };
+
+    let compute_waived_desired = move |waive_participation: bool, waive_revenue: bool| {
+        let participation_fee = if waive_participation {
+            Decimal::ZERO
+        } else {
+            report.participation_fee
+        };
+        let sales_fee = if waive_revenue {
+            Decimal::ZERO
+        } else {
+            report.sales_fee
+        };
+        report.sales_sum - participation_fee - sales_fee
+    };
+
+    let computed_correction = create_memo(move |_| {
+        parse_decimal_input(&desired_payout_input.get())
+            .map(|desired| desired - report.base_total_revenue)
+            .unwrap_or(report.payout_correction)
+    });
+
+    let has_input_error =
+        create_memo(move |_| parse_decimal_input(&desired_payout_input.get()).is_err());
+
+    view! {
+        <div class="space-y-4">
+            <h4 class="text-sm font-semibold text-gray-800">{t!("vendor.correction_section_title")()}</h4>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button
+                    class=move || {
+                        if waive_participation.get() {
+                            "rounded-md border border-indigo-400 bg-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-900"
+                        } else {
+                            "rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                        }
+                    }
+                    on:click=move |_| {
+                        let next_waive_participation = !waive_participation.get();
+                        let current_waive_revenue = waive_revenue.get();
+                        set_waive_participation.set(next_waive_participation);
+                        set_desired(compute_waived_desired(
+                            next_waive_participation,
+                            current_waive_revenue,
+                        ));
+                    }
+                >
+                    <span>{t!("vendor.correction_waive_participation_fee")()}</span>
+                    <span class="block text-xs opacity-80">
+                        {format_currency(report.participation_fee, locale.get())}
+                    </span>
+                </button>
+                <button
+                    class=move || {
+                        if waive_revenue.get() {
+                            "rounded-md border border-indigo-400 bg-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-900"
+                        } else {
+                            "rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                        }
+                    }
+                    on:click=move |_| {
+                        let current_waive_participation = waive_participation.get();
+                        let next_waive_revenue = !waive_revenue.get();
+                        set_waive_revenue.set(next_waive_revenue);
+                        set_desired(compute_waived_desired(
+                            current_waive_participation,
+                            next_waive_revenue,
+                        ));
+                    }
+                >
+                    <span>{t!("vendor.correction_waive_revenue_fee")()}</span>
+                    <span class="block text-xs opacity-80">
+                        {format_currency(report.sales_fee, locale.get())}
+                    </span>
+                </button>
+                <button
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    on:click=move |_| {
+                        set_waive_participation.set(false);
+                        set_waive_revenue.set(false);
+                        set_desired(Decimal::ZERO);
+                    }
+                >
+                    {t!("vendor.correction_quick_set_zero")()}
+                </button>
+                <button
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    on:click=move |_| {
+                        set_waive_participation.set(false);
+                        set_waive_revenue.set(false);
+                        set_desired(report.base_total_revenue);
+                    }
+                >
+                    {t!("vendor.correction_quick_reset")()}
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="rounded-md bg-gray-50 p-3">
+                    <p class="text-xs text-gray-500">{t!("vendor.correction_auto_payout")()}</p>
+                    <p class="text-lg font-semibold">{format_currency(report.base_total_revenue, locale.get())}</p>
+                </div>
+                <div class="rounded-md bg-gray-50 p-3">
+                    <label class="text-xs text-gray-500">{t!("vendor.correction_desired_payout")()}</label>
+                    <input
+                        class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                        type="text"
+                        prop:value=desired_payout_input
+                        on:input=move |ev| {
+                            set_waive_participation.set(false);
+                            set_waive_revenue.set(false);
+                            set_desired_payout_input.set(event_target_value(&ev));
+                        }
+                    />
+                </div>
+                <div class="rounded-md bg-blue-50 p-3">
+                    <p class="text-xs text-gray-500">{t!("vendor.correction_delta")()}</p>
+                    <p class="text-lg font-semibold text-blue-700">
+                        {move || format_currency(computed_correction.get(), locale.get())}
+                    </p>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-500">{t!("vendor.correction_note")()}</label>
+                <textarea
+                    class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                    rows="2"
+                    prop:value=note_input
+                    on:input=move |ev| set_note_input.set(event_target_value(&ev))
+                />
+            </div>
+
+            <Show when=move || has_input_error.get()>
+                <p class="text-sm text-red-600">{t!("vendor.errors.invalid_correction_amount")()}</p>
+            </Show>
+
+            <div class="flex justify-end">
+                <button
+                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    disabled=move || has_input_error.get()
+                    on:click=move |_| {
+                        if let Ok(desired) = parse_decimal_input(&desired_payout_input.get()) {
+                            let correction = desired - report.base_total_revenue;
+                            let note = {
+                                let trimmed = note_input.get().trim().to_string();
+                                if trimmed.is_empty() { None } else { Some(trimmed) }
+                            };
+                            on_save.call((report.vendor.clone(), correction, note));
+                        }
+                    }
+                >
+                    {t!("vendor.correction_save")()}
+                </button>
+            </div>
+        </div>
+    }
+}
+
 #[component]
 fn PrintVendorReports(reports: Vec<VendorReportData>) -> impl IntoView {
     let locale = use_locale();
