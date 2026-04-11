@@ -149,6 +149,9 @@ pub struct VendorReportData {
     pub sales_sum: Decimal,
     pub participation_fee: Decimal,
     pub sales_fee: Decimal,
+    pub base_total_revenue: Decimal,
+    pub payout_correction: Decimal,
+    pub payout_correction_note: Option<String>,
     pub total_revenue: Decimal,
 }
 

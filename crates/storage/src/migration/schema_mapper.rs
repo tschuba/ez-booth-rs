@@ -57,6 +57,8 @@ fn map_vendor(legacy: LegacyVendor) -> Result<Vendor, MigrationError> {
         vendor_id: VendorId::from(legacy.vendor_id),
         booth_id: parse_booth_id(&legacy.booth_id)?,
         created_at: Utc::now(),
+        payout_correction: None,
+        payout_correction_note: None,
     })
 }
 
