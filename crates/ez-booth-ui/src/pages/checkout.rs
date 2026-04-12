@@ -2220,7 +2220,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                         })
                                                     >
                                                         <span class="inline-flex items-center justify-center gap-4">
-                                                        <Icon icon=LuCheck class="w-8 h-8" />
+                                                        <Icon icon=LuWallet class="w-8 h-8" />
                                                             <span class="text-2xl font-semibold">{move || {
                                                                 let locale = use_locale().get();
                                                                 format_currency(form_data.get().total(), locale)

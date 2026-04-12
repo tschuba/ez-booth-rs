@@ -5,7 +5,7 @@ pub use icondata::{
     LuAlertTriangle, LuCalendar, LuCheck, LuChevronDown, LuChevronLeft, LuChevronRight,
     LuChevronsLeft, LuChevronsRight, LuCopy, LuDownload, LuInbox, LuInfo, LuKeyboard, LuListX,
     LuLoader2, LuMoreVertical, LuPenSquare, LuPlus, LuPrinter, LuSettings, LuShare2, LuStore,
-    LuTrash2, LuUsers, LuVolume2, LuVolumeX, LuX,
+    LuTrash2, LuUsers, LuVolume2, LuVolumeX, LuWallet, LuX,
 };
 
 #[component]
