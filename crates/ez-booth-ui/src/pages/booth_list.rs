@@ -1141,6 +1141,16 @@ fn booth_card_view(
     } else {
         "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
     };
+    let title_text_class = if is_archived {
+        "text-gray-500"
+    } else {
+        "text-gray-900"
+    };
+    let date_text_class = if is_archived {
+        "text-gray-400"
+    } else {
+        "text-gray-600"
+    };
 
     view! {
         <article
@@ -1214,13 +1224,13 @@ fn booth_card_view(
                 <div class="flex gap-4 pr-16">
                     <div class="min-w-0 flex-1 space-y-3">
                         <div class="flex items-center gap-2">
-                            <h3 class="text-lg font-semibold text-gray-900">{booth_description.get_value()}</h3>
+                            <h3 class=format!("text-lg font-semibold {}", title_text_class)>{booth_description.get_value()}</h3>
                             <Show when=move || is_archived>
                                 <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">{t!("archive.archived_badge")()}</span>
                             </Show>
                         </div>
                         <div class="min-w-0 flex-1 space-y-1">
-                            <p class="text-gray-600">{t!("booth.date_prefix")} " " {move || format_date(booth_date)}</p>
+                            <p class=date_text_class>{t!("booth.date_prefix")} " " {move || format_date(booth_date)}</p>
                             <Show when=move || is_archived>
                                 <Show when=move || archived_timestamp.get().is_some()>
                                     <p class="text-xs text-slate-500">{move || archived_timestamp.get().unwrap_or_default()}</p>
