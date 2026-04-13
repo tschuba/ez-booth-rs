@@ -73,6 +73,7 @@ pub fn BoothListPage() -> impl IntoView {
     let (archiving_booth, set_archiving_booth) = create_signal(None::<Booth>);
     let (show_archived_section, set_show_archived_section) =
         create_signal(load_show_archived_section_preference());
+    let (booth_search_query, set_booth_search_query) = create_signal(String::new());
     let (show_create_modal, set_show_create_modal) = create_signal(false);
     let (show_edit_modal, set_show_edit_modal) = create_signal(false);
     let (show_copy_modal, set_show_copy_modal) = create_signal(false);
@@ -122,7 +123,22 @@ pub fn BoothListPage() -> impl IntoView {
     let format_date =
         move |date: chrono::NaiveDate| -> String { format_display_date(date, locale.get()) };
 
-    let booth_sections = Signal::derive(move || split_booths(&booths.get()));
+    let filtered_booths = Signal::derive(move || {
+        let query = booth_search_query.get().trim().to_lowercase();
+
+        if query.is_empty() {
+            return booths.get();
+        }
+
+        booths
+            .get()
+            .into_iter()
+            .filter(|booth| booth.description.to_lowercase().contains(&query))
+            .collect::<Vec<_>>()
+    });
+
+    let booth_sections = Signal::derive(move || split_booths(&filtered_booths.get()));
+    let booth_search_active = Signal::derive(move || !booth_search_query.get().trim().is_empty());
 
     create_effect(move |_| {
         persist_show_archived_section_preference(show_archived_section.get());
@@ -637,42 +653,74 @@ pub fn BoothListPage() -> impl IntoView {
                                         fallback=move || {
                                             view! {
                                                 <div class="space-y-8">
-                                                    <section class="space-y-4">
-                                                        <div class="flex items-center justify-between gap-4">
-                                                            <div>
-                                                                <h2 class="text-lg font-semibold text-slate-900">{t!("booth.active_section_title")()}</h2>
-                                                                <p class="text-sm text-gray-600">{t!("booth.active_section_description")()}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                                            {active_booth_cards()}
-                                                        </div>
-                                                    </section>
+                                                    <div class="max-w-md">
+                                                        <input
+                                                            type="search"
+                                                            class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            placeholder=t!("common.search_placeholder")()
+                                                            aria-label=t!("common.search_placeholder")()
+                                                            prop:value=move || booth_search_query.get()
+                                                            on:input=move |ev| {
+                                                                set_booth_search_query.set(event_target_value(&ev));
+                                                            }
+                                                        />
+                                                    </div>
 
-                                                    <Show when=move || !booth_sections.get().1.is_empty()>
-                                                        <section class="space-y-4 border-t border-gray-200 pt-8">
-                                                            <div class="flex items-center justify-between gap-4">
-                                                                <div>
-                                                                    <h2 class="text-lg font-semibold text-slate-900">{t!("booth.archived_section_title")()}</h2>
-                                                                    <p class="text-sm text-gray-600">{t!("booth.archived_section_description")()}</p>
+                                                    <Show
+                                                        when=move || {
+                                                            !booth_search_active.get()
+                                                                || !booth_sections.get().0.is_empty()
+                                                                || !booth_sections.get().1.is_empty()
+                                                        }
+                                                        fallback=move || {
+                                                            view! {
+                                                                <Card>
+                                                                    <div class="px-6 py-12 text-center text-gray-600">
+                                                                        {t!("common.no_results")()}
+                                                                    </div>
+                                                                </Card>
+                                                            }
+                                                        }
+                                                    >
+                                                        <div class="space-y-8">
+                                                            <section class="space-y-4">
+                                                                <div class="flex items-center justify-between gap-4">
+                                                                    <div>
+                                                                        <h2 class="text-lg font-semibold text-slate-900">{t!("booth.active_section_title")()}</h2>
+                                                                        <p class="text-sm text-gray-600">{t!("booth.active_section_description")()}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <Button
-                                                                    variant=ButtonVariant::Secondary
-                                                                    on_click=Box::new(move || set_show_archived_section.update(|value| *value = !*value))
-                                                                >
-                                                                    {move || if show_archived_section.get() {
-                                                                        t!("archive.hide_archived")()
-                                                                    } else {
-                                                                        t!("archive.show_archived")()
-                                                                    }}
-                                                                </Button>
-                                                            </div>
-                                                            <Show when=move || show_archived_section.get()>
                                                                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                                                    {archived_booth_cards()}
+                                                                    {active_booth_cards()}
                                                                 </div>
+                                                            </section>
+
+                                                            <Show when=move || !booth_sections.get().1.is_empty()>
+                                                                <section class="space-y-4 border-t border-gray-200 pt-8">
+                                                                    <div class="flex items-center justify-between gap-4">
+                                                                        <div>
+                                                                            <h2 class="text-lg font-semibold text-slate-900">{t!("booth.archived_section_title")()}</h2>
+                                                                            <p class="text-sm text-gray-600">{t!("booth.archived_section_description")()}</p>
+                                                                        </div>
+                                                                        <Button
+                                                                            variant=ButtonVariant::Secondary
+                                                                            on_click=Box::new(move || set_show_archived_section.update(|value| *value = !*value))
+                                                                        >
+                                                                            {move || if show_archived_section.get() {
+                                                                                t!("archive.hide_archived")()
+                                                                            } else {
+                                                                                t!("archive.show_archived")()
+                                                                            }}
+                                                                        </Button>
+                                                                    </div>
+                                                                    <Show when=move || show_archived_section.get()>
+                                                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                                            {archived_booth_cards()}
+                                                                        </div>
+                                                                    </Show>
+                                                                </section>
                                                             </Show>
-                                                        </section>
+                                                        </div>
                                                     </Show>
                                                 </div>
                                             }

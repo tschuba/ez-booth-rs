@@ -15,6 +15,8 @@
     "loading": "Lädt...",
     "select": "-- Auswählen --",
     "clear": "Löschen",
+    "search_placeholder": "Suchen...",
+    "no_results": "Keine Ergebnisse gefunden.",
     "placeholders": {
       "decimal_zero": "0,00",
       "decimal_half": "0,50",
