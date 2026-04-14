@@ -53,7 +53,7 @@ pub fn VendorListPage() -> impl IntoView {
     let (filter_corrected, set_filter_corrected) = create_signal(false);
     let (vendor_search_query, set_vendor_search_query) = create_signal(String::new());
 
-    let filtered_vendor_reports = create_memo(move |_| {
+    let filtered_vendor_reports: Memo<Vec<VendorReportData>> = create_memo(move |_| {
         let reports = vendor_reports.get();
         let non_positive = filter_non_positive.get();
         let corrected = filter_corrected.get();
@@ -528,7 +528,7 @@ pub fn VendorListPage() -> impl IntoView {
                                     fallback=move || view! { <p class="text-gray-500 text-center py-8">{t!("vendor.select_booth_prompt")}</p> }
                                 >
                                     // Helper text section
-                                    <div class="mb-6">
+                                    <div class="mb-2">
                                         <Show when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()>
                                             <div class="space-y-3">
                                                 <div class="max-w-md">

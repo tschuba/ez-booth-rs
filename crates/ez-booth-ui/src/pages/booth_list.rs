@@ -138,7 +138,6 @@ pub fn BoothListPage() -> impl IntoView {
     });
 
     let booth_sections = Signal::derive(move || split_booths(&filtered_booths.get()));
-    let booth_search_active = Signal::derive(move || !booth_search_query.get().trim().is_empty());
 
     create_effect(move |_| {
         persist_show_archived_section_preference(show_archived_section.get());
@@ -629,15 +628,32 @@ pub fn BoothListPage() -> impl IntoView {
     view! {
         <>
             <div class="print:hidden">
-                <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50 py-3">
-                    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                        <StorageWarningInfo class="border-amber-200/70 bg-gradient-to-r from-amber-50/85 via-orange-50/80 to-amber-100/85 shadow-sm".to_string()>
-                            <ExportButton
-                                scope=ExportScope::All
-                                variant=ButtonVariant::Secondary
-                            />
-                            <ImportButton variant=ButtonVariant::Secondary />
-                        </StorageWarningInfo>
+                <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50">
+                    <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+                        <div class="space-y-4">
+                            <StorageWarningInfo class="border-amber-200/70 bg-gradient-to-r from-amber-50/85 via-orange-50/80 to-amber-100/85 shadow-sm".to_string()>
+                                <ExportButton
+                                    scope=ExportScope::All
+                                    variant=ButtonVariant::Secondary
+                                />
+                                <ImportButton variant=ButtonVariant::Secondary />
+                            </StorageWarningInfo>
+
+                            <Show when=move || !booths.get().is_empty()>
+                                <div class="max-w-md">
+                                    <input
+                                        type="search"
+                                        class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder=t!("common.search_placeholder")()
+                                        aria-label=t!("common.search_placeholder")()
+                                        prop:value=move || booth_search_query.get()
+                                        on:input=move |ev| {
+                                            set_booth_search_query.set(event_target_value(&ev));
+                                        }
+                                    />
+                                </div>
+                            </Show>
+                        </div>
                     </div>
                 </div>
 
@@ -653,22 +669,10 @@ pub fn BoothListPage() -> impl IntoView {
                                         fallback=move || {
                                             view! {
                                                 <div class="space-y-8">
-                                                    <div class="max-w-md">
-                                                        <input
-                                                            type="search"
-                                                            class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            placeholder=t!("common.search_placeholder")()
-                                                            aria-label=t!("common.search_placeholder")()
-                                                            prop:value=move || booth_search_query.get()
-                                                            on:input=move |ev| {
-                                                                set_booth_search_query.set(event_target_value(&ev));
-                                                            }
-                                                        />
-                                                    </div>
 
                                                     <Show
                                                         when=move || {
-                                                            !booth_search_active.get()
+                                                            booth_search_query.get().trim().is_empty()
                                                                 || !booth_sections.get().0.is_empty()
                                                                 || !booth_sections.get().1.is_empty()
                                                         }

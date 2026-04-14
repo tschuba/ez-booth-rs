@@ -803,12 +803,14 @@
     "import_partial_success": "Import mit Problemen abgeschlossen: {success} Dateien importiert, {failed} Dateien fehlgeschlagen.",
     "import_results_label": "Importergebnisse",
     "import_file_success": "Erfolgreich importiert",
-    "storage_warning_label": "Browser-lokale Daten",
+    "storage_warning_label": "Browserdaten – Backup empfohlen",
     "storage_warning_message": "EZ Booth speichert Veranstaltungsdaten nur in diesem Browser. Das Löschen von Browserdaten kann Veranstaltungen, Verkäufer und Käufe entfernen.",
     "storage_warning_recommendation": "Erstellen Sie ein Backup vor Browser-Bereinigungen, Profilwechseln, Gerätewechseln oder größeren Browser-Updates.",
     "storage_indicator_label": "Lokal gespeichert",
     "storage_indicator_message": "Ihre EZ-Booth-Daten liegen in diesem Browser.",
-    "storage_indicator_link": "Veranstaltungs-Backups öffnen"
+    "storage_indicator_link": "Veranstaltungs-Backups öffnen",
+    "storage_warning_expand": "Details einblenden",
+    "storage_warning_collapse": "Details ausblenden"
   },
   "data": {
     "export_title": "Daten exportieren",
