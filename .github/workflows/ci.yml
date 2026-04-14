@@ -218,32 +218,4 @@ jobs:
           tool: cargo-audit
 
       - name: Run advisory audit
-        run: |
-          if ! cargo audit; then
-            echo "::warning title=Security audit reported issues::Review the cargo-audit output for dependency advisories."
-          fi
-
-  dependency-check:
-    name: Dependency Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-outdated
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-outdated
-
-      - name: Check dependency freshness
-        run: |
-          if ! cargo outdated --workspace; then
-            echo "::warning title=Dependency check reported issues::Review the cargo-outdated output for stale dependencies or resolver issues."
-          fi
+        run: cargo audit
