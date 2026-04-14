@@ -51,15 +51,13 @@ pub fn VendorListPage() -> impl IntoView {
     let (current_page, set_current_page) = create_signal(0);
     let (filter_non_positive, set_filter_non_positive) = create_signal(false);
     let (filter_corrected, set_filter_corrected) = create_signal(false);
+    let (vendor_search_query, set_vendor_search_query) = create_signal(String::new());
 
-    let filtered_vendor_reports = create_memo(move |_| {
+    let filtered_vendor_reports: Memo<Vec<VendorReportData>> = create_memo(move |_| {
         let reports = vendor_reports.get();
         let non_positive = filter_non_positive.get();
         let corrected = filter_corrected.get();
-
-        if !non_positive && !corrected {
-            return reports;
-        }
+        let search_query = vendor_search_query.get().trim().to_lowercase();
 
         reports
             .into_iter()
@@ -71,10 +69,34 @@ pub fn VendorListPage() -> impl IntoView {
                         .payout_correction_note
                         .as_ref()
                         .is_some_and(|note| !note.trim().is_empty());
+                let matches_search = search_query.is_empty()
+                    || report
+                        .vendor
+                        .vendor_id
+                        .as_str()
+                        .to_lowercase()
+                        .contains(&search_query);
 
-                matches_non_positive && matches_corrected
+                matches_non_positive && matches_corrected && matches_search
             })
             .collect()
+    });
+
+    let filtered_vendors_without_purchases = create_memo(move |_| {
+        let search_query = vendor_search_query.get().trim().to_lowercase();
+
+        vendors_without_purchases
+            .get()
+            .into_iter()
+            .filter(|vendor| {
+                search_query.is_empty()
+                    || vendor
+                        .vendor_id
+                        .as_str()
+                        .to_lowercase()
+                        .contains(&search_query)
+            })
+            .collect::<Vec<_>>()
     });
 
     let non_positive_vendor_count = create_memo(move |_| {
@@ -106,7 +128,7 @@ pub fn VendorListPage() -> impl IntoView {
             return Vec::new();
         }
 
-        let reports = filtered_vendor_reports.get();
+        let reports: Vec<VendorReportData> = filtered_vendor_reports.get();
         let size = page_size.get();
         let page = current_page.get();
         let start = page * size;
@@ -141,6 +163,7 @@ pub fn VendorListPage() -> impl IntoView {
         let _ = page_size.get();
         let _ = filter_non_positive.get();
         let _ = filter_corrected.get();
+        let _ = vendor_search_query.get();
         set_current_page.set(0);
     });
 
@@ -505,110 +528,125 @@ pub fn VendorListPage() -> impl IntoView {
                                     fallback=move || view! { <p class="text-gray-500 text-center py-8">{t!("vendor.select_booth_prompt")}</p> }
                                 >
                                     // Helper text section
-                                    <div class="mb-6">
-                                        <Show when=move || !vendor_reports.get().is_empty()>
+                                    <div class="mb-2">
+                                        <Show when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()>
                                             <div class="space-y-3">
-                                                <p class="text-sm text-gray-600">
-                                                    {move || {
-                                                        let total_count = vendor_reports.get().len();
-                                                        let shown_count = filtered_vendor_reports.get().len();
-                                                        let selected_count = selected_vendor_ids.get().len();
-                                                        let non_positive = filter_non_positive.get();
-                                                        let corrected = filter_corrected.get();
-                                                        let filters_active = non_positive || corrected;
+                                                <div class="max-w-md">
+                                                    <input
+                                                        type="search"
+                                                        class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        placeholder=t!("common.search_placeholder")()
+                                                        aria-label=t!("common.search_placeholder")()
+                                                        prop:value=move || vendor_search_query.get()
+                                                        on:input=move |ev| {
+                                                            set_vendor_search_query.set(event_target_value(&ev));
+                                                        }
+                                                    />
+                                                </div>
 
-                                                        if filters_active {
-                                                            let showing_text = translate_with_params(
-                                                                "vendor.filter_showing",
-                                                                HashMap::from([
-                                                                    ("shown", shown_count.to_string()),
-                                                                    ("total", total_count.to_string()),
-                                                                ]),
-                                                            );
+                                                <Show when=move || !vendor_reports.get().is_empty()>
+                                                    <p class="text-sm text-gray-600">
+                                                        {move || {
+                                                            let total_count = vendor_reports.get().len();
+                                                            let shown_count = filtered_vendor_reports.get().len();
+                                                            let selected_count = selected_vendor_ids.get().len();
+                                                            let non_positive = filter_non_positive.get();
+                                                            let corrected = filter_corrected.get();
+                                                            let filters_active = non_positive || corrected;
 
-                                                            if selected_count > 0 {
+                                                            if filters_active {
+                                                                let showing_text = translate_with_params(
+                                                                    "vendor.filter_showing",
+                                                                    HashMap::from([
+                                                                        ("shown", shown_count.to_string()),
+                                                                        ("total", total_count.to_string()),
+                                                                    ]),
+                                                                );
+
+                                                                if selected_count > 0 {
+                                                                    format!(
+                                                                        "{} · {} {} {} {}",
+                                                                        showing_text,
+                                                                        selected_count,
+                                                                        t!("vendor.vendors_selected_of")(),
+                                                                        shown_count,
+                                                                        t!("vendor.vendors")()
+                                                                    )
+                                                                } else {
+                                                                    format!(
+                                                                        "{} {}",
+                                                                        showing_text,
+                                                                        t!("vendor.click_vendors_hint")()
+                                                                    )
+                                                                }
+                                                            } else if selected_count > 0 {
                                                                 format!(
-                                                                    "{} · {} {} {} {}",
-                                                                    showing_text,
+                                                                    "{} {} {} {}",
                                                                     selected_count,
                                                                     t!("vendor.vendors_selected_of")(),
-                                                                    shown_count,
-                                                                    t!("vendor.vendors")()
+                                                                    total_count,
+                                                                    t!("vendor.vendors_with_purchases")()
                                                                 )
                                                             } else {
                                                                 format!(
-                                                                    "{} {}",
-                                                                    showing_text,
+                                                                    "{} {} {}",
+                                                                    total_count,
+                                                                    t!("vendor.vendors_with_purchases")(),
                                                                     t!("vendor.click_vendors_hint")()
                                                                 )
                                                             }
-                                                        } else if selected_count > 0 {
-                                                            format!(
-                                                                "{} {} {} {}",
-                                                                selected_count,
-                                                                t!("vendor.vendors_selected_of")(),
-                                                                total_count,
-                                                                t!("vendor.vendors_with_purchases")()
-                                                            )
-                                                        } else {
-                                                            format!(
-                                                                "{} {} {}",
-                                                                total_count,
-                                                                t!("vendor.vendors_with_purchases")(),
-                                                                t!("vendor.click_vendors_hint")()
-                                                            )
-                                                        }
-                                                    }}
-                                                </p>
+                                                        }}
+                                                    </p>
 
-                                                <div class="flex flex-wrap items-center gap-2">
-                                                    <span class="text-sm font-medium text-gray-700">
-                                                        {t!("vendor.filter_label")()}
-                                                    </span>
-                                                    <button
-                                                        class=move || {
-                                                            if filter_non_positive.get() {
-                                                                "rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900"
-                                                            } else {
-                                                                "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <span class="text-sm font-medium text-gray-700">
+                                                            {t!("vendor.filter_label")()}
+                                                        </span>
+                                                        <button
+                                                            class=move || {
+                                                                if filter_non_positive.get() {
+                                                                    "rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900"
+                                                                } else {
+                                                                    "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                                }
                                                             }
-                                                        }
-                                                        on:click=move |_| {
-                                                            set_filter_non_positive.update(|v| *v = !*v);
-                                                        }
-                                                    >
-                                                        {move || format!(
-                                                            "{} ({})",
-                                                            t!("vendor.filter_non_positive")(),
-                                                            non_positive_vendor_count.get()
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        class=move || {
-                                                            if filter_corrected.get() {
-                                                                "rounded-full border border-blue-400 bg-blue-100 px-3 py-1 text-sm font-medium text-blue-900"
-                                                            } else {
-                                                                "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                            on:click=move |_| {
+                                                                set_filter_non_positive.update(|v| *v = !*v);
                                                             }
-                                                        }
-                                                        on:click=move |_| {
-                                                            set_filter_corrected.update(|v| *v = !*v);
-                                                        }
-                                                    >
-                                                        {move || format!(
-                                                            "{} ({})",
-                                                            t!("vendor.filter_corrected")(),
-                                                            corrected_vendor_count.get()
-                                                        )}
-                                                    </button>
-                                                </div>
+                                                        >
+                                                            {move || format!(
+                                                                "{} ({})",
+                                                                t!("vendor.filter_non_positive")(),
+                                                                non_positive_vendor_count.get()
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            class=move || {
+                                                                if filter_corrected.get() {
+                                                                    "rounded-full border border-blue-400 bg-blue-100 px-3 py-1 text-sm font-medium text-blue-900"
+                                                                } else {
+                                                                    "rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                                }
+                                                            }
+                                                            on:click=move |_| {
+                                                                set_filter_corrected.update(|v| *v = !*v);
+                                                            }
+                                                        >
+                                                            {move || format!(
+                                                                "{} ({})",
+                                                                t!("vendor.filter_corrected")(),
+                                                                corrected_vendor_count.get()
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </Show>
                                             </div>
                                         </Show>
                                     </div>
 
                                     <div class="mx-auto max-w-5xl">
                                         // Top pagination controls
-                                        <Show when=move || !vendor_reports.get().is_empty()>
+                                        <Show when=move || !filtered_vendor_reports.get().is_empty()>
                                             <div class="mb-4">
                                                 <Pagination
                                                     current_page=current_page
@@ -624,18 +662,28 @@ pub fn VendorListPage() -> impl IntoView {
 
                                         // Vendor list
                                         <Show
-                                            when=move || !vendor_reports.get().is_empty() || !vendors_without_purchases.get().is_empty()
+                                            when=move || !filtered_vendor_reports.get().is_empty() || !filtered_vendors_without_purchases.get().is_empty()
                                              fallback=move || view! {
                                                  <div class="flex flex-col items-center justify-center py-10 text-center">
                                                      <Icon icon=LuUsers class="mb-3 h-12 w-12 text-gray-300" />
-                                                     <p class="text-sm font-medium text-gray-700">{t!("vendor.no_vendors")}</p>
-                                                     <p class="mt-1 text-xs text-gray-500">{t!("vendor.empty_state_hint")}</p>
+                                                     <p class="text-sm font-medium text-gray-700">
+                                                         {move || {
+                                                             if vendor_search_query.get().trim().is_empty() {
+                                                                 t!("vendor.no_vendors")()
+                                                             } else {
+                                                                 t!("common.no_results")()
+                                                             }
+                                                         }}
+                                                     </p>
+                                                     <Show when=move || vendor_search_query.get().trim().is_empty()>
+                                                         <p class="mt-1 text-xs text-gray-500">{t!("vendor.empty_state_hint")}</p>
+                                                     </Show>
                                                  </div>
                                              }
                                         >
                                             <div class="space-y-4">
                                             {/* Vendors with purchases */}
-                                            {move || paginated_vendor_reports.get().into_iter().map(|report| {
+                                            {move || paginated_vendor_reports.get().into_iter().map(|report: VendorReportData| {
                                                 // Clone all needed data upfront
                                                 let report_data = report.clone();
                                                 let report_data_for_correction = report_data.clone();
@@ -924,41 +972,41 @@ pub fn VendorListPage() -> impl IntoView {
                                                                                     <h4 class="sr-only">{t!("vendor.financial_summary")()}</h4>
                                                                                     <div class="space-y-3">
                                                                                         {/* Individual fees side-by-side with plus indicator */}
-                                                                                        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                                                                            <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
-                                                                                                <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
-                                                                                                <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
-                                                                                            </div>
+                                                                                    <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                                                                        <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
+                                                                                            <p class="text-xs text-gray-600">{t!("vendor.participation_fee")()}</p>
+                                                                                            <p class="text-lg font-semibold">{format_currency(report.participation_fee, locale.get())}</p>
+                                                                                        </div>
 
-                                                                                            {/* Plus symbol */}
-                                                                                            <div class="flex-shrink-0">
-                                                                                                <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                                                                                                    <span class="text-gray-600 text-sm font-bold">+</span>
-                                                                                                </div>
-                                                                                            </div>
-
-                                                                                            <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
-                                                                                                <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
-                                                                                                <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
+                                                                                        {/* Plus symbol */}
+                                                                                        <div class="flex-shrink-0">
+                                                                                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                                                                                <span class="text-gray-600 text-sm font-bold">+</span>
                                                                                             </div>
                                                                                         </div>
 
-                                                                                        {/* Equals symbol */}
-                                                                                        <div class="flex justify-center">
-                                                                                            <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                                                                                                <span class="text-blue-600 text-sm font-bold">=</span>
-                                                                                            </div>
+                                                                                        <div class="bg-white p-3 rounded shadow-sm flex-1 min-w-[120px]">
+                                                                                            <p class="text-xs text-gray-600">{t!("vendor.sales_fee")()}</p>
+                                                                                            <p class="text-lg font-semibold">{format_currency(report.sales_fee, locale.get())}</p>
                                                                                         </div>
-
-                                                                                        {/* Cumulative total with emphasis */}
-                                                                                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded shadow-md border-2 border-blue-500">
-                                                                                            <p class="text-xs text-gray-700 font-semibold">{t!("vendor.fees_due")()}</p>
-                                                                                            <p class="text-xl font-bold text-blue-700">{format_currency(report.participation_fee + report.sales_fee, locale.get())}</p>
-                                                                                            <p class="text-xs text-gray-600 mt-1">{t!("vendor.fees_sum_explanation")()}</p>
-                                                                                        </div>
-
                                                                                     </div>
+
+                                                                                    {/* Equals symbol */}
+                                                                                    <div class="flex justify-center">
+                                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                                            <span class="text-blue-600 text-sm font-bold">=</span>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    {/* Cumulative total with emphasis */}
+                                                                                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded shadow-md border-2 border-blue-500">
+                                                                                        <p class="text-xs text-gray-700 font-semibold">{t!("vendor.fees_due")()}</p>
+                                                                                        <p class="text-xl font-bold text-blue-700">{format_currency(report.participation_fee + report.sales_fee, locale.get())}</p>
+                                                                                        <p class="text-xs text-gray-600 mt-1">{t!("vendor.fees_sum_explanation")()}</p>
+                                                                                    </div>
+
                                                                                 </div>
+                                                                            </div>
 
                                                                                 {/* Right column: Transactions */}
                                                                                 <div class="space-y-3 md:col-span-3">
@@ -981,7 +1029,7 @@ pub fn VendorListPage() -> impl IntoView {
 
                                                                                             transactions
                                                                                                 .into_iter()
-                                                                                                .map(|(transaction_id, transaction_items)| {
+                                                                                                .map(|(transaction_id, transaction_items): (PurchaseId, Vec<domain::services::VendorReportItem>)| {
                                                                                                     let time_str = transaction_items[0].timestamp.format("%H:%M").to_string();
                                                                                                     let total: Decimal = transaction_items.iter().map(|i| i.item.amount).sum();
                                                                                                     let item_count = transaction_items.len();
@@ -1020,7 +1068,7 @@ pub fn VendorListPage() -> impl IntoView {
                                             }).collect_view()}
 
                                             {/* Bottom pagination */}
-                                            <Show when=move || !vendor_reports.get().is_empty()>
+                                            <Show when=move || !filtered_vendor_reports.get().is_empty()>
                                                 <div class="mt-4">
                                                     <Pagination
                                                         current_page=current_page
@@ -1035,7 +1083,7 @@ pub fn VendorListPage() -> impl IntoView {
                                             </Show>
 
                                             {/* Vendors without purchases heading */}
-                                            <Show when=move || !vendors_without_purchases.get().is_empty()>
+                                            <Show when=move || !filtered_vendors_without_purchases.get().is_empty()>
                                                 <div class="mt-8 mb-4">
                                                     <h2 class="text-lg font-semibold text-gray-700 border-b border-gray-300 pb-2">
                                                         {t!("vendor.vendors_without_purchases_heading")}
@@ -1052,7 +1100,7 @@ pub fn VendorListPage() -> impl IntoView {
                                              {/* Vendors without purchases */}
                                              {move || {
                                                  let handle_vendor_delete_click = handle_vendor_delete_click.clone();
-                                                  vendors_without_purchases.get().into_iter().map(|vendor| {
+                                                  filtered_vendors_without_purchases.get().into_iter().map(|vendor| {
                                                      let vendor_id = vendor.vendor_id.clone();
                                                      let vendor_id_stored = store_value(vendor_id.clone());
                                                      let vendor_id_str = vendor.vendor_id.as_str().to_string();

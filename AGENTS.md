@@ -181,3 +181,13 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - If a change affects operator workflows, review the relevant docs in `docs/` and update them when behavior changes.
 - If a file already has local conventions, follow them instead of normalizing unrelated style.
 - If browser behavior is uncertain, prefer `./run-tests.sh --chrome` and call out whether Safari validation is still needed.
+
+## Tool Use Discipline For Agentic Models
+
+- **Never announce a tool call in prose and then fail to invoke it.** Do not write "Here is the replace_in_file call:" or "I will now use the write_to_file tool:" as a sentence — just invoke the tool directly.
+- **Do not describe what you are about to do as a substitute for doing it.** If the next step is to edit a file, edit it. If the next step is to run a command, run it.
+- **One tool call per response turn when operations are dependent.** Wait for the result before proceeding to the next dependent step.
+- **Use `write_to_file` as a fallback when `replace_in_file` fails three times.** Do not keep retrying the same failing SEARCH block — rewrite the whole file instead.
+- **When a `replace_in_file` SEARCH block fails to match**, re-read the relevant section of the file first, then construct the SEARCH block from the actual file content, not from memory.
+- **Do not repeat apologies in lieu of tool calls.** If a tool call failed, retry it immediately with a corrected invocation — do not write multiple sentences explaining the failure before acting.
+- **Keep SEARCH blocks in `replace_in_file` small and precise.** Match only the lines that need to change plus a few lines of unique context. Large SEARCH blocks are fragile and likely to fail.

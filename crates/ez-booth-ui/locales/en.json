@@ -15,6 +15,8 @@
     "loading": "Loading...",
     "select": "-- Select --",
     "clear": "Clear",
+    "search_placeholder": "Search...",
+    "no_results": "No results found.",
     "placeholders": {
       "decimal_zero": "0.00",
       "decimal_half": "0.50",
@@ -801,12 +803,14 @@
     "import_partial_success": "Import finished with issues: {success} files imported, {failed} files failed.",
     "import_results_label": "Import results",
     "import_file_success": "Imported successfully",
-    "storage_warning_label": "Browser-local data",
+    "storage_warning_label": "Browser data – backup recommended",
     "storage_warning_message": "EZ Booth stores event data only in this browser. Clearing browser storage can remove events, vendors, and purchases.",
     "storage_warning_recommendation": "Create a backup before browser cleanup, profile changes, device switches, or major browser updates.",
     "storage_indicator_label": "Stored locally",
     "storage_indicator_message": "Your EZ Booth data lives in this browser.",
-    "storage_indicator_link": "Open event backups"
+    "storage_indicator_link": "Open event backups",
+    "storage_warning_expand": "Show details",
+    "storage_warning_collapse": "Hide details"
   },
   "data": {
     "export_title": "Export Data",
