@@ -15,6 +15,7 @@ mod selected_booth_context;
 mod settings_support;
 mod state;
 mod utils;
+pub mod config;
 pub use selected_booth_context::SelectedBoothProvider;
 
 use components::*;

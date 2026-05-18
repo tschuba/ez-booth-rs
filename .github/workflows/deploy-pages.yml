@@ -1,0 +1,102 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - .github/workflows/deploy-pages.yml
+      - README.md
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  # Cancel in-progress docs deploys; never cancel a release deploy.
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    name: Build Pages Site
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: docs
+          destination: ./_site
+
+      # ── WASM steps run only on release tags ──────────────────────────
+
+      - name: Install Rust toolchain
+        if: github.ref_type == 'tag'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up Node.js
+        if: github.ref_type == 'tag'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: crates/ez-booth-app/package-lock.json
+
+      - name: Restore Rust cache
+        if: github.ref_type == 'tag'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Trunk
+        if: github.ref_type == 'tag'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+
+      - name: Install frontend dependencies
+        if: github.ref_type == 'tag'
+        run: npm ci
+        working-directory: crates/ez-booth-app
+
+      - name: Build Kassen-App WASM
+        if: github.ref_type == 'tag'
+        env:
+          LABELS_PUBLIC_URL: https://tschuba.github.io/ez-booth-rs/labels/
+        run: trunk build --release --public-url /ez-booth-rs/pos/
+        working-directory: crates/ez-booth-app
+
+      - name: Merge WASM bundle into site
+        if: github.ref_type == 'tag'
+        run: |
+          mkdir -p _site/pos
+          cp -R crates/ez-booth-app/dist/. _site/pos/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    name: Deploy Pages Site
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
