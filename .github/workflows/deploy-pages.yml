@@ -84,8 +84,8 @@ jobs:
       - name: Merge WASM bundle into site
         if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
         run: |
-          mkdir -p _site/pos
-          cp -R crates/ez-booth-app/dist/. _site/pos/
+          sudo mkdir -p _site/pos
+          sudo cp -R crates/ez-booth-app/dist/. _site/pos/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
