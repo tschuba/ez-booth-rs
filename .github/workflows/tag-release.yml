@@ -1,8 +1,9 @@
 name: Tag Release
 
 # Fires in two situations:
-#   1. CI passes on a chore/bump-version-* branch (workflow_run) — tags the
-#      bump-version commit directly so the release chain starts immediately.
+#   1. CI completes on a chore/bump-version-* branch (workflow_run) — checks that
+#      the "WASM Build" job passed (not overall CI, which may fail on audit), then
+#      tags the bump-version commit so the release chain starts immediately.
 #   2. A direct push to main changes Cargo.toml (e.g. manual version bump).
 #
 # The tag is pushed via deploy key so it triggers release.yml / deploy-pages.yml
@@ -22,12 +23,12 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   tag:
     name: Create release tag
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Check out repository
@@ -35,12 +36,31 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Check WASM Build result
+        if: github.event_name == 'workflow_run'
+        id: wasm_check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          wasm_conclusion="$(gh api \
+            repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs \
+            --jq '.jobs[] | select(.name == "WASM Build") | .conclusion')"
+          echo "WASM Build conclusion: ${wasm_conclusion}"
+          if [[ "$wasm_conclusion" != "success" ]]; then
+            echo "WASM Build did not pass (${wasm_conclusion}) — skipping tag."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Load deploy key
+        if: steps.wasm_check.outputs.skip != 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Detect version and push tag
+        if: steps.wasm_check.outputs.skip != 'true'
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
