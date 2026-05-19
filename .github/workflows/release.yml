@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  workflow_run:
+    workflows: ["Tag Release"]
+    types: [completed]
   push:
     tags:
       - "v*.*.*"
@@ -19,8 +22,10 @@ jobs:
   validate:
     name: Validate Release Tag
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
       tag_message: ${{ steps.tag_message.outputs.value }}
 
     steps:
@@ -33,13 +38,24 @@ jobs:
         id: version
         shell: bash
         run: |
-          tag="${GITHUB_REF_NAME}"
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            cargo_version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -n 1)"
+            tag="v${cargo_version}"
+            git fetch --tags
+            if ! git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+              echo "::error::Tag ${tag} not found on remote — tag-release may not have created it"
+              exit 1
+            fi
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
 
           if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "Release tags must use stable semantic versioning like v1.2.3" >&2
             exit 1
           fi
 
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Validate workspace version matches tag
@@ -62,7 +78,7 @@ jobs:
         id: tag_message
         shell: bash
         run: |
-          raw_message="$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)')"
+          raw_message="$(git for-each-ref "refs/tags/${{ steps.version.outputs.tag }}" --format='%(contents)')"
           {
             echo "value<<EOF"
             printf '%s\n' "$raw_message"
@@ -92,6 +108,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -122,6 +140,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -256,6 +276,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Download packaged artifacts
         uses: actions/download-artifact@v8
@@ -292,10 +314,10 @@ jobs:
             notes_args+=(--notes "$(cat release-notes-preface.md)")
           fi
 
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release create "${{ needs.validate.outputs.tag }}" \
             release-packages/* \
             --verify-tag \
-            --title "EZ Booth ${GITHUB_REF_NAME}" \
+            --title "EZ Booth ${{ needs.validate.outputs.tag }}" \
             --generate-notes \
             --latest \
             "${notes_args[@]}"
