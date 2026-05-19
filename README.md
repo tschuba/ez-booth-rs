@@ -62,6 +62,16 @@ source ~/.zshrc
 
 If you use bash, replace `zsh` with `bash`.
 
+#### Activate Local Lint Hooks
+
+Run once after cloning to enable pre-commit formatting and lint checks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs `cargo fmt --check` and `cargo clippy` before every commit. `trunk serve` and `trunk build` also run a formatting check before each build.
+
 #### Start the App
 
 ```bash
@@ -237,7 +247,21 @@ Verify a downloaded release with:
 shasum -a 256 -c checksums.txt
 ```
 
-Maintainers should follow [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+### Static Deployment
+
+Every release also publishes the Kassen-App directly to GitHub Pages — no launcher required. Organizers can open it in any browser without downloading anything:
+
+```text
+https://tschuba.github.io/ez-booth-rs/pos/
+```
+
+The static build is produced automatically as part of the release pipeline. There is no separate deployment step.
+
+### Creating a Release (maintainers)
+
+Releases are fully automated. Go to **Actions → Bump Version → Run workflow**, enter the new version (`X.Y.Z`), and optionally add release notes. The workflow opens a version-bump PR, auto-merges it once CI passes, creates the tag, builds platform artifacts, and publishes to both GitHub Releases and GitHub Pages.
+
+See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for the full pipeline and troubleshooting.
 
 ## Troubleshooting
 

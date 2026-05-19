@@ -5,6 +5,7 @@ use leptos_router::*;
 mod audio;
 mod booth_ordering;
 mod components;
+pub mod config;
 mod error;
 mod error_logging;
 mod error_translator;
@@ -15,7 +16,6 @@ mod selected_booth_context;
 mod settings_support;
 mod state;
 mod utils;
-pub mod config;
 pub use selected_booth_context::SelectedBoothProvider;
 
 use components::*;

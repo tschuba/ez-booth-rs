@@ -8,16 +8,17 @@ on:
         required: true
         type: string
       notes:
-        description: 'Release notes for the annotated tag (optional, falls back to "Release vX.Y.Z")'
+        description: 'Release notes (included in PR body; optional)'
         required: false
         type: string
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   bump:
-    name: Bump version and push release tag
+    name: Open version-bump PR
     runs-on: ubuntu-latest
 
     steps:
@@ -26,10 +27,6 @@ jobs:
         run: |
           if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Version must be X.Y.Z format (e.g. 0.2.0), got: ${{ inputs.version }}"
-            exit 1
-          fi
-          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
-            echo "::error::Bump Version must be run from the main branch, not: $GITHUB_REF"
             exit 1
           fi
 
@@ -57,34 +54,26 @@ jobs:
             echo "::error::Could not read current version from Cargo.toml"
             exit 1
           fi
-
           if [[ "$old_version" == "$NEW_VERSION" ]]; then
-            echo "::error::New version ($NEW_VERSION) is the same as the current version"
+            echo "::error::New version ($NEW_VERSION) equals the current version"
             exit 1
           fi
 
-          # Update workspace version in Cargo.toml
           sed -i "s/^version = \"${old_version}\"$/version = \"${NEW_VERSION}\"/" Cargo.toml
 
-          # Verify substitution
           actual="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -n 1)"
           if [[ "$actual" != "$NEW_VERSION" ]]; then
             echo "::error::sed substitution failed; Cargo.toml still has ${actual}"
             exit 1
           fi
 
-          # Update version entries in Cargo.lock for workspace-local crates.
-          # Workspace members have no 'source = ...' line; registry crates do.
-          # We only touch blocks where version matches the old workspace version.
+          # Update Cargo.lock for workspace-local crates (those without a source = line).
           OLD_VERSION="$old_version" python3 << 'PYEOF'
           import re, os
-
           old_ver = os.environ['OLD_VERSION']
           new_ver = os.environ['NEW_VERSION']
-
           with open('Cargo.lock') as f:
               content = f.read()
-
           blocks = re.split(r'(?=\[\[package\]\])', content)
           updated = 0
           out = []
@@ -99,10 +88,8 @@ jobs:
                   )
                   updated += 1
               out.append(block)
-
           with open('Cargo.lock', 'w') as f:
               f.write(''.join(out))
-
           print(f'Updated {updated} workspace package(s) in Cargo.lock: {old_ver} → {new_ver}')
           PYEOF
 
@@ -113,22 +100,36 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit and tag
+      - name: Push version-bump branch
         shell: bash
         env:
-          NOTES: ${{ inputs.notes }}
           NEW_VERSION: ${{ inputs.version }}
         run: |
-          set -euo pipefail
-
+          branch="chore/bump-version-${NEW_VERSION}"
+          git checkout -b "$branch"
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to ${NEW_VERSION}"
+          git push origin "$branch"
+          echo "BRANCH=$branch" >> "$GITHUB_ENV"
 
-          tag_message="${NOTES:-Release v${NEW_VERSION}}"
-          git tag -a "v${NEW_VERSION}" -m "$tag_message"
-
-      - name: Push commit and tag
+      - name: Open PR and enable auto-merge
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_VERSION: ${{ inputs.version }}
+          NOTES: ${{ inputs.notes }}
         run: |
-          git push origin HEAD:main
-          git push origin "v${{ inputs.version }}"
+          if [[ -n "$NOTES" ]]; then
+            body="$(printf 'Automated version bump to **v%s**.\n\n## Release Notes\n\n%s' "$NEW_VERSION" "$NOTES")"
+          else
+            body="Automated version bump to **v${NEW_VERSION}**."
+          fi
+
+          pr_url=$(gh pr create --base main --head "$BRANCH" --title "chore: bump version to ${NEW_VERSION}" --body "$body")
+          echo "PR: $pr_url"
+
+          if gh pr merge "$pr_url" --auto --squash; then
+            echo "Auto-merge enabled — will merge when WASM Build passes."
+          else
+            echo "::warning::Auto-merge unavailable — enable it in repo Settings > General > Allow auto-merge, or merge the PR manually: $pr_url"
+          fi
