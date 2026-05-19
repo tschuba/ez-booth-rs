@@ -72,11 +72,11 @@ Triggered on push to `main` when `Cargo.toml` changes. Compares the workspace ve
 
 ### `release.yml`
 
-Triggered on tags matching `v*.*.*`. Validates the tag against `Cargo.toml`, builds platform launchers and the WASM bundle, packages archives, generates checksums, and creates the GitHub Release.
+Triggered when `tag-release.yml` completes successfully (via `workflow_run`), and also directly on tags matching `v*.*.*` for manually pushed tags. Validates the tag against `Cargo.toml`, builds platform launchers and the WASM bundle, packages archives, generates checksums, and creates the GitHub Release.
 
 ### `deploy-pages.yml`
 
-Triggered on push to `main` (docs changes) and on tags matching `v*.*.*`. On release tags it additionally builds the Kassen-App WASM bundle with `LABELS_PUBLIC_URL` baked in and publishes it to GitHub Pages at `/pos/`.
+Triggered on push to `main` (docs changes), when `tag-release.yml` completes successfully (via `workflow_run`), and directly on tags matching `v*.*.*`. On release triggers it additionally builds the Kassen-App WASM bundle with `LABELS_PUBLIC_URL` baked in and publishes it to GitHub Pages at `/pos/`.
 
 ## Static Deployment
 
