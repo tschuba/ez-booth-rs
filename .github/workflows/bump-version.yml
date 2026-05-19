@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version component to increment'
+        description: 'Version component to increment (ignored if version is set)'
         required: true
         type: choice
         options:
           - patch
           - minor
           - major
+      version:
+        description: 'Exact version to set (X.Y.Z) — overrides bump if provided'
+        required: false
+        type: string
       notes:
         description: 'Release notes (included in PR body; optional)'
         required: false
@@ -40,17 +44,27 @@ jobs:
             exit 1
           fi
 
-          IFS='.' read -r major minor patch <<< "$current"
+          manual="${{ inputs.version }}"
 
-          case "${{ inputs.bump }}" in
-            major) new_version="$((major + 1)).0.0" ;;
-            minor) new_version="${major}.$((minor + 1)).0" ;;
-            patch) new_version="${major}.${minor}.$((patch + 1))" ;;
-          esac
+          if [[ -n "$manual" ]]; then
+            if ! [[ "$manual" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::version input '${manual}' is not in X.Y.Z format"
+              exit 1
+            fi
+            new_version="$manual"
+            echo "Using manual version: ${current} → ${new_version}"
+          else
+            IFS='.' read -r major minor patch <<< "$current"
+            case "${{ inputs.bump }}" in
+              major) new_version="$((major + 1)).0.0" ;;
+              minor) new_version="${major}.$((minor + 1)).0" ;;
+              patch) new_version="${major}.${minor}.$((patch + 1))" ;;
+            esac
+            echo "Bumping ${current} → ${new_version} (${{ inputs.bump }})"
+          fi
 
           echo "old=${current}" >> "$GITHUB_OUTPUT"
           echo "new=${new_version}" >> "$GITHUB_OUTPUT"
-          echo "Bumping ${current} → ${new_version} (${{ inputs.bump }})"
 
       - name: Verify tag does not already exist
         shell: bash
