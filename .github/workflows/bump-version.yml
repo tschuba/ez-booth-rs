@@ -132,6 +132,7 @@ jobs:
           git checkout -b "$branch"
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to ${NEW_VERSION}"
+          git push origin --delete "$branch" 2>/dev/null || true
           git push origin "$branch"
           echo "BRANCH=$branch" >> "$GITHUB_ENV"
 
