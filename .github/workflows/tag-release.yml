@@ -1,9 +1,19 @@
 name: Tag Release
 
-# Fires when a version-bump PR merges to main (Cargo.toml changes).
-# Creates the annotated release tag → triggers release.yml and deploy-pages.yml.
+# Fires in two situations:
+#   1. CI passes on a chore/bump-version-* branch (workflow_run) — tags the
+#      bump-version commit directly so the release chain starts immediately.
+#   2. A direct push to main changes Cargo.toml (e.g. manual version bump).
+#
+# The tag is pushed via deploy key so it triggers release.yml / deploy-pages.yml
+# through their `push: tags` trigger (GITHUB_TOKEN tag pushes are suppressed).
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches:
+      - 'chore/bump-version-*'
   push:
     branches:
       - main
@@ -15,8 +25,9 @@ permissions:
 
 jobs:
   tag:
-    name: Create release tag if workspace version changed
+    name: Create release tag
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Check out repository
@@ -24,28 +35,44 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Detect version change and push tag
+      - name: Load deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Detect version and push tag
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
 
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # CI just passed on a bump-version branch — check out that commit.
+            git fetch origin "${HEAD_SHA}"
+            git checkout "${HEAD_SHA}"
+          fi
+
           curr_version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
-          prev_version="$(git show "${BEFORE_SHA}:Cargo.toml" 2>/dev/null \
-            | sed -n 's/^version = "\([^"]*\)"$/\1/p' | head -1 || echo '')"
 
           if [[ -z "$curr_version" ]]; then
             echo "::error::Could not read workspace version from Cargo.toml"
             exit 1
           fi
 
-          if [[ "$curr_version" == "$prev_version" ]]; then
-            echo "Workspace version unchanged ($curr_version) — skipping tag."
-            exit 0
-          fi
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            prev_version="$(git show "${BEFORE_SHA}:Cargo.toml" 2>/dev/null \
+              | sed -n 's/^version = "\([^"]*\)"$/\1/p' | head -1 || echo '')"
 
-          echo "Version changed: ${prev_version:-<none>} → ${curr_version}"
+            if [[ "$curr_version" == "$prev_version" ]]; then
+              echo "Workspace version unchanged ($curr_version) — skipping tag."
+              exit 0
+            fi
+            echo "Version changed: ${prev_version:-<none>} → ${curr_version}"
+          else
+            echo "CI passed on bump-version branch — tagging v${curr_version}"
+          fi
 
           if git ls-remote --tags origin "refs/tags/v${curr_version}" | grep -q .; then
             echo "Tag v${curr_version} already exists — skipping."
@@ -55,6 +82,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
           git tag -a "v${curr_version}" -m "Release v${curr_version}"
           git push origin "v${curr_version}"
           echo "Tagged and pushed v${curr_version}"
