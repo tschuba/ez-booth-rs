@@ -33,6 +33,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Load deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
       - name: Calculate new version
         id: version
         shell: bash
@@ -132,6 +137,7 @@ jobs:
           git checkout -b "$branch"
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to ${NEW_VERSION}"
+          git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
           git push origin --delete "$branch" 2>/dev/null || true
           git push origin "$branch"
           echo "BRANCH=$branch" >> "$GITHUB_ENV"
