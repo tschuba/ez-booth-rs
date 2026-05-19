@@ -1,0 +1,12 @@
+[advisories]
+ignore = [
+    # paste is unmaintained but used only as a compile-time macro by validator_derive.
+    # No runtime surface; will resolve when validator upgrades its dependency.
+    "RUSTSEC-2024-0014",
+    # proc-macro-error is unmaintained but used only at compile time via validator_derive.
+    # No exploitable runtime surface; will resolve when validator upgrades.
+    "RUSTSEC-2024-0370",
+    # rand 0.8.5 unsoundness only triggers with a custom global logger calling rand::rng().
+    # ez-booth-launcher uses no custom allocator or global logger; risk does not apply.
+    "RUSTSEC-2026-0097",
+]
