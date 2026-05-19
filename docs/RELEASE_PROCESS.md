@@ -1,18 +1,19 @@
 ---
 title: Release Process
-nav_order: 5
+nav_order: 7
 ---
 
 # Release Process
 
-This repository publishes stable releases from semantic version tags like `v0.1.0`.
+This repository publishes stable releases from semantic version tags like `v0.1.0`. The full process is automated through GitHub Actions — no local scripts are required.
 
 ## Overview
 
-- release artifacts are built by GitHub Actions from the tagged commit
-- the tagged commit must already contain the matching workspace version in `Cargo.toml`
-- release bundles include the platform launcher, the full WASM app bundle, and a usage README
-- GitHub Releases also include `checksums.txt` for SHA256 verification
+1. Trigger the **Bump Version** workflow from the GitHub Actions UI
+2. A version-bump PR is opened and auto-merges once CI passes
+3. **tag-release** creates the annotated tag automatically
+4. **release** builds platform launchers and creates the GitHub Release
+5. **deploy-pages** publishes the Kassen-App WASM bundle to GitHub Pages
 
 ## Versioning
 
@@ -22,68 +23,78 @@ Use stable semantic versioning.
 - bump `MINOR` for backward-compatible features and operator-visible improvements
 - bump `PATCH` for backward-compatible fixes and release-only corrections
 
-This workflow does not publish pre-releases. Tags like `v1.0.0-beta.1` are rejected.
+Pre-release tags like `v1.0.0-beta.1` are rejected by the release workflow.
+
+## Prerequisites (one-time setup)
+
+Enable **Allow auto-merge** in the repository:
+
+> GitHub repository → Settings → General → Pull Requests → Allow auto-merge ✓
+
+This allows the version-bump PR to merge automatically once the WASM Build check passes.
 
 ## Before A Release
 
-1. Merge the intended work into `main` through pull requests.
-2. Sync local `main` with `origin/main`.
-3. Run `./scripts/validate-release.sh`.
-4. Decide the next version number.
-5. Prepare any optional release notes you want to prepend to the generated GitHub notes.
+1. Merge all intended work into `main` through pull requests.
+2. Confirm the branch is clean and all CI checks are green on `main`.
+3. Decide the next version number (see Versioning above).
+4. Prepare any optional release notes you want included in the release.
 
 ## Create A Release
 
-This repository protects `main`, so release preparation happens through a pull request.
+Go to **Actions → Bump Version → Run workflow** in the GitHub UI.
 
-Use the helper script from `main`:
+| Input | Required | Description |
+| --- | --- | --- |
+| `version` | yes | New version in `X.Y.Z` format, e.g. `0.2.0` |
+| `notes` | no | Release notes prepended to the auto-generated GitHub Release notes |
 
-```bash
-./scripts/create-release.sh 0.1.0
-```
+What happens automatically:
 
-What the script does:
+1. Cargo.toml workspace version and Cargo.lock are updated on a `chore/bump-version-X.Y.Z` branch
+2. A pull request is opened targeting `main`
+3. The PR auto-merges once the **WASM Build** check passes
+4. **tag-release** detects the version change on `main` and pushes the annotated tag `vX.Y.Z`
+5. **release** builds launchers for Windows, macOS, and Linux; packages archives with checksums; creates the GitHub Release
+6. **deploy-pages** builds the production WASM bundle and publishes it to GitHub Pages at `/pos/`
 
-1. verifies you are on a clean, up-to-date local `main`
-2. creates a release branch like `release/v0.1.0`
-3. updates `[workspace.package] version` in `Cargo.toml`
-4. creates and pushes the version bump commit on that release branch
-5. opens a pull request targeting `main`
+The full pipeline from workflow trigger to published release takes approximately 15–20 minutes.
 
-If you provide notes, the script includes them in the release PR body so they are easy to reuse when tagging.
+## GitHub Actions Workflows
 
-After the release PR is merged, create the annotated tag from local `main`:
+### `bump-version.yml`
 
-```bash
-./scripts/tag-release.sh 0.1.0
-```
+Triggered manually. Opens the version-bump PR and enables auto-merge.
 
-That second helper:
+### `tag-release.yml`
 
-1. verifies local `main` is clean and matches `origin/main`
-2. verifies `Cargo.toml` already matches the requested version
-3. creates the annotated tag like `v0.1.0`
-4. pushes the tag to `origin`
+Triggered on push to `main` when `Cargo.toml` changes. Compares the workspace version before and after the push; if the version changed and the tag does not yet exist, it creates and pushes the annotated tag.
 
-The annotated tag message is optional. If you provide one, GitHub prepends it to the generated release notes.
+### `release.yml`
 
-## GitHub Actions Release Flow
+Triggered on tags matching `v*.*.*`. Validates the tag against `Cargo.toml`, builds platform launchers and the WASM bundle, packages archives, generates checksums, and creates the GitHub Release.
 
-The release workflow in `.github/workflows/release.yml` runs when a tag matching `v*.*.*` is pushed.
+### `deploy-pages.yml`
 
-It performs these steps:
+Triggered on push to `main` (docs changes) and on tags matching `v*.*.*`. On release tags it additionally builds the Kassen-App WASM bundle with `LABELS_PUBLIC_URL` baked in and publishes it to GitHub Pages at `/pos/`.
 
-1. validates that the tag is stable semantic versioning
-2. validates that `Cargo.toml` already matches the tag version
-3. builds the launcher for Windows, macOS, and Linux
-4. builds the production WASM bundle
-5. packages complete per-platform archives
-6. generates SHA256 checksums
-7. creates a GitHub release with generated notes and uploaded assets
+## Static Deployment
+
+Every release automatically publishes the Kassen-App to GitHub Pages:
+
+| App | URL |
+| --- | --- |
+| Kassen-App | `https://tschuba.github.io/ez-booth-rs/pos/` |
+| Label-App *(Phase 1)* | `https://tschuba.github.io/ez-booth-rs/labels/` |
+| Mobile-App *(Phase 3)* | `https://tschuba.github.io/ez-booth-rs/mobile/` |
+
+The Kassen-App is live after each release with no additional action required. The Label-App and Mobile-App URLs will be active once those crates are implemented.
+
+The `LABELS_PUBLIC_URL` constant is baked into the Kassen-App WASM bundle at build time. Organizers who self-host must set this environment variable when building.
 
 ## Release Assets
 
-Each GitHub release contains:
+Each GitHub Release contains:
 
 - `ez-booth-windows-vX.Y.Z.zip`
 - `ez-booth-macos-vX.Y.Z.tar.gz`
@@ -95,7 +106,7 @@ Each platform archive includes:
 - the platform launcher binary
 - `index.html`
 - built `.js`, `.css`, and `.wasm` files
-- `README.txt` copied from `crates/ez-booth-app/ARTIFACT_README.md`
+- `README.txt` with operator instructions
 
 ## Verify Downloads
 
@@ -115,15 +126,13 @@ Compare the reported hash with the matching line in `checksums.txt`.
 
 ## Troubleshooting
 
-### Tag rejected by workflow
+### Auto-merge does not trigger
 
-The release workflow rejects:
+Confirm **Allow auto-merge** is enabled in repo Settings → General → Pull Requests.
 
-- non-semver tags
-- pre-release tags
-- tags whose version does not match `Cargo.toml`
+### Tag rejected by release workflow
 
-Fix the version on `main` through a pull request, then create a new tag and push again.
+The release workflow rejects non-semver tags, pre-release tags, and tags whose version does not match `Cargo.toml`. If `tag-release` created a tag before the merge was clean, delete the tag and re-run from the Bump Version workflow.
 
 ### Release build fails
 
@@ -133,28 +142,7 @@ Inspect the failed GitHub Actions job.
 - WASM build failures are usually frontend dependency or `trunk` build issues
 - packaging failures usually mean an expected artifact name changed
 
-### Publish job fails with "not a git repository"
-
-The `publish` job runs `gh release create --verify-tag`, which requires a checked-out repository so the CLI can verify the tag against the repo remote.
-
-If this error appears:
-
-- ensure the `publish` job starts with `actions/checkout`
-- ensure the checkout step runs before downloading artifacts or invoking `gh`
-
-This is a workflow configuration issue, not a damaged repository or invalid release tag.
-
-### Wrong release notes
-
-Delete the release in GitHub, update the annotated tag locally if repository settings allow it, and recreate the tag. If release immutability is enabled, create a new patch release instead.
-
 ### Emergency follow-up release
 
-1. fix the issue on a new `fix/...` branch
-2. merge through a pull request
-3. run `./scripts/validate-release.sh`
-4. create the next patch release with `./scripts/create-release.sh X.Y.Z`, merge it, then run `./scripts/tag-release.sh X.Y.Z`
-
-## Important Constraint
-
-The release workflow validates the version instead of changing it. This keeps the tagged source, the published assets, and the repository history aligned.
+1. Fix the issue on a new `fix/...` branch and merge through a pull request.
+2. Trigger the **Bump Version** workflow with the next patch version.
