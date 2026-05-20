@@ -18,6 +18,8 @@ relative_links:
   enabled: true
   collections: true
 aux_links:
+  "EZ Booth App":
+    - https://tschuba.github.io/ez-booth-rs/pos/
   GitHub Repository:
     - https://github.com/tschuba/ez-booth-rs
 aux_links_new_tab: true
