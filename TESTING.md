@@ -284,8 +284,8 @@ jobs:
   - Checkout/report browser tests: 7
 
 ### Reusable Manual Validation Assets
-- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` - detailed Safari checkout/report verification with result comparison tables
-- `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` - reusable bilingual UAT execution plan for onboarding and pre-production reliability checks
+- `docs/validation/Rauchtest_DE.html` - Safari-specific and general pre-session smoke test (10-point checklist, includes checkout/report verification)
+- `docs/validation/Testsitzungs_Leitfaden_DE.html` - structured multi-device test session guide (replaces UAT_Ausfuehrungsplan)
 
 To generate coverage reports:
 
@@ -371,15 +371,14 @@ While automated tests cover logic and storage, manual browser testing is still n
 - [ ] Corrupt one purchase record and verify a visible warning explains that only recoverable data is shown
 - [ ] Confirm there are no uncaught console errors during checkout/report flows
 
-Use `docs/validation/SAFARI_VALIDATION_CHECKLIST.md` for the detailed version of this flow, including expected values, result comparison tables, and performance notes.
+Use `docs/validation/Rauchtest_DE.html` for the detailed Safari-specific version of this flow, including the draft-persistence reload check and import/export verification.
 
 ### Reusable User Acceptance Testing
-- [ ] Open `docs/validation/UAT_Ausfuehrungsplan_DE_EN.html` in a browser
-- [ ] Select the primary language (`Deutsch` or `English`)
-- [ ] Choose the modules relevant for onboarding, regression checks, or production-readiness verification
-- [ ] Execute the selected modules and record actual results, timings, and issues
-- [ ] Print the selected modules if a paper execution guide is preferred
-- [ ] Use the final sign-off section to document the release or onboarding decision
+- [ ] Open `docs/validation/Testsitzungs_Leitfaden_DE.html` for the full multi-device UAT session guide
+- [ ] Use `docs/validation/TC_Multidevice_Merge_Overview_DE.html` for a structured overview of test phases and document links
+- [ ] Use device-specific tracking sheets (`TC_Multidevice_Merge_Device_A_DE.html`, `_B_DE.html`) for per-device execution
+- [ ] Record findings in `docs/validation/Beobachtungsvorlage_DE.html`
+- [ ] Validate post-merge results against `docs/validation/Validierungstabelle_DE.html` (session leader only)
 
 Recommended module focus by current maintenance goal:
 - checkout and report safety checks: Modules `C` and `D`

@@ -196,6 +196,24 @@
     </section>
 
     <section class="card">
+      <h2>Dokument-Übersicht (Testsitzung 2026-05-21)</h2>
+      <table>
+        <thead><tr><th>Dokument</th><th>Zielgruppe</th><th>Zweck</th></tr></thead>
+        <tbody>
+          <tr><td><a href="Testsitzungs_Leitfaden_DE.html">Testsitzungs_Leitfaden_DE.html</a></td><td>Alle</td><td>Master-Leitfaden: Zeitplan, Rollen, Koordination, Risiken</td></tr>
+          <tr><td><a href="Rauchtest_DE.html">Rauchtest_DE.html</a></td><td>Alle</td><td>5-min Schnellprüfung vor Sitzungsbeginn</td></tr>
+          <tr><td><a href="Ansage-Skript_A_DE.html">Ansage-Skript_A_DE.html</a></td><td>Team A</td><td>Diktierskript K-01 bis K-07</td></tr>
+          <tr><td><a href="Ansage-Skript_B_DE.html">Ansage-Skript_B_DE.html</a></td><td>Team B</td><td>Diktierskript K-08 bis K-14</td></tr>
+          <tr><td><a href="TC_Multidevice_Merge_Device_A_DE.html">TC_Multidevice_Merge_Device_A_DE.html</a></td><td>Team A</td><td>Tracking-Dokument Gerät A</td></tr>
+          <tr><td><a href="TC_Multidevice_Merge_Device_B_DE.html">TC_Multidevice_Merge_Device_B_DE.html</a></td><td>Team B</td><td>Tracking-Dokument Gerät B</td></tr>
+          <tr><td><a href="Beobachtungsvorlage_DE.html">Beobachtungsvorlage_DE.html</a></td><td>Alle</td><td>Befunderfassung während der Sitzung</td></tr>
+          <tr><td><strong><a href="Validierungstabelle_DE.html">Validierungstabelle_DE.html</a></strong></td><td><strong>Nur Sitzungsleitung</strong></td><td>Soll-Werte — erst am Ende aufdecken</td></tr>
+          <tr><td><a href="testdata/">testdata/</a></td><td>Vorbereitung</td><td>6 Referenz-JSON-Dateien (basis, geraet_a/b, nach_merge, grenzfall, korrupt)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
       <h2>1) Ziel und Testumfang</h2>
       <ul>
         <li>Parallele Erfassung von <strong>Kassiervorgängen</strong> auf mindestens 2 Geräten.</li>
@@ -249,12 +267,12 @@
           <tr>
             <td>Gerät A</td>
             <td>Bazar März 2026</td>
-            <td>Kassiervorgänge K-01 bis K-04, Export A, Import von B (Merge)</td>
+            <td>Greenfield-Start · Kassiervorgänge K-01 bis K-07 (44 Pos.) · Export A · Import von B (Merge)</td>
           </tr>
           <tr>
             <td>Gerät B</td>
             <td>Bazar März 2026</td>
-            <td>Kassiervorgänge K-05 bis K-08, Export B, Import von A (Merge)</td>
+            <td>Import basis_veranstaltung.json · Kassiervorgänge K-08 bis K-14 (45 Pos.) · Export B · Import von A (Merge)</td>
           </tr>
         </tbody>
       </table>
@@ -265,39 +283,41 @@
 
       <div class="two-col">
         <div class="step">
-          <h3>4.1 Gerät A - Veranstaltung „Bazar März 2026“</h3>
+          <h3>4.1 Gerät A — Brutto-Prüfung (K-01 bis K-07)</h3>
+          <p style=”font-size:12px; color:#555;”>Details: TC_Multidevice_Merge_Device_A_DE.html Sektion 3. Netto/Gebühren-Soll in Validierungstabelle.</p>
           <table>
             <thead>
-              <tr><th>Verkäufer</th><th>Brutto</th><th>Netto</th><th>Gebühren</th><th>OK</th></tr>
+              <tr><th>Verkäufer</th><th>Brutto (Soll)</th><th>OK</th></tr>
             </thead>
             <tbody>
-              <tr><td>1</td><td>28,50 €</td><td>23,00 €</td><td>5,50 €</td><td>☐</td></tr>
-              <tr><td>2</td><td>25,00 €</td><td>20,50 €</td><td>4,50 €</td><td>☐</td></tr>
-              <tr><td>3</td><td>18,50 €</td><td>14,50 €</td><td>4,00 €</td><td>☐</td></tr>
-              <tr><td><strong>4</strong></td><td><strong>8,00 €</strong></td><td><strong>6,00 €</strong></td><td><strong>2,00 €</strong></td><td>☐</td></tr>
-              <tr><td>5</td><td>20,00 €</td><td>16,00 €</td><td>4,00 €</td><td>☐</td></tr>
-              <tr><td>6</td><td>45,00 €</td><td>37,50 €</td><td>7,50 €</td><td>☐</td></tr>
-              <tr><td><strong>7</strong></td><td><strong>1,00 €</strong></td><td><strong>0,00 €</strong></td><td><strong>1,00 €</strong></td><td>☐</td></tr>
-              <tr><td><strong>Gesamt</strong></td><td><strong>146,00 €</strong></td><td><strong>117,50 €</strong></td><td><strong>28,50 €</strong></td><td>☐</td></tr>
+              <tr><td>V1</td><td>92,00 €</td><td>☐</td></tr>
+              <tr><td>V2</td><td>111,00 €</td><td>☐</td></tr>
+              <tr><td>V3</td><td>62,00 €</td><td>☐</td></tr>
+              <tr><td>V4</td><td>55,00 €</td><td>☐</td></tr>
+              <tr><td>V5</td><td>78,00 €</td><td>☐</td></tr>
+              <tr><td>V6</td><td>170,50 €</td><td>☐</td></tr>
+              <tr><td><strong>V7</strong> ⚠️</td><td><strong>1,00 €</strong></td><td>☐</td></tr>
+              <tr><td><strong>Gesamt</strong></td><td><strong>569,50 €</strong></td><td>☐</td></tr>
             </tbody>
           </table>
         </div>
 
-        <div class="step">
-          <h3>4.2 Gerät B - Veranstaltung „Bazar März 2026“</h3>
+        <div class=”step”>
+          <h3>4.2 Gerät B — Brutto-Prüfung (K-08 bis K-14)</h3>
+          <p style=”font-size:12px; color:#555;”>Details: TC_Multidevice_Merge_Device_B_DE.html Sektion 3. Netto/Gebühren-Soll in Validierungstabelle.</p>
           <table>
             <thead>
-              <tr><th>Verkäufer</th><th>Brutto</th><th>Netto</th><th>Gebühren</th><th>OK</th></tr>
+              <tr><th>Verkäufer</th><th>Brutto (Soll)</th><th>OK</th></tr>
             </thead>
             <tbody>
-              <tr><td>1</td><td>21,50 €</td><td>17,50 €</td><td>4,00 €</td><td>☐</td></tr>
-              <tr><td>2</td><td>42,50 €</td><td>35,00 €</td><td>7,50 €</td><td>☐</td></tr>
-              <tr><td>3</td><td>22,00 €</td><td>17,50 €</td><td>4,50 €</td><td>☐</td></tr>
-              <tr><td><strong>4</strong></td><td><strong>4,00 €</strong></td><td><strong>2,50 €</strong></td><td><strong>1,50 €</strong></td><td>☐</td></tr>
-              <tr><td>5</td><td>12,00 €</td><td>9,00 €</td><td>3,00 €</td><td>☐</td></tr>
-              <tr><td>6</td><td>55,00 €</td><td>46,00 €</td><td>9,00 €</td><td>☐</td></tr>
-              <tr><td><strong>8</strong></td><td><strong>0,50 €</strong></td><td><strong>0,00 €</strong></td><td><strong>0,50 €</strong></td><td>☐</td></tr>
-              <tr><td><strong>Gesamt</strong></td><td><strong>157,50 €</strong></td><td><strong>127,50 €</strong></td><td><strong>30,00 €</strong></td><td>☐</td></tr>
+              <tr><td>V1</td><td>57,50 €</td><td>☐</td></tr>
+              <tr><td>V2</td><td>91,00 €</td><td>☐</td></tr>
+              <tr><td>V3</td><td>89,00 €</td><td>☐</td></tr>
+              <tr><td>V4</td><td>67,00 €</td><td>☐</td></tr>
+              <tr><td>V5</td><td>73,50 €</td><td>☐</td></tr>
+              <tr><td>V6</td><td>202,50 €</td><td>☐</td></tr>
+              <tr><td><strong>V8</strong> ⚠️</td><td><strong>0,50 €</strong></td><td>☐</td></tr>
+              <tr><td><strong>Gesamt</strong></td><td><strong>581,00 €</strong></td><td>☐</td></tr>
             </tbody>
           </table>
         </div>
@@ -333,16 +353,17 @@
     <section class="card">
       <h2>6) Prüfung NACH Merge (auf beiden Geräten)</h2>
 
-      <div class="ok-note">
+      <div class=”ok-note”>
         <strong>Erwartung:</strong> Auf beiden Geräten ist genau eine identische Veranstaltung sichtbar
-        („Bazar März 2026“), in der alle Kassiervorgänge K-01 bis K-08 zusammengeführt sind.
+        („Bazar März 2026”), in der alle Kassiervorgänge K-01 bis K-14 zusammengeführt sind.
+        Netto/Gebühren-Soll werden durch Sitzungsleitung aufgedeckt (Validierungstabelle_DE.html).
       </div>
 
       <table>
         <thead>
           <tr>
             <th>Prüfung</th>
-            <th>Soll</th>
+            <th>Brutto (Soll)</th>
             <th>Gerät A</th>
             <th>Gerät B</th>
           </tr>
@@ -355,31 +376,32 @@
             <td>☐ OK / ☐ NOK</td>
           </tr>
           <tr>
-            <td>Gesamt Veranstaltung „Bazar März 2026“</td>
-            <td>Brutto 303,50 € · Netto 245,00 € · Gebühren 58,50 €</td>
+            <td>Gesamt Veranstaltung „Bazar März 2026”</td>
+            <td>Brutto 1.150,50 €</td>
             <td>☐ OK / ☐ NOK</td>
             <td>☐ OK / ☐ NOK</td>
           </tr>
           <tr>
-            <td>Kontrollfall Netto = 0 korrekt</td>
-            <td>Verkäufer 8: Brutto 0,50 € · Netto 0,00 € · Gebühren 0,50 €</td>
+            <td>Kontrollfall V7 — Netto &lt; 0 korrekt begrenzt</td>
+            <td>V7 Brutto 1,00 € · Netto 0,00 € · Gebühren 1,00 €</td>
             <td>☐ OK / ☐ NOK</td>
             <td>☐ OK / ☐ NOK</td>
           </tr>
           <tr>
-            <td>Kontrollfall Netto &lt; 0 korrekt begrenzt</td>
-            <td>Verkäufer 7: Brutto 1,00 € · Netto 0,00 € · Gebühren 1,00 €</td>
+            <td>Kontrollfall V8 — Netto = 0 korrekt</td>
+            <td>V8 Brutto 0,50 € · Netto 0,00 € · Gebühren 0,50 €</td>
             <td>☐ OK / ☐ NOK</td>
             <td>☐ OK / ☐ NOK</td>
           </tr>
           <tr>
-            <td>Verkäufer 1-8 Summen korrekt zusammengeführt</td>
-            <td>V1 50,00 € · V2 67,50 € · V3 40,50 € · V4 12,00 € · V5 32,00 € · V6 100,00 € · V7 1,00 € · V8 0,50 €</td>
+            <td>V1–V8 Brutto zusammengeführt</td>
+            <td>V1 149,50 · V2 202,00 · V3 151,00 · V4 122,00 · V5 151,50 · V6 373,00 · V7 1,00 · V8 0,50</td>
             <td>☐ OK / ☐ NOK</td>
             <td>☐ OK / ☐ NOK</td>
           </tr>
         </tbody>
       </table>
+      <p style=”font-size:12px; color:#555; margin-top:6px;”>Detaillierter Drei-Wege-Vergleich (Netto/Gebühren): Validierungstabelle_DE.html</p>
     </section>
 
     <section class="card">
