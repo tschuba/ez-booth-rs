@@ -2,7 +2,7 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-const BASE_PATH: &str = match option_env!("ROUTER_BASE") {
+pub const BASE_PATH: &str = match option_env!("ROUTER_BASE") {
     Some(b) => b,
     None => "",
 };
@@ -32,12 +32,18 @@ use state::*;
 fn AppViewHeader() -> impl IntoView {
     let location = use_location();
 
-    let title = Signal::derive(move || match location.pathname.get().as_str() {
-        "/booths" => Some(t!("booth.list_title")()),
-        "/vendors" => Some(t!("vendor.list_title")()),
-        "/checkout" => Some(t!("checkout.title")()),
-        "/settings" => Some(t!("settings.title")()),
-        _ => None,
+    let title = Signal::derive(move || {
+        let pathname = location.pathname.get();
+        let path = pathname
+            .strip_prefix(BASE_PATH)
+            .unwrap_or(pathname.as_str());
+        match path {
+            "/booths" => Some(t!("booth.list_title")()),
+            "/vendors" => Some(t!("vendor.list_title")()),
+            "/checkout" => Some(t!("checkout.title")()),
+            "/settings" => Some(t!("settings.title")()),
+            _ => None,
+        }
     });
 
     view! {
@@ -92,9 +98,9 @@ pub fn App() -> impl IntoView {
                         <header>
                             <Container>
                                 <div class="flex flex-wrap items-center justify-between gap-3 py-4 md:flex-nowrap">
-                                    <A href="/" class="shrink-0 text-2xl font-bold text-blue-600">
+                                    <a href=format!("{BASE_PATH}/") class="shrink-0 text-2xl font-bold text-blue-600">
                                         {t!("app.title")}
-                                    </A>
+                                    </a>
                                     <div class="hidden md:block">
                                         <BoothSelector />
                                     </div>
@@ -105,15 +111,15 @@ pub fn App() -> impl IntoView {
                                     </div>
                                     <nav class="flex flex-wrap items-center gap-x-4 gap-y-2">
                                         <div class="flex items-center space-x-4">
-                                            <A href="/booths" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            <a href=format!("{BASE_PATH}/booths") class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("booth.list_title")}
-                                            </A>
-                                            <A href="/vendors" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            </a>
+                                            <a href=format!("{BASE_PATH}/vendors") class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("vendor.list_title")}
-                                            </A>
-                                            <A href="/checkout" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            </a>
+                                            <a href=format!("{BASE_PATH}/checkout") class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("checkout.title")}
-                                            </A>
+                                            </a>
                                         </div>
                                         <div class="hidden h-6 w-px bg-gray-300 md:block"></div>
                                         <div class="flex items-center space-x-4">
@@ -150,13 +156,13 @@ pub fn App() -> impl IntoView {
                                                     }}
                                                 </span>
                                             </button>
-                                            <A
-                                                href="/settings"
+                                            <a
+                                                href=format!("{BASE_PATH}/settings")
                                                 class="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
                                             >
                                                 <Icon icon=LuSettings class="h-4 w-4" />
                                                 <span>{t!("settings.title")}</span>
-                                            </A>
+                                            </a>
                                         </div>
                                     </nav>
                                  </div>
@@ -176,8 +182,8 @@ pub fn App() -> impl IntoView {
 
                     // Main content (remove padding during print)
                     <main class="pb-28 pt-36 print:py-0">
-                        <Routes>
-                            <Route path="/" view=HomePage/>
+                        <Routes base=BASE_PATH.to_string()>
+                            <Route path="/*any" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>
                             <Route path="/checkout" view=CheckoutPage/>
