@@ -129,29 +129,8 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: crates/ez-booth-app/package-lock.json
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Trunk
-        uses: taiki-e/install-action@v2
-        with:
-          tool: trunk
-
-      - name: Install frontend dependencies
-        run: npm ci
-        working-directory: crates/ez-booth-app
+      - name: Setup WASM build environment
+        uses: ./.github/actions/setup-wasm-build
 
       - name: Build production WASM bundle
         run: trunk build --release

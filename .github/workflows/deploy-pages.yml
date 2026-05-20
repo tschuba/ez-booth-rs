@@ -43,34 +43,9 @@ jobs:
 
       # ── WASM steps run only on release tags ──────────────────────────
 
-      - name: Install Rust toolchain
+      - name: Setup WASM build environment
         if: github.event_name == 'workflow_run'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Set up Node.js
-        if: github.event_name == 'workflow_run'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: crates/ez-booth-app/package-lock.json
-
-      - name: Restore Rust cache
-        if: github.event_name == 'workflow_run'
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Trunk
-        if: github.event_name == 'workflow_run'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: trunk
-
-      - name: Install frontend dependencies
-        if: github.event_name == 'workflow_run'
-        run: npm ci
-        working-directory: crates/ez-booth-app
+        uses: ./.github/actions/setup-wasm-build
 
       - name: Build Kassen-App WASM
         if: github.event_name == 'workflow_run'
