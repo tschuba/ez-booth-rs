@@ -176,29 +176,61 @@
       <div class="browser-cell grey">IE/Legacy<br>nicht unterstützt</div>
     </div>
     <div class="warn"><strong>Safari macOS:</strong> ITP kann IndexedDB nach 7 Tagen Inaktivität leeren. Im Test kein Problem, aber für Oktober-Event relevant. Datei-Download funktioniert (Blob-URL), aber import-Dialog-Verhalten kann abweichen. Falls Probleme: Chrome als Fallback.</div>
-    <p style="font-size:12px; color:var(--muted); margin:8px 0 0;">Hinweis: Diese Empfehlung basiert auf dokumentiertem Browserverhalten. Code-Review-Ergebnisse ergänzen nach Neustart der Rate-Limit-Agenten (13:40 CEST).</p>
+    <p style="font-size:12px; color:var(--muted); margin:8px 0 0;">Hinweis: Diese Empfehlung basiert auf dokumentiertem Browserverhalten sowie Code-Review-Befunden (siehe Risikoregister).</p>
   </div>
 
   <div class="card">
     <h2>Risikoregister</h2>
-    <p style="font-size:12px; color:var(--muted);">Befunde aus Code-Review (4 Agenten). Stand: Code-Review-Agenten wegen Rate-Limit unterbrochen — Tabelle wird nach 13:40 CEST ergänzt.</p>
+    <p style="font-size:12px; color:var(--muted);">Befunde aus 4 Code-Review-Agenten (2026-05-20). Vollständige Analyse: <code>docs/validation/code_review_findings_2026-05-20.md</code></p>
     <table>
       <thead>
         <tr><th>Befund</th><th>Schwere</th><th>Workaround / Maßnahme</th></tr>
       </thead>
       <tbody>
         <tr>
-          <td>Code-Review-Ergebnisse ausstehend (Rate-Limit)</td>
-          <td><span class="sev-y">🟡 Offen</span></td>
-          <td>Nach 13:40 CEST Agenten neu starten. Tabelle vor Sitzungsbeginn ergänzen.</td>
+          <td><strong>H-3 · Doppel-Submit erzeugt doppelte Käufe</strong> ✅ Behoben (commit 546497f) — <code>is_submitting</code>-Signal deaktiviert Button während <code>spawn_local</code> läuft (<code>checkout.rs</code>)</td>
+          <td><span class="sev-b">⚫ Behoben</span></td>
+          <td>Kein Workaround mehr nötig.</td>
         </tr>
         <tr>
-          <td>Vorhandene Clippy-Warnungen (redundant_closure, cloned_ref_to_slice_refs, arc_with_non_send_sync)</td>
+          <td><strong>H-4 · Kein transaktionaler Import</strong> — Import schreibt Datensätze einzeln; Browser-Absturz mid-Import hinterlässt inkonsistenten DB-Zustand (<code>import_service.rs</code>)</td>
+          <td><span class="sev-r">🔴 Hoch</span></td>
+          <td>Nach jedem Import: Kaufanzahl (14) und Gesamt-Brutto (1.150,50 €) verifizieren. Bei Diskrepanz: erneut importieren.</td>
+        </tr>
+        <tr>
+          <td><strong>H-1 · Kein Floor-Guard in calculate_payout</strong> — negativer Netto theoretisch möglich; bei RS 0,50 € tritt das Problem für V7 (1,00 €) und V8 (0,50 €) zufällig korrekt auf (<code>dto.rs:108</code>)</td>
+          <td><span class="sev-r">🔴 Hoch</span></td>
+          <td>Für aktuelle Konfiguration (RS 0,50 €) kein Sitzungsrisiko. V7 und V8 Netto 0,00 € erwarten und explizit prüfen.</td>
+        </tr>
+        <tr>
+          <td><strong>H-2 · Draft ohne Booth-ID-Prüfung wiederhergestellt</strong> ✅ Behoben (commit 546497f) — Draft von anderer Veranstaltung wird jetzt still verworfen (<code>checkout.rs:683–695</code>)</td>
+          <td><span class="sev-b">⚫ Behoben</span></td>
+          <td>Kein Workaround mehr nötig.</td>
+        </tr>
+        <tr>
+          <td><strong>M-1 · FeeConfig bei Merge still überschrieben</strong> — Booth-Record mit neuerem updated_at gewinnt vollständig inkl. Gebührenparameter (<code>import_service.rs:151–160</code>)</td>
+          <td><span class="sev-y">🟡 Mittel</span></td>
+          <td>Vor dem Merge auf beiden Geräten FeeConfig prüfen (TG 1,00 €, UA 15 %, RS 0,50 €). Booth-Konfiguration während der Sitzung nicht ändern.</td>
+        </tr>
+        <tr>
+          <td><strong>M-3 · Fehlende Prüfsummen-Warnung</strong> — Importdateien ohne checksum werden ohne UI-Warnung akzeptiert (<code>import_validator.rs:43–83</code>)</td>
+          <td><span class="sev-y">🟡 Mittel</span></td>
+          <td>Testdateien haben keine Prüfsumme (manuell erstellt) — Import läuft durch. Nicht sitzungskritisch. Oktober-Event: UI-Warnung ergänzen.</td>
+        </tr>
+        <tr>
+          <td><strong>M-5 · Draft-Persistenz ohne Browser-Test</strong> — Reload-Szenario nur als Unit-Test, nicht als Browser-Test abgesichert (<code>checkout.rs</code>)</td>
+          <td><span class="sev-y">🟡 Mittel</span></td>
+          <td>PAUSE-Schritte in K-05 (Team A) und K-12 (Team B) explizit beobachten. Beobachtungsvorlage bereit halten.</td>
+        </tr>
+        <tr>
+          <td><strong>L-4 · RTL-Eingabemodus nach Reload zurückgesetzt</strong> — AmountInputMode::RightToLeft wird nicht aus localStorage wiederhergestellt (<code>checkout.rs:356–368</code>)</td>
+          <td><span class="sev-b">⚫ Niedrig</span></td>
+          <td>RTL-Modus nach PAUSE-Reload ggf. manuell neu wählen. Kein Datenverlust.</td>
+        </tr>
+        <tr>
+          <td>Vorhandene Clippy-Warnungen (redundant_closure, useless_vec, arc_with_non_send_sync)</td>
           <td><span class="sev-b">⚫ Bekannt</span></td>
           <td>Bestehende Warnings, kein Laufzeitproblem. Nicht sitzungsrelevant.</td>
-        </tr>
-        <tr>
-          <td colspan="3" style="color:var(--muted); font-style:italic; text-align:center;">— weitere Zeilen nach Code-Review-Abschluss —</td>
         </tr>
       </tbody>
     </table>
