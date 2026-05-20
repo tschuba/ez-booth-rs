@@ -10,6 +10,12 @@ description: Entry point for EZ Booth documentation.
 
 Start with [Getting Started](GETTING_STARTED.md) if you want to run the app locally or understand the main workflows first.
 
+## Launch App
+
+**[Open EZ Booth in your browser →](https://tschuba.github.io/ez-booth-rs/pos/)**
+
+The app runs entirely in your browser via WebAssembly — no installation needed.
+
 ## Start Here
 
 - [Getting Started](GETTING_STARTED.md)

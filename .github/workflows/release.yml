@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["Tag Release"]
-    types: [completed]
   push:
     tags:
       - "v*.*.*"
@@ -22,7 +19,6 @@ jobs:
   validate:
     name: Validate Release Tag
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -38,17 +34,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            cargo_version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -n 1)"
-            tag="v${cargo_version}"
-            git fetch --tags
-            if ! git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
-              echo "::error::Tag ${tag} not found on remote — tag-release may not have created it"
-              exit 1
-            fi
-          else
-            tag="${GITHUB_REF_NAME}"
-          fi
+          tag="${GITHUB_REF_NAME}"
 
           if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "Release tags must use stable semantic versioning like v1.2.3" >&2

@@ -11,8 +11,6 @@ on:
       - docs/**
       - .github/workflows/deploy-pages.yml
       - README.md
-    tags:
-      - 'v*.*.*'
 
 permissions:
   contents: read
@@ -22,7 +20,7 @@ permissions:
 concurrency:
   group: pages
   # Cancel in-progress docs deploys; never cancel a release deploy.
-  cancel-in-progress: ${{ github.ref_type != 'tag' && github.event_name != 'workflow_run' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_run' }}
 
 jobs:
   build:
@@ -46,13 +44,13 @@ jobs:
       # ── WASM steps run only on release tags ──────────────────────────
 
       - name: Install Rust toolchain
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
       - name: Set up Node.js
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -60,29 +58,29 @@ jobs:
           cache-dependency-path: crates/ez-booth-app/package-lock.json
 
       - name: Restore Rust cache
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         uses: Swatinem/rust-cache@v2
 
       - name: Install Trunk
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         uses: taiki-e/install-action@v2
         with:
           tool: trunk
 
       - name: Install frontend dependencies
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         run: npm ci
         working-directory: crates/ez-booth-app
 
       - name: Build Kassen-App WASM
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         env:
           LABELS_PUBLIC_URL: https://tschuba.github.io/ez-booth-rs/labels/
         run: trunk build --release --public-url /ez-booth-rs/pos/
         working-directory: crates/ez-booth-app
 
       - name: Merge WASM bundle into site
-        if: github.ref_type == 'tag' || github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run'
         run: |
           sudo mkdir -p _site/pos
           sudo cp -R crates/ez-booth-app/dist/. _site/pos/
