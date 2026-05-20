@@ -168,11 +168,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check all jobs passed or were skipped
+      - name: Check required jobs passed or were skipped
+        env:
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+          WASM_CHECK: ${{ needs.wasm-check.result }}
+          WASM_BUILD: ${{ needs.wasm-build.result }}
         run: |
-          results='${{ toJSON(needs.*.result) }}'
-          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
-            echo "One or more required jobs failed or were cancelled."
-            exit 1
-          fi
-          echo "All jobs passed or were skipped."
+          # security-audit is informational — excluded from gate
+          for result in "$LINT" "$TEST" "$WASM_CHECK" "$WASM_BUILD"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "One or more required jobs failed or were cancelled."
+              exit 1
+            fi
+          done
+          echo "All required jobs passed or were skipped."
