@@ -2,7 +2,7 @@ use crate::components::*;
 use crate::state::use_app_state;
 use crate::t;
 use leptos::*;
-use leptos_router::use_navigate;
+use leptos_router::{use_navigate, A};
 
 #[component]
 pub fn HomePage() -> impl IntoView {
@@ -58,12 +58,12 @@ pub fn HomePage() -> impl IntoView {
                             {t!("home.error_loading_booths")}
                         </p>
                         <div class="flex gap-4 justify-center flex-wrap">
-                            <a href="/booths">
+                            <A href="/booths">
                                 <Button>{t!("booth.list_title")}</Button>
-                            </a>
-                            <a href="/checkout">
+                            </A>
+                            <A href="/checkout">
                                 <Button>{t!("checkout.title")}</Button>
-                            </a>
+                            </A>
                         </div>
                     </Card>
                 </div>

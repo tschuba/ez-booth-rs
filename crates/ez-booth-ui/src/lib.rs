@@ -2,6 +2,11 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
+const BASE_PATH: &str = match option_env!("ROUTER_BASE") {
+    Some(b) => b,
+    None => "",
+};
+
 mod audio;
 mod booth_ordering;
 mod components;
@@ -80,16 +85,16 @@ pub fn App() -> impl IntoView {
 
     view! {
         <ToastProvider>
-            <Router>
+            <Router base=BASE_PATH>
                 <div class="min-h-screen bg-gray-50 print:bg-white">
                     <div class="fixed left-0 right-0 top-0 z-40 bg-white print:hidden">
                         // Header (hidden during print)
                         <header>
                             <Container>
                                 <div class="flex flex-wrap items-center justify-between gap-3 py-4 md:flex-nowrap">
-                                    <a href="/" class="shrink-0 text-2xl font-bold text-blue-600">
+                                    <A href="/" class="shrink-0 text-2xl font-bold text-blue-600">
                                         {t!("app.title")}
-                                    </a>
+                                    </A>
                                     <div class="hidden md:block">
                                         <BoothSelector />
                                     </div>
@@ -100,15 +105,15 @@ pub fn App() -> impl IntoView {
                                     </div>
                                     <nav class="flex flex-wrap items-center gap-x-4 gap-y-2">
                                         <div class="flex items-center space-x-4">
-                                            <a href="/booths" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            <A href="/booths" class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("booth.list_title")}
-                                            </a>
-                                            <a href="/vendors" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            </A>
+                                            <A href="/vendors" class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("vendor.list_title")}
-                                            </a>
-                                            <a href="/checkout" class="text-gray-700 transition-colors hover:text-blue-600">
+                                            </A>
+                                            <A href="/checkout" class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("checkout.title")}
-                                            </a>
+                                            </A>
                                         </div>
                                         <div class="hidden h-6 w-px bg-gray-300 md:block"></div>
                                         <div class="flex items-center space-x-4">
@@ -145,13 +150,13 @@ pub fn App() -> impl IntoView {
                                                     }}
                                                 </span>
                                             </button>
-                                            <a
+                                            <A
                                                 href="/settings"
                                                 class="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
                                             >
                                                 <Icon icon=LuSettings class="h-4 w-4" />
                                                 <span>{t!("settings.title")}</span>
-                                            </a>
+                                            </A>
                                         </div>
                                     </nav>
                                  </div>

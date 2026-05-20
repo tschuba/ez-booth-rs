@@ -76,6 +76,7 @@ jobs:
         if: github.event_name == 'workflow_run'
         env:
           LABELS_PUBLIC_URL: https://tschuba.github.io/ez-booth-rs/labels/
+          ROUTER_BASE: /ez-booth-rs/pos
         run: trunk build --release --public-url /ez-booth-rs/pos/
         working-directory: crates/ez-booth-app
 

@@ -135,7 +135,12 @@ pub fn SettingsPage() -> impl IntoView {
         let tab_id = settings_tab_id(active_index);
 
         if let Some(window) = web_sys::window() {
-            if window.location().pathname().ok().as_deref() == Some("/settings") {
+            if window
+                .location()
+                .pathname()
+                .ok()
+                .map_or(false, |p| p.ends_with("/settings"))
+            {
                 if let Ok(current_href) = window.location().href() {
                     if let Ok(url) = web_sys::Url::new(&current_href) {
                         url.search_params().set("tab", tab_id);

@@ -1,4 +1,5 @@
 use leptos::*;
+use leptos_router::A;
 
 use crate::t;
 
@@ -143,9 +144,9 @@ pub fn StorageIndicator() -> impl IntoView {
             </div>
             <p class="text-sm text-gray-600">
                 {t!("backup.storage_indicator_message")}
-                <a href="/booths" class="ml-1 font-medium text-blue-600 hover:text-blue-700">
+                <A href="/booths" class="ml-1 font-medium text-blue-600 hover:text-blue-700">
                     {t!("backup.storage_indicator_link")}
-                </a>
+                </A>
             </p>
         </div>
     }
