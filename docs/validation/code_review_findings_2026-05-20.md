@@ -24,36 +24,37 @@ V7 1,00 € und V8 0,50 € zeigen voraussichtlich korrekt 0,00 € Netto. Risik
 
 ---
 
-### H-2 · Draft wird ohne Booth-ID-Prüfung wiederhergestellt
+### H-2 · Draft wird ohne Booth-ID-Prüfung wiederhergestellt ✅ Behoben
 
 **Datei:** `crates/ez-booth-ui/src/pages/checkout.rs:683–695`  
-**Quelle:** Code-Reviewer-Agent (Finding 1)
+**Quelle:** Code-Reviewer-Agent (Finding 1)  
+**Behoben in:** commit `546497f`
 
 `DraftLoadOutcome::Restored` trägt eine `booth_id`, die beim Wiederherstellen mit `..` destructured
 und nie gegen die aktuelle Booth-ID geprüft wird. Geräte, die zwischen zwei Veranstaltungen wechseln
 oder nach einer Pause eine andere Veranstaltung öffnen, stellen den falschen Draft still wieder her.
 
-**Testergebnis morgen:** Nur relevant wenn jemand die Veranstaltung wechselt. Im Einzel-Veranstaltungs-
-Test (Bazar März 2026) kein direktes Risiko — aber Tester sollten nach dem PAUSE-Reload prüfen,
-dass der wiederhergestellte Vorgang zur richtigen Veranstaltung gehört.
-
-**Maßnahme nach Sitzung:** `stored_booth_id != selected_booth_id` → Toast + Draft verwerfen.
+**Fix:** `load_saved_form_data()` ist jetzt in einen Block gewrappt, der `draft_bid` gegen
+`selected_booth.get_untracked()` prüft. Stimmen beide `Some`-Werte nicht überein, wird
+`DraftLoadOutcome::Empty` zurückgegeben — stiller Verwerfen, kein neuer Toast, kein neuer i18n-Key.
+Alte Drafts ohne `booth_id` (`None`) werden rückwärtskompatibel weiterhin wiederhergestellt.
 
 ---
 
-### H-3 · Doppel-Submit erzeugt doppelte Kaufvorgänge
+### H-3 · Doppel-Submit erzeugt doppelte Kaufvorgänge ✅ Behoben
 
 **Datei:** `crates/ez-booth-ui/src/pages/checkout.rs:1514–1631, 2213–2229`  
-**Quelle:** Code-Reviewer-Agent (Finding 2)
+**Quelle:** Code-Reviewer-Agent (Finding 2)  
+**Behoben in:** commit `546497f`
 
-`submit_purchase` spawnt `spawn_local` ohne Submit-Guard. Der Submit-Button hat kein `disabled`-Prop.
-Zwei schnelle Taps oder Enter-Doppeldruck laufen beide durch und erzeugen zwei `Purchase`-Datensätze
-mit verschiedenen UUIDs — beide werden in IndexedDB gespeichert und fließen in die Abrechnung ein.
+`submit_purchase` spawnte `spawn_local` ohne Submit-Guard. Der Submit-Button hatte kein `disabled`-Prop.
+Zwei schnelle Taps oder Enter-Doppeldruck liefen beide durch und erzeugten zwei `Purchase`-Datensätze
+mit verschiedenen UUIDs — beide in IndexedDB gespeichert und in der Abrechnung.
 
-**Testergebnis morgen:** Hohes Risiko bei mobilem Touchscreen oder langsamer IndexedDB.
-Kassierer nach jedem Kassiervorgang anweisen, die Kassiersumme im Bericht zu prüfen (+1 Vorgang).
-
-**Maßnahme nach Sitzung:** `is_submitting`-Signal → Button deaktivieren während `spawn_local` läuft.
+**Fix:** `is_submitting: RwSignal<bool>` hinzugefügt. Wird auf `true` gesetzt unmittelbar vor
+`spawn_local`, auf `false` zurückgesetzt an beiden Async-Exitpoints (Vendor-Fehler-`return` und
+nach dem Purchase-Save-Match). Der Submit-Button erhält `disabled=Signal::derive(move || is_submitting.get())`
+nach dem bereits etablierten Muster der Datei (vgl. Zeile 2664).
 
 ---
 

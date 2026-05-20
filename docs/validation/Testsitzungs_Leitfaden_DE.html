@@ -188,9 +188,9 @@
       </thead>
       <tbody>
         <tr>
-          <td><strong>H-3 · Doppel-Submit erzeugt doppelte Käufe</strong> — Submit-Button hat kein Disabled-Guard; zwei schnelle Taps erzeugen zwei separate Kaufdatensätze (<code>checkout.rs:1514–2229</code>)</td>
-          <td><span class="sev-r">🔴 Hoch</span></td>
-          <td>Kassierer anweisen: langsam tippen, nach jedem Vorgang Kaufanzahl kurz prüfen. Kein Doppel-Tap.</td>
+          <td><strong>H-3 · Doppel-Submit erzeugt doppelte Käufe</strong> ✅ Behoben (commit 546497f) — <code>is_submitting</code>-Signal deaktiviert Button während <code>spawn_local</code> läuft (<code>checkout.rs</code>)</td>
+          <td><span class="sev-b">⚫ Behoben</span></td>
+          <td>Kein Workaround mehr nötig.</td>
         </tr>
         <tr>
           <td><strong>H-4 · Kein transaktionaler Import</strong> — Import schreibt Datensätze einzeln; Browser-Absturz mid-Import hinterlässt inkonsistenten DB-Zustand (<code>import_service.rs</code>)</td>
@@ -203,9 +203,9 @@
           <td>Für aktuelle Konfiguration (RS 0,50 €) kein Sitzungsrisiko. V7 und V8 Netto 0,00 € erwarten und explizit prüfen.</td>
         </tr>
         <tr>
-          <td><strong>H-2 · Draft ohne Booth-ID-Prüfung wiederhergestellt</strong> — nach Geräte-/Veranstaltungswechsel wird alter Draft still restauriert (<code>checkout.rs:683–695</code>)</td>
-          <td><span class="sev-r">🔴 Hoch</span></td>
-          <td>Pro Gerät nur eine Veranstaltung nutzen. Nach PAUSE-Reload: angezeigten Draft auf korrekte Veranstaltung prüfen.</td>
+          <td><strong>H-2 · Draft ohne Booth-ID-Prüfung wiederhergestellt</strong> ✅ Behoben (commit 546497f) — Draft von anderer Veranstaltung wird jetzt still verworfen (<code>checkout.rs:683–695</code>)</td>
+          <td><span class="sev-b">⚫ Behoben</span></td>
+          <td>Kein Workaround mehr nötig.</td>
         </tr>
         <tr>
           <td><strong>M-1 · FeeConfig bei Merge still überschrieben</strong> — Booth-Record mit neuerem updated_at gewinnt vollständig inkl. Gebührenparameter (<code>import_service.rs:151–160</code>)</td>
