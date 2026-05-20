@@ -185,7 +185,21 @@ pub fn App() -> impl IntoView {
                         <Container>
                             <div class="flex flex-col gap-2 py-3 text-center text-sm text-gray-600">
                                 <StorageIndicator />
-                                <div>{t!("app.copyright")}</div>
+                                <div class="flex items-center justify-center gap-2">
+                                    <span>{t!("app.copyright")}</span>
+                                    <a
+                                        href=format!(
+                                            "{}/releases/tag/v{}",
+                                            settings_support::REPOSITORY_URL,
+                                            settings_support::APP_VERSION
+                                        )
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="hover:underline hover:text-gray-900"
+                                    >
+                                        {format!("v{}", settings_support::APP_VERSION)}
+                                    </a>
+                                </div>
                             </div>
                         </Container>
                     </footer>
