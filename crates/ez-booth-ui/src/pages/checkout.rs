@@ -680,7 +680,25 @@ pub fn CheckoutPage() -> impl IntoView {
     let (partial_recovery_count, set_partial_recovery_count) = create_signal(0_usize);
 
     // Checkout form data
-    let draft_load_outcome = load_saved_form_data();
+    let draft_load_outcome = {
+        let outcome = load_saved_form_data();
+        if let DraftLoadOutcome::Restored {
+            booth_id: Some(ref draft_bid),
+            ..
+        } = outcome
+        {
+            let current_bid = selected_booth
+                .get_untracked()
+                .map(|b| b.id.as_str().to_string());
+            if current_bid.as_deref() != Some(draft_bid.as_str()) {
+                DraftLoadOutcome::Empty
+            } else {
+                outcome
+            }
+        } else {
+            outcome
+        }
+    };
     let initial_draft_notice = match &draft_load_outcome {
         DraftLoadOutcome::Restored { .. } => Some(DraftNotice::Restored),
         DraftLoadOutcome::CorruptedCleared => Some(DraftNotice::CorruptedCleared),
@@ -709,6 +727,7 @@ pub fn CheckoutPage() -> impl IntoView {
     let (error_sound_enabled, set_error_sound_enabled) =
         create_signal(load_error_sound_enabled_preference());
     let last_error_sound_at = create_rw_signal(0_u128);
+    let is_submitting = create_rw_signal(false);
     let (active_input, set_active_input) = create_signal(ActiveInput::VendorId);
 
     if let Some(notice) = initial_draft_notice {
@@ -1517,6 +1536,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let vendor_input_ref_clone = vendor_input_ref_for_add.clone();
             let amount_input_ref_clone = amount_input_ref_for_add.clone();
             let log_error = log_error_for_submit.clone();
+            is_submitting.set(true);
             spawn_local(async move {
                 // Collect unique vendor IDs from all items
                 let unique_vendor_ids: Vec<VendorId> = {
@@ -1564,6 +1584,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                 error_sound_enabled,
                                 last_error_sound_at,
                             );
+                            is_submitting.set(false);
                             return;
                         }
                     }
@@ -1627,6 +1648,7 @@ pub fn CheckoutPage() -> impl IntoView {
                         );
                     }
                 }
+                is_submitting.set(false);
             });
         }
     };
@@ -2213,6 +2235,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                     <Button
                                                         variant=ButtonVariant::Success
                                                         class="sm:flex-[3] shadow-lg ring-2 ring-green-300/50".to_string()
+                                                        disabled=Signal::derive(move || is_submitting.get())
                                                         on_click=Box::new(move || {
                                                             item_delete_signal.set(None);
                                                             set_purchase_to_delete.set(None);
