@@ -19,6 +19,11 @@ stage = "post_build"
 command = "node"
 command_arguments = ["scripts/remove-wasm-preload.js"]
 
+[[hooks]]
+stage = "post_build"
+command = "node"
+command_arguments = ["scripts/inject-sw-version.js"]
+
 [build]
 target = "index.html"
 dist = "dist"

@@ -23,6 +23,7 @@
         })();
     </script>
     
+    <link data-trunk rel="copy-file" href="sw.js">
     <link data-trunk rel="css" href="styles/app.css">
     
     <!-- Custom styles -->
@@ -249,5 +250,13 @@
 <body>
     <noscript>Sie müssen JavaScript aktivieren, um diese Anwendung zu verwenden.</noscript>
     <div id="app"></div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js')
+                    .catch(function (err) { console.warn('SW registration failed:', err); });
+            });
+        }
+    </script>
 </body>
 </html>
