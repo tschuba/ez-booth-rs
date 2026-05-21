@@ -1,43 +1,16 @@
 use leptos::set_timeout;
-use std::cell::RefCell;
 use std::time::Duration;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{AudioContext, OscillatorType};
 
-thread_local! {
-    static AUDIO_CTX: RefCell<Option<AudioContext>> = RefCell::new(None);
-}
-
-/// Pre-warm the shared AudioContext. Must be called synchronously from a qualifying user
-/// gesture (keydown, click, touchstart) so Safari allows audio playback.
-pub fn ensure_audio_context_ready() {
-    AUDIO_CTX.with(|cell| {
-        if cell.borrow().is_none() {
-            if let Ok(ctx) = AudioContext::new() {
-                let _ = ctx.resume();
-                *cell.borrow_mut() = Some(ctx);
-            }
-        }
-    });
-}
-
 pub fn play_error_sound() {
-    let ctx = AUDIO_CTX.with(|cell| cell.borrow().as_ref().cloned());
-
-    // If no pre-warmed context exists, try creating one now (works for click/keydown events).
-    let ctx = match ctx {
-        Some(ctx) => ctx,
-        None => match AudioContext::new() {
-            Ok(ctx) => {
-                AUDIO_CTX.with(|cell| *cell.borrow_mut() = Some(ctx.clone()));
-                ctx
-            }
-            Err(err) => {
-                leptos::logging::warn!("Failed to create audio context: {:?}", err);
-                return;
-            }
-        },
+    let ctx = match AudioContext::new() {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            leptos::logging::warn!("Failed to create audio context: {:?}", err);
+            return;
+        }
     };
 
     let resume_promise = match ctx.resume() {
@@ -48,12 +21,11 @@ pub fn play_error_sound() {
         }
     };
 
-    let ctx_for_async = ctx.clone();
     spawn_local(async move {
         if JsFuture::from(resume_promise).await.is_err() {
             return;
         }
-        if let Err(err) = schedule_audio(ctx_for_async) {
+        if let Err(err) = schedule_audio(ctx) {
             leptos::logging::warn!("Failed to schedule audio: {:?}", err);
         }
     });

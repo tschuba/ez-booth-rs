@@ -1,4 +1,4 @@
-use crate::audio::{ensure_audio_context_ready, play_error_sound};
+use crate::audio::play_error_sound;
 use crate::components::*;
 use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::error_translator::translate_domain_error;
@@ -1927,7 +1927,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             );
                                                         }
                                                         on:keydown=move |ev: web_sys::KeyboardEvent| {
-                                                            ensure_audio_context_ready();
                                                             if ev.key() == "Enter" {
                                                                 ev.prevent_default();
 
@@ -2128,7 +2127,6 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                 );
                                                             }
                                                             on:keydown=move |ev: web_sys::KeyboardEvent| {
-                                                                ensure_audio_context_ready();
                                                                 let key = ev.key();
 
                                                                 if key == "Enter" {
