@@ -286,6 +286,7 @@ jobs:
 ### Reusable Manual Validation Assets
 - `docs/validation/Rauchtest_DE.html` - Safari-specific and general pre-session smoke test (10-point checklist, includes checkout/report verification)
 - `docs/validation/Testsitzungs_Leitfaden_DE.html` - structured multi-device test session guide (replaces UAT_Ausfuehrungsplan)
+- `node scripts/check-validation-consistency.mjs` - verifies that manual validation scripts, Team C fixture data, and AB/AC/BC validation tables stay numerically consistent
 
 To generate coverage reports:
 
