@@ -418,9 +418,7 @@ fn play_checkout_error_sound_if_enabled(
 
     last_played_at.set(now);
 
-    if let Err(err) = play_error_sound() {
-        warn!("Failed to play checkout error sound: {:?}", err);
-    }
+    play_error_sound();
 }
 
 fn should_play_inline_error(previous_error: &Option<String>, next_error: &Option<String>) -> bool {
@@ -1026,6 +1024,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let message = t!("checkout.errors.vendor_required")();
             toast.warning(&message);
             set_form_data.update(|form| form.vendor_error = Some(message));
+            play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             focus_and_select_input(&vendor_input_ref_for_add);
             return;
         }
@@ -1078,6 +1077,7 @@ pub fn CheckoutPage() -> impl IntoView {
             let message = t!("checkout.errors.amount_required")();
             toast.warning(&message);
             set_form_data.update(|form| form.amount_error = Some(message));
+            play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
             focus_and_select_input(&amount_input_ref_for_add);
             return;
         }
@@ -1092,6 +1092,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     set_form_data.update(|form| {
                         form.amount_error = Some(message.clone());
                     });
+                    play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                     focus_and_select_input(&amount_input_ref_for_add);
                     return;
                 }
@@ -1102,6 +1103,7 @@ pub fn CheckoutPage() -> impl IntoView {
                     set_form_data.update(|form| {
                         form.amount_error = Some(message.clone());
                     });
+                    play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                     focus_and_select_input(&amount_input_ref_for_add);
                     return;
                 }
@@ -1126,6 +1128,10 @@ pub fn CheckoutPage() -> impl IntoView {
                         set_form_data.update(|form| {
                             form.amount_error = Some(message.clone());
                         });
+                        play_checkout_error_sound_if_enabled(
+                            error_sound_enabled,
+                            last_error_sound_at,
+                        );
                         focus_and_select_input(&amount_input_ref_for_add);
                         return;
                     }
@@ -1940,6 +1946,7 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                     let message = t!("checkout.errors.vendor_required")();
                                                                     toast.warning(&message);
                                                                     set_form_data.update(|data| data.vendor_error = Some(message));
+                                                                    play_checkout_error_sound_if_enabled(error_sound_enabled, last_error_sound_at);
                                                                     if let Some(input) = vendor_input_ref.get() {
                                                                         let _ = input.focus();
                                                                         let _ = input.select();
