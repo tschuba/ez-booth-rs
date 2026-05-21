@@ -24,6 +24,9 @@ aux_links:
     - https://github.com/tschuba/ez-booth-rs
 aux_links_new_tab: true
 footer_content: 'Published with GitHub Pages using just-the-docs.'
+exclude:
+  - technical/prototypes
+
 defaults:
   - scope:
       path: ""

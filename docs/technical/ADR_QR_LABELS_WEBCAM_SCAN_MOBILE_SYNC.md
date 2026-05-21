@@ -143,6 +143,8 @@ The QR that non-leading registers scan is the same mobile onboarding QR (see "Us
 
 **Risk:** WASM compilation and in-browser performance must be verified via a spike before Phase 2 implementation. Fallback: `ZXing-wasm` via `wasm-bindgen` if `rxing` is not viable.
 
+**Spike:** See [QR & OCR Feasibility Spike](prototypes/QR_OCR_FEASIBILITY_SPIKE.md) for the prototype design and success criteria.
+
 **Frame loop:** ~10 fps (every 100ms) to limit CPU usage. Frame extraction crops to the viewfinder area only, reducing false positives from background patterns.
 
 ---
@@ -274,6 +276,8 @@ Purchases are grouped into sync batches at upload time. Each batch has a UUID an
 **Decision:** Tesseract.js (JavaScript library, ~15MB model) for client-side OCR.
 
 **Risk:** Tesseract.js requires JS interop from Leptos via `wasm-bindgen`/`js-sys`. A spike is required to verify that this works in the Leptos WASM environment without blocking the UI thread (a Web Worker may be necessary). Unlike Phase 2 which has a `ZXing-wasm` fallback, there is no alternative client-side library for OCR: if Tesseract.js interop is not feasible, Phase 4 is deferred until a pure-Rust OCR crate is viable, or limited to server-only OCR (Coolify only).
+
+**Spike:** See [QR & OCR Feasibility Spike](prototypes/QR_OCR_FEASIBILITY_SPIKE.md) for the prototype design and success criteria.
 
 Recognition flow (confidence-based):
 
