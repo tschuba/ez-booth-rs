@@ -68,13 +68,21 @@
         <span class="box">☐</span>
         <span class="step-num">2</span>
         <div class="content">
+          <strong>Offline-Start prüfen</strong>
+          <span class="detail">App einmal vollständig lokal laden, bis der Ladeindikator verschwunden ist. Danach WLAN/Wi-Fi deaktivieren, App neu laden oder neu öffnen. App startet weiterhin und ein Minimaltest funktioniert offline: Veranstaltungsliste sichtbar oder Entwurf V3 — 8,00 € nach Reload noch vorhanden.</span>
+        </div>
+      </li>
+      <li>
+        <span class="box">☐</span>
+        <span class="step-num">3</span>
+        <div class="content">
           <strong>Neue Veranstaltung anlegen</strong>
           <span class="detail">Name „Bazar März 2026", Datum 29.03.2026, TG 1,00 €, UA 15 %, RS 0,50 €. Speichern. Veranstaltung in der Liste sichtbar.</span>
         </div>
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">3</span>
+        <span class="step-num">4</span>
         <div class="content">
           <strong>Mini-Kassiervorgang eingeben</strong>
           <span class="detail">V1 — 5,50 €, V2 — 10,00 €, V1 — 4,50 €. Vorgang abschließen. Kassensumme: 20,00 €.</span>
@@ -82,7 +90,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">4</span>
+        <span class="step-num">5</span>
         <div class="content">
           <strong>Abrechnungsberechnung prüfen</strong>
           <span class="detail">V1 Brutto = 10,00 €. Netto = 10,00 − 1,00 − 1,50 = 7,50 → round(15,0) = 15 × 0,50 = 7,50 €. App zeigt V1 Netto: <strong>7,50 €</strong>.</span>
@@ -90,7 +98,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">5</span>
+        <span class="step-num">6</span>
         <div class="content">
           <strong>Netto = 0-Fall</strong>
           <span class="detail">Neuer Vorgang: V9 — 0,50 €. Abschließen. App zeigt V9 Netto: <strong>0,00 €</strong>, Gebühren: 0,50 €.</span>
@@ -98,7 +106,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">6</span>
+        <span class="step-num">7</span>
         <div class="content">
           <strong>Draft-Persistenz</strong>
           <span class="detail">Neuen Vorgang beginnen: V3 — 8,00 €. Tab neu laden (F5). Vorgang ist noch sichtbar mit V3 8,00 €.</span>
@@ -106,7 +114,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">7</span>
+        <span class="step-num">8</span>
         <div class="content">
           <strong>Export funktioniert</strong>
           <span class="detail">Veranstaltung „Bazar März 2026" exportieren. Datei wird heruntergeladen (Dateiname sichtbar, Größe &gt; 0).</span>
@@ -114,7 +122,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">8</span>
+        <span class="step-num">9</span>
         <div class="content">
           <strong>Import mit Merge</strong>
           <span class="detail">Exportierte Datei sofort wieder importieren — Strategie: Merge. Keine doppelten Käufe. Veranstaltung bleibt 1× sichtbar.</span>
@@ -122,7 +130,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">9</span>
+        <span class="step-num">10</span>
         <div class="content">
           <strong>Veranstaltung zurücksetzen</strong>
           <span class="detail">Testdaten löschen. App auf Ausgangszustand bringen, bereit für Sitzungsstart.</span>
@@ -130,7 +138,7 @@
       </li>
       <li>
         <span class="box">☐</span>
-        <span class="step-num">10</span>
+        <span class="step-num">11</span>
         <div class="content">
           <strong>Team B: basis_veranstaltung.json Import</strong>
           <span class="detail">Nur Gerät B: basis_veranstaltung.json importieren (Merge). Veranstaltung vorhanden, 0 Käufe.</span>
@@ -148,6 +156,7 @@
     <div class="note-field"></div>
     <div class="fail" style="margin-top:12px;">
       <strong>Bei Problemen:</strong> Schweregrad einschätzen.<br>
+      🔴 Offline-Start nach lokalem Vorladen nicht möglich → Sitzung nicht starten, App mit Netzwerk erneut lokal laden und Ursache dokumentieren.<br>
       🔴 App startet nicht / Export/Import schlägt fehl → Sitzung nicht starten, Problem beheben.<br>
       🟡 Einzelner Sonderfall reagiert unerwartet → Als bekannte Einschränkung dokumentieren, weiterfahren.<br>
       🟢 Kosmetisches Problem → Notieren, Sitzung starten.
