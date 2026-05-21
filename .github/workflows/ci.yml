@@ -40,6 +40,7 @@ jobs:
               - '**/*.rs'
               - '**/Cargo.toml'
               - 'Cargo.lock'
+              - '.cargo/audit.toml'
               - '.github/workflows/ci.yml'
             wasm:
               - 'crates/ez-booth-app/**'
@@ -95,7 +96,7 @@ jobs:
   security-audit:
     name: Security Audit
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.wasm == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -103,18 +104,41 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
+        if: needs.changes.outputs.rust == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Restore Rust cache
+        if: needs.changes.outputs.rust == 'true'
         uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-audit
+        if: needs.changes.outputs.rust == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit
 
       - name: Run advisory audit
+        if: needs.changes.outputs.rust == 'true'
         run: cargo audit
+
+      - name: Setup Node.js
+        if: needs.changes.outputs.wasm == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: crates/ez-booth-app/package-lock.json
+
+      - name: Install frontend dependencies
+        if: needs.changes.outputs.wasm == 'true'
+        run: npm ci
+        working-directory: crates/ez-booth-app
+
+      - name: Run npm audit (informational only)
+        if: needs.changes.outputs.wasm == 'true'
+        continue-on-error: true
+        run: npm audit --audit-level=high
+        working-directory: crates/ez-booth-app
 
   wasm-check:
     name: WASM Check
