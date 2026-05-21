@@ -18,7 +18,7 @@ const LOCK_FILE_NAME: &str = "launcher.lock";
 const PORT_RANGE: std::ops::RangeInclusive<u16> = 8080..=8089;
 const LOCK_RETRY_DELAY: Duration = Duration::from_millis(50);
 const MAX_LOCK_RETRIES: usize = 5;
-const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
+const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
 const FRAME_OPTIONS: &str = "DENY";
 const CONTENT_TYPE_OPTIONS: &str = "nosniff";
 const KNOWN_BINARY_NAMES: &[&str] = &[
