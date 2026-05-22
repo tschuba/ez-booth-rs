@@ -17,12 +17,12 @@ mod modal;
 mod on_screen_keyboard;
 pub mod pagination;
 pub mod pagination_prefs;
+mod rules_info;
 mod sound_toggle;
 mod storage_warning;
 mod tab_group;
 mod toast;
 mod two_step_delete;
-mod vendor_rules_info;
 
 #[cfg(test)]
 mod booth_form_tests;
@@ -48,9 +48,9 @@ pub use modal::*;
 pub use on_screen_keyboard::*;
 pub use pagination::*;
 pub use pagination_prefs::*;
+pub use rules_info::*;
 pub use sound_toggle::*;
 pub use storage_warning::*;
 pub use tab_group::*;
 pub use toast::*;
 pub use two_step_delete::*;
-pub use vendor_rules_info::*;

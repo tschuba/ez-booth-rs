@@ -510,6 +510,7 @@
     "rules_validation_regex": "Must match regex: {pattern}",
     "rules_omission_empty": "No vendor IDs are blocked.",
     "rules_amount_summary": "Amount must be greater than 0 and at most 1,000,000.00.",
+    "rules_amount_stepping": "Amounts must be in increments of {step}.",
     "keyboard_mode_cash_register": "Cash Register",
     "keyboard_mode_regular": "Regular",
     "keyboard_mode_aria": "Toggle amount input mode",

@@ -1,8 +1,11 @@
 use crate::components::{Modal, ModalSize};
+use crate::formatting::format_decimal;
 use crate::i18n::translate_with_params;
+use crate::i18n::use_locale;
 use crate::t;
 use domain::models::booth::{OmissionRule, VendorIdOmissionRules, VendorIdValidation};
 use leptos::*;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 fn format_validation_rule(rule: &VendorIdValidation) -> String {
@@ -36,7 +39,6 @@ fn format_validation_rule(rule: &VendorIdValidation) -> String {
         ),
     }
 }
-
 fn format_omission_rule(rule: &OmissionRule) -> String {
     match rule {
         OmissionRule::Exact(value) => {
@@ -59,12 +61,15 @@ fn format_omission_rule(rule: &OmissionRule) -> String {
 }
 
 #[component]
-pub fn VendorRulesInfoModal(
+pub fn RulesInfoModal(
     #[prop(into)] show: Signal<bool>,
     on_close: impl Fn() + 'static + Clone,
     #[prop(into)] vendor_validation_rule: Signal<Option<VendorIdValidation>>,
     #[prop(into)] vendor_omission_rules: Signal<VendorIdOmissionRules>,
+    #[prop(into)] amount_stepping: Signal<Option<Decimal>>,
 ) -> impl IntoView {
+    let locale = use_locale();
+
     let omission_summaries = Signal::derive(move || {
         vendor_omission_rules
             .get()
@@ -120,6 +125,19 @@ pub fn VendorRulesInfoModal(
                         {t!("checkout.rules_amount_title")()}
                     </h3>
                     <p class="mt-2 text-sm text-slate-700">{t!("checkout.rules_amount_summary")()}</p>
+                    {move || {
+                        amount_stepping.get().map(|step| {
+                            let formatted_step = format_decimal(step, locale.get(), 2);
+                            view! {
+                                <p class="mt-2 text-sm text-slate-700">
+                                    {translate_with_params(
+                                        "checkout.rules_amount_stepping",
+                                        HashMap::from([("step", formatted_step)]),
+                                    )}
+                                </p>
+                            }
+                        })
+                    }}
                 </div>
             </div>
         </Modal>

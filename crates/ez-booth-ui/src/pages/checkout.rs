@@ -2730,11 +2730,12 @@ pub fn CheckoutPage() -> impl IntoView {
         </Show>
         </Modal>
 
-        <VendorRulesInfoModal
+        <RulesInfoModal
             show=Signal::derive(move || show_rules_modal.get())
             on_close=move || show_rules_modal.set(false)
             vendor_validation_rule=Signal::derive(move || vendor_validation_rule.get())
             vendor_omission_rules=Signal::derive(move || vendor_omission_rules.get())
+            amount_stepping=Signal::derive(move || amount_stepping.get())
         />
     }
 }
