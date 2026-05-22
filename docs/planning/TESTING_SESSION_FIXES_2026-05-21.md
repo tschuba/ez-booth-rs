@@ -2,7 +2,7 @@
 
 > Session date: 2026-05-21
 
-Implementation status as of 2026-05-22: Issues 1 and 2 are merged to `main`. Issue 3 is implemented on `fix/testing-session-issue-3` and pending PR; the remaining issues in this document are still planned work.
+Implementation status as of 2026-05-22: Issues 1, 2, and 3 are merged to `main`. The remaining issues in this document are still planned work.
 
 ## Issue 1 — WASM app becomes inaccessible after a regular PR merge to main
 
@@ -150,7 +150,7 @@ Swap the two sub-rows inside the per-item `<div>`:
 
 ## Issue 3 — Amount stepping validation rule not shown in active-rules info panel
 
-Implementation status: Implemented on `fix/testing-session-issue-3` and ready for PR. During validation, the branch also fixes a same-tab selected-booth refresh gap so edited booth rules become visible in checkout without a full page reload.
+Implementation status: Merged to `main`. During validation, the implementation also fixed a same-tab selected-booth refresh gap so edited booth rules become visible in checkout without a full page reload.
 
 **Root cause:** `RulesInfoModal` (previously `VendorRulesInfoModal`, now in `crates/ez-booth-ui/src/components/rules_info.rs`) had no `amount_stepping` prop. The Amount section rendered a hardcoded static summary and ignored the `amount_stepping` booth setting.
 
