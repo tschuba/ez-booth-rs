@@ -2329,8 +2329,8 @@ pub fn CheckoutPage() -> impl IntoView {
                                                             {/* Item content - pointer-events-none to make entire item the click target */}
                                                             <div class="flex items-start justify-between pointer-events-none">
                                                                 <div>
-                                                                    <p class="font-medium">{format!("{} {}", t!("checkout.item_label")(), display_number)}</p>
-                                                                    <p class="text-xs text-gray-500">{format!("{} {}", t!("checkout.vendor_label")(), vendor_label)}</p>
+                                                                    <p class="font-medium">{format!("{} {}", t!("checkout.vendor_label")(), vendor_label)}</p>
+                                                                    <p class="text-xs text-gray-500">{format!("{} {}", t!("checkout.item_label")(), display_number)}</p>
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="block font-semibold">{
@@ -2570,22 +2570,22 @@ pub fn CheckoutPage() -> impl IntoView {
                                                                             let vendor_text = format!("{}{}", vendor_label, item.vendor_id.as_str());
                                                                             view! {
                                                                                 <div class="py-2 border-b border-gray-100 last:border-0">
-                                                                                    {/* First line: Item number and amount */}
+                                                                                    {/* First line: Vendor and amount */}
                                                                                     <div class="flex justify-between text-sm">
                                                                                         <span class="font-medium text-gray-900">
-                                                                                            {translate_with_params(
-                                                                                                "checkout.transaction_detail.item_number",
-                                                                                                HashMap::from([("number", position_num.to_string())])
-                                                                                            )}
+                                                                                            {vendor_text}
                                                                                         </span>
                                                                                         <span class="font-medium text-gray-900">
                                                                                             {format_currency(item.amount, locale)}
                                                                                         </span>
                                                                                     </div>
 
-                                                                                    {/* Second line: Vendor ID */}
+                                                                                    {/* Second line: Item number */}
                                                                                     <div class="text-xs text-gray-500 mt-0.5">
-                                                                                        {vendor_text}
+                                                                                        {translate_with_params(
+                                                                                            "checkout.transaction_detail.item_number",
+                                                                                            HashMap::from([("number", position_num.to_string())])
+                                                                                        )}
                                                                                     </div>
                                                                                 </div>
                                                                             }
