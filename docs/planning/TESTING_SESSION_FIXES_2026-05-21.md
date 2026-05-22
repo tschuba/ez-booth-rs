@@ -2,11 +2,11 @@
 
 > Session date: 2026-05-21
 
-Implementation status as of 2026-05-22: Issue 1 is implemented on the current branch and pending PR review / merge. The remaining issues in this document are still planned work.
+Implementation status as of 2026-05-22: Issues 1 and 2 are merged to `main`. Issue 3 is implemented on `fix/testing-session-issue-3` and pending PR; the remaining issues in this document are still planned work.
 
 ## Issue 1 — WASM app becomes inaccessible after a regular PR merge to main
 
-Implementation status: Implemented on the current branch. The manual verification step below still depends on shipping a release that includes `wasm-bundle.zip`.
+Implementation status: Merged to `main`. The workflow required two follow-up fixes after the initial merge: reclaiming ownership of `_site` after `actions/jekyll-build-pages`, and removing the unsupported `gh release download --latest` flag. The manual verification step below still depends on shipping a release that includes `wasm-bundle.zip`.
 
 **Root cause:** `deploy-pages.yml` has two triggers:
 
@@ -69,15 +69,18 @@ workflow_run:
   types: [completed]
 ```
 
-Replace the three WASM build steps (currently gated `if: github.event_name == 'workflow_run'`) with one combined step running on **both** triggers. The `sed` injection is guarded so a missing download does not fail the job:
+Replace the three WASM build steps (currently gated `if: github.event_name == 'workflow_run'`) with one combined step running on **both** triggers. In practice, this also needs one ownership-normalization step after `actions/jekyll-build-pages`, because `_site` is not writable by the runner user otherwise. The `sed` injection is guarded so a missing download does not fail the job:
 
 ```yaml
+- name: Fix generated site ownership
+  run: sudo chown -R "$USER":"$USER" _site
+
 - name: Restore WASM from latest release
   env:
     GH_TOKEN: ${{ github.token }}
   run: |
     mkdir -p _site/pos
-    if gh release download --latest --pattern "wasm-bundle.zip" --dir /tmp/wasm-dl; then
+    if gh release download --pattern "wasm-bundle.zip" --dir /tmp/wasm-dl; then
       unzip -q /tmp/wasm-dl/wasm-bundle.zip -d _site/pos
       sed -i 's|</head>|<meta name="router-base" content="/ez-booth-rs/pos">\n</head>|' \
         _site/pos/index.html
@@ -100,6 +103,8 @@ Single WASM build per release serves both launcher and Pages. No race condition.
 ---
 
 ## Issue 2 — Vendor and position display order is swapped in two places
+
+Implementation status: Merged to `main` as part of the `0.1.14` version bump.
 
 **Problem:** In both the pending checkout items list and the expanded last-checkout detail view, the item position number is shown as the primary (bold) label and vendor as secondary (small/muted). Both should show vendor first (primary) and position number second (small/muted).
 
@@ -145,11 +150,13 @@ Swap the two sub-rows inside the per-item `<div>`:
 
 ## Issue 3 — Amount stepping validation rule not shown in active-rules info panel
 
-**Root cause:** `VendorRulesInfoModal` (`crates/ez-booth-ui/src/components/vendor_rules_info.rs`) has no `amount_stepping` prop. The Amount section renders a hardcoded static summary (line 122) and ignores the `amount_stepping` booth setting.
+Implementation status: Implemented on `fix/testing-session-issue-3` and ready for PR. During validation, the branch also fixes a same-tab selected-booth refresh gap so edited booth rules become visible in checkout without a full page reload.
+
+**Root cause:** `RulesInfoModal` (previously `VendorRulesInfoModal`, now in `crates/ez-booth-ui/src/components/rules_info.rs`) had no `amount_stepping` prop. The Amount section rendered a hardcoded static summary and ignored the `amount_stepping` booth setting.
 
 ### Changes
 
-**`crates/ez-booth-ui/src/components/vendor_rules_info.rs`:**
+**`crates/ez-booth-ui/src/components/rules_info.rs`:**
 
 - Add prop: `#[prop(into)] amount_stepping: Signal<Option<Decimal>>`
 - Add imports (none of these are currently present in this file):
@@ -172,6 +179,15 @@ Swap the two sub-rows inside the per-item `<div>`:
 - Add key under `checkout`:
   - EN: `"rules_amount_stepping": "Amounts must be in increments of {step}."`
   - DE: `"rules_amount_stepping": "Beträge müssen in Schritten von {step} erfasst werden."`
+
+**`crates/ez-booth-ui/src/selected_booth_context.rs`:**
+
+- Refresh the selected booth in the same tab when `booth_list_version` changes so editing booth settings updates checkout state immediately.
+- Reuse the same repository-backed refresh path for both same-tab version changes and cross-tab `storage` events.
+
+**Style cleanup:**
+
+- Rename the modal/component surface from `vendor_rules_info` / `VendorRulesInfoModal` to `rules_info` / `RulesInfoModal` so the name matches its broader scope.
 
 ---
 

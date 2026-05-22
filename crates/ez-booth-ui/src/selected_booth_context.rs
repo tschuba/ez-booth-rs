@@ -1,6 +1,8 @@
 use domain::models::booth::Booth;
 use domain::models::shared::BoothId;
+use domain::repositories::BoothRepository;
 use leptos::*;
+use std::sync::Arc;
 use uuid::Uuid;
 use web_sys::window;
 
@@ -25,6 +27,35 @@ fn clear_selected_booth(
     if let Some(version_signal) = booth_list_version {
         version_signal.update(|version| *version += 1);
     }
+}
+
+fn refresh_selected_booth(
+    booth_repository: Arc<dyn BoothRepository>,
+    booth_signal: RwSignal<Option<Booth>>,
+    booth_list_version: Option<RwSignal<u32>>,
+) {
+    spawn_local(async move {
+        let Some(selected_booth) = booth_signal.get_untracked() else {
+            return;
+        };
+
+        match booth_repository.find_by_id(&selected_booth.id).await {
+            Ok(Some(booth)) if booth.is_archived() => {
+                if let Some(version_signal) = booth_list_version.as_ref() {
+                    clear_selected_booth(&booth_signal, Some(version_signal));
+                } else {
+                    clear_selected_booth(&booth_signal, None);
+                }
+            }
+            Ok(Some(booth)) => {
+                booth_signal.set(Some(booth));
+            }
+            Ok(None) => {
+                clear_selected_booth(&booth_signal, None);
+            }
+            Err(_) => {}
+        }
+    });
 }
 
 /// Get localStorage from the browser window
@@ -233,6 +264,45 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
         save_selected_booth_id(booth_id_str.as_deref());
     });
 
+    let synced_booth_list_version = create_rw_signal(None::<u32>);
+
+    // Keep the selected booth fresh in the same tab after booth edits.
+    create_effect(move |_| {
+        if !restored.get() {
+            return;
+        }
+
+        let version = booth_list_version.get();
+
+        let Some(app_state) = use_context::<Resource<(), Result<crate::state::AppState, String>>>()
+        else {
+            return;
+        };
+
+        let Some(Ok(state)) = app_state.get() else {
+            return;
+        };
+
+        match synced_booth_list_version.get() {
+            None => {
+                synced_booth_list_version.set(Some(version));
+                return;
+            }
+            Some(previous_version) if previous_version == version => return,
+            Some(_) => synced_booth_list_version.set(Some(version)),
+        }
+
+        if booth_signal.get().is_none() {
+            return;
+        }
+
+        refresh_selected_booth(
+            state.booth_repository.clone(),
+            booth_signal,
+            Some(booth_list_version),
+        );
+    });
+
     // Listen for storage events from other tabs
     // This allows cross-tab synchronization when booth is deleted elsewhere
     create_effect(move |_| {
@@ -323,28 +393,11 @@ pub fn SelectedBoothProvider(children: Children) -> impl IntoView {
                 }
             } else if event.key().as_deref() == Some(BOOTH_LIST_VERSION_STORAGE_KEY) {
                 if let Some(Ok(state)) = app_state.get() {
-                    let booth_repository = state.booth_repository.clone();
-                    let booth_signal = booth_signal;
-                    let booth_list_version = booth_list_version;
-
-                    spawn_local(async move {
-                        let Some(selected_booth) = booth_signal.get_untracked() else {
-                            return;
-                        };
-
-                        match booth_repository.find_by_id(&selected_booth.id).await {
-                            Ok(Some(booth)) if booth.is_archived() => {
-                                clear_selected_booth(&booth_signal, Some(&booth_list_version));
-                            }
-                            Ok(Some(booth)) => {
-                                booth_signal.set(Some(booth));
-                            }
-                            Ok(None) => {
-                                clear_selected_booth(&booth_signal, None);
-                            }
-                            Err(_) => {}
-                        }
-                    });
+                    refresh_selected_booth(
+                        state.booth_repository.clone(),
+                        booth_signal,
+                        Some(booth_list_version),
+                    );
                 }
             }
         };
