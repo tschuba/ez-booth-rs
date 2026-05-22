@@ -2,7 +2,11 @@
 
 > Session date: 2026-05-21
 
+Implementation status as of 2026-05-22: Issue 1 is implemented on the current branch and pending PR review / merge. The remaining issues in this document are still planned work.
+
 ## Issue 1 — WASM app becomes inaccessible after a regular PR merge to main
+
+Implementation status: Implemented on the current branch. The manual verification step below still depends on shipping a release that includes `wasm-bundle.zip`.
 
 **Root cause:** `deploy-pages.yml` has two triggers:
 
