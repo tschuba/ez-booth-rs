@@ -2,7 +2,7 @@ name: Deploy Pages
 
 on:
   workflow_run:
-    workflows: ["Tag Release"]
+    workflows: ["Release"]
     types: [completed]
   push:
     branches:
@@ -41,25 +41,17 @@ jobs:
           source: docs
           destination: ./_site
 
-      # ── WASM steps run only on release tags ──────────────────────────
-
-      - name: Setup WASM build environment
-        if: github.event_name == 'workflow_run'
-        uses: ./.github/actions/setup-wasm-build
-
-      - name: Build Kassen-App WASM
-        if: github.event_name == 'workflow_run'
+      - name: Restore WASM from latest release
         env:
-          LABELS_PUBLIC_URL: https://tschuba.github.io/ez-booth-rs/labels/
-          ROUTER_BASE: /ez-booth-rs/pos
-        run: trunk build --release --public-url /ez-booth-rs/pos/
-        working-directory: crates/ez-booth-app
-
-      - name: Merge WASM bundle into site
-        if: github.event_name == 'workflow_run'
+          GH_TOKEN: ${{ github.token }}
         run: |
-          sudo mkdir -p _site/pos
-          sudo cp -R crates/ez-booth-app/dist/. _site/pos/
+          mkdir -p _site/pos
+          if gh release download --latest --pattern "wasm-bundle.zip" --dir /tmp/wasm-dl; then
+            unzip -q /tmp/wasm-dl/wasm-bundle.zip -d _site/pos
+            sed -i 's|</head>|<meta name="router-base" content="/ez-booth-rs/pos">\n</head>|' _site/pos/index.html
+          else
+            echo "No wasm-bundle.zip found — /pos/ not included in this deploy."
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

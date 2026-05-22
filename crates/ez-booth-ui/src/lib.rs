@@ -2,10 +2,25 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-pub const BASE_PATH: &str = match option_env!("ROUTER_BASE") {
-    Some(b) => b,
-    None => "",
-};
+pub fn base_path() -> &'static str {
+    use std::sync::OnceLock;
+
+    static PATH: OnceLock<String> = OnceLock::new();
+
+    PATH.get_or_init(|| {
+        web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| {
+                document
+                    .query_selector("meta[name='router-base']")
+                    .ok()
+                    .flatten()
+            })
+            .and_then(|element| element.get_attribute("content"))
+            .unwrap_or_default()
+    })
+    .as_str()
+}
 
 mod audio;
 mod booth_ordering;
@@ -35,7 +50,7 @@ fn AppViewHeader() -> impl IntoView {
     let title = Signal::derive(move || {
         let pathname = location.pathname.get();
         let path = pathname
-            .strip_prefix(BASE_PATH)
+            .strip_prefix(base_path())
             .unwrap_or(pathname.as_str());
         match path {
             "/booths" => Some(t!("booth.list_title")()),
@@ -91,14 +106,14 @@ pub fn App() -> impl IntoView {
 
     view! {
         <ToastProvider>
-            <Router base=BASE_PATH>
+            <Router base=base_path()>
                 <div class="min-h-screen bg-gray-50 print:bg-white">
                     <div class="fixed left-0 right-0 top-0 z-40 bg-white print:hidden">
                         // Header (hidden during print)
                         <header>
                             <Container>
                                 <div class="flex flex-wrap items-center justify-between gap-3 py-4 md:flex-nowrap">
-                                    <a href=format!("{BASE_PATH}/") class="shrink-0 text-2xl font-bold text-blue-600">
+                                    <a href=format!("{}/", base_path()) class="shrink-0 text-2xl font-bold text-blue-600">
                                         {t!("app.title")}
                                     </a>
                                     <div class="hidden md:block">
@@ -111,13 +126,13 @@ pub fn App() -> impl IntoView {
                                     </div>
                                     <nav class="flex flex-wrap items-center gap-x-4 gap-y-2">
                                         <div class="flex items-center space-x-4">
-                                            <a href=format!("{BASE_PATH}/booths") class="text-gray-700 transition-colors hover:text-blue-600">
+                                            <a href=format!("{}/booths", base_path()) class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("booth.list_title")}
                                             </a>
-                                            <a href=format!("{BASE_PATH}/vendors") class="text-gray-700 transition-colors hover:text-blue-600">
+                                            <a href=format!("{}/vendors", base_path()) class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("vendor.list_title")}
                                             </a>
-                                            <a href=format!("{BASE_PATH}/checkout") class="text-gray-700 transition-colors hover:text-blue-600">
+                                            <a href=format!("{}/checkout", base_path()) class="text-gray-700 transition-colors hover:text-blue-600">
                                                 {t!("checkout.title")}
                                             </a>
                                         </div>
@@ -157,7 +172,7 @@ pub fn App() -> impl IntoView {
                                                 </span>
                                             </button>
                                             <a
-                                                href=format!("{BASE_PATH}/settings")
+                                                href=format!("{}/settings", base_path())
                                                 class="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
                                             >
                                                 <Icon icon=LuSettings class="h-4 w-4" />
@@ -182,7 +197,7 @@ pub fn App() -> impl IntoView {
 
                     // Main content (remove padding during print)
                     <main class="pb-28 pt-36 print:py-0">
-                        <Routes base=BASE_PATH.to_string()>
+                        <Routes base=base_path().to_string()>
                             <Route path="/*any" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
                             <Route path="/vendors" view=VendorListPage/>

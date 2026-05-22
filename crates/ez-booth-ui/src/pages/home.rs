@@ -58,10 +58,10 @@ pub fn HomePage() -> impl IntoView {
                             {t!("home.error_loading_booths")}
                         </p>
                         <div class="flex gap-4 justify-center flex-wrap">
-                            <a href=format!("{}/booths", crate::BASE_PATH)>
+                            <a href=format!("{}/booths", crate::base_path())>
                                 <Button>{t!("booth.list_title")}</Button>
                             </a>
-                            <a href=format!("{}/checkout", crate::BASE_PATH)>
+                            <a href=format!("{}/checkout", crate::base_path())>
                                 <Button>{t!("checkout.title")}</Button>
                             </a>
                         </div>

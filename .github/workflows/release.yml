@@ -206,6 +206,12 @@ jobs:
           chmod +x "packaged/ez-booth-linux-v${version}/ez-booth-linux"
           tar -C packaged -czf "packaged/ez-booth-linux-v${version}.tar.gz" "ez-booth-linux-v${version}"
 
+      - name: Package standalone WASM bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd release-assets/base && zip -rq "$GITHUB_WORKSPACE/packaged/wasm-bundle.zip" .)
+
       - name: Generate checksums
         shell: bash
         run: |
@@ -227,6 +233,7 @@ jobs:
             packaged/ez-booth-windows-v${{ needs.validate.outputs.version }}.zip
             packaged/ez-booth-macos-v${{ needs.validate.outputs.version }}.tar.gz
             packaged/ez-booth-linux-v${{ needs.validate.outputs.version }}.tar.gz
+            packaged/wasm-bundle.zip
             packaged/checksums.txt
           if-no-files-found: error
           retention-days: 90
