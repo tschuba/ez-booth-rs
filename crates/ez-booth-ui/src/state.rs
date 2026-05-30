@@ -11,6 +11,7 @@ use ez_booth_storage::{
     ErrorLogEntry, ErrorLogRepository, IntegrityStatus, MigrationService, StorageDiagnostics,
 };
 use leptos::*;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// Application state containing repositories and services
@@ -41,8 +42,12 @@ pub struct AppState {
 impl AppState {
     /// Initialize application state with database connection
     pub async fn new() -> Result<Self, String> {
+        Self::new_with_callback(None).await
+    }
+
+    pub async fn new_with_callback(on_write: Option<Rc<dyn Fn()>>) -> Result<Self, String> {
         // Initialize IndexedDB
-        let db = Database::new()
+        let db = Database::new_with_callback("ez_booth_v1", on_write)
             .await
             .map_err(|e| format!("Failed to initialize database: {:?}", e))?;
 
@@ -155,8 +160,14 @@ impl AppState {
 }
 
 /// Provide app state to the component tree
-pub fn provide_app_state() -> Resource<(), Result<AppState, String>> {
-    create_local_resource(|| (), |_| async { AppState::new().await })
+pub fn provide_app_state(on_write: Option<Rc<dyn Fn()>>) -> Resource<(), Result<AppState, String>> {
+    create_local_resource(
+        || (),
+        move |_| {
+            let cb = on_write.clone();
+            async move { AppState::new_with_callback(cb).await }
+        },
+    )
 }
 
 /// Use app state from context

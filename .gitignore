@@ -34,3 +34,6 @@ docs/.sass-cache/
 docs/_site/
 docs/.bundle/
 docs/Gemfile.lock
+
+# Superpowers artifacts
+.superpowers

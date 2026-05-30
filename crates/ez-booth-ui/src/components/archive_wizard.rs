@@ -1,7 +1,9 @@
 use leptos::html;
 use leptos::*;
 
-use crate::components::{use_toast, Button, ButtonVariant, Modal, ModalSize};
+use crate::components::{
+    use_toast, Button, ButtonVariant, Modal, ModalSize, StorageStatusRefreshContext,
+};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
 use crate::t;
@@ -175,6 +177,10 @@ pub fn ArchiveWizard(
             };
 
             let state_result = app_state.get();
+            let db = state_result
+                .as_ref()
+                .and_then(|r| r.as_ref().ok())
+                .map(|s| s.database.clone());
             set_is_busy.set(true);
 
             spawn_local(async move {
@@ -201,6 +207,18 @@ pub fn ArchiveWizard(
                         set_step.set(ArchiveStep::Done);
                         toast.success(t!("archive.archive_success")());
                         on_archived.with_value(|callback| callback());
+
+                        // Archiving is always preceded by an export in this wizard,
+                        // so the data is in a known-good state. Mark last_backup_at
+                        // so the footer shows green instead of amber.
+                        if let Some(db) = db {
+                            spawn_local(async move {
+                                let _ = record_backup_completed(&db, chrono::Utc::now()).await;
+                            });
+                        }
+                        if let Some(ctx) = use_context::<StorageStatusRefreshContext>() {
+                            ctx.0.update(|n| *n += 1);
+                        }
                     }
                     Err(error) => {
                         toast.error(t!("archive.archive_failed")().replace("{error}", &error));

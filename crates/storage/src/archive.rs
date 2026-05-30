@@ -98,7 +98,7 @@ impl ArchiveService {
         let purchases = load_purchases_from_transaction(&transaction, booth_id).await?;
         let export_record = load_export_record_from_transaction(&transaction, booth_id).await?;
 
-        transaction.done().await.map_err(transaction_error)?;
+        transaction.done().await?;
 
         let summary = build_archived_summary(&booth, &vendors, &purchases);
         let size_warning = archive_size_warning(vendors.len(), purchases.len());
@@ -190,7 +190,7 @@ impl ArchiveService {
         )
         .await?;
 
-        transaction.done().await.map_err(transaction_error)?;
+        transaction.done().await?;
 
         Ok(ArchiveOutcome {
             deleted_vendors,
@@ -231,7 +231,7 @@ impl ArchiveService {
         )
         .await?;
 
-        transaction.done().await.map_err(transaction_error)?;
+        transaction.done().await?;
         Ok(())
     }
 
@@ -244,7 +244,7 @@ impl ArchiveService {
             .map_err(database_error)?;
 
         let values = store.get_all(None, None).await.map_err(database_error)?;
-        transaction.done().await.map_err(transaction_error)?;
+        transaction.done().await?;
 
         let mut entries: Vec<ArchiveAuditEvent> = values
             .into_iter()
@@ -491,7 +491,7 @@ async fn load_export_record_from_transaction(
 pub async fn save_export_record(db: &Database, record: &ExportRecord) -> Result<(), StorageError> {
     let transaction = db.transaction(&["export_records"], TransactionMode::ReadWrite)?;
     save_export_record_in_transaction(&transaction, record).await?;
-    transaction.done().await.map_err(transaction_error)?;
+    transaction.done().await?;
     Ok(())
 }
 
@@ -523,10 +523,6 @@ async fn write_archive_audit_event(
 
 fn database_error(error: rexie::Error) -> StorageError {
     StorageError::DatabaseError(format!("{:?}", error))
-}
-
-fn transaction_error(error: rexie::Error) -> StorageError {
-    StorageError::TransactionError(format!("{:?}", error))
 }
 
 #[cfg(test)]
