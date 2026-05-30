@@ -40,7 +40,6 @@ pub use delete_overlay::*;
 pub use dropdown_menu::*;
 pub use export_button::*;
 pub use icons::*;
-pub use import_button::*;
 pub use input::*;
 pub use layout::*;
 pub use migration_wizard::*;
