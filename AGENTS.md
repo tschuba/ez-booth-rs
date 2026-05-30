@@ -11,13 +11,6 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - Launcher is a native Rust binary that serves the built WASM bundle locally.
 - Money and fee calculations are business-critical; preserve exact decimal behavior.
 
-## Repository Instruction Files
-
-- No `.cursor/rules/` directory was found.
-- No `.cursorrules` file was found.
-- No `.github/copilot-instructions.md` file was found.
-- Use this `AGENTS.md` plus existing repo docs as the active instruction set.
-
 ## Important Docs
 
 - `README.md` for product scope, build flow, and delivery expectations.
@@ -38,6 +31,7 @@ This file gives coding agents the repo-specific rules and commands needed to wor
   - Windows: install LLVM from `releases.llvm.org` (untested)
 - In `crates/ez-booth-app`, install frontend tooling before Trunk builds: `npm ci`.
 - Safari browser tests require one-time enablement: `sudo safaridriver --enable`.
+- Activate pre-commit lint/format hooks: `git config core.hooksPath .githooks`.
 
 ## Build Commands
 
@@ -155,6 +149,8 @@ This file gives coding agents the repo-specific rules and commands needed to wor
 - Use `spawn_local` for async browser-side tasks.
 - Keep persistent UI preferences in local storage through focused helper functions.
 - Route visible strings through translations; do not hard-code new operator-facing copy if an i18n key is appropriate.
+- Translation keys are dot-separated (e.g. `checkout.errors.amount_too_large`); add new keys to both `locales/de.json` and `locales/en.json`.
+- Use the `t!("key")()` macro pattern — it returns a closure; call it inside `move || ...` for reactivity.
 - Keep accessibility attributes when editing reusable components like buttons and dialogs.
 - Preserve current Tailwind utility style rather than introducing a second styling system.
 
