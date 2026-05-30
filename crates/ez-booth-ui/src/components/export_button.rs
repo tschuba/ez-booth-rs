@@ -224,6 +224,11 @@ fn start_export(
 
         set_is_exporting.set(false);
 
+        // Notify the footer to reload diagnostics so it reflects the new backup
+        if let Some(ctx) = use_context::<crate::components::StorageStatusRefreshContext>() {
+            ctx.0.update(|n| *n += 1);
+        }
+
         match result {
             Ok(()) => {
                 let key = if share_after_export {

@@ -631,13 +631,6 @@ pub fn BoothListPage() -> impl IntoView {
                 <div class="fixed left-0 right-0 top-36 z-20 bg-gray-50">
                     <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
                         <div class="space-y-4">
-                            <StorageWarningInfo class="border-amber-200/70 bg-gradient-to-r from-amber-50/85 via-orange-50/80 to-amber-100/85 shadow-sm".to_string()>
-                                <ExportButton
-                                    scope=ExportScope::All
-                                    variant=ButtonVariant::Secondary
-                                />
-                                <ImportButton variant=ButtonVariant::Secondary />
-                            </StorageWarningInfo>
 
                             <Show when=move || !booths.get().is_empty()>
                                 <div class="max-w-md">

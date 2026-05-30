@@ -144,8 +144,8 @@
       "issues_found": "Validation found {count} issue(s).",
       "skip_summary": "If you continue with skipping, {vendors} vendor(s) and {purchases} purchase(s) will be dropped from the migration.",
       "action_guidance": "Choose how to proceed with the migration:",
-      "action_guidance_clean": "\u2022 \"Import validated records only\" stays disabled when issues are found, because it only allows a fully clean import.",
-      "action_guidance_skip": "\u2022 \"Skip invalid and import\" imports the valid records and leaves the problematic records behind."
+      "action_guidance_clean": "• \"Import validated records only\" stays disabled when issues are found, because it only allows a fully clean import.",
+      "action_guidance_skip": "• \"Skip invalid and import\" imports the valid records and leaves the problematic records behind."
     },
     "file_location": {
       "title": "Find the original booth.db file",
@@ -804,14 +804,23 @@
     "import_partial_success": "Import finished with issues: {success} files imported, {failed} files failed.",
     "import_results_label": "Import results",
     "import_file_success": "Imported successfully",
-    "storage_warning_label": "Browser data – backup recommended",
-    "storage_warning_message": "EZ Booth stores event data only in this browser. Clearing browser storage can remove events, vendors, and purchases.",
-    "storage_warning_recommendation": "Create a backup before browser cleanup, profile changes, device switches, or major browser updates.",
     "storage_indicator_label": "Stored locally",
     "storage_indicator_message": "Your EZ Booth data lives in this browser.",
     "storage_indicator_link": "Open event backups",
-    "storage_warning_expand": "Show details",
-    "storage_warning_collapse": "Hide details"
+    "status_ok_label": "STORED LOCALLY",
+    "status_warning_label": "BACKUP RECOMMENDED",
+    "status_overdue_label": "BACKUP OVERDUE",
+    "status_changes": "Entries without backup",
+    "status_safari": "Safari may delete data without warning",
+    "status_never": "No backup created yet",
+    "status_last_backup": "Last backup",
+    "status_age_just_now": "just now",
+    "status_age_minutes": "{n} minutes ago",
+    "status_age_hours": "{n} hours ago",
+    "status_age_days": "{n} days ago",
+    "tooltip_title": "Stored on this device only",
+    "tooltip_body": "All entries are stored exclusively in this browser. If you use a new device, a different browser, a private window, or clear your history — the data is gone. Regular backups protect against this.",
+    "create_backup": "Create backup"
   },
   "data": {
     "export_title": "Export Data",
@@ -903,16 +912,6 @@
   },
   "components": {
     "toast": {
-      "copied": "Copied!",
-      "copy_failed": "Failed to copy. Please copy manually.",
-      "copy": "Copy"
-    },
-    "modal": {
-      "close": "Close modal",
-      "confirm_action": "Confirm Action",
-      "are_you_sure": "Are you sure?"
-    },
-    "toast": {
       "success": "Success",
       "error": "Error",
       "warning": "Warning",
@@ -921,6 +920,11 @@
       "copy": "Copy",
       "copied": "Copied!",
       "copy_failed": "Failed to copy. Please copy manually."
+    },
+    "modal": {
+      "close": "Close modal",
+      "confirm_action": "Confirm Action",
+      "are_you_sure": "Are you sure?"
     }
   }
 }

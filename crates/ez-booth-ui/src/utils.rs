@@ -378,7 +378,7 @@ fn detect_platform(user_agent: &str) -> &'static str {
     }
 }
 
-fn detect_browser(user_agent: &str) -> &'static str {
+pub(crate) fn detect_browser(user_agent: &str) -> &'static str {
     let lower = user_agent.to_ascii_lowercase();
     if lower.contains("edg/") {
         "Edge"

@@ -12,12 +12,14 @@ use crate::indexeddb::database::DB_VERSION;
 use crate::indexeddb::Database;
 
 const LAST_BACKUP_AT_METADATA_KEY: &str = "last_backup_at";
+const LAST_MODIFIED_AT_METADATA_KEY: &str = "last_modified_at";
 const SESSION_ID_METADATA_KEY: &str = "session_id";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StorageDiagnostics {
     pub database_version: u32,
     pub last_backup_at: Option<DateTime<Utc>>,
+    pub last_modified_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +32,7 @@ pub async fn load_storage_diagnostics(db: &Database) -> Result<StorageDiagnostic
     Ok(StorageDiagnostics {
         database_version: DB_VERSION,
         last_backup_at: load_last_backup_at(db).await?,
+        last_modified_at: load_last_modified_at(db).await?,
     })
 }
 
@@ -52,10 +55,7 @@ pub async fn record_backup_completed(
         .await
         .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-    transaction
-        .done()
-        .await
-        .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+    transaction.done().await?;
 
     Ok(())
 }
@@ -94,10 +94,7 @@ pub async fn run_integrity_check(db: &Database) -> Result<IntegrityStatus, Stora
         .await
         .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-    transaction
-        .done()
-        .await
-        .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+    transaction.done().await?;
 
     let mut issues = Vec::new();
 
@@ -151,8 +148,18 @@ pub async fn run_integrity_check(db: &Database) -> Result<IntegrityStatus, Stora
 }
 
 async fn load_last_backup_at(db: &Database) -> Result<Option<DateTime<Utc>>, StorageError> {
-    let result = load_metadata_raw_value(db, LAST_BACKUP_AT_METADATA_KEY).await?;
+    load_optional_timestamp(db, LAST_BACKUP_AT_METADATA_KEY).await
+}
 
+async fn load_last_modified_at(db: &Database) -> Result<Option<DateTime<Utc>>, StorageError> {
+    load_optional_timestamp(db, LAST_MODIFIED_AT_METADATA_KEY).await
+}
+
+async fn load_optional_timestamp(
+    db: &Database,
+    key: &str,
+) -> Result<Option<DateTime<Utc>>, StorageError> {
+    let result = load_metadata_raw_value(db, key).await?;
     match result {
         Some(raw_value) => {
             let timestamp = from_value(raw_value)
@@ -177,10 +184,7 @@ async fn load_metadata_raw_value(
         .await
         .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-    transaction
-        .done()
-        .await
-        .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+    transaction.done().await?;
 
     match result {
         Some(value) => {
@@ -210,10 +214,7 @@ async fn write_metadata_value(
         .await
         .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-    transaction
-        .done()
-        .await
-        .map_err(|e| StorageError::TransactionError(format!("{:?}", e)))?;
+    transaction.done().await?;
 
     Ok(())
 }
@@ -257,12 +258,14 @@ mod tests {
         let diagnostics = StorageDiagnostics {
             database_version: 4,
             last_backup_at: Some(Utc.with_ymd_and_hms(2026, 4, 4, 12, 30, 0).unwrap()),
+            last_modified_at: Some(Utc.with_ymd_and_hms(2026, 4, 5, 8, 0, 0).unwrap()),
         };
 
         let json = serde_json::to_string(&diagnostics).unwrap();
 
         assert!(json.contains("database_version"));
         assert!(json.contains("2026-04-04T12:30:00Z"));
+        assert!(json.contains("last_modified_at"));
     }
 
     #[test]

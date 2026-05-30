@@ -83,8 +83,16 @@ pub fn App() -> impl IntoView {
     // Provide metadata context
     provide_meta_context();
 
+    // Provide refresh signal for the storage status footer
+    let storage_refresh = create_rw_signal(0u32);
+    provide_context(components::StorageStatusRefreshContext(storage_refresh));
+
+    // Callback injected into Database: fires on every write commit so the footer
+    // updates without manual signal increments at each call site.
+    let on_write = std::rc::Rc::new(move || storage_refresh.update(|n| *n += 1));
+
     // Provide app state (repositories, services)
-    let app_state = provide_app_state();
+    let app_state = provide_app_state(Some(on_write));
     provide_context(app_state);
 
     let locale = use_locale();
@@ -195,8 +203,9 @@ pub fn App() -> impl IntoView {
                          <AppViewHeader />
                      </div>
 
+
                     // Main content (remove padding during print)
-                    <main class="pb-28 pt-36 print:py-0">
+                    <main id="main-content" tabindex="-1" class="pb-28 pt-36 print:py-0">
                         <Routes base=base_path().to_string()>
                             <Route path="/*any" view=HomePage/>
                             <Route path="/booths" view=BoothListPage/>
