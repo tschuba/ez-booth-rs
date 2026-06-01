@@ -492,6 +492,30 @@ mod tests {
                 .cloned())
         }
 
+        async fn find_all_by_description_and_date(
+            &self,
+            description: &str,
+            date: &NaiveDate,
+        ) -> DomainResult<Vec<Booth>> {
+            let booths = self.booths.lock().unwrap();
+            Ok(booths
+                .values()
+                .filter(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .cloned()
+                .collect())
+        }
+
+        async fn find_duplicate_groups(&self) -> DomainResult<Vec<Vec<Booth>>> {
+            let booths = self.booths.lock().unwrap();
+            let mut groups: std::collections::HashMap<String, Vec<Booth>> =
+                std::collections::HashMap::new();
+            for booth in booths.values().filter(|b| !b.is_archived()) {
+                let key = format!("{}|{}", booth.description.trim(), booth.date);
+                groups.entry(key).or_default().push(booth.clone());
+            }
+            Ok(groups.into_values().filter(|g| g.len() >= 2).collect())
+        }
+
         async fn delete(&self, _id: &BoothId) -> DomainResult<()> {
             Ok(())
         }

@@ -1,3 +1,4 @@
+mod analysis;
 mod backup_format;
 mod checksum;
 mod error;
@@ -18,5 +19,9 @@ pub use checksum::{
 pub use error::ExportError;
 pub use error::{ImportError, SkippedRecord, ValidationFailure};
 pub use export_service::{ExportService, SerializedBackup};
+pub use analysis::{
+    BoothCandidate, BoothImportAnalysis, BoothMatchKind, BoothResolution, ImportAnalysis,
+    ImportPayload,
+};
 pub use import_service::{ConflictStrategy, ImportService, ImportSummary};
 pub use import_validator::ImportValidator;

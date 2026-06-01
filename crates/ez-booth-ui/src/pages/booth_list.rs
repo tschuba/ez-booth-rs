@@ -89,6 +89,8 @@ pub fn BoothListPage() -> impl IntoView {
     let (delete_confirmation_input, set_delete_confirmation_input) = create_signal(String::new());
     let delete_confirmation_ref = create_node_ref::<html::Input>();
     let (is_loading, set_is_loading) = create_signal(true);
+    let (vendor_counts, set_vendor_counts) =
+        create_signal(std::collections::HashMap::<BoothId, usize>::new());
     let (expanded_booth_id, set_expanded_booth_id) = create_signal(None::<BoothId>);
     let (expanded_booth_summary, set_expanded_booth_summary) = create_signal(None::<BoothSummary>);
     let (is_loading_report, set_is_loading_report) = create_signal(false);
@@ -166,6 +168,13 @@ pub fn BoothListPage() -> impl IntoView {
                         toast.error(&t!("booth.errors.load_failed")());
                         set_is_loading.set(false);
                     }
+                }
+                if let Ok(all_vendors) = state.vendor_repository.find_all().await {
+                    let mut counts = std::collections::HashMap::<BoothId, usize>::new();
+                    for vendor in all_vendors {
+                        *counts.entry(vendor.booth_id).or_insert(0) += 1;
+                    }
+                    set_vendor_counts.set(counts);
                 }
             });
         } else if let Some(Err(e)) = state_result {
@@ -583,12 +592,15 @@ pub fn BoothListPage() -> impl IntoView {
 
     let active_booth_cards = move || {
         let (active_booths, _) = booth_sections.get();
+        let counts = vendor_counts.get();
         active_booths
             .into_iter()
             .map(|booth| {
+                let vc = *counts.get(&booth.id).unwrap_or(&0);
                 booth_card_view(
                     booth,
                     false,
+                    vc,
                     format_date,
                     set_copying_booth,
                     set_show_copy_modal,
@@ -608,9 +620,15 @@ pub fn BoothListPage() -> impl IntoView {
         archived_booths
             .into_iter()
             .map(|booth| {
+                let vc = booth
+                    .archived_summary
+                    .as_ref()
+                    .map(|s| s.vendor_count)
+                    .unwrap_or(0);
                 booth_card_view(
                     booth,
                     true,
+                    vc,
                     format_date,
                     set_copying_booth,
                     set_show_copy_modal,
@@ -1156,6 +1174,7 @@ pub fn BoothListPage() -> impl IntoView {
 fn booth_card_view(
     booth: Booth,
     is_archived: bool,
+    vendor_count: usize,
     format_date: impl Fn(chrono::NaiveDate) -> String + Copy + 'static,
     set_copying_booth: WriteSignal<Option<Booth>>,
     set_show_copy_modal: WriteSignal<bool>,
@@ -1168,6 +1187,7 @@ fn booth_card_view(
 ) -> View {
     let booth_description = store_value(booth.description.clone());
     let booth_date = booth.date;
+    let booth_updated_at = booth.updated_at;
     let booth_archived_at = booth.archived_at;
     let booth_id = booth.id;
     let booth_id_for_report = booth.id;
@@ -1276,6 +1296,11 @@ fn booth_card_view(
                         </div>
                         <div class="min-w-0 flex-1 space-y-1">
                             <p class=date_text_class>{t!("booth.date_prefix")} " " {move || format_date(booth_date)}</p>
+                            <p class="text-xs text-gray-500">
+                                {format!("{} vendors", vendor_count)}
+                                " · "
+                                {move || format_datetime(booth_updated_at, locale.get())}
+                            </p>
                             <Show when=move || is_archived>
                                 <Show when=move || archived_timestamp.get().is_some()>
                                     <p class="text-xs text-slate-500">{move || archived_timestamp.get().unwrap_or_default()}</p>

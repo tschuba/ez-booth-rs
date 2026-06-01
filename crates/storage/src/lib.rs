@@ -4,6 +4,7 @@ pub mod error;
 pub mod error_log;
 pub mod export;
 pub mod indexeddb;
+pub mod merge_service;
 pub mod migration;
 pub mod repositories;
 
@@ -26,4 +27,5 @@ pub use migration::{
     MigrationIssueStrategy, MigrationParseSummary, MigrationResult, MigrationService,
     MigrationValidationSummary, SqliteParser, ValidationIssue,
 };
+pub use merge_service::MergeService;
 pub use repositories::{ErrorLogRepository, IndexedDbErrorLogRepository};

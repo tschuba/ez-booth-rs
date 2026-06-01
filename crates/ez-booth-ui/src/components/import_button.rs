@@ -436,15 +436,32 @@ pub fn ImportButton(
                     <Show when=move || has_ready_candidates.get()>
                         <div class="space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                             <p class="font-medium">{t!("backup.import_strategy_label")}</p>
-                            <select
-                                class="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
-                            >
-                                <option value="merge" selected=move || conflict_strategy.get() == ConflictStrategy::Merge>{t!("backup.strategy_merge")}</option>
-                                <option value="skip" selected=move || conflict_strategy.get() == ConflictStrategy::Skip>{t!("backup.strategy_skip")}</option>
-                                <option value="replace" selected=move || conflict_strategy.get() == ConflictStrategy::Replace>{t!("backup.strategy_replace")}</option>
-                            </select>
-                            <p>{t!("backup.import_apply_ready")}</p>
+                            <div class="space-y-1">
+                                {[
+                                    ("merge", ConflictStrategy::Merge, t!("backup.strategy_merge"), t!("backup.strategy_merge_desc")),
+                                    ("skip",  ConflictStrategy::Skip,  t!("backup.strategy_skip"),  t!("backup.strategy_skip_desc")),
+                                    ("replace", ConflictStrategy::Replace, t!("backup.strategy_replace"), t!("backup.strategy_replace_desc")),
+                                ].into_iter().map(|(val, strat, label, desc)| {
+                                    let is_selected = move || conflict_strategy.get() == strat;
+                                    view! {
+                                        <label class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-blue-100">
+                                            <input
+                                                type="radio"
+                                                name="conflict_strategy"
+                                                value=val
+                                                class="mt-0.5 accent-blue-600"
+                                                prop:checked=is_selected
+                                                on:change=move |ev| on_strategy_change_action.with_value(|handler| handler(ev))
+                                            />
+                                            <div>
+                                                <p class="font-medium leading-snug">{label}</p>
+                                                <p class="text-xs text-blue-700 leading-snug">{desc}</p>
+                                            </div>
+                                        </label>
+                                    }
+                                }).collect::<Vec<_>>()}
+                            </div>
+                            <p class="text-xs text-blue-700">{t!("backup.import_apply_ready")}</p>
                         </div>
                     </Show>
 
