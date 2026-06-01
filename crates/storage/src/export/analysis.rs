@@ -64,13 +64,15 @@ pub struct ImportAnalysis {
 
 impl ImportAnalysis {
     pub fn has_ambiguous(&self) -> bool {
-        self.booths.iter().any(|b| matches!(b.resolution, BoothResolution::Ambiguous(_)))
+        self.booths
+            .iter()
+            .any(|b| matches!(b.resolution, BoothResolution::Ambiguous(_)))
     }
 
     pub fn has_archived_single(&self) -> bool {
-        self.booths.iter().any(|b| {
-            matches!(&b.resolution, BoothResolution::Single(c) if c.is_archived)
-        })
+        self.booths
+            .iter()
+            .any(|b| matches!(&b.resolution, BoothResolution::Single(c) if c.is_archived))
     }
 }
 

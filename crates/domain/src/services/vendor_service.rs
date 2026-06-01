@@ -266,7 +266,9 @@ mod tests {
                 .lock()
                 .unwrap()
                 .values()
-                .filter(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .filter(|booth| {
+                    booth.date == *date && booth.description.trim() == description.trim()
+                })
                 .cloned()
                 .collect())
         }

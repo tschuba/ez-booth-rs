@@ -154,12 +154,7 @@ async fn build_service_with_archive() -> (
 
 /// Create a booth with the same name+date as `base` but a new random UUID (cross-device scenario)
 fn cross_device_booth(base: &Booth) -> Booth {
-    let mut b = Booth::new(
-        base.description.clone(),
-        base.date,
-        base.fees.clone(),
-    )
-    .unwrap();
+    let mut b = Booth::new(base.description.clone(), base.date, base.fees.clone()).unwrap();
     b.updated_at = base.updated_at;
     b
 }
@@ -1178,11 +1173,26 @@ async fn case_1a_uuid_match_active_applies_conflict_strategy() {
     incoming.updated_at = Utc::now();
     let summary = service
         .import_booth_backup(
-            BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming, vendors: vec![], purchases: vec![] },
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming,
+                vendors: vec![],
+                purchases: vec![],
+            },
             ConflictStrategy::Replace,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     assert_eq!(summary.conflicts_resolved, 1);
-    let saved = booth_repo.find_by_id(&local_booth.id).await.unwrap().unwrap();
+    let saved = booth_repo
+        .find_by_id(&local_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(saved.id, local_booth.id);
     assert_eq!(saved.description, "Updated Spring Market");
 }
@@ -1199,15 +1209,44 @@ async fn case_2a_cross_device_merge_uses_existing_canonical_id() {
     let incoming_purchase = create_test_purchase(&incoming_booth, &incoming_vendor.vendor_id);
     let summary = service
         .import_booth_backup(
-            BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "device-b".to_string(), checksum: None, device_info: None, booth: incoming_booth.clone(), vendors: vec![incoming_vendor], purchases: vec![incoming_purchase] },
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "device-b".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming_booth.clone(),
+                vendors: vec![incoming_vendor],
+                purchases: vec![incoming_purchase],
+            },
             ConflictStrategy::Merge,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     let all_booths = booth_repo.find_all().await.unwrap();
     assert_eq!(all_booths.len(), 1);
     assert_eq!(all_booths[0].id, local_booth.id);
-    assert_eq!(vendor_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
-    assert_eq!(purchase_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
-    assert!(booth_repo.find_by_id(&incoming_booth.id).await.unwrap().is_none());
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        purchase_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(booth_repo
+        .find_by_id(&incoming_booth.id)
+        .await
+        .unwrap()
+        .is_none());
     assert_eq!(summary.vendors_imported, 1);
     assert_eq!(summary.purchases_imported, 1);
 }
@@ -1223,14 +1262,44 @@ async fn case_2a_skip_does_not_update_metadata_but_imports_subordinate_records()
     incoming_booth.updated_at = Utc::now();
     let incoming_vendor = create_test_vendor(&incoming_booth, "V99");
     let incoming_purchase = create_test_purchase(&incoming_booth, &incoming_vendor.vendor_id);
-    service.import_booth_backup(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming_booth, vendors: vec![incoming_vendor], purchases: vec![incoming_purchase] },
-        ConflictStrategy::Skip,
-    ).await.unwrap();
-    let saved_booth = booth_repo.find_by_id(&local_booth.id).await.unwrap().unwrap();
+    service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming_booth,
+                vendors: vec![incoming_vendor],
+                purchases: vec![incoming_purchase],
+            },
+            ConflictStrategy::Skip,
+        )
+        .await
+        .unwrap();
+    let saved_booth = booth_repo
+        .find_by_id(&local_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(saved_booth.description, "Winter Market 2026");
-    assert_eq!(vendor_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
-    assert_eq!(purchase_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        purchase_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 // Case 2b: No UUID; 2 active booths with same key → Ambiguous → SkippedRecord, no new booth
@@ -1242,10 +1311,22 @@ async fn case_2b_ambiguous_produces_skipped_record_not_a_new_booth() {
     booth_repo.save(&booth_a).await.unwrap();
     booth_repo.save(&booth_b).await.unwrap();
     let incoming = cross_device_booth(&booth_a);
-    let summary = service.import_booth_backup(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming.clone(), vendors: vec![create_test_vendor(&incoming, "V1")], purchases: vec![] },
-        ConflictStrategy::Merge,
-    ).await.unwrap();
+    let summary = service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming.clone(),
+                vendors: vec![create_test_vendor(&incoming, "V1")],
+                purchases: vec![],
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
     assert_eq!(booth_repo.find_all().await.unwrap().len(), 2);
     assert_eq!(summary.skipped_records.len(), 1);
     assert!(summary.skipped_records[0].reason.contains("ambiguous"));
@@ -1261,15 +1342,43 @@ async fn case_2b_ambiguous_in_full_backup_skips_only_that_booth() {
     booth_repo.save(&dup_b).await.unwrap();
     let incoming_dup = cross_device_booth(&dup_a);
     let other_booth = create_test_booth("Other Event 2026");
-    let summary = service.import_all(BackupData {
-        version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None,
-        booths: vec![incoming_dup.clone(), other_booth.clone()],
-        vendors: vec![create_test_vendor(&incoming_dup, "V1"), create_test_vendor(&other_booth, "V2")],
-        purchases: vec![], metadata: Default::default(),
-    }, ConflictStrategy::Merge).await.unwrap();
-    assert!(booth_repo.find_by_id(&other_booth.id).await.unwrap().is_some());
-    assert_eq!(vendor_repo.find_by_booth(&other_booth.id).await.unwrap().len(), 1);
-    assert!(summary.skipped_records.iter().any(|r| r.reason.contains("ambiguous")));
+    let summary = service
+        .import_all(
+            BackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booths: vec![incoming_dup.clone(), other_booth.clone()],
+                vendors: vec![
+                    create_test_vendor(&incoming_dup, "V1"),
+                    create_test_vendor(&other_booth, "V2"),
+                ],
+                purchases: vec![],
+                metadata: Default::default(),
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
+    assert!(booth_repo
+        .find_by_id(&other_booth.id)
+        .await
+        .unwrap()
+        .is_some());
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&other_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(summary
+        .skipped_records
+        .iter()
+        .any(|r| r.reason.contains("ambiguous")));
     assert_eq!(vendor_repo.find_by_booth(&dup_a.id).await.unwrap().len(), 0);
     assert_eq!(vendor_repo.find_by_booth(&dup_b.id).await.unwrap().len(), 0);
 }
@@ -1284,14 +1393,44 @@ async fn case_2c_archived_by_name_and_date_is_restored_and_imported() {
     let incoming = cross_device_booth(&local_booth);
     let incoming_vendor = create_test_vendor(&incoming, "V1");
     let incoming_purchase = create_test_purchase(&incoming, &incoming_vendor.vendor_id);
-    let summary = service.import_booth_backup(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming.clone(), vendors: vec![incoming_vendor], purchases: vec![incoming_purchase] },
-        ConflictStrategy::Merge,
-    ).await.unwrap();
-    let saved = booth_repo.find_by_id(&local_booth.id).await.unwrap().unwrap();
+    let summary = service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming.clone(),
+                vendors: vec![incoming_vendor],
+                purchases: vec![incoming_purchase],
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
+    let saved = booth_repo
+        .find_by_id(&local_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(!saved.is_archived());
-    assert_eq!(vendor_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
-    assert_eq!(purchase_repo.find_by_booth(&local_booth.id).await.unwrap().len(), 1);
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        purchase_repo
+            .find_by_booth(&local_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
     assert_eq!(booth_repo.find_all().await.unwrap().len(), 1);
     assert!(summary.skipped_records.is_empty());
 }
@@ -1307,30 +1446,79 @@ async fn case_2d_two_archived_matches_produces_skipped_record() {
     booth_repo.save(&arch_a).await.unwrap();
     booth_repo.save(&arch_b).await.unwrap();
     let other_booth = create_test_booth("Other Booth 2026");
-    let summary = service.import_all(BackupData {
-        version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None,
-        booths: vec![cross_device_booth(&arch_a), other_booth.clone()],
-        vendors: vec![], purchases: vec![], metadata: Default::default(),
-    }, ConflictStrategy::Merge).await.unwrap();
-    assert!(summary.skipped_records.iter().any(|r| r.reason.contains("unresolvable")));
-    assert!(booth_repo.find_by_id(&other_booth.id).await.unwrap().is_some());
+    let summary = service
+        .import_all(
+            BackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booths: vec![cross_device_booth(&arch_a), other_booth.clone()],
+                vendors: vec![],
+                purchases: vec![],
+                metadata: Default::default(),
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
+    assert!(summary
+        .skipped_records
+        .iter()
+        .any(|r| r.reason.contains("unresolvable")));
+    assert!(booth_repo
+        .find_by_id(&other_booth.id)
+        .await
+        .unwrap()
+        .is_some());
 }
 
 // Same-name/different-date: NOT merged (different date = different event)
 #[wasm_bindgen_test]
 async fn same_name_different_date_are_not_merged() {
     let (booth_repo, _, _, service) = build_service().await;
-    let fees = FeeConfig { participation_fee: dec!(10.00), sales_fee_percent: dec!(15.00), rounding_step: dec!(0.50) };
-    let local_booth = Booth::new("Annual Market".to_string(), NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(), fees.clone()).unwrap();
+    let fees = FeeConfig {
+        participation_fee: dec!(10.00),
+        sales_fee_percent: dec!(15.00),
+        rounding_step: dec!(0.50),
+    };
+    let local_booth = Booth::new(
+        "Annual Market".to_string(),
+        NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+        fees.clone(),
+    )
+    .unwrap();
     booth_repo.save(&local_booth).await.unwrap();
-    let incoming = Booth::new("Annual Market".to_string(), NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(), fees).unwrap();
+    let incoming = Booth::new(
+        "Annual Market".to_string(),
+        NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
+        fees,
+    )
+    .unwrap();
     assert_ne!(incoming.id, local_booth.id);
-    service.import_booth_backup(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming.clone(), vendors: vec![], purchases: vec![] },
-        ConflictStrategy::Merge,
-    ).await.unwrap();
+    service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming.clone(),
+                vendors: vec![],
+                purchases: vec![],
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
     assert_eq!(booth_repo.find_all().await.unwrap().len(), 2);
-    assert!(booth_repo.find_by_id(&local_booth.id).await.unwrap().is_some());
+    assert!(booth_repo
+        .find_by_id(&local_booth.id)
+        .await
+        .unwrap()
+        .is_some());
     assert!(booth_repo.find_by_id(&incoming.id).await.unwrap().is_some());
 }
 
@@ -1343,15 +1531,49 @@ async fn case_1b_uuid_matches_archived_only_restores_and_imports() {
     booth_repo.save(&archived_booth).await.unwrap();
     let incoming_vendor = create_test_vendor(&archived_booth, "V1");
     let incoming_purchase = create_test_purchase(&archived_booth, &incoming_vendor.vendor_id);
-    let summary = service.import_booth_backup_restoring_archived(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: archived_booth.clone(), vendors: vec![incoming_vendor], purchases: vec![incoming_purchase] },
-        ConflictStrategy::Merge,
-        ez_booth_storage::export::DeviceInfo { identifier: "test-device".to_string(), platform: "test".to_string(), browser: "test".to_string() },
-    ).await.unwrap();
-    let saved = booth_repo.find_by_id(&archived_booth.id).await.unwrap().unwrap();
+    let summary = service
+        .import_booth_backup_restoring_archived(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: archived_booth.clone(),
+                vendors: vec![incoming_vendor],
+                purchases: vec![incoming_purchase],
+            },
+            ConflictStrategy::Merge,
+            ez_booth_storage::export::DeviceInfo {
+                identifier: "test-device".to_string(),
+                platform: "test".to_string(),
+                browser: "test".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+    let saved = booth_repo
+        .find_by_id(&archived_booth.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(!saved.is_archived());
-    assert_eq!(vendor_repo.find_by_booth(&archived_booth.id).await.unwrap().len(), 1);
-    assert_eq!(purchase_repo.find_by_booth(&archived_booth.id).await.unwrap().len(), 1);
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&archived_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        purchase_repo
+            .find_by_booth(&archived_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
     assert!(summary.skipped_records.is_empty());
 }
 
@@ -1365,14 +1587,48 @@ async fn case_1c_uuid_matches_archived_but_active_exists_uses_active() {
     archived_booth.archive(empty_archived_summary()).unwrap();
     booth_repo.save(&archived_booth).await.unwrap();
     // Incoming has the archived booth's UUID — but active exists with same key
-    let incoming_booth = Booth { id: archived_booth.id, ..active_booth.clone() };
-    service.import_booth_backup(
-        BoothBackupData { version: BACKUP_FORMAT_VERSION, created_at: Utc::now(), app_version: "test".to_string(), checksum: None, device_info: None, booth: incoming_booth, vendors: vec![create_test_vendor(&active_booth, "V1")], purchases: vec![] },
-        ConflictStrategy::Merge,
-    ).await.unwrap();
-    assert_eq!(vendor_repo.find_by_booth(&active_booth.id).await.unwrap().len(), 1);
-    assert_eq!(vendor_repo.find_by_booth(&archived_booth.id).await.unwrap().len(), 0);
-    assert!(booth_repo.find_by_id(&archived_booth.id).await.unwrap().unwrap().is_archived());
+    let incoming_booth = Booth {
+        id: archived_booth.id,
+        ..active_booth.clone()
+    };
+    service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "test".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming_booth,
+                vendors: vec![create_test_vendor(&active_booth, "V1")],
+                purchases: vec![],
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&active_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        vendor_repo
+            .find_by_booth(&archived_booth.id)
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
+    assert!(booth_repo
+        .find_by_id(&archived_booth.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .is_archived());
 }
 
 // ─── MergeService + merge-then-import tests ─────────────────────────────────
@@ -1403,7 +1659,13 @@ async fn build_service_with_merge() -> (
         Some(archive_service),
     )
     .with_merge_service(merge_service.clone());
-    (booth_repo, vendor_repo, purchase_repo, service, merge_service)
+    (
+        booth_repo,
+        vendor_repo,
+        purchase_repo,
+        service,
+        merge_service,
+    )
 }
 
 // 10.3: merge two local duplicates then import — duplicate removed, data correct
@@ -1433,7 +1695,10 @@ async fn merge_then_import_removes_duplicate_and_imports_correctly() {
     let incoming_purchase = create_test_purchase(&incoming, &incoming_vendor.vendor_id);
 
     // Step 1: merge the duplicates first (canonical = dup_a, other = dup_b)
-    merge_service.merge_booths(&dup_a.id, &dup_b.id).await.unwrap();
+    merge_service
+        .merge_booths(&dup_a.id, &dup_b.id)
+        .await
+        .unwrap();
 
     // dup_b should be gone
     assert!(booth_repo.find_by_id(&dup_b.id).await.unwrap().is_none());
@@ -1506,7 +1771,10 @@ async fn merge_then_import_is_idempotent() {
     };
 
     // First run: merge + import
-    merge_service.merge_booths(&dup_a.id, &dup_b.id).await.unwrap();
+    merge_service
+        .merge_booths(&dup_a.id, &dup_b.id)
+        .await
+        .unwrap();
     let summary1 = service
         .import_booth_backup(backup.clone(), ConflictStrategy::Merge)
         .await
@@ -1528,4 +1796,72 @@ async fn merge_then_import_is_idempotent() {
     // Purchases still 2 (purchase_a and incoming_purchase, no duplicate)
     let purchases = purchase_repo.find_by_booth(&dup_a.id).await.unwrap();
     assert_eq!(purchases.len(), 2);
+}
+
+// 5.12: import_all partial failure (forced DB write error) → no orphaned records in IDB
+#[wasm_bindgen_test]
+async fn import_all_partial_failure_leaves_no_orphaned_records() {
+    // repo_db: used by all repositories (analysis reads + assertions)
+    let repo_db = Arc::new(create_test_db().await);
+    // write_db: used only by the transactional write phase; will be force-failed
+    let write_db = Arc::new(create_test_db().await);
+
+    let booth_repo: Arc<dyn BoothRepository> =
+        Arc::new(IndexedDbBoothRepository::new(repo_db.clone()));
+    let vendor_repo: Arc<dyn VendorRepository> =
+        Arc::new(IndexedDbVendorRepository::new(repo_db.clone()));
+    let purchase_repo: Arc<dyn PurchaseRepository> =
+        Arc::new(IndexedDbPurchaseRepository::new(repo_db.clone()));
+
+    let service = ImportService::with_database(
+        booth_repo.clone(),
+        vendor_repo.clone(),
+        purchase_repo.clone(),
+        None,
+        write_db.clone(),
+    );
+
+    // Pre-existing state: one booth already in repo_db
+    let existing_booth = create_test_booth("Pre-Existing Market");
+    booth_repo.save(&existing_booth).await.unwrap();
+
+    // Backup with a new booth, vendor, and purchase that should NOT be written
+    let incoming_booth = create_test_booth("Incoming Market");
+    let vendor = create_test_vendor(&incoming_booth, "V1");
+    let purchase = create_test_purchase(&incoming_booth, &vendor.vendor_id);
+    let backup = full_backup(incoming_booth.clone(), vendor, purchase);
+
+    // Force write_db to reject all transaction opens (simulates mid-import DB failure)
+    write_db.set_fail_writes(true);
+
+    let result = service.import_all(backup, ConflictStrategy::Merge).await;
+    assert!(
+        result.is_err(),
+        "import_all should return Err on forced write failure"
+    );
+
+    // repo_db must still contain exactly the pre-existing booth — zero orphans
+    let all_booths = booth_repo.find_all().await.unwrap();
+    assert_eq!(
+        all_booths.len(),
+        1,
+        "only the pre-existing booth should remain; got {}",
+        all_booths.len()
+    );
+    assert_eq!(all_booths[0].id, existing_booth.id);
+
+    let vendors = vendor_repo.find_by_booth(&incoming_booth.id).await.unwrap();
+    assert!(
+        vendors.is_empty(),
+        "no vendors should have been written for the incoming booth"
+    );
+
+    let purchases = purchase_repo
+        .find_by_booth(&incoming_booth.id)
+        .await
+        .unwrap();
+    assert!(
+        purchases.is_empty(),
+        "no purchases should have been written for the incoming booth"
+    );
 }

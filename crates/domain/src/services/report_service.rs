@@ -500,7 +500,9 @@ mod tests {
             let booths = self.booths.lock().unwrap();
             Ok(booths
                 .values()
-                .filter(|booth| booth.date == *date && booth.description.trim() == description.trim())
+                .filter(|booth| {
+                    booth.date == *date && booth.description.trim() == description.trim()
+                })
                 .cloned()
                 .collect())
         }

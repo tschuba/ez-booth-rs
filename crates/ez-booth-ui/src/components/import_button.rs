@@ -12,8 +12,8 @@ use crate::state::use_app_state;
 use crate::t;
 use crate::utils::current_device_info;
 use ez_booth_storage::export::{
-    BoothCandidate, BoothMatchKind, BoothResolution, ConflictStrategy, ImportAnalysis,
-    ImportError, ImportPayload, ImportSummary, ImportValidator, ValidationFailure,
+    BoothCandidate, BoothMatchKind, BoothResolution, ConflictStrategy, ImportAnalysis, ImportError,
+    ImportPayload, ImportSummary, ImportValidator, ValidationFailure,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -60,7 +60,10 @@ enum WizardChoice {
     ImportAsNew,
     Skip,
     /// Merge canonical into other locally first, then import under canonical
-    Advanced { canonical: BoothId, other: BoothId },
+    Advanced {
+        canonical: BoothId,
+        other: BoothId,
+    },
 }
 
 use domain::models::BoothId;
@@ -307,7 +310,11 @@ pub fn ImportButton(
 
             // Run Advanced merges first, independently from the import transaction
             for (canonical_id, other_id) in &advanced_merges {
-                if let Err(e) = state.merge_service.merge_booths(canonical_id, other_id).await {
+                if let Err(e) = state
+                    .merge_service
+                    .merge_booths(canonical_id, other_id)
+                    .await
+                {
                     set_is_importing.set(false);
                     set_import_progress.set(None);
                     toast.error(format!("{}: {}", t!("backup.import_apply_failed")(), e));
@@ -1065,8 +1072,7 @@ fn apply_wizard_decisions_to_payload(
         ImportPayload::Full(mut data) => {
             let mut keep_booth_ids: std::collections::HashMap<BoothId, BoothId> =
                 std::collections::HashMap::new(); // original → canonical
-            let mut skip_ids: std::collections::HashSet<BoothId> =
-                std::collections::HashSet::new();
+            let mut skip_ids: std::collections::HashSet<BoothId> = std::collections::HashSet::new();
 
             data.booths.retain(|booth| {
                 let key = booth.id.to_string();
@@ -1129,11 +1135,22 @@ fn apply_wizard_decisions_to_payload(
                     })
                 }
                 Some(WizardChoice::UseCandidate(canonical_id))
-                | Some(WizardChoice::Advanced { canonical: canonical_id, .. }) => {
+                | Some(WizardChoice::Advanced {
+                    canonical: canonical_id,
+                    ..
+                }) => {
                     let old_id = data.booth.id;
                     data.booth.id = *canonical_id;
-                    for v in &mut data.vendors { if v.booth_id == old_id { v.booth_id = *canonical_id; } }
-                    for p in &mut data.purchases { if p.booth_id == old_id { p.booth_id = *canonical_id; } }
+                    for v in &mut data.vendors {
+                        if v.booth_id == old_id {
+                            v.booth_id = *canonical_id;
+                        }
+                    }
+                    for p in &mut data.purchases {
+                        if p.booth_id == old_id {
+                            p.booth_id = *canonical_id;
+                        }
+                    }
                     ImportPayload::Booth(data)
                 }
                 _ => ImportPayload::Booth(data),
@@ -1215,7 +1232,7 @@ mod tests {
     };
     use rust_decimal_macros::dec;
 
-    use super::{parse_import_data, ImportPreview, ImportPayload};
+    use super::{parse_import_data, ImportPayload, ImportPreview};
 
     fn sample_booth() -> Booth {
         Booth::new(

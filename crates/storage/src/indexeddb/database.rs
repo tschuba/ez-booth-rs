@@ -159,6 +159,8 @@ impl TrackedTransaction {
 pub struct Database {
     inner: RawDatabase,
     on_write: Option<Rc<dyn Fn()>>,
+    #[cfg(test)]
+    fail_writes: std::cell::Cell<bool>,
 }
 
 impl Database {
@@ -177,7 +179,14 @@ impl Database {
         Ok(Self {
             inner: RawDatabase::new_with_name(db_name).await?,
             on_write,
+            #[cfg(test)]
+            fail_writes: std::cell::Cell::new(false),
         })
+    }
+
+    #[cfg(test)]
+    pub fn set_fail_writes(&self, fail: bool) {
+        self.fail_writes.set(fail);
     }
 
     pub fn db(&self) -> &Rexie {
@@ -193,6 +202,13 @@ impl Database {
         store_names: &[&str],
         mode: TransactionMode,
     ) -> Result<TrackedTransaction, StorageError> {
+        #[cfg(test)]
+        if self.fail_writes.get() {
+            return Err(StorageError::DatabaseError(
+                "test: forced write failure".to_string(),
+            ));
+        }
+
         let is_write = mode == TransactionMode::ReadWrite;
         let metadata_only = store_names == ["metadata"];
 

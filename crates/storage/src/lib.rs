@@ -22,10 +22,10 @@ pub use error_log::{
     ERROR_LOG_RETENTION_LIMIT,
 };
 pub use indexeddb::Database;
+pub use merge_service::MergeService;
 pub use migration::{
     LegacyBooth, LegacyPurchase, LegacyPurchaseItem, LegacyVendor, MigrationError,
     MigrationIssueStrategy, MigrationParseSummary, MigrationResult, MigrationService,
     MigrationValidationSummary, SqliteParser, ValidationIssue,
 };
-pub use merge_service::MergeService;
 pub use repositories::{ErrorLogRepository, IndexedDbErrorLogRepository};

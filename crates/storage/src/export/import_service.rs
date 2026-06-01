@@ -10,7 +10,10 @@ use rexie::TransactionMode;
 use serde_wasm_bindgen::{from_value, to_value};
 use wasm_bindgen::JsValue;
 
-use super::analysis::{booth_to_candidate, BoothCandidate, BoothImportAnalysis, BoothMatchKind, BoothResolution, ImportAnalysis, ImportPayload};
+use super::analysis::{
+    booth_to_candidate, BoothCandidate, BoothImportAnalysis, BoothMatchKind, BoothResolution,
+    ImportAnalysis, ImportPayload,
+};
 use super::backup_format::{BackupData, BoothBackupData, DeviceInfo};
 use super::error::{ImportError, SkippedRecord};
 use crate::archive::ArchiveService;
@@ -57,7 +60,12 @@ impl ImportService {
         vendor_repository: Arc<dyn VendorRepository>,
         purchase_repository: Arc<dyn PurchaseRepository>,
     ) -> Self {
-        Self::with_archive_service(booth_repository, vendor_repository, purchase_repository, None)
+        Self::with_archive_service(
+            booth_repository,
+            vendor_repository,
+            purchase_repository,
+            None,
+        )
     }
 
     pub fn with_archive_service(
@@ -112,16 +120,22 @@ impl ImportService {
         for booth in &data.booths {
             match self.resolve_canonical_booth(booth).await? {
                 BoothResolution::New => {
-                    outcomes.insert(booth.id, BoothImportOutcome {
-                        canonical_id: booth.id,
-                        match_kind: None,
-                    });
+                    outcomes.insert(
+                        booth.id,
+                        BoothImportOutcome {
+                            canonical_id: booth.id,
+                            match_kind: None,
+                        },
+                    );
                 }
                 BoothResolution::Single(candidate) => {
-                    outcomes.insert(booth.id, BoothImportOutcome {
-                        canonical_id: candidate.id,
-                        match_kind: Some(candidate.match_kind),
-                    });
+                    outcomes.insert(
+                        booth.id,
+                        BoothImportOutcome {
+                            canonical_id: candidate.id,
+                            match_kind: Some(candidate.match_kind),
+                        },
+                    );
                 }
                 BoothResolution::Ambiguous(_) => {
                     summary.skipped_records.push(SkippedRecord {
@@ -158,19 +172,18 @@ impl ImportService {
             if outcome.match_kind.is_some()
                 && self.is_archived_candidate(&outcome.canonical_id).await?
             {
-                self.restore_archived_if_needed(
-                    &outcome.canonical_id,
-                    restore_device_info.clone(),
-                )
-                .await?;
+                self.restore_archived_if_needed(&outcome.canonical_id, restore_device_info.clone())
+                    .await?;
             }
         }
 
         // Write phase
         if let Some(db) = &self.db {
-            self.write_all_transactional(db, &data, &outcomes, strategy, &mut summary).await?;
+            self.write_all_transactional(db, &data, &outcomes, strategy, &mut summary)
+                .await?;
         } else {
-            self.write_all_sequential(&data, &outcomes, strategy, &mut summary).await?;
+            self.write_all_sequential(&data, &outcomes, strategy, &mut summary)
+                .await?;
         }
 
         Ok(summary)
@@ -192,11 +205,14 @@ impl ImportService {
                     platform: "unknown".to_string(),
                     browser: "unknown".to_string(),
                 });
-                self.restore_archived_if_needed(&candidate.id, device_info).await?;
+                self.restore_archived_if_needed(&candidate.id, device_info)
+                    .await?;
             }
         }
 
-        let outcome = self.apply_resolution(&data.booth, resolution, strategy, &mut summary).await?;
+        let outcome = self
+            .apply_resolution(&data.booth, resolution, strategy, &mut summary)
+            .await?;
 
         if let Some(outcome) = outcome {
             let canonical_id = outcome.canonical_id;
@@ -204,20 +220,28 @@ impl ImportService {
 
             for vendor in data.vendors {
                 let vendor = if needs_remap {
-                    Vendor { booth_id: canonical_id, ..vendor }
+                    Vendor {
+                        booth_id: canonical_id,
+                        ..vendor
+                    }
                 } else {
                     vendor
                 };
-                self.import_vendor_record(vendor, strategy, &mut summary).await?;
+                self.import_vendor_record(vendor, strategy, &mut summary)
+                    .await?;
             }
 
             for purchase in data.purchases {
                 let purchase = if needs_remap {
-                    Purchase { booth_id: canonical_id, ..purchase }
+                    Purchase {
+                        booth_id: canonical_id,
+                        ..purchase
+                    }
                 } else {
                     purchase
                 };
-                self.import_purchase_record(purchase, strategy, &mut summary).await?;
+                self.import_purchase_record(purchase, strategy, &mut summary)
+                    .await?;
             }
         }
 
@@ -234,7 +258,8 @@ impl ImportService {
 
         match &resolution {
             BoothResolution::Single(candidate) if candidate.is_archived => {
-                self.restore_archived_if_needed(&candidate.id, device_info).await?;
+                self.restore_archived_if_needed(&candidate.id, device_info)
+                    .await?;
             }
             BoothResolution::New => {}
             _ => {}
@@ -310,7 +335,9 @@ impl ImportService {
             _ => {
                 let mut candidates = Vec::new();
                 for b in &active_matches {
-                    let candidate = self.make_candidate(b, BoothMatchKind::ByNameAndDate).await?;
+                    let candidate = self
+                        .make_candidate(b, BoothMatchKind::ByNameAndDate)
+                        .await?;
                     candidates.push(candidate);
                 }
                 return Ok(BoothResolution::Ambiguous(candidates));
@@ -337,7 +364,12 @@ impl ImportService {
     ) -> Result<BoothCandidate, ImportError> {
         let vendors = self.vendor_repository.find_by_booth(&booth.id).await?;
         let purchases = self.purchase_repository.find_by_booth(&booth.id).await?;
-        Ok(booth_to_candidate(booth, match_kind, vendors.len(), purchases.len()))
+        Ok(booth_to_candidate(
+            booth,
+            match_kind,
+            vendors.len(),
+            purchases.len(),
+        ))
     }
 
     // ─── Write helpers (sequential / repository-based) ───────────────────────
@@ -354,11 +386,15 @@ impl ImportService {
             BoothResolution::New => {
                 self.booth_repository.save(incoming).await?;
                 summary.booths_imported += 1;
-                Ok(Some(BoothImportOutcome { canonical_id: incoming.id, match_kind: None }))
+                Ok(Some(BoothImportOutcome {
+                    canonical_id: incoming.id,
+                    match_kind: None,
+                }))
             }
             BoothResolution::Single(candidate) => {
                 let canonical_id = candidate.id;
-                self.apply_booth_strategy(incoming, &candidate, strategy, summary).await?;
+                self.apply_booth_strategy(incoming, &candidate, strategy, summary)
+                    .await?;
                 Ok(Some(BoothImportOutcome {
                     canonical_id,
                     match_kind: Some(candidate.match_kind),
@@ -399,7 +435,8 @@ impl ImportService {
         summary: &mut ImportSummary,
     ) -> Result<Option<BoothImportOutcome>, ImportError> {
         let resolution = self.resolve_canonical_booth(incoming).await?;
-        self.apply_resolution(incoming, resolution, strategy, summary).await
+        self.apply_resolution(incoming, resolution, strategy, summary)
+            .await
     }
 
     async fn apply_booth_strategy(
@@ -424,7 +461,10 @@ impl ImportService {
                 });
             }
             ConflictStrategy::Replace => {
-                let canonical = Booth { id: canonical_id, ..incoming.clone() };
+                let canonical = Booth {
+                    id: canonical_id,
+                    ..incoming.clone()
+                };
                 self.booth_repository.save(&canonical).await?;
                 summary.booths_imported += 1;
                 summary.conflicts_resolved += 1;
@@ -433,12 +473,18 @@ impl ImportService {
                 let existing = self.booth_repository.find_by_id(&canonical_id).await?;
                 let saved = if let Some(existing) = existing {
                     if incoming.updated_at > existing.updated_at {
-                        Booth { id: canonical_id, ..incoming.clone() }
+                        Booth {
+                            id: canonical_id,
+                            ..incoming.clone()
+                        }
                     } else {
                         existing
                     }
                 } else {
-                    Booth { id: canonical_id, ..incoming.clone() }
+                    Booth {
+                        id: canonical_id,
+                        ..incoming.clone()
+                    }
                 };
                 self.booth_repository.save(&saved).await?;
                 summary.booths_imported += 1;
@@ -575,7 +621,8 @@ impl ImportService {
                             purchase_count: 0,
                             updated_at: booth.updated_at,
                         };
-                        self.apply_booth_strategy(booth, &candidate, strategy, summary).await?;
+                        self.apply_booth_strategy(booth, &candidate, strategy, summary)
+                            .await?;
                     }
                 }
             }
@@ -589,11 +636,15 @@ impl ImportService {
                     reason: "booth_id not found in import".to_string(),
                 }),
                 Some(outcome) => {
-                    let vendor = if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
-                        Vendor { booth_id: outcome.canonical_id, ..vendor.clone() }
-                    } else {
-                        vendor.clone()
-                    };
+                    let vendor =
+                        if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
+                            Vendor {
+                                booth_id: outcome.canonical_id,
+                                ..vendor.clone()
+                            }
+                        } else {
+                            vendor.clone()
+                        };
                     self.import_vendor_record(vendor, strategy, summary).await?;
                 }
             }
@@ -607,12 +658,17 @@ impl ImportService {
                     reason: "booth_id not found in import".to_string(),
                 }),
                 Some(outcome) => {
-                    let purchase = if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
-                        Purchase { booth_id: outcome.canonical_id, ..purchase.clone() }
-                    } else {
-                        purchase.clone()
-                    };
-                    self.import_purchase_record(purchase, strategy, summary).await?;
+                    let purchase =
+                        if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
+                            Purchase {
+                                booth_id: outcome.canonical_id,
+                                ..purchase.clone()
+                            }
+                        } else {
+                            purchase.clone()
+                        };
+                    self.import_purchase_record(purchase, strategy, summary)
+                        .await?;
                 }
             }
         }
@@ -635,7 +691,9 @@ impl ImportService {
                 &["booths", "vendors", "purchases"],
                 TransactionMode::ReadWrite,
             )
-            .map_err(|e| ImportError::Storage(StorageError::TransactionError(format!("{:?}", e))))?;
+            .map_err(|e| {
+                ImportError::Storage(StorageError::TransactionError(format!("{:?}", e)))
+            })?;
 
         // Write booths
         for booth in &data.booths {
@@ -652,15 +710,22 @@ impl ImportService {
                                 summary.skipped_records.push(SkippedRecord {
                                     record_type: "booth".to_string(),
                                     record_id: booth.id.to_string(),
-                                    reason: if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
-                                        "cross-device duplicate: booth metadata not updated".to_string()
+                                    reason: if matches!(
+                                        outcome.match_kind,
+                                        Some(BoothMatchKind::ByNameAndDate)
+                                    ) {
+                                        "cross-device duplicate: booth metadata not updated"
+                                            .to_string()
                                     } else {
                                         "record already exists".to_string()
                                     },
                                 });
                             }
                             ConflictStrategy::Replace => {
-                                let b = Booth { id: canonical_id, ..booth.clone() };
+                                let b = Booth {
+                                    id: canonical_id,
+                                    ..booth.clone()
+                                };
                                 tx_save_booth(&transaction, &b).await?;
                                 summary.booths_imported += 1;
                                 summary.conflicts_resolved += 1;
@@ -669,7 +734,10 @@ impl ImportService {
                                 let existing = tx_load_booth(&transaction, &canonical_id).await?;
                                 let saved = match existing {
                                     Some(ex) if ex.updated_at >= booth.updated_at => ex,
-                                    _ => Booth { id: canonical_id, ..booth.clone() },
+                                    _ => Booth {
+                                        id: canonical_id,
+                                        ..booth.clone()
+                                    },
                                 };
                                 tx_save_booth(&transaction, &saved).await?;
                                 summary.booths_imported += 1;
@@ -690,11 +758,15 @@ impl ImportService {
                     reason: "booth_id not found in import".to_string(),
                 }),
                 Some(outcome) => {
-                    let vendor = if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
-                        Vendor { booth_id: outcome.canonical_id, ..vendor.clone() }
-                    } else {
-                        vendor.clone()
-                    };
+                    let vendor =
+                        if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
+                            Vendor {
+                                booth_id: outcome.canonical_id,
+                                ..vendor.clone()
+                            }
+                        } else {
+                            vendor.clone()
+                        };
                     match tx_find_vendor(&transaction, &vendor.booth_id, &vendor.vendor_id).await? {
                         None => {
                             tx_save_vendor(&transaction, &vendor).await?;
@@ -704,7 +776,10 @@ impl ImportService {
                             ConflictStrategy::Skip => summary.skipped_records.push(SkippedRecord {
                                 record_type: "vendor".to_string(),
                                 record_id: vendor.vendor_id.to_string(),
-                                reason: format!("record already exists in booth {}", vendor.booth_id),
+                                reason: format!(
+                                    "record already exists in booth {}",
+                                    vendor.booth_id
+                                ),
                             }),
                             ConflictStrategy::Replace => {
                                 tx_save_vendor(&transaction, &vendor).await?;
@@ -719,7 +794,10 @@ impl ImportService {
                                     } else {
                                         vendor.payout_correction
                                     },
-                                    payout_correction_note: if existing.payout_correction_note.is_some() {
+                                    payout_correction_note: if existing
+                                        .payout_correction_note
+                                        .is_some()
+                                    {
                                         existing.payout_correction_note
                                     } else {
                                         vendor.payout_correction_note
@@ -745,11 +823,15 @@ impl ImportService {
                     reason: "booth_id not found in import".to_string(),
                 }),
                 Some(outcome) => {
-                    let purchase = if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
-                        Purchase { booth_id: outcome.canonical_id, ..purchase.clone() }
-                    } else {
-                        purchase.clone()
-                    };
+                    let purchase =
+                        if matches!(outcome.match_kind, Some(BoothMatchKind::ByNameAndDate)) {
+                            Purchase {
+                                booth_id: outcome.canonical_id,
+                                ..purchase.clone()
+                            }
+                        } else {
+                            purchase.clone()
+                        };
                     // Purchases are always additive — just save if not already present
                     tx_save_purchase(&transaction, &purchase).await?;
                     summary.purchases_imported += 1;
@@ -757,10 +839,9 @@ impl ImportService {
             }
         }
 
-        transaction
-            .done()
-            .await
-            .map_err(|e| ImportError::Storage(StorageError::TransactionError(format!("{:?}", e))))?;
+        transaction.done().await.map_err(|e| {
+            ImportError::Storage(StorageError::TransactionError(format!("{:?}", e)))
+        })?;
 
         Ok(())
     }
@@ -790,7 +871,10 @@ impl ImportService {
             }
             ImportPayload::Booth(single) => {
                 let mut map = HashMap::new();
-                map.insert(single.booth.id, (single.vendors.len(), single.purchases.len()));
+                map.insert(
+                    single.booth.id,
+                    (single.vendors.len(), single.purchases.len()),
+                );
                 map
             }
         };
@@ -829,7 +913,9 @@ impl ImportService {
         device_info: DeviceInfo,
     ) -> Result<(), ImportError> {
         if let Some(archive_service) = &self.archive_service {
-            archive_service.restore_booth(canonical_id, device_info).await?;
+            archive_service
+                .restore_booth(canonical_id, device_info)
+                .await?;
         }
         Ok(())
     }
@@ -850,8 +936,9 @@ async fn tx_load_booth(
         .map_err(|e| ImportError::Storage(StorageError::DatabaseError(format!("{:?}", e))))?
     {
         Some(v) => {
-            let booth: Booth = from_value(v)
-                .map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
+            let booth: Booth = from_value(v).map_err(|e| {
+                ImportError::Storage(StorageError::SerializationError(e.to_string()))
+            })?;
             Ok(Some(booth))
         }
         None => Ok(None),
@@ -862,8 +949,8 @@ async fn tx_save_booth(tx: &rexie::Transaction, booth: &Booth) -> Result<(), Imp
     let store = tx
         .store("booths")
         .map_err(|e| ImportError::Storage(StorageError::DatabaseError(format!("{:?}", e))))?;
-    let value =
-        to_value(booth).map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
+    let value = to_value(booth)
+        .map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
     store
         .put(&value, None)
         .await
@@ -891,9 +978,9 @@ async fn tx_find_vendor(
         .await
         .map_err(|e| ImportError::Storage(StorageError::DatabaseError(format!("{:?}", e))))?
     {
-        Some(v) => Ok(Some(
-            from_value(v).map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?,
-        )),
+        Some(v) => Ok(Some(from_value(v).map_err(|e| {
+            ImportError::Storage(StorageError::SerializationError(e.to_string()))
+        })?)),
         None => Ok(None),
     }
 }
@@ -902,7 +989,8 @@ async fn tx_save_vendor(tx: &rexie::Transaction, vendor: &Vendor) -> Result<(), 
     let store = tx
         .store("vendors")
         .map_err(|e| ImportError::Storage(StorageError::DatabaseError(format!("{:?}", e))))?;
-    let value = to_value(vendor).map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
+    let value = to_value(vendor)
+        .map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
     store
         .put(&value, None)
         .await
@@ -910,14 +998,12 @@ async fn tx_save_vendor(tx: &rexie::Transaction, vendor: &Vendor) -> Result<(), 
     Ok(())
 }
 
-async fn tx_save_purchase(
-    tx: &rexie::Transaction,
-    purchase: &Purchase,
-) -> Result<(), ImportError> {
+async fn tx_save_purchase(tx: &rexie::Transaction, purchase: &Purchase) -> Result<(), ImportError> {
     let store = tx
         .store("purchases")
         .map_err(|e| ImportError::Storage(StorageError::DatabaseError(format!("{:?}", e))))?;
-    let value = to_value(purchase).map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
+    let value = to_value(purchase)
+        .map_err(|e| ImportError::Storage(StorageError::SerializationError(e.to_string())))?;
     store
         .put(&value, None)
         .await

@@ -690,14 +690,15 @@ pub fn BoothListPage() -> impl IntoView {
         if let Some(Ok(state)) = state_result {
             set_is_merging.set(true);
             spawn_local(async move {
-                match state.merge_service.merge_booths(&canonical_id, &other_id).await {
+                match state
+                    .merge_service
+                    .merge_booths(&canonical_id, &other_id)
+                    .await
+                {
                     Ok(()) => {
                         // Reload booths and duplicate groups
-                        let mut booths_after = state
-                            .booth_repository
-                            .find_all()
-                            .await
-                            .unwrap_or_default();
+                        let mut booths_after =
+                            state.booth_repository.find_all().await.unwrap_or_default();
                         sort_booths(&mut booths_after);
                         set_booths.set(booths_after);
 
@@ -727,12 +728,16 @@ pub fn BoothListPage() -> impl IntoView {
                         // Refresh counts
                         if let Ok(all_vendors) = state.vendor_repository.find_all().await {
                             let mut vc = HashMap::<BoothId, usize>::new();
-                            for v in all_vendors { *vc.entry(v.booth_id).or_insert(0) += 1; }
+                            for v in all_vendors {
+                                *vc.entry(v.booth_id).or_insert(0) += 1;
+                            }
                             set_vendor_counts.set(vc);
                         }
                         if let Ok(all_purchases) = state.purchase_repository.find_all().await {
                             let mut pc = HashMap::<BoothId, usize>::new();
-                            for p in all_purchases { *pc.entry(p.booth_id).or_insert(0) += 1; }
+                            for p in all_purchases {
+                                *pc.entry(p.booth_id).or_insert(0) += 1;
+                            }
                             set_purchase_counts.set(pc);
                         }
                     }

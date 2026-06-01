@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use domain::{Booth, BoothId, BoothRepository, Purchase, PurchaseRepository, Vendor, VendorId, VendorRepository};
+use domain::{
+    Booth, BoothId, BoothRepository, Purchase, PurchaseRepository, Vendor, VendorId,
+    VendorRepository,
+};
+use js_sys;
 use rexie::TransactionMode;
 use serde_wasm_bindgen::{from_value, to_value};
 use wasm_bindgen::JsValue;
-use js_sys;
 
 use crate::error::StorageError;
 use crate::indexeddb::Database;
@@ -57,20 +60,26 @@ impl MergeService {
             .booth_repository
             .find_by_id(canonical_id)
             .await?
-            .ok_or_else(|| StorageError::NotFound(format!("Canonical booth not found: {}", canonical_id)))?;
+            .ok_or_else(|| {
+                StorageError::NotFound(format!("Canonical booth not found: {}", canonical_id))
+            })?;
         let other = self
             .booth_repository
             .find_by_id(other_id)
             .await?
-            .ok_or_else(|| StorageError::NotFound(format!("Other booth not found: {}", other_id)))?;
+            .ok_or_else(|| {
+                StorageError::NotFound(format!("Other booth not found: {}", other_id))
+            })?;
 
         let other_vendors = self.vendor_repository.find_by_booth(other_id).await?;
         let other_purchases = self.purchase_repository.find_by_booth(other_id).await?;
 
         if let Some(db) = &self.db {
-            self.merge_transactional(db, &canonical, &other, other_vendors, other_purchases).await
+            self.merge_transactional(db, &canonical, &other, other_vendors, other_purchases)
+                .await
         } else {
-            self.merge_sequential(&canonical, &other, other_vendors, other_purchases).await
+            self.merge_sequential(&canonical, &other, other_vendors, other_purchases)
+                .await
         }
     }
 
@@ -91,7 +100,10 @@ impl MergeService {
 
         // Update canonical booth metadata: keep canonical ID, prefer newer updated_at
         let merged_booth = if other.updated_at > canonical.updated_at {
-            Booth { id: canonical.id, ..other.clone() }
+            Booth {
+                id: canonical.id,
+                ..other.clone()
+            }
         } else {
             canonical.clone()
         };
@@ -99,7 +111,10 @@ impl MergeService {
 
         // Consolidate vendors: find-or-save without validation
         for vendor in other_vendors {
-            let remapped = Vendor { booth_id: canonical.id, ..vendor };
+            let remapped = Vendor {
+                booth_id: canonical.id,
+                ..vendor
+            };
             match tx_find_vendor(&transaction, &canonical.id, &remapped.vendor_id).await? {
                 None => {
                     tx_save_vendor(&transaction, &remapped).await?;
@@ -132,7 +147,10 @@ impl MergeService {
 
         // Re-assign all purchases from other to canonical
         for purchase in other_purchases {
-            let remapped = Purchase { booth_id: canonical.id, ..purchase };
+            let remapped = Purchase {
+                booth_id: canonical.id,
+                ..purchase
+            };
             tx_save_purchase(&transaction, &remapped).await?;
         }
 
@@ -158,7 +176,10 @@ impl MergeService {
     ) -> Result<(), StorageError> {
         // Update canonical booth metadata
         let merged_booth = if other.updated_at > canonical.updated_at {
-            Booth { id: canonical.id, ..other.clone() }
+            Booth {
+                id: canonical.id,
+                ..other.clone()
+            }
         } else {
             canonical.clone()
         };
@@ -166,7 +187,10 @@ impl MergeService {
 
         // Consolidate vendors
         for vendor in other_vendors {
-            let remapped = Vendor { booth_id: canonical.id, ..vendor };
+            let remapped = Vendor {
+                booth_id: canonical.id,
+                ..vendor
+            };
             match self
                 .vendor_repository
                 .find_by_id(&canonical.id, &remapped.vendor_id)
@@ -202,7 +226,10 @@ impl MergeService {
 
         // Re-assign all purchases
         for purchase in other_purchases {
-            let remapped = Purchase { booth_id: canonical.id, ..purchase };
+            let remapped = Purchase {
+                booth_id: canonical.id,
+                ..purchase
+            };
             self.purchase_repository.save(&remapped).await?;
         }
 
@@ -216,14 +243,21 @@ impl MergeService {
 // ─── Transaction-level helpers ───────────────────────────────────────────────
 
 async fn tx_save_booth(tx: &rexie::Transaction, booth: &Booth) -> Result<(), StorageError> {
-    let store = tx.store("booths").map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    let store = tx
+        .store("booths")
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     let value = to_value(booth).map_err(|e| StorageError::SerializationError(e.to_string()))?;
-    store.put(&value, None).await.map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    store
+        .put(&value, None)
+        .await
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     Ok(())
 }
 
 async fn tx_delete_booth(tx: &rexie::Transaction, id: &BoothId) -> Result<(), StorageError> {
-    let store = tx.store("booths").map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    let store = tx
+        .store("booths")
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     store
         .delete(JsValue::from_str(&id.as_str()))
         .await
@@ -243,23 +277,32 @@ async fn tx_find_vendor(
     booth_id: &BoothId,
     vendor_id: &VendorId,
 ) -> Result<Option<Vendor>, StorageError> {
-    let store = tx.store("vendors").map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    let store = tx
+        .store("vendors")
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     match store
         .get(vendor_compound_key(booth_id, vendor_id))
         .await
         .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?
     {
-        Some(v) => Ok(Some(
-            from_value(v).map_err(|e| StorageError::SerializationError(e.to_string()))?,
-        )),
+        Some(v) => {
+            Ok(Some(from_value(v).map_err(|e| {
+                StorageError::SerializationError(e.to_string())
+            })?))
+        }
         None => Ok(None),
     }
 }
 
 async fn tx_save_vendor(tx: &rexie::Transaction, vendor: &Vendor) -> Result<(), StorageError> {
-    let store = tx.store("vendors").map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    let store = tx
+        .store("vendors")
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     let value = to_value(vendor).map_err(|e| StorageError::SerializationError(e.to_string()))?;
-    store.put(&value, None).await.map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    store
+        .put(&value, None)
+        .await
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     Ok(())
 }
 
@@ -267,8 +310,13 @@ async fn tx_save_purchase(
     tx: &rexie::Transaction,
     purchase: &Purchase,
 ) -> Result<(), StorageError> {
-    let store = tx.store("purchases").map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    let store = tx
+        .store("purchases")
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     let value = to_value(purchase).map_err(|e| StorageError::SerializationError(e.to_string()))?;
-    store.put(&value, None).await.map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
+    store
+        .put(&value, None)
+        .await
+        .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
     Ok(())
 }

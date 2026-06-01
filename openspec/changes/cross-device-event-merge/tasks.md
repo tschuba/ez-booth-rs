@@ -40,7 +40,7 @@
 - [x] 5.9 Write unit test: case 3f — restore path; no match → inserted as new active booth
 - [x] 5.10 Write unit test: Skip on `ByNameAndDate` — booth metadata not updated, vendors/purchases still imported under canonical ID
 - [x] 5.11 Write unit test: same-name/different-date — two booths with identical description but different dates are not merged
-- [ ] 5.12 Write WASM integration test: `import_all` partial failure → full IDB transaction rollback, no orphaned records
+- [x] 5.12 Write WASM integration test: `import_all` partial failure → full IDB transaction rollback, no orphaned records
 
 ## 6. ConflictStrategy Copy Fixes (ships with Issue 1)
 
@@ -54,7 +54,7 @@
 ## 7. Event List Card Detail (Issue 2 — independent)
 
 - [x] 7.1 Add vendor count and `updated_at` timestamp to the booth card component in `crates/ez-booth-ui/src/pages/booth_list.rs`
-- [ ] 7.2 Verify sufficient contrast and layout for the additional metadata (manual check)
+- [x] 7.2 Verify sufficient contrast and layout for the additional metadata (manual check)
 
 ## 8. Duplicate Detection UI (Issue 3)
 

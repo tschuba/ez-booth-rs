@@ -6,6 +6,10 @@ mod export_service;
 mod import_service;
 mod import_validator;
 
+pub use analysis::{
+    BoothCandidate, BoothImportAnalysis, BoothMatchKind, BoothResolution, ImportAnalysis,
+    ImportPayload,
+};
 pub use backup_format::{
     generate_booth_backup_filename, generate_booth_backup_filename_with_device,
     generate_full_backup_filename, generate_full_backup_filename_with_device,
@@ -19,9 +23,5 @@ pub use checksum::{
 pub use error::ExportError;
 pub use error::{ImportError, SkippedRecord, ValidationFailure};
 pub use export_service::{ExportService, SerializedBackup};
-pub use analysis::{
-    BoothCandidate, BoothImportAnalysis, BoothMatchKind, BoothResolution, ImportAnalysis,
-    ImportPayload,
-};
 pub use import_service::{ConflictStrategy, ImportService, ImportSummary};
 pub use import_validator::ImportValidator;
