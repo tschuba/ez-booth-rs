@@ -1,3 +1,5 @@
+#![allow(clippy::manual_div_ceil)]
+
 use crate::components::pagination_prefs::PAGE_SIZE_OPTIONS;
 use crate::components::{Icon, LuChevronLeft, LuChevronRight, LuChevronsLeft, LuChevronsRight};
 use crate::t;

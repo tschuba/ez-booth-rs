@@ -187,6 +187,18 @@ impl BoothRepository for IndexedDbBoothRepository {
         description: &str,
         date: &NaiveDate,
     ) -> DomainResult<Option<Booth>> {
+        Ok(self
+            .find_all_by_description_and_date(description, date)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    async fn find_all_by_description_and_date(
+        &self,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<Vec<Booth>> {
         let transaction = self
             .db
             .transaction(&["booths"], TransactionMode::ReadOnly)
@@ -200,36 +212,51 @@ impl BoothRepository for IndexedDbBoothRepository {
             .index("description_date")
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        let result = index
-            .get(description_date_key(description, date))
+        let key = description_date_key(description, date);
+        let results = index
+            .get_all(
+                Some(rexie::KeyRange::only(&key).map_err(StorageError::from)?),
+                None,
+            )
             .await
             .map_err(|e| StorageError::DatabaseError(format!("{:?}", e)))?;
 
-        match result {
-            Some(value) => {
-                let booth: Booth = from_value(value)
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-
-                if booth.is_archived() {
-                    match booth.archived_summary.as_ref() {
-                        Some(summary) => debug!(
-                            "Loaded archived booth {} by description/date with revenue {}, booth revenue {}, vendor summaries {}",
-                            booth.id,
-                            summary.total_revenue,
-                            summary.total_booth_revenue,
-                            summary.vendor_summaries.len()
-                        ),
-                        None => warn!(
-                            "Loaded archived booth {} by description/date without archived summary",
-                            booth.id
-                        ),
-                    }
+        let booths: Vec<Booth> = results
+            .into_iter()
+            .filter_map(|value| match from_value::<Booth>(value) {
+                Ok(booth) => Some(booth),
+                Err(err) => {
+                    error!(
+                        "Failed to deserialize booth from description_date index: {}",
+                        err
+                    );
+                    None
                 }
+            })
+            .collect();
 
-                Ok(Some(booth))
-            }
-            None => Ok(None),
+        Ok(booths)
+    }
+
+    async fn find_duplicate_groups(&self) -> DomainResult<Vec<Vec<Booth>>> {
+        let all_active = self.find_active().await?;
+
+        let mut groups: std::collections::HashMap<String, Vec<Booth>> =
+            std::collections::HashMap::new();
+
+        for booth in all_active {
+            let key = format!(
+                "{}|{}",
+                booth.description.trim(),
+                booth.date.format("%Y-%m-%d")
+            );
+            groups.entry(key).or_default().push(booth);
         }
+
+        Ok(groups
+            .into_values()
+            .filter(|group| group.len() >= 2)
+            .collect())
     }
 
     async fn delete(&self, id: &BoothId) -> DomainResult<()> {

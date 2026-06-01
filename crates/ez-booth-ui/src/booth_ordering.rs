@@ -1,3 +1,5 @@
+#![allow(clippy::let_and_return)]
+
 use std::cmp::Ordering;
 
 use domain::models::booth::Booth;

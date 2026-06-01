@@ -8,7 +8,8 @@ use ez_booth_storage::repositories::{
 };
 use ez_booth_storage::{
     create_session_id, load_storage_diagnostics, run_integrity_check, ArchiveService,
-    ErrorLogEntry, ErrorLogRepository, IntegrityStatus, MigrationService, StorageDiagnostics,
+    ErrorLogEntry, ErrorLogRepository, IntegrityStatus, MergeService, MigrationService,
+    StorageDiagnostics,
 };
 use leptos::*;
 use std::rc::Rc;
@@ -28,6 +29,7 @@ pub struct AppState {
     pub export_service: Arc<ExportService>,
     pub archive_service: Arc<ArchiveService>,
     pub import_service: Arc<ImportService>,
+    pub merge_service: Arc<MergeService>,
     pub migration_service: Arc<MigrationService>,
     pub vendor_service: Arc<VendorService<IndexedDbVendorRepository, IndexedDbBoothRepository>>,
     pub report_service: Arc<
@@ -40,6 +42,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub async fn new_with_callback(on_write: Option<Rc<dyn Fn()>>) -> Result<Self, String> {
         // Initialize IndexedDB
         let db = Database::new_with_callback("ez_booth_v1", on_write)
@@ -67,12 +70,22 @@ impl AppState {
             db.clone(),
         ));
         let archive_service = Arc::new(ArchiveService::new(db.clone()));
-        let import_service = Arc::new(ImportService::with_archive_service(
+        let merge_service = Arc::new(MergeService::with_database(
             booth_repository.clone(),
             vendor_repository.clone(),
             purchase_repository.clone(),
-            Some(archive_service.clone()),
+            db.clone(),
         ));
+        let import_service = Arc::new(
+            ImportService::with_database(
+                booth_repository.clone(),
+                vendor_repository.clone(),
+                purchase_repository.clone(),
+                Some(archive_service.clone()),
+                db.clone(),
+            )
+            .with_merge_service(merge_service.clone()),
+        );
         let migration_service = Arc::new(MigrationService::new_with_database(
             db.clone(),
             booth_repository.clone(),
@@ -104,6 +117,7 @@ impl AppState {
             export_service,
             archive_service,
             import_service,
+            merge_service,
             migration_service,
             vendor_service,
             report_service,

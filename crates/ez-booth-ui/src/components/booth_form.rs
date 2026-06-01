@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_lazy_evaluations)]
+
 use crate::components::*;
 use crate::error_translator::translate_domain_error;
 use crate::formatting::{

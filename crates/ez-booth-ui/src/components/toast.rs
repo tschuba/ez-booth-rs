@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+
 use crate::components::{Icon, LuCopy, LuX};
 use crate::{t, utils::copy_text_to_clipboard};
 use leptos::*;

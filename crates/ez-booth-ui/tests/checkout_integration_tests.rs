@@ -1,3 +1,5 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 use chrono::NaiveDate;

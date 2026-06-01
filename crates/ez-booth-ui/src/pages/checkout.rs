@@ -1,3 +1,11 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::let_unit_value)]
+#![allow(clippy::redundant_locals)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::manual_div_ceil)]
+
 use crate::audio::play_error_sound;
 use crate::components::*;
 use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};

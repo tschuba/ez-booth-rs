@@ -1,3 +1,6 @@
+#![allow(clippy::manual_strip)]
+#![allow(clippy::redundant_pattern_matching)]
+
 use crate::i18n::Locale;
 use chrono::{DateTime, Datelike, Local, NaiveDate};
 use rust_decimal::Decimal;

@@ -3,6 +3,8 @@ pub mod error_code;
 pub mod models;
 pub mod repositories;
 pub mod services;
+#[cfg(test)]
+pub(crate) mod test_support;
 pub mod validation;
 
 pub use error::*;

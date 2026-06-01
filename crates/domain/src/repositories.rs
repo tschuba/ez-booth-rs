@@ -27,12 +27,22 @@ pub trait BoothRepository {
     /// Find all archived booths
     async fn find_archived(&self) -> DomainResult<Vec<Booth>>;
 
-    /// Find a booth by description and date
+    /// Find a booth by description and date (returns first match)
     async fn find_by_description_and_date(
         &self,
         description: &str,
         date: &NaiveDate,
     ) -> DomainResult<Option<Booth>>;
+
+    /// Find all booths matching description and date (active and archived)
+    async fn find_all_by_description_and_date(
+        &self,
+        description: &str,
+        date: &NaiveDate,
+    ) -> DomainResult<Vec<Booth>>;
+
+    /// Find groups of active booths sharing the same (description, date) key but different UUIDs
+    async fn find_duplicate_groups(&self) -> DomainResult<Vec<Vec<Booth>>>;
 
     /// Delete a booth by ID
     async fn delete(&self, id: &BoothId) -> DomainResult<()>;

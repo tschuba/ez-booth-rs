@@ -143,82 +143,9 @@ impl<R: BoothRepository> BoothService<R> {
 mod tests {
     use super::*;
     use crate::models::{FeeConfig, VendorIdValidation};
-    use async_trait::async_trait;
+    use crate::test_support::MockBoothRepository;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
-    // Mock repository for testing
-    #[derive(Clone)]
-    struct MockBoothRepository {
-        booths: Arc<Mutex<HashMap<BoothId, Booth>>>,
-    }
-
-    impl MockBoothRepository {
-        fn new() -> Self {
-            Self {
-                booths: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl BoothRepository for MockBoothRepository {
-        async fn save(&self, booth: &Booth) -> DomainResult<()> {
-            self.booths.lock().unwrap().insert(booth.id, booth.clone());
-            Ok(())
-        }
-
-        async fn find_by_id(&self, id: &BoothId) -> DomainResult<Option<Booth>> {
-            Ok(self.booths.lock().unwrap().get(id).cloned())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self.booths.lock().unwrap().values().cloned().collect())
-        }
-
-        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .booths
-                .lock()
-                .unwrap()
-                .values()
-                .filter(|booth| !booth.is_archived())
-                .cloned()
-                .collect())
-        }
-
-        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .booths
-                .lock()
-                .unwrap()
-                .values()
-                .filter(|booth| booth.is_archived())
-                .cloned()
-                .collect())
-        }
-
-        async fn find_by_description_and_date(
-            &self,
-            description: &str,
-            date: &NaiveDate,
-        ) -> DomainResult<Option<Booth>> {
-            Ok(self
-                .booths
-                .lock()
-                .unwrap()
-                .values()
-                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
-                .cloned())
-        }
-
-        async fn delete(&self, id: &BoothId) -> DomainResult<()> {
-            self.booths.lock().unwrap().remove(id);
-            Ok(())
-        }
-    }
 
     #[tokio::test]
     async fn test_create_booth() {

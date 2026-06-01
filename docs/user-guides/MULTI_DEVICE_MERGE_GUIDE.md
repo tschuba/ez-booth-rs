@@ -90,15 +90,15 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 - it does not guess that two different purchase IDs are the same real-world sale
 - it does not combine two conflicting booth edits field by field
-- it does not provide a manual conflict-resolution UI
-- it does not make multi-file import atomic
+- it does not guess that two different purchase IDs are the same real-world sale (this is by design)
+- when the same event was independently created on two devices and both local copies have duplicated further, a guided conflict wizard helps the operator choose which copy to merge into
 
 ### DE
 
 - es errät nicht, dass zwei unterschiedliche Kauf-IDs derselbe reale Verkauf sind
 - es kombiniert nicht zwei widersprüchliche Stand-Änderungen Feld für Feld
-- es bietet keine manuelle Konfliktlösungs-Benutzeroberfläche
-- es macht Mehrdatei-Importe nicht atomar
+- es errät nicht, dass zwei unterschiedliche Kauf-IDs derselbe reale Verkauf sind (dies ist beabsichtigt)
+- wenn dieselbe Veranstaltung unabhängig auf zwei Geräten erstellt wurde, hilft ein geführter Konflikt-Assistent dem Anwendenden, welche Kopie zusammengeführt werden soll
 
 ---
 
@@ -150,15 +150,19 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 ### EN
 
-- use `Skip` when the local device should stay authoritative and imported conflicts should be ignored
-- use `Replace` when one backup should fully overwrite conflicting local records
-- use `Merge` for the normal multi-device booth workflow
+All three strategies always import any new vendors and purchases — the strategy choice only controls what happens to **booth metadata** (name, date, fee settings) when a matching event already exists locally.
+
+- use `Skip` when you want the local device's event settings to stay unchanged; new vendors and purchases from the file are still added
+- use `Replace` when one backup should fully overwrite the local event settings
+- use `Merge` for the normal multi-device booth workflow (keeps whichever event settings are more recent)
 
 ### DE
 
-- verwenden Sie `Skip`, wenn das lokale Gerät maßgeblich bleiben soll und importierte Konflikte ignoriert werden sollen
-- verwenden Sie `Replace`, wenn ein Backup widersprüchliche lokale Datensätze vollständig überschreiben soll
-- verwenden Sie `Merge` für den normalen geräteübergreifenden Stand-Arbeitsablauf
+Alle drei Strategien importieren immer neue Verkäufer und Käufe — die Strategieauswahl steuert nur, was mit den **Veranstaltungseinstellungen** (Name, Datum, Gebühren) passiert, wenn eine passende Veranstaltung bereits lokal vorhanden ist.
+
+- verwenden Sie `Skip`, wenn die Veranstaltungseinstellungen des lokalen Geräts unverändert bleiben sollen; neue Verkäufer und Käufe aus der Datei werden trotzdem hinzugefügt
+- verwenden Sie `Replace`, wenn ein Backup die lokalen Veranstaltungseinstellungen vollständig überschreiben soll
+- verwenden Sie `Merge` für den normalen geräteübergreifenden Stand-Arbeitsablauf (behält die aktuelleren Veranstaltungseinstellungen)
 
 ---
 
@@ -168,13 +172,13 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 - if two devices independently record the same real-world sale as two different purchases, EZ Booth will keep both because the purchase IDs are different
 - if two devices edit the same booth or purchase at the exact same timestamp, the target device keeps its existing local record
-- if you import several files and a later file fails, earlier successful imports are already applied
+- if a single import contains events that cannot be automatically matched (ambiguous local duplicates), those events are skipped with a visible reason — the rest of the import still applies
 
 ### DE
 
 - wenn zwei Geräte unabhängig voneinander denselben realen Verkauf als zwei unterschiedliche Käufe erfassen, behält EZ Booth beide, da die Kauf-IDs unterschiedlich sind
 - wenn zwei Geräte denselben Stand oder Kauf zum exakt gleichen Zeitstempel bearbeiten, behält das Ziel-Gerät seinen bestehenden lokalen Datensatz
-- wenn Sie mehrere Dateien importieren und eine spätere Datei fehlschlägt, sind frühere erfolgreiche Importe bereits angewendet
+- wenn ein einzelner Import Veranstaltungen enthält, die nicht automatisch zugeordnet werden können (mehrdeutige lokale Duplikate), werden diese Veranstaltungen mit einem sichtbaren Grund übersprungen — der Rest des Imports wird trotzdem angewendet
 
 ---
 
@@ -193,9 +197,7 @@ The storage-layer merge behavior for this workflow has automated browser-backed 
 
 For cross-browser operator validation, also use:
 
-- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
 - `docs/user-guides/DATA_BACKUP_GUIDE.md`
-- `docs/validation/VALIDATION_WORKFLOW.md`
 
 ### DE
 
@@ -210,6 +212,4 @@ Das Merge-Verhalten auf Storage-Ebene für diesen Arbeitsablauf hat automatisier
 
 Für browserübergreifende Operator-Validierung verwenden Sie auch:
 
-- `docs/validation/SAFARI_VALIDATION_CHECKLIST.md`
 - `docs/user-guides/DATA_BACKUP_GUIDE.md`
-- `docs/validation/VALIDATION_WORKFLOW.md`

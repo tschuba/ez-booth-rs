@@ -4,6 +4,7 @@ pub mod error;
 pub mod error_log;
 pub mod export;
 pub mod indexeddb;
+pub mod merge_service;
 pub mod migration;
 pub mod repositories;
 
@@ -21,6 +22,7 @@ pub use error_log::{
     ERROR_LOG_RETENTION_LIMIT,
 };
 pub use indexeddb::Database;
+pub use merge_service::MergeService;
 pub use migration::{
     LegacyBooth, LegacyPurchase, LegacyPurchaseItem, LegacyVendor, MigrationError,
     MigrationIssueStrategy, MigrationParseSummary, MigrationResult, MigrationService,

@@ -35,7 +35,11 @@ impl ImportValidator {
         self.verify_booth_backup_checksum(&data)?;
         self.validate_version(data.version)?;
         self.validate_booth_structure(&data)?;
-        self.validate_all_records(&[data.booth.clone()], &data.vendors, &data.purchases)?;
+        self.validate_all_records(
+            std::slice::from_ref(&data.booth),
+            &data.vendors,
+            &data.purchases,
+        )?;
 
         Ok(data)
     }

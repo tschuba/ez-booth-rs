@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_vendor_id_numeric_sorting() {
-        let mut ids = vec![
+        let mut ids = [
             VendorId::new("100"),
             VendorId::new("2"),
             VendorId::new("30"),
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_vendor_id_mixed_sorting() {
-        let mut ids = vec![
+        let mut ids = [
             VendorId::new("A10"),
             VendorId::new("100"),
             VendorId::new("2"),

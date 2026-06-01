@@ -18,7 +18,7 @@ The ez-booth application requires the ability to transfer booth data from one de
 - WiFi router or access point infrastructure
 - cloud services or external servers
 
-The transfer scope for the first implementation is a single booth including booth configuration, vendors, and purchases.
+The initial implementation scoped transfer to a single booth. Full-backup import with per-event reconciliation is now also supported: when the same event was independently created on multiple devices with different UUIDs, the import service resolves the canonical local booth by name+date match and merges into it. Ambiguous cases (multiple local matches) surface a conflict wizard for operator review.
 
 ### Background
 

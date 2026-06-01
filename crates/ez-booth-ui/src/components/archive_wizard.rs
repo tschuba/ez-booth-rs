@@ -40,8 +40,8 @@ pub fn ArchiveWizard(
     let app_state = use_app_state();
     let booth_list_version = use_booth_list_version();
     let toast = use_toast();
-    let on_archived = StoredValue::new(on_archived.clone());
-    let on_close = StoredValue::new(on_close.clone());
+    let on_archived = StoredValue::new(on_archived);
+    let on_close = StoredValue::new(on_close);
     let (step, set_step) = create_signal(ArchiveStep::Review);
     let (preview, set_preview) = create_signal(None::<ArchivePreview>);
     let (export_record, set_export_record) = create_signal(None::<ExportRecord>);
@@ -88,7 +88,6 @@ pub fn ArchiveWizard(
 
     let create_export = {
         let booth_id = booth.id;
-        let toast = toast.clone();
         move || {
             if is_busy.get_untracked() {
                 return;
@@ -150,7 +149,7 @@ pub fn ArchiveWizard(
                             move || {
                                 if let Some(input) = token_ref.get() {
                                     let _ = input.focus();
-                                    let _ = input.select();
+                                    input.select();
                                 }
                             },
                             std::time::Duration::from_millis(0),
@@ -166,7 +165,6 @@ pub fn ArchiveWizard(
 
     let archive_booth = {
         let booth_id = booth.id;
-        let toast = toast.clone();
         move || {
             if is_busy.get_untracked() || !token_matches.get_untracked() {
                 return;
@@ -248,12 +246,12 @@ pub fn ArchiveWizard(
     view! {
         <Modal
             show=show
-            on_close=close_modal.clone()
+            on_close=close_modal
             title=step_title
             size=ModalSize::Large
             action_bar=view! {
                 <div class="contents">
-                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_modal.clone())>
+                    <Button variant=ButtonVariant::Secondary on_click=Box::new(close_modal)>
                         {t!("common.cancel")()}
                     </Button>
                     {move || match step.get() {
@@ -268,7 +266,7 @@ pub fn ArchiveWizard(
                         ArchiveStep::Export => view! {
                             <Button
                                 disabled=is_busy
-                                on_click=Box::new(create_export.clone())
+                                on_click=Box::new(create_export)
                             >
                                 {move || if is_busy.get() { t!("backup.export_in_progress")() } else { t!("archive.create_export")() }}
                             </Button>
@@ -277,7 +275,7 @@ pub fn ArchiveWizard(
                             <Button
                                 variant=ButtonVariant::Danger
                                 disabled=Signal::derive(move || !token_matches.get() || is_busy.get())
-                                on_click=Box::new(archive_booth.clone())
+                                on_click=Box::new(archive_booth)
                             >
                                 {move || if is_busy.get() { t!("archive.processing")() } else { t!("archive.confirm_action")() }}
                             </Button>

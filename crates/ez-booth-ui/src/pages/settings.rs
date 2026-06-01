@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::unnecessary_map_or)]
+
 use chrono::Utc;
 use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};

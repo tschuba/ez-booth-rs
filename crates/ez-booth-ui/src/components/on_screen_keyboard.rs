@@ -1,19 +1,16 @@
+#![allow(clippy::clone_on_copy)]
+
 use crate::formatting::decimal_separator;
 use crate::i18n::Locale;
 use crate::t;
 use leptos::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AmountInputMode {
     RightToLeft,
+    #[default]
     Regular,
-}
-
-impl Default for AmountInputMode {
-    fn default() -> Self {
-        Self::Regular
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,3 +1,7 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::let_unit_value)]
+#![allow(clippy::redundant_closure)]
+
 use leptos::*;
 
 /// Input type

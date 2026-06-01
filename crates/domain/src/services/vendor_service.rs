@@ -106,161 +106,9 @@ mod tests {
     use crate::models::{
         Booth, FeeConfig, OmissionRule, VendorIdOmissionRules, VendorIdValidation,
     };
-    use async_trait::async_trait;
+    use crate::test_support::{MockBoothRepository, MockVendorRepository};
     use chrono::NaiveDate;
     use rust_decimal::Decimal;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
-    // Mock repository for testing
-    #[derive(Clone)]
-    struct MockVendorRepository {
-        vendors: Arc<Mutex<HashMap<(BoothId, VendorId), Vendor>>>,
-    }
-
-    impl MockVendorRepository {
-        fn new() -> Self {
-            Self {
-                vendors: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl VendorRepository for MockVendorRepository {
-        async fn save(&self, vendor: &Vendor) -> DomainResult<()> {
-            self.vendors
-                .lock()
-                .unwrap()
-                .insert((vendor.booth_id, vendor.vendor_id.clone()), vendor.clone());
-            Ok(())
-        }
-
-        async fn find_by_id(
-            &self,
-            booth_id: &BoothId,
-            vendor_id: &VendorId,
-        ) -> DomainResult<Option<Vendor>> {
-            Ok(self
-                .vendors
-                .lock()
-                .unwrap()
-                .get(&(*booth_id, vendor_id.clone()))
-                .cloned())
-        }
-
-        async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Vendor>> {
-            Ok(self
-                .vendors
-                .lock()
-                .unwrap()
-                .iter()
-                .filter(|((bid, _), _)| bid == booth_id)
-                .map(|(_, v)| v.clone())
-                .collect())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Vendor>> {
-            Ok(self.vendors.lock().unwrap().values().cloned().collect())
-        }
-
-        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
-            let mut vendors = self.vendors.lock().unwrap();
-            let before = vendors.len();
-            vendors.retain(|(current_booth_id, _), _| current_booth_id != booth_id);
-            Ok(before.saturating_sub(vendors.len()))
-        }
-
-        async fn delete(&self, booth_id: &BoothId, vendor_id: &VendorId) -> DomainResult<()> {
-            self.vendors
-                .lock()
-                .unwrap()
-                .remove(&(*booth_id, vendor_id.clone()));
-            Ok(())
-        }
-
-        async fn delete_from_booth(
-            &self,
-            booth_id: &BoothId,
-            vendor_id: &VendorId,
-        ) -> DomainResult<()> {
-            self.vendors
-                .lock()
-                .unwrap()
-                .remove(&(*booth_id, vendor_id.clone()));
-            Ok(())
-        }
-    }
-
-    #[derive(Clone)]
-    struct MockBoothRepository {
-        booths: Arc<Mutex<HashMap<BoothId, Booth>>>,
-    }
-
-    impl MockBoothRepository {
-        fn new() -> Self {
-            Self {
-                booths: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn add_booth(&self, booth: Booth) {
-            self.booths.lock().unwrap().insert(booth.id, booth);
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl BoothRepository for MockBoothRepository {
-        async fn save(&self, booth: &Booth) -> DomainResult<()> {
-            self.booths.lock().unwrap().insert(booth.id, booth.clone());
-            Ok(())
-        }
-
-        async fn find_by_id(&self, id: &BoothId) -> DomainResult<Option<Booth>> {
-            Ok(self.booths.lock().unwrap().get(id).cloned())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self.booths.lock().unwrap().values().cloned().collect())
-        }
-
-        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .find_all()
-                .await?
-                .into_iter()
-                .filter(|booth| !booth.is_archived())
-                .collect())
-        }
-
-        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .find_all()
-                .await?
-                .into_iter()
-                .filter(|booth| booth.is_archived())
-                .collect())
-        }
-
-        async fn find_by_description_and_date(
-            &self,
-            description: &str,
-            date: &NaiveDate,
-        ) -> DomainResult<Option<Booth>> {
-            Ok(self
-                .booths
-                .lock()
-                .unwrap()
-                .values()
-                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
-                .cloned())
-        }
-
-        async fn delete(&self, id: &BoothId) -> DomainResult<()> {
-            self.booths.lock().unwrap().remove(id);
-            Ok(())
-        }
-    }
 
     fn create_test_booth_with_validation(validation: VendorIdValidation) -> Booth {
         let fees = FeeConfig {
@@ -289,7 +137,7 @@ mod tests {
 
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -309,7 +157,7 @@ mod tests {
 
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -336,7 +184,7 @@ mod tests {
 
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -385,7 +233,7 @@ mod tests {
 
         let booth = create_test_booth_with_validation(VendorIdValidation::Unrestricted);
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -414,7 +262,7 @@ mod tests {
         let booth =
             create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -435,7 +283,7 @@ mod tests {
         let booth =
             create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -457,7 +305,7 @@ mod tests {
         let booth =
             create_test_booth_with_validation(VendorIdValidation::DigitsOnly { min: 1, max: None });
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -481,7 +329,7 @@ mod tests {
         let booth =
             create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -502,7 +350,7 @@ mod tests {
         let booth =
             create_test_booth_with_validation(VendorIdValidation::Regex(r"^V\d{3}$".to_string()));
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -554,7 +402,7 @@ mod tests {
             }],
         };
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -578,7 +426,7 @@ mod tests {
             max: Some(200),
         });
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
@@ -620,7 +468,7 @@ mod tests {
             }],
         };
         let booth_id = booth.id;
-        booth_repo.add_booth(booth);
+        booth_repo.add(booth);
 
         let service = VendorService::new(vendor_repo.clone(), booth_repo.clone());
 
