@@ -311,284 +311,9 @@ impl DateRange {
 mod tests {
     use super::*;
     use crate::models::{Booth, FeeConfig, PurchaseItem, Vendor};
-    use crate::{BoothRunningTotals, PaginatedPurchases};
-    use async_trait::async_trait;
+    use crate::test_support::{MockBoothRepository, MockPurchaseRepository, MockVendorRepository};
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
-    // Mock repositories for testing
-    #[derive(Clone)]
-    struct MockPurchaseRepository {
-        purchases: Arc<Mutex<HashMap<BoothId, Vec<Purchase>>>>,
-    }
-
-    impl MockPurchaseRepository {
-        fn new() -> Self {
-            Self {
-                purchases: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn add_purchase(&self, purchase: Purchase) {
-            let mut purchases = self.purchases.lock().unwrap();
-            purchases
-                .entry(purchase.booth_id.clone())
-                .or_default()
-                .push(purchase);
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl PurchaseRepository for MockPurchaseRepository {
-        async fn save(&self, _purchase: &Purchase) -> DomainResult<()> {
-            Ok(())
-        }
-
-        async fn find_by_id(
-            &self,
-            _purchase_id: &crate::models::PurchaseId,
-        ) -> DomainResult<Option<Purchase>> {
-            Ok(None)
-        }
-
-        async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Purchase>> {
-            let purchases = self.purchases.lock().unwrap();
-            Ok(purchases.get(booth_id).cloned().unwrap_or_default())
-        }
-
-        async fn find_by_booth_paginated(
-            &self,
-            booth_id: &BoothId,
-            offset: usize,
-            limit: usize,
-        ) -> DomainResult<PaginatedPurchases> {
-            let mut purchases = self.find_by_booth(booth_id).await?;
-            purchases.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-
-            let total_count = purchases.len();
-            let items: Vec<Purchase> = purchases.into_iter().skip(offset).take(limit).collect();
-
-            Ok(PaginatedPurchases { items, total_count })
-        }
-
-        async fn get_running_totals(&self, booth_id: &BoothId) -> DomainResult<BoothRunningTotals> {
-            let purchases = self.find_by_booth(booth_id).await?;
-
-            let total_sales: Decimal = purchases.iter().map(|p| p.total_amount()).sum();
-            let total_items: usize = purchases.iter().map(|p| p.items.len()).sum();
-            let total_checkouts = purchases.len();
-
-            Ok(BoothRunningTotals {
-                total_sales,
-                total_items,
-                total_checkouts,
-            })
-        }
-
-        async fn find_by_vendor(
-            &self,
-            booth_id: &BoothId,
-            vendor_id: &VendorId,
-        ) -> DomainResult<Vec<Purchase>> {
-            let purchases = self.purchases.lock().unwrap();
-            Ok(purchases
-                .get(booth_id)
-                .cloned()
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|p| p.items.iter().any(|item| &item.vendor_id == vendor_id))
-                .collect())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Purchase>> {
-            let purchases = self.purchases.lock().unwrap();
-            Ok(purchases.values().flat_map(|v| v.clone()).collect())
-        }
-
-        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
-            let mut purchases = self.purchases.lock().unwrap();
-            Ok(purchases
-                .remove(booth_id)
-                .map(|items| items.len())
-                .unwrap_or(0))
-        }
-
-        async fn delete(&self, _id: &crate::models::PurchaseId) -> DomainResult<()> {
-            Ok(())
-        }
-
-        async fn delete_from_booth(
-            &self,
-            _booth_id: &BoothId,
-            _id: &crate::models::PurchaseId,
-        ) -> DomainResult<()> {
-            Ok(())
-        }
-    }
-
-    #[derive(Clone)]
-    struct MockBoothRepository {
-        booths: Arc<Mutex<HashMap<BoothId, Booth>>>,
-    }
-
-    impl MockBoothRepository {
-        fn new() -> Self {
-            Self {
-                booths: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn add_booth(&self, booth: Booth) {
-            let mut booths = self.booths.lock().unwrap();
-            booths.insert(booth.id.clone(), booth);
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl BoothRepository for MockBoothRepository {
-        async fn save(&self, _booth: &Booth) -> DomainResult<()> {
-            Ok(())
-        }
-
-        async fn find_by_id(&self, booth_id: &BoothId) -> DomainResult<Option<Booth>> {
-            let booths = self.booths.lock().unwrap();
-            Ok(booths.get(booth_id).cloned())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Booth>> {
-            let booths = self.booths.lock().unwrap();
-            Ok(booths.values().cloned().collect())
-        }
-
-        async fn find_active(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .find_all()
-                .await?
-                .into_iter()
-                .filter(|booth| !booth.is_archived())
-                .collect())
-        }
-
-        async fn find_archived(&self) -> DomainResult<Vec<Booth>> {
-            Ok(self
-                .find_all()
-                .await?
-                .into_iter()
-                .filter(|booth| booth.is_archived())
-                .collect())
-        }
-
-        async fn find_by_description_and_date(
-            &self,
-            description: &str,
-            date: &NaiveDate,
-        ) -> DomainResult<Option<Booth>> {
-            let booths = self.booths.lock().unwrap();
-            Ok(booths
-                .values()
-                .find(|booth| booth.date == *date && booth.description.trim() == description.trim())
-                .cloned())
-        }
-
-        async fn find_all_by_description_and_date(
-            &self,
-            description: &str,
-            date: &NaiveDate,
-        ) -> DomainResult<Vec<Booth>> {
-            let booths = self.booths.lock().unwrap();
-            Ok(booths
-                .values()
-                .filter(|booth| {
-                    booth.date == *date && booth.description.trim() == description.trim()
-                })
-                .cloned()
-                .collect())
-        }
-
-        async fn find_duplicate_groups(&self) -> DomainResult<Vec<Vec<Booth>>> {
-            let booths = self.booths.lock().unwrap();
-            let mut groups: std::collections::HashMap<String, Vec<Booth>> =
-                std::collections::HashMap::new();
-            for booth in booths.values().filter(|b| !b.is_archived()) {
-                let key = format!("{}|{}", booth.description.trim(), booth.date);
-                groups.entry(key).or_default().push(booth.clone());
-            }
-            Ok(groups.into_values().filter(|g| g.len() >= 2).collect())
-        }
-
-        async fn delete(&self, _id: &BoothId) -> DomainResult<()> {
-            Ok(())
-        }
-    }
-
-    #[derive(Clone)]
-    struct MockVendorRepository {
-        vendors: Arc<Mutex<HashMap<(BoothId, VendorId), Vendor>>>,
-    }
-
-    impl MockVendorRepository {
-        fn new() -> Self {
-            Self {
-                vendors: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn add_vendor(&self, booth_id: BoothId, vendor: Vendor) {
-            let mut vendors = self.vendors.lock().unwrap();
-            vendors.insert((booth_id, vendor.vendor_id.clone()), vendor);
-        }
-    }
-
-    #[async_trait(?Send)]
-    impl VendorRepository for MockVendorRepository {
-        async fn save(&self, _vendor: &Vendor) -> DomainResult<()> {
-            Ok(())
-        }
-
-        async fn find_by_id(
-            &self,
-            booth_id: &BoothId,
-            vendor_id: &VendorId,
-        ) -> DomainResult<Option<Vendor>> {
-            let vendors = self.vendors.lock().unwrap();
-            Ok(vendors.get(&(booth_id.clone(), vendor_id.clone())).cloned())
-        }
-
-        async fn find_by_booth(&self, booth_id: &BoothId) -> DomainResult<Vec<Vendor>> {
-            let vendors = self.vendors.lock().unwrap();
-            Ok(vendors
-                .iter()
-                .filter(|((bid, _), _)| bid == booth_id)
-                .map(|(_, v)| v.clone())
-                .collect())
-        }
-
-        async fn find_all(&self) -> DomainResult<Vec<Vendor>> {
-            let vendors = self.vendors.lock().unwrap();
-            Ok(vendors.values().cloned().collect())
-        }
-
-        async fn delete_by_booth(&self, booth_id: &BoothId) -> DomainResult<usize> {
-            let mut vendors = self.vendors.lock().unwrap();
-            let before = vendors.len();
-            vendors.retain(|(current_booth_id, _), _| current_booth_id != booth_id);
-            Ok(before.saturating_sub(vendors.len()))
-        }
-
-        async fn delete(&self, _booth_id: &BoothId, _vendor_id: &VendorId) -> DomainResult<()> {
-            Ok(())
-        }
-
-        async fn delete_from_booth(
-            &self,
-            _booth_id: &BoothId,
-            _vendor_id: &VendorId,
-        ) -> DomainResult<()> {
-            Ok(())
-        }
-    }
 
     fn create_test_booth() -> Booth {
         Booth {
@@ -631,9 +356,9 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor1.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor2.clone());
+        booth_repo.add(booth.clone());
+        vendor_repo.add(vendor1.clone());
+        vendor_repo.add(vendor2.clone());
 
         // Add some purchases
         let purchase1 = Purchase::new(
@@ -650,8 +375,8 @@ mod tests {
         )
         .unwrap();
 
-        purchase_repo.add_purchase(purchase1);
-        purchase_repo.add_purchase(purchase2);
+        purchase_repo.add(purchase1);
+        purchase_repo.add(purchase2);
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
         let summary = service
@@ -691,8 +416,8 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor.clone());
+        booth_repo.add(booth.clone());
+        vendor_repo.add(vendor.clone());
 
         // Add purchases for vendor
         let purchase1 = Purchase::new(
@@ -709,8 +434,8 @@ mod tests {
         )
         .unwrap();
 
-        purchase_repo.add_purchase(purchase1);
-        purchase_repo.add_purchase(purchase2);
+        purchase_repo.add(purchase1);
+        purchase_repo.add(purchase2);
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
         let report = service
@@ -738,7 +463,7 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
+        booth_repo.add(booth.clone());
 
         // Add purchases (vendor2 has no purchases)
         let purchase1 = Purchase::new(
@@ -752,8 +477,8 @@ mod tests {
         )
         .unwrap();
 
-        purchase_repo.add_purchase(purchase1);
-        purchase_repo.add_purchase(purchase2);
+        purchase_repo.add(purchase1);
+        purchase_repo.add(purchase2);
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
         let active_vendors = service.get_active_vendors(&booth.id, None).await.unwrap();
@@ -773,8 +498,8 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor.clone());
+        booth_repo.add(booth.clone());
+        vendor_repo.add(vendor.clone());
 
         // Create purchases with different timestamps
         let now = Utc::now();
@@ -802,9 +527,9 @@ mod tests {
         .unwrap();
         purchase3.timestamp = now;
 
-        purchase_repo.add_purchase(purchase1);
-        purchase_repo.add_purchase(purchase2);
-        purchase_repo.add_purchase(purchase3);
+        purchase_repo.add(purchase1);
+        purchase_repo.add(purchase2);
+        purchase_repo.add(purchase3);
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
 
@@ -831,9 +556,9 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor1.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor2.clone());
+        booth_repo.add(booth.clone());
+        vendor_repo.add(vendor1.clone());
+        vendor_repo.add(vendor2.clone());
 
         // Create a purchase with items from both vendors
         let mixed_purchase = Purchase::new(
@@ -846,7 +571,7 @@ mod tests {
         )
         .unwrap();
 
-        purchase_repo.add_purchase(mixed_purchase);
+        purchase_repo.add(mixed_purchase);
 
         let service = ReportService::new(purchase_repo, booth_repo, vendor_repo);
 
@@ -918,26 +643,26 @@ mod tests {
         let booth_repo = MockBoothRepository::new();
         let vendor_repo = MockVendorRepository::new();
 
-        booth_repo.add_booth(booth.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor1.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor2.clone());
-        vendor_repo.add_vendor(booth.id.clone(), vendor3.clone());
+        booth_repo.add(booth.clone());
+        vendor_repo.add(vendor1.clone());
+        vendor_repo.add(vendor2.clone());
+        vendor_repo.add(vendor3.clone());
 
-        purchase_repo.add_purchase(
+        purchase_repo.add(
             Purchase::new(
                 booth.id.clone(),
                 vec![PurchaseItem::new(dec!(100.00), vendor1.vendor_id.clone()).unwrap()],
             )
             .unwrap(),
         );
-        purchase_repo.add_purchase(
+        purchase_repo.add(
             Purchase::new(
                 booth.id.clone(),
                 vec![PurchaseItem::new(dec!(518.11), vendor2.vendor_id.clone()).unwrap()],
             )
             .unwrap(),
         );
-        purchase_repo.add_purchase(
+        purchase_repo.add(
             Purchase::new(
                 booth.id.clone(),
                 vec![PurchaseItem::new(dec!(75.25), vendor3.vendor_id.clone()).unwrap()],

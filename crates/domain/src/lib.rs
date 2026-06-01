@@ -4,6 +4,8 @@ pub mod models;
 pub mod repositories;
 pub mod services;
 pub mod validation;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 pub use error::*;
 pub use error_code::*;
