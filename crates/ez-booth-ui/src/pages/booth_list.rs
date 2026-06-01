@@ -776,7 +776,7 @@ pub fn BoothListPage() -> impl IntoView {
                 </div>
 
                 <Container>
-                    <div class="pb-40 pt-52 sm:pt-48">
+                    <div class="pb-40 pt-20 sm:pt-16">
 
                         <Show
                             when=move || is_loading.get()

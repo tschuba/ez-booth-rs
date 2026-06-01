@@ -5,7 +5,9 @@ use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use web_sys::{Event, File as WebFile, FileReader, ProgressEvent};
 
-use crate::components::{use_toast, Button, ButtonSize, ButtonVariant, Modal, ModalSize};
+use crate::components::{
+    use_toast, Button, ButtonSize, ButtonVariant, Icon, LuUpload, Modal, ModalSize,
+};
 use crate::error_logging::{current_route, stack_trace, use_error_logger, ErrorLogDraft};
 use crate::selected_booth_context::use_booth_list_version;
 use crate::state::use_app_state;
@@ -458,11 +460,21 @@ pub fn ImportButton(
                 disabled=is_reading.get() || is_importing.get()
                 title=t!("backup.import")()
             >
-                {move || if is_reading.get() || is_importing.get() {
-                    t!("backup.import_in_progress")()
-                } else {
-                    t!("backup.import")()
-                }}
+                <Icon icon=LuUpload class="h-4 w-4 shrink-0" />
+                <span class="hidden sm:inline">
+                    {move || if is_reading.get() || is_importing.get() {
+                        t!("backup.import_in_progress")()
+                    } else {
+                        t!("backup.import")()
+                    }}
+                </span>
+                <span class="sr-only sm:hidden">
+                    {move || if is_reading.get() || is_importing.get() {
+                        t!("backup.import_in_progress")()
+                    } else {
+                        t!("backup.import")()
+                    }}
+                </span>
             </Button>
 
             <Modal
