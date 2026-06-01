@@ -105,16 +105,16 @@ impl MergeService {
                     tx_save_vendor(&transaction, &remapped).await?;
                 }
                 Some(existing) => {
-                    // Apply payout_correction merge rules
+                    // Apply payout_correction merge rules: keep canonical's if set
                     let merged_correction = if existing.payout_correction.is_some() {
-                        existing.payout_correction
+                        existing.payout_correction.clone()
                     } else {
-                        remapped.payout_correction
+                        remapped.payout_correction.clone()
                     };
                     let merged_note = if existing.payout_correction_note.is_some() {
-                        existing.payout_correction_note
+                        existing.payout_correction_note.clone()
                     } else {
-                        remapped.payout_correction_note
+                        remapped.payout_correction_note.clone()
                     };
                     if merged_correction != existing.payout_correction
                         || merged_note != existing.payout_correction_note
@@ -177,14 +177,14 @@ impl MergeService {
                 }
                 Some(existing) => {
                     let merged_correction = if existing.payout_correction.is_some() {
-                        existing.payout_correction
+                        existing.payout_correction.clone()
                     } else {
-                        remapped.payout_correction
+                        remapped.payout_correction.clone()
                     };
                     let merged_note = if existing.payout_correction_note.is_some() {
-                        existing.payout_correction_note
+                        existing.payout_correction_note.clone()
                     } else {
-                        remapped.payout_correction_note
+                        remapped.payout_correction_note.clone()
                     };
                     if merged_correction != existing.payout_correction
                         || merged_note != existing.payout_correction_note

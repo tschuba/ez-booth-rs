@@ -90,15 +90,15 @@ Dieser Leitfaden behandelt Stand-Backups, nicht Cloud-Synchronisation.
 
 - it does not guess that two different purchase IDs are the same real-world sale
 - it does not combine two conflicting booth edits field by field
-- it does not provide a manual conflict-resolution UI
-- it does not make multi-file import atomic
+- it does not guess that two different purchase IDs are the same real-world sale (this is by design)
+- when the same event was independently created on two devices and both local copies have duplicated further, a guided conflict wizard helps the operator choose which copy to merge into
 
 ### DE
 
 - es errät nicht, dass zwei unterschiedliche Kauf-IDs derselbe reale Verkauf sind
 - es kombiniert nicht zwei widersprüchliche Stand-Änderungen Feld für Feld
-- es bietet keine manuelle Konfliktlösungs-Benutzeroberfläche
-- es macht Mehrdatei-Importe nicht atomar
+- es errät nicht, dass zwei unterschiedliche Kauf-IDs derselbe reale Verkauf sind (dies ist beabsichtigt)
+- wenn dieselbe Veranstaltung unabhängig auf zwei Geräten erstellt wurde, hilft ein geführter Konflikt-Assistent dem Anwendenden, welche Kopie zusammengeführt werden soll
 
 ---
 

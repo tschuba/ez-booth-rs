@@ -12,8 +12,8 @@ use crate::state::use_app_state;
 use crate::t;
 use crate::utils::current_device_info;
 use ez_booth_storage::export::{
-    BackupData, BoothBackupData, ConflictStrategy, ImportError, ImportSummary, ImportValidator,
-    ValidationFailure,
+    BoothCandidate, BoothMatchKind, BoothResolution, ConflictStrategy, ImportAnalysis,
+    ImportError, ImportPayload, ImportSummary, ImportValidator, ValidationFailure,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,18 +31,20 @@ enum ImportPreview {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum ParsedImportData {
-    Full(BackupData),
-    Booth(BoothBackupData),
+enum AnalysisState {
+    Pending,
+    Available(ImportAnalysis),
+    Failed(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct ImportCandidate {
     file_name: String,
     preview: Option<ImportPreview>,
-    parsed_data: Option<ParsedImportData>,
+    parsed_data: Option<ImportPayload>,
     validation_failures: Vec<ValidationFailure>,
     structure_error: Option<String>,
+    analysis: AnalysisState,
 }
 
 impl ImportCandidate {
@@ -50,6 +52,16 @@ impl ImportCandidate {
         self.preview.is_some() && self.parsed_data.is_some()
     }
 }
+
+/// Operator's decision for one Ambiguous or Archived wizard step
+#[derive(Clone, Debug, PartialEq)]
+enum WizardChoice {
+    UseCandidate(BoothId),
+    ImportAsNew,
+    Skip,
+}
+
+use domain::models::BoothId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ImportResultItem {
@@ -77,6 +89,12 @@ pub fn ImportButton(
     let (conflict_strategy, set_conflict_strategy) = create_signal(ConflictStrategy::Merge);
     let (import_progress, set_import_progress) = create_signal(None::<(usize, usize)>);
     let (import_results, set_import_results) = create_signal(Vec::<ImportResultItem>::new());
+    // Wizard state
+    let (wizard_mode, set_wizard_mode) = create_signal(false);
+    let (wizard_step, set_wizard_step) = create_signal(0usize);
+    let (wizard_decisions, set_wizard_decisions) =
+        create_signal(std::collections::HashMap::<String, WizardChoice>::new());
+    let (archived_confirmed, set_archived_confirmed) = create_signal(false);
 
     let validator = Rc::new(ImportValidator::new());
 
@@ -168,7 +186,40 @@ pub fn ImportButton(
                     return;
                 }
 
-                candidates_signal.set(parsed_candidates);
+                // Run analysis on parseable candidates
+                let analyzed = if let Some(Ok(state)) = app_state.get() {
+                    let mut out = parsed_candidates.clone();
+                    for candidate in &mut out {
+                        if let Some(payload) = &candidate.parsed_data {
+                            let result: Result<ImportAnalysis, _> =
+                                state.import_service.analyze_import(payload).await;
+                            candidate.analysis = match result {
+                                Ok(analysis) => AnalysisState::Available(analysis),
+                                Err(e) => AnalysisState::Failed(e.to_string()),
+                            };
+                        }
+                    }
+                    out
+                } else {
+                    parsed_candidates
+                };
+
+                // Detect wizard mode: any Ambiguous in any analysis
+                let needs_wizard = analyzed.iter().any(|c| {
+                    if let AnalysisState::Available(ref a) = c.analysis {
+                        a.has_ambiguous()
+                    } else {
+                        false
+                    }
+                });
+
+                set_wizard_mode.set(needs_wizard);
+                if needs_wizard {
+                    set_wizard_step.set(0);
+                    set_wizard_decisions.set(std::collections::HashMap::new());
+                }
+                set_archived_confirmed.set(false);
+                candidates_signal.set(analyzed);
                 show_modal_signal.set(true);
             });
         }
@@ -181,6 +232,10 @@ pub fn ImportButton(
         set_import_progress.set(None);
         set_import_results.set(Vec::new());
         set_conflict_strategy.set(ConflictStrategy::Merge);
+        set_wizard_mode.set(false);
+        set_wizard_step.set(0);
+        set_wizard_decisions.set(std::collections::HashMap::new());
+        set_archived_confirmed.set(false);
     };
 
     let close_modal_action = store_value(close_modal);
@@ -191,17 +246,20 @@ pub fn ImportButton(
         }
 
         let state_result = app_state.get();
+        let decisions = wizard_decisions.get_untracked();
+        let strategy = conflict_strategy.get_untracked();
+
+        // Apply wizard decisions to payload: rewrite booth IDs for UseCandidate, remove Skipped
         let ready_candidates = candidates
             .get_untracked()
             .into_iter()
             .filter_map(|candidate| {
-                candidate
-                    .parsed_data
-                    .clone()
-                    .map(|parsed_data| (candidate.file_name, parsed_data))
+                candidate.parsed_data.clone().map(|payload| {
+                    let adjusted = apply_wizard_decisions_to_payload(payload, &decisions);
+                    (candidate.file_name, adjusted)
+                })
             })
             .collect::<Vec<_>>();
-        let strategy = conflict_strategy.get_untracked();
 
         if ready_candidates.is_empty() {
             return;
@@ -240,10 +298,10 @@ pub fn ImportButton(
                 set_import_progress.set(Some((index + 1, ready_candidates.len())));
 
                 let result = match payload {
-                    ParsedImportData::Full(data) => {
+                    ImportPayload::Full(data) => {
                         state.import_service.import_all(data, strategy).await
                     }
-                    ParsedImportData::Booth(data) => {
+                    ImportPayload::Booth(data) => {
                         state
                             .import_service
                             .import_booth_backup_restoring_archived(
@@ -391,16 +449,42 @@ pub fn ImportButton(
                                 {t!("common.close")}
                             </Button>
                             <Show when=move || has_ready_candidates.get()>
-                                <Button
-                                    on_click=Box::new(move || handle_apply_import_action.with_value(|handler| handler()))
-                                    disabled=is_importing.get()
-                                >
-                                    {move || if is_importing.get() {
-                                        t!("backup.import_in_progress")()
-                                    } else {
-                                        t!("backup.import_apply")()
-                                    }}
-                                </Button>
+                                {move || {
+                                    let needs_archived_confirm = candidates.get().iter().any(|c| {
+                                        if let AnalysisState::Available(ref a) = c.analysis {
+                                            a.has_archived_single()
+                                        } else { false }
+                                    });
+                                    let on_final_wizard_step = if wizard_mode.get() {
+                                        let ambiguous_count = candidates.get().iter()
+                                            .filter_map(|c| if let AnalysisState::Available(ref a) = c.analysis { Some(a.booths.iter().filter(|b| matches!(b.resolution, BoothResolution::Ambiguous(_))).count()) } else { None })
+                                            .sum::<usize>();
+                                        wizard_step.get() > ambiguous_count
+                                    } else { true };
+                                    let all_decided = if wizard_mode.get() {
+                                        let decisions = wizard_decisions.get();
+                                        candidates.get().iter().all(|c| {
+                                            if let AnalysisState::Available(ref a) = c.analysis {
+                                                a.booths.iter().filter(|b| matches!(b.resolution, BoothResolution::Ambiguous(_))).all(|b| decisions.contains_key(&b.incoming_id.to_string()))
+                                            } else { true }
+                                        })
+                                    } else { true };
+                                    let apply_disabled = is_importing.get()
+                                        || (needs_archived_confirm && !wizard_mode.get() && !archived_confirmed.get())
+                                        || (wizard_mode.get() && (!on_final_wizard_step || !all_decided));
+                                    view! {
+                                        <Button
+                                            on_click=Box::new(move || handle_apply_import_action.with_value(|handler| handler()))
+                                            disabled=apply_disabled
+                                        >
+                                            {move || if is_importing.get() {
+                                                t!("backup.import_in_progress")()
+                                            } else {
+                                                t!("backup.import_apply")()
+                                            }}
+                                        </Button>
+                                    }
+                                }}
                             </Show>
                         </div>
                     }
@@ -438,9 +522,9 @@ pub fn ImportButton(
                             <p class="font-medium">{t!("backup.import_strategy_label")}</p>
                             <div class="space-y-1">
                                 {[
-                                    ("merge", ConflictStrategy::Merge, t!("backup.strategy_merge"), t!("backup.strategy_merge_desc")),
-                                    ("skip",  ConflictStrategy::Skip,  t!("backup.strategy_skip"),  t!("backup.strategy_skip_desc")),
-                                    ("replace", ConflictStrategy::Replace, t!("backup.strategy_replace"), t!("backup.strategy_replace_desc")),
+                                    ("merge",   ConflictStrategy::Merge,   t!("backup.strategy_merge")(),   t!("backup.strategy_merge_desc")()),
+                                    ("skip",    ConflictStrategy::Skip,    t!("backup.strategy_skip")(),    t!("backup.strategy_skip_desc")()),
+                                    ("replace", ConflictStrategy::Replace, t!("backup.strategy_replace")(), t!("backup.strategy_replace_desc")()),
                                 ].into_iter().map(|(val, strat, label, desc)| {
                                     let is_selected = move || conflict_strategy.get() == strat;
                                     view! {
@@ -463,6 +547,215 @@ pub fn ImportButton(
                             </div>
                             <p class="text-xs text-blue-700">{t!("backup.import_apply_ready")}</p>
                         </div>
+                    </Show>
+
+                    // Mode 1: archived restore confirmation
+                    <Show when=move || {
+                        !wizard_mode.get() && candidates.get().iter().any(|c| {
+                            if let AnalysisState::Available(ref a) = c.analysis { a.has_archived_single() } else { false }
+                        })
+                    }>
+                        <div class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
+                            <p class="font-medium">"Some events will be reactivated"</p>
+                            <p class="text-xs">"The following archived events will become active again if you proceed:"</p>
+                            <ul class="list-inside list-disc text-xs space-y-0.5">
+                                {move || candidates.get().iter().filter_map(|c| {
+                                    if let AnalysisState::Available(ref a) = c.analysis {
+                                        let names: Vec<String> = a.booths.iter().filter_map(|b| {
+                                            if let BoothResolution::Single(ref cand) = b.resolution {
+                                                if cand.is_archived { Some(b.incoming_description.clone()) } else { None }
+                                            } else { None }
+                                        }).collect();
+                                        if !names.is_empty() { Some(names) } else { None }
+                                    } else { None }
+                                }).flatten().map(|name| view! { <li>{name}</li> }).collect::<Vec<_>>()}
+                            </ul>
+                            <label class="flex cursor-pointer items-center gap-2 pt-1">
+                                <input
+                                    type="checkbox"
+                                    class="accent-amber-600"
+                                    prop:checked=move || archived_confirmed.get()
+                                    on:change=move |ev| {
+                                        use wasm_bindgen::JsCast;
+                                        if let Ok(cb) = ev.target().unwrap().dyn_into::<web_sys::HtmlInputElement>() {
+                                            set_archived_confirmed.set(cb.checked());
+                                        }
+                                    }
+                                />
+                                <span class="text-xs font-medium">"I understand these events will become active again"</span>
+                            </label>
+                        </div>
+                    </Show>
+
+                    // Mode 2: wizard steps
+                    <Show when=move || wizard_mode.get()>
+                        {move || {
+                            let all_candidates = candidates.get();
+                            let ambiguous_booths: Vec<(String, Vec<BoothCandidate>)> = all_candidates.iter().flat_map(|c| {
+                                if let AnalysisState::Available(ref a) = c.analysis {
+                                    a.booths.iter().filter_map(|b| {
+                                        if let BoothResolution::Ambiguous(ref cands) = b.resolution {
+                                            Some((b.incoming_id.to_string(), cands.clone()))
+                                        } else { None }
+                                    }).collect::<Vec<_>>()
+                                } else { vec![] }
+                            }).collect();
+                            let total_steps = ambiguous_booths.len();
+                            let step = wizard_step.get();
+                            let decisions = wizard_decisions.get();
+
+                            if step == 0 {
+                                // Step 0: overview
+                                view! {
+                                    <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-900 space-y-2">
+                                        <p class="font-semibold">"Before you import"</p>
+                                        <p>
+                                            {
+                                                let auto_count: usize = all_candidates.iter()
+                                                    .map(|c| if let AnalysisState::Available(ref a) = c.analysis { a.booths.len() } else { 0 })
+                                                    .sum::<usize>()
+                                                    .saturating_sub(total_steps);
+                                                format!("{} event{} need your attention before import can proceed. {} other event{} will be handled automatically.",
+                                                    total_steps, if total_steps == 1 { "" } else { "s" },
+                                                    auto_count, if auto_count == 1 { "" } else { "s" }
+                                                )
+                                            }
+                                        </p>
+                                        <button
+                                            type="button"
+                                            class="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none"
+                                            on:click=move |_| set_wizard_step.set(1)
+                                        >
+                                            "Review events →"
+                                        </button>
+                                    </div>
+                                }.into_view()
+                            } else if step <= total_steps {
+                                let (booth_id_str, candidates_for_step) = ambiguous_booths[step - 1].clone();
+                                let booth_name = candidates_for_step.first().map(|c| c.description.clone()).unwrap_or_default();
+                                let already_decided = decisions.get(&booth_id_str).cloned();
+                                view! {
+                                    <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3 text-sm">
+                                        <p class="text-xs text-gray-500">{format!("Step {} of {}", step, total_steps)}</p>
+                                        <p class="font-semibold text-gray-900">{"Which existing event should this import merge into?"}</p>
+                                        <p class="text-gray-700">{booth_name.clone()}</p>
+                                        <div class="space-y-2">
+                                            {candidates_for_step.iter().map(|cand| {
+                                                let cand_id = cand.id;
+                                                let cand_id_str = cand.id.to_string();
+                                                let bid_str = booth_id_str.clone();
+                                                let is_selected = already_decided.as_ref().map(|d| *d == WizardChoice::UseCandidate(cand_id)).unwrap_or(false);
+                                                view! {
+                                                    <label class="flex cursor-pointer items-start gap-2 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+                                                        <input
+                                                            type="radio"
+                                                            name=format!("wizard_{}", booth_id_str)
+                                                            value=cand_id_str
+                                                            class="mt-0.5 accent-blue-600"
+                                                            prop:checked=move || is_selected
+                                                            on:change=move |_| {
+                                                                let mut d = wizard_decisions.get_untracked();
+                                                                d.insert(bid_str.clone(), WizardChoice::UseCandidate(cand_id));
+                                                                set_wizard_decisions.set(d);
+                                                            }
+                                                        />
+                                                        <div>
+                                                            <p class="font-medium text-gray-800">{format!("{} vendors · {} purchases", cand.vendor_count, cand.purchase_count)}</p>
+                                                            <p class="text-xs text-gray-500">"on this device"</p>
+                                                        </div>
+                                                    </label>
+                                                }
+                                            }).collect::<Vec<_>>()}
+                                            {
+                                                let bid_str = booth_id_str.clone();
+                                                let is_skip = already_decided.as_ref().map(|d| *d == WizardChoice::Skip).unwrap_or(false);
+                                                view! {
+                                                    <label class="flex cursor-pointer items-center gap-2 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+                                                        <input
+                                                            type="radio"
+                                                            name=format!("wizard_{}", booth_id_str)
+                                                            value="__skip__"
+                                                            class="accent-blue-600"
+                                                            prop:checked=move || is_skip
+                                                            on:change=move |_| {
+                                                                let mut d = wizard_decisions.get_untracked();
+                                                                d.insert(bid_str.clone(), WizardChoice::Skip);
+                                                                set_wizard_decisions.set(d);
+                                                            }
+                                                        />
+                                                        <span class="text-sm text-gray-700">"Don't import this event"</span>
+                                                    </label>
+                                                }
+                                            }
+                                        </div>
+                                        <div class="flex gap-2 pt-2">
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                                                on:click=move |_| set_wizard_step.update(|s| { if *s > 0 { *s -= 1; } })
+                                            >
+                                                "← Review decisions"
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                                on:click=move |_| set_wizard_step.update(|s| *s += 1)
+                                            >
+                                                "Next →"
+                                            </button>
+                                        </div>
+                                    </div>
+                                }.into_view()
+                            } else {
+                                // Final step: summary
+                                let unresolvable: Vec<String> = all_candidates.iter().flat_map(|c| {
+                                    if let AnalysisState::Available(ref a) = c.analysis {
+                                        a.booths.iter().filter_map(|b| {
+                                            if matches!(b.resolution, BoothResolution::UnresolvableAmbiguous) {
+                                                Some(b.incoming_description.clone())
+                                            } else { None }
+                                        }).collect::<Vec<_>>()
+                                    } else { vec![] }
+                                }).collect();
+                                view! {
+                                    <div class="space-y-3 text-sm">
+                                        <p class="font-semibold text-gray-900">"Summary of your decisions"</p>
+                                        <ul class="space-y-1 text-gray-700">
+                                            {ambiguous_booths.iter().map(|(bid, cands)| {
+                                                let name = cands.first().map(|c| c.description.clone()).unwrap_or_default();
+                                                let decision_str = match decisions.get(bid) {
+                                                    Some(WizardChoice::UseCandidate(_)) => "Will merge into existing event".to_string(),
+                                                    Some(WizardChoice::Skip) => "Will not be imported".to_string(),
+                                                    Some(WizardChoice::ImportAsNew) => "Will be imported as a new event".to_string(),
+                                                    None => "No decision yet".to_string(),
+                                                };
+                                                view! { <li><span class="font-medium">{name}</span>": "{decision_str}</li> }
+                                            }).collect::<Vec<_>>()}
+                                        </ul>
+                                        {
+                                            let unresolvable2 = unresolvable.clone();
+                                            if !unresolvable.is_empty() {
+                                                view! {
+                                                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                                                        <p class="font-semibold mb-1">"Cannot automatically resolve:"</p>
+                                                        {unresolvable2.into_iter().map(|name| view! { <p>{name}" — archive the duplicate locally, then re-import"</p> }).collect::<Vec<_>>()}
+                                                    </div>
+                                                }.into_view()
+                                            } else {
+                                                view! { <span /> }.into_view()
+                                            }
+                                        }
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                                            on:click=move |_| set_wizard_step.update(|s| { if *s > 0 { *s -= 1; } })
+                                        >
+                                            "← Review decisions"
+                                        </button>
+                                    </div>
+                                }.into_view()
+                            }
+                        }}
                     </Show>
 
                     <div class="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
@@ -605,6 +898,7 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
                 parsed_data: Some(parsed_data),
                 validation_failures: Vec::new(),
                 structure_error: None,
+                analysis: AnalysisState::Pending,
             },
             Err(ImportError::ValidationFailed { failures }) => ImportCandidate {
                 file_name,
@@ -612,6 +906,7 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
                 parsed_data: None,
                 validation_failures: failures,
                 structure_error: None,
+                analysis: AnalysisState::Pending,
             },
             Err(other) => ImportCandidate {
                 file_name,
@@ -619,6 +914,7 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
                 parsed_data: None,
                 validation_failures: Vec::new(),
                 structure_error: Some(format_import_error(&other)),
+                analysis: AnalysisState::Pending,
             },
         },
         Err(message) => ImportCandidate {
@@ -627,6 +923,7 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
             parsed_data: None,
             validation_failures: Vec::new(),
             structure_error: Some(message),
+            analysis: AnalysisState::Pending,
         },
     }
 }
@@ -634,14 +931,14 @@ async fn read_and_parse_file(file: WebFile, validator: Rc<ImportValidator>) -> I
 fn parse_import_data(
     validator: &ImportValidator,
     contents: &str,
-) -> Result<(ImportPreview, ParsedImportData), ImportError> {
+) -> Result<(ImportPreview, ImportPayload), ImportError> {
     let booth_validation = validator.validate_booth_backup(contents).map(|data| {
         let preview = ImportPreview::Booth {
             description: data.booth.description.clone(),
             vendors: data.vendors.len(),
             purchases: data.purchases.len(),
         };
-        (preview, ParsedImportData::Booth(data))
+        (preview, ImportPayload::Booth(data))
     });
 
     match booth_validation {
@@ -657,7 +954,7 @@ fn parse_import_data(
                     vendors: data.vendors.len(),
                     purchases: data.purchases.len(),
                 };
-                (preview, ParsedImportData::Full(data))
+                (preview, ImportPayload::Full(data))
             })
         }
         Err(other) => Err(other),
@@ -681,6 +978,96 @@ fn format_import_error(error: &ImportError) -> String {
                     .replace("{actual}", actual),
             ),
         _ => error.to_string(),
+    }
+}
+
+/// Transform a payload based on wizard decisions before passing to import_all.
+/// - UseCandidate(id): rewrite booth.id (and subordinate booth_ids) to the chosen canonical id
+/// - Skip: remove the booth and its subordinates from the payload
+/// - ImportAsNew: leave as-is
+fn apply_wizard_decisions_to_payload(
+    payload: ImportPayload,
+    decisions: &std::collections::HashMap<String, WizardChoice>,
+) -> ImportPayload {
+    use ez_booth_storage::export::{BackupData, BoothBackupData};
+
+    if decisions.is_empty() {
+        return payload;
+    }
+
+    match payload {
+        ImportPayload::Full(mut data) => {
+            let mut keep_booth_ids: std::collections::HashMap<BoothId, BoothId> =
+                std::collections::HashMap::new(); // original → canonical
+            let mut skip_ids: std::collections::HashSet<BoothId> =
+                std::collections::HashSet::new();
+
+            data.booths.retain(|booth| {
+                let key = booth.id.to_string();
+                match decisions.get(&key) {
+                    Some(WizardChoice::Skip) => {
+                        skip_ids.insert(booth.id);
+                        false
+                    }
+                    Some(WizardChoice::UseCandidate(canonical_id)) => {
+                        keep_booth_ids.insert(booth.id, *canonical_id);
+                        true
+                    }
+                    _ => true,
+                }
+            });
+
+            // Rewrite IDs on retained booths
+            for booth in &mut data.booths {
+                if let Some(&canonical) = keep_booth_ids.get(&booth.id) {
+                    booth.id = canonical;
+                }
+            }
+
+            // Remap vendors and purchases; drop those belonging to skipped booths
+            data.vendors.retain_mut(|v| {
+                if skip_ids.contains(&v.booth_id) {
+                    return false;
+                }
+                if let Some(&canonical) = keep_booth_ids.get(&v.booth_id) {
+                    v.booth_id = canonical;
+                }
+                true
+            });
+
+            data.purchases.retain_mut(|p| {
+                if skip_ids.contains(&p.booth_id) {
+                    return false;
+                }
+                if let Some(&canonical) = keep_booth_ids.get(&p.booth_id) {
+                    p.booth_id = canonical;
+                }
+                true
+            });
+
+            ImportPayload::Full(data)
+        }
+        ImportPayload::Booth(mut data) => {
+            let key = data.booth.id.to_string();
+            match decisions.get(&key) {
+                Some(WizardChoice::Skip) => {
+                    // Return an empty payload — caller will produce zero imports
+                    ImportPayload::Booth(BoothBackupData {
+                        vendors: vec![],
+                        purchases: vec![],
+                        ..data
+                    })
+                }
+                Some(WizardChoice::UseCandidate(canonical_id)) => {
+                    let old_id = data.booth.id;
+                    data.booth.id = *canonical_id;
+                    for v in &mut data.vendors { if v.booth_id == old_id { v.booth_id = *canonical_id; } }
+                    for p in &mut data.purchases { if p.booth_id == old_id { p.booth_id = *canonical_id; } }
+                    ImportPayload::Booth(data)
+                }
+                _ => ImportPayload::Booth(data),
+            }
+        }
     }
 }
 
@@ -757,7 +1144,7 @@ mod tests {
     };
     use rust_decimal_macros::dec;
 
-    use super::{parse_import_data, ImportPreview, ParsedImportData};
+    use super::{parse_import_data, ImportPreview, ImportPayload};
 
     fn sample_booth() -> Booth {
         Booth::new(
@@ -794,7 +1181,7 @@ mod tests {
                     vendors,
                     purchases,
                 },
-                ParsedImportData::Booth(data),
+                ImportPayload::Booth(data),
             ) => {
                 assert_eq!(description, booth.description);
                 assert_eq!(vendors, 0);
@@ -839,7 +1226,7 @@ mod tests {
                     vendors,
                     purchases,
                 },
-                ParsedImportData::Full(data),
+                ImportPayload::Full(data),
             ) => {
                 assert_eq!(booths, 1);
                 assert_eq!(vendors, 0);

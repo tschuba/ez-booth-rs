@@ -58,24 +58,24 @@
 
 ## 8. Duplicate Detection UI (Issue 3)
 
-- [ ] 8.1 Add `find_duplicate_groups` call on booth list page load in `booth_list.rs`
-- [ ] 8.2 Render amber banner when duplicate groups exist: "X events share the same name and date. Review duplicates?"
-- [ ] 8.3 Implement merge modal with per-group diff view: vendor counts, purchase counts, last-updated per candidate, unique/shared vendor diff, post-merge total preview, consequence statement
-- [ ] 8.4 Wire "Merge" button per group to call `MergeService::merge_booths` with canonical auto-selection (more purchases wins, tie-break earlier `created_at`)
-- [ ] 8.5 After merge, re-run `find_duplicate_groups` and update banner/modal state
+- [x] 8.1 Add `find_duplicate_groups` call on booth list page load in `booth_list.rs`
+- [x] 8.2 Render amber banner when duplicate groups exist: "X events share the same name and date. Review duplicates?"
+- [x] 8.3 Implement merge modal with per-group diff view: vendor counts, purchase counts, last-updated per candidate, unique/shared vendor diff, post-merge total preview, consequence statement
+- [x] 8.4 Wire "Merge" button per group to call `MergeService::merge_booths` with canonical auto-selection (more purchases wins, tie-break earlier `created_at`)
+- [x] 8.5 After merge, re-run `find_duplicate_groups` and update banner/modal state
 
 ## 9. Import Conflict Wizard (Issue 4)
 
-- [ ] 9.1 Replace `ParsedImportData` with `ImportPayload` (from storage crate) in `import_button.rs`
-- [ ] 9.2 Add `AnalysisState { Pending | Available(ImportAnalysis) | Failed(String) }` to `ImportCandidate`
-- [ ] 9.3 Wire `analyze_import` into `spawn_local` in `on_file_change` — collect all results, set signal once, then open modal
-- [ ] 9.4 Implement mode detection: any `Ambiguous` → wizard (Mode 2), otherwise simple modal (Mode 1)
-- [ ] 9.5 Implement simple modal (Mode 1): global strategy selector with corrected labels + archived restore confirmation checkbox
-- [ ] 9.6 Implement conflict wizard (Mode 2): Step 0 overview, Steps 1..N per `Ambiguous` booth (candidate cards, "Advanced" disclosure, "Don't import this event" option), `Single(archived)` step cards, final summary step
-- [ ] 9.7 Wire the write phase: collect all wizard decisions into `Vec<(BoothId, BoothResolution, ConflictStrategy)>` before any writes, execute single transactional pass
+- [x] 9.1 Replace `ParsedImportData` with `ImportPayload` (from storage crate) in `import_button.rs`
+- [x] 9.2 Add `AnalysisState { Pending | Available(ImportAnalysis) | Failed(String) }` to `ImportCandidate`
+- [x] 9.3 Wire `analyze_import` into `spawn_local` in `on_file_change` — collect all results, set signal once, then open modal
+- [x] 9.4 Implement mode detection: any `Ambiguous` → wizard (Mode 2), otherwise simple modal (Mode 1)
+- [x] 9.5 Implement simple modal (Mode 1): global strategy selector with corrected labels + archived restore confirmation checkbox
+- [x] 9.6 Implement conflict wizard (Mode 2): Step 0 overview, Steps 1..N per `Ambiguous` booth (candidate cards, "Advanced" disclosure, "Don't import this event" option), `Single(archived)` step cards, final summary step
+- [x] 9.7 Wire the write phase: collect all wizard decisions into `Vec<(BoothId, BoothResolution, ConflictStrategy)>` before any writes, execute single transactional pass
 - [ ] 9.8 Add wizard-specific locale keys (EN + DE): step 0 overview, source badges, diff format, skip label, final step strategy label, archived restore card copy, cancel toast
-- [ ] 9.9 Update `docs/user-guides/MULTI_DEVICE_MERGE_GUIDE.md`: remove "no manual conflict-resolution UI" from limitations, add section on full backup vs. single-booth backup for multi-device workflows
-- [ ] 9.10 Update `docs/technical/ADR_DEVICE_TO_DEVICE_TRANSFER.md`: update context scope note to reflect per-event reconciliation is now supported
+- [x] 9.9 Update `docs/user-guides/MULTI_DEVICE_MERGE_GUIDE.md`: remove "no manual conflict-resolution UI" from limitations, add section on full backup vs. single-booth backup for multi-device workflows
+- [x] 9.10 Update `docs/technical/ADR_DEVICE_TO_DEVICE_TRANSFER.md`: update context scope note to reflect per-event reconciliation is now supported
 
 ## 10. Merge-then-Import Path (Issue 5)
 

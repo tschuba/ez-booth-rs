@@ -13,7 +13,7 @@ pub enum BoothMatchKind {
 }
 
 /// A resolved local booth candidate with metadata for UI display
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoothCandidate {
     pub id: BoothId,
     pub description: String,
@@ -26,7 +26,7 @@ pub struct BoothCandidate {
 }
 
 /// Result of resolving a canonical local booth for an incoming booth record
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BoothResolution {
     /// No local booth found — incoming booth will be inserted as new
     New,
@@ -39,14 +39,14 @@ pub enum BoothResolution {
 }
 
 /// Input to import and analysis operations, replacing the UI-private ParsedImportData
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ImportPayload {
     Full(BackupData),
     Booth(BoothBackupData),
 }
 
 /// Per-booth analysis result for the pre-import analysis pass
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoothImportAnalysis {
     pub incoming_id: BoothId,
     pub incoming_description: String,
@@ -57,7 +57,7 @@ pub struct BoothImportAnalysis {
 }
 
 /// Full analysis result returned by `ImportService::analyze_import`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportAnalysis {
     pub booths: Vec<BoothImportAnalysis>,
 }
