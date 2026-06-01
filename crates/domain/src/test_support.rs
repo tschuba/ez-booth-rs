@@ -212,10 +212,7 @@ impl MockPurchaseRepository {
     }
 
     pub fn add(&self, purchase: Purchase) {
-        self.purchases
-            .lock()
-            .unwrap()
-            .insert(purchase.id, purchase);
+        self.purchases.lock().unwrap().insert(purchase.id, purchase);
     }
 }
 
@@ -280,8 +277,7 @@ impl PurchaseRepository for MockPurchaseRepository {
             .unwrap()
             .values()
             .filter(|p| {
-                &p.booth_id == booth_id
-                    && p.items.iter().any(|item| &item.vendor_id == vendor_id)
+                &p.booth_id == booth_id && p.items.iter().any(|item| &item.vendor_id == vendor_id)
             })
             .cloned()
             .collect())
@@ -303,11 +299,7 @@ impl PurchaseRepository for MockPurchaseRepository {
         Ok(())
     }
 
-    async fn delete_from_booth(
-        &self,
-        _booth_id: &BoothId,
-        id: &PurchaseId,
-    ) -> DomainResult<()> {
+    async fn delete_from_booth(&self, _booth_id: &BoothId, id: &PurchaseId) -> DomainResult<()> {
         self.purchases.lock().unwrap().remove(id);
         Ok(())
     }
