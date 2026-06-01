@@ -19,6 +19,10 @@ pkg/
 crates/ez-booth-app/node_modules/
 crates/ez-booth-app/styles/app.css
 
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json
+
 # OpenCode session data
 .opencode/
 
