@@ -59,6 +59,8 @@ enum WizardChoice {
     UseCandidate(BoothId),
     ImportAsNew,
     Skip,
+    /// Merge canonical into other locally first, then import under canonical
+    Advanced { canonical: BoothId, other: BoothId },
 }
 
 use domain::models::BoothId;
@@ -270,6 +272,18 @@ pub fn ImportButton(
         set_import_results.set(Vec::new());
         let log_error = log_error.clone();
 
+        // Collect Advanced merges to run first (before import)
+        let advanced_merges: Vec<(BoothId, BoothId)> = decisions
+            .values()
+            .filter_map(|d| {
+                if let WizardChoice::Advanced { canonical, other } = d {
+                    Some((*canonical, *other))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         spawn_local(async move {
             let state = match state_result {
                 Some(Ok(state)) => state,
@@ -290,6 +304,16 @@ pub fn ImportButton(
                     return;
                 }
             };
+
+            // Run Advanced merges first, independently from the import transaction
+            for (canonical_id, other_id) in &advanced_merges {
+                if let Err(e) = state.merge_service.merge_booths(canonical_id, other_id).await {
+                    set_is_importing.set(false);
+                    set_import_progress.set(None);
+                    toast.error(format!("{}: {}", t!("backup.import_apply_failed")(), e));
+                    return;
+                }
+            }
 
             let mut combined = ImportSummary::default();
             let mut result_items = Vec::new();
@@ -556,8 +580,8 @@ pub fn ImportButton(
                         })
                     }>
                         <div class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
-                            <p class="font-medium">"Some events will be reactivated"</p>
-                            <p class="text-xs">"The following archived events will become active again if you proceed:"</p>
+                            <p class="font-medium">{t!("backup.wizard_archived_title")}</p>
+                            <p class="text-xs">{t!("backup.wizard_archived_body")}</p>
                             <ul class="list-inside list-disc text-xs space-y-0.5">
                                 {move || candidates.get().iter().filter_map(|c| {
                                     if let AnalysisState::Available(ref a) = c.analysis {
@@ -582,7 +606,7 @@ pub fn ImportButton(
                                         }
                                     }
                                 />
-                                <span class="text-xs font-medium">"I understand these events will become active again"</span>
+                                <span class="text-xs font-medium">{t!("backup.wizard_archived_confirm")}</span>
                             </label>
                         </div>
                     </Show>
@@ -608,7 +632,7 @@ pub fn ImportButton(
                                 // Step 0: overview
                                 view! {
                                     <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-900 space-y-2">
-                                        <p class="font-semibold">"Before you import"</p>
+                                        <p class="font-semibold">{t!("backup.wizard_overview_title")}</p>
                                         <p>
                                             {
                                                 let auto_count: usize = all_candidates.iter()
@@ -626,7 +650,7 @@ pub fn ImportButton(
                                             class="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none"
                                             on:click=move |_| set_wizard_step.set(1)
                                         >
-                                            "Review events →"
+                                            {t!("backup.wizard_overview_review")}
                                         </button>
                                     </div>
                                 }.into_view()
@@ -636,8 +660,12 @@ pub fn ImportButton(
                                 let already_decided = decisions.get(&booth_id_str).cloned();
                                 view! {
                                     <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3 text-sm">
-                                        <p class="text-xs text-gray-500">{format!("Step {} of {}", step, total_steps)}</p>
-                                        <p class="font-semibold text-gray-900">{"Which existing event should this import merge into?"}</p>
+                                        <p class="text-xs text-gray-500">
+                                            {t!("backup.wizard_step_label")()
+                                                .replace("{step}", &step.to_string())
+                                                .replace("{total}", &total_steps.to_string())}
+                                        </p>
+                                        <p class="font-semibold text-gray-900">{t!("backup.wizard_step_question")}</p>
                                         <p class="text-gray-700">{booth_name.clone()}</p>
                                         <div class="space-y-2">
                                             {candidates_for_step.iter().map(|cand| {
@@ -661,7 +689,7 @@ pub fn ImportButton(
                                                         />
                                                         <div>
                                                             <p class="font-medium text-gray-800">{format!("{} vendors · {} purchases", cand.vendor_count, cand.purchase_count)}</p>
-                                                            <p class="text-xs text-gray-500">"on this device"</p>
+                                                            <p class="text-xs text-gray-500">{t!("backup.wizard_candidate_source")}</p>
                                                         </div>
                                                     </label>
                                                 }
@@ -683,10 +711,47 @@ pub fn ImportButton(
                                                                 set_wizard_decisions.set(d);
                                                             }
                                                         />
-                                                        <span class="text-sm text-gray-700">"Don't import this event"</span>
+                                                        <span class="text-sm text-gray-700">{t!("backup.wizard_skip_option")}</span>
                                                     </label>
                                                 }
                                             }
+
+                                            // Advanced option — only when 2 candidates
+                                            {if candidates_for_step.len() == 2 {
+                                                let cand0 = candidates_for_step[0].id;
+                                                let cand1 = candidates_for_step[1].id;
+                                                let bid_str = booth_id_str.clone();
+                                                // Canonical = more purchases
+                                                let canonical_id = cand0; // write phase handles canonical selection
+                                                let other_id = cand1;
+                                                let is_advanced = already_decided.as_ref().map(|d| {
+                                                    matches!(d, WizardChoice::Advanced { .. })
+                                                }).unwrap_or(false);
+                                                view! {
+                                                    <div class="mt-2 border-t border-gray-200 pt-3">
+                                                        <label class="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 hover:bg-amber-100">
+                                                            <input
+                                                                type="radio"
+                                                                name=format!("wizard_{}", booth_id_str)
+                                                                value="__advanced__"
+                                                                class="mt-0.5 accent-amber-600"
+                                                                prop:checked=move || is_advanced
+                                                                on:change=move |_| {
+                                                                    let mut d = wizard_decisions.get_untracked();
+                                                                    d.insert(bid_str.clone(), WizardChoice::Advanced { canonical: canonical_id, other: other_id });
+                                                                    set_wizard_decisions.set(d);
+                                                                }
+                                                            />
+                                                            <div>
+                                                                <p class="font-medium text-amber-900 text-sm">{t!("backup.wizard_advanced_label")}</p>
+                                                                <p class="text-xs text-amber-700 mt-0.5">{t!("backup.wizard_advanced_desc")}</p>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                }.into_view()
+                                            } else {
+                                                view! { <span /> }.into_view()
+                                            }}
                                         </div>
                                         <div class="flex gap-2 pt-2">
                                             <button
@@ -694,14 +759,14 @@ pub fn ImportButton(
                                                 class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
                                                 on:click=move |_| set_wizard_step.update(|s| { if *s > 0 { *s -= 1; } })
                                             >
-                                                "← Review decisions"
+                                                {t!("backup.wizard_back")}
                                             </button>
                                             <button
                                                 type="button"
                                                 class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
                                                 on:click=move |_| set_wizard_step.update(|s| *s += 1)
                                             >
-                                                "Next →"
+                                                {t!("backup.wizard_next")}
                                             </button>
                                         </div>
                                     </div>
@@ -719,15 +784,16 @@ pub fn ImportButton(
                                 }).collect();
                                 view! {
                                     <div class="space-y-3 text-sm">
-                                        <p class="font-semibold text-gray-900">"Summary of your decisions"</p>
+                                        <p class="font-semibold text-gray-900">{t!("backup.wizard_summary_title")}</p>
                                         <ul class="space-y-1 text-gray-700">
                                             {ambiguous_booths.iter().map(|(bid, cands)| {
                                                 let name = cands.first().map(|c| c.description.clone()).unwrap_or_default();
                                                 let decision_str = match decisions.get(bid) {
-                                                    Some(WizardChoice::UseCandidate(_)) => "Will merge into existing event".to_string(),
-                                                    Some(WizardChoice::Skip) => "Will not be imported".to_string(),
-                                                    Some(WizardChoice::ImportAsNew) => "Will be imported as a new event".to_string(),
-                                                    None => "No decision yet".to_string(),
+                                                    Some(WizardChoice::UseCandidate(_)) => t!("backup.wizard_decision_merge")(),
+                                                    Some(WizardChoice::Advanced { .. }) => t!("backup.wizard_advanced_label")(),
+                                                    Some(WizardChoice::Skip) => t!("backup.wizard_decision_skip")(),
+                                                    Some(WizardChoice::ImportAsNew) => t!("backup.wizard_decision_new")(),
+                                                    None => t!("backup.wizard_decision_none")(),
                                                 };
                                                 view! { <li><span class="font-medium">{name}</span>": "{decision_str}</li> }
                                             }).collect::<Vec<_>>()}
@@ -737,8 +803,8 @@ pub fn ImportButton(
                                             if !unresolvable.is_empty() {
                                                 view! {
                                                     <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                                                        <p class="font-semibold mb-1">"Cannot automatically resolve:"</p>
-                                                        {unresolvable2.into_iter().map(|name| view! { <p>{name}" — archive the duplicate locally, then re-import"</p> }).collect::<Vec<_>>()}
+                                                        <p class="font-semibold mb-1">{t!("backup.wizard_unresolvable_title")}</p>
+                                                        {unresolvable2.into_iter().map(|name| view! { <p>{name}" — "{t!("backup.wizard_unresolvable_hint")}</p> }).collect::<Vec<_>>()}
                                                     </div>
                                                 }.into_view()
                                             } else {
@@ -750,7 +816,7 @@ pub fn ImportButton(
                                             class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
                                             on:click=move |_| set_wizard_step.update(|s| { if *s > 0 { *s -= 1; } })
                                         >
-                                            "← Review decisions"
+                                            {t!("backup.wizard_back")}
                                         </button>
                                     </div>
                                 }.into_view()
@@ -1013,6 +1079,10 @@ fn apply_wizard_decisions_to_payload(
                         keep_booth_ids.insert(booth.id, *canonical_id);
                         true
                     }
+                    Some(WizardChoice::Advanced { canonical, .. }) => {
+                        keep_booth_ids.insert(booth.id, *canonical);
+                        true
+                    }
                     _ => true,
                 }
             });
@@ -1058,7 +1128,8 @@ fn apply_wizard_decisions_to_payload(
                         ..data
                     })
                 }
-                Some(WizardChoice::UseCandidate(canonical_id)) => {
+                Some(WizardChoice::UseCandidate(canonical_id))
+                | Some(WizardChoice::Advanced { canonical: canonical_id, .. }) => {
                     let old_id = data.booth.id;
                     data.booth.id = *canonical_id;
                     for v in &mut data.vendors { if v.booth_id == old_id { v.booth_id = *canonical_id; } }

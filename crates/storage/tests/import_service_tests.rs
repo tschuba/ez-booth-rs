@@ -1374,3 +1374,158 @@ async fn case_1c_uuid_matches_archived_but_active_exists_uses_active() {
     assert_eq!(vendor_repo.find_by_booth(&archived_booth.id).await.unwrap().len(), 0);
     assert!(booth_repo.find_by_id(&archived_booth.id).await.unwrap().unwrap().is_archived());
 }
+
+// ─── MergeService + merge-then-import tests ─────────────────────────────────
+
+async fn build_service_with_merge() -> (
+    Arc<dyn BoothRepository>,
+    Arc<dyn VendorRepository>,
+    Arc<dyn PurchaseRepository>,
+    ImportService,
+    Arc<ez_booth_storage::MergeService>,
+) {
+    let db = Arc::new(create_test_db().await);
+    let booth_repo: Arc<dyn BoothRepository> = Arc::new(IndexedDbBoothRepository::new(db.clone()));
+    let vendor_repo: Arc<dyn VendorRepository> =
+        Arc::new(IndexedDbVendorRepository::new(db.clone()));
+    let purchase_repo: Arc<dyn PurchaseRepository> =
+        Arc::new(IndexedDbPurchaseRepository::new(db.clone()));
+    let archive_service = Arc::new(ez_booth_storage::ArchiveService::new(db.clone()));
+    let merge_service = Arc::new(ez_booth_storage::MergeService::new(
+        booth_repo.clone(),
+        vendor_repo.clone(),
+        purchase_repo.clone(),
+    ));
+    let service = ImportService::with_archive_service(
+        booth_repo.clone(),
+        vendor_repo.clone(),
+        purchase_repo.clone(),
+        Some(archive_service),
+    )
+    .with_merge_service(merge_service.clone());
+    (booth_repo, vendor_repo, purchase_repo, service, merge_service)
+}
+
+// 10.3: merge two local duplicates then import — duplicate removed, data correct
+#[wasm_bindgen_test]
+async fn merge_then_import_removes_duplicate_and_imports_correctly() {
+    let (booth_repo, vendor_repo, purchase_repo, service, merge_service) =
+        build_service_with_merge().await;
+
+    // Two local duplicates
+    let dup_a = create_test_booth("Market 2026");
+    let dup_b = create_test_booth("Market 2026");
+    let vendor_a = create_test_vendor(&dup_a, "V1");
+    let vendor_b = create_test_vendor(&dup_b, "V2");
+    let purchase_a = create_test_purchase(&dup_a, &vendor_a.vendor_id);
+    let purchase_b = create_test_purchase(&dup_b, &vendor_b.vendor_id);
+
+    booth_repo.save(&dup_a).await.unwrap();
+    booth_repo.save(&dup_b).await.unwrap();
+    vendor_repo.save(&vendor_a).await.unwrap();
+    vendor_repo.save(&vendor_b).await.unwrap();
+    purchase_repo.save(&purchase_a).await.unwrap();
+    purchase_repo.save(&purchase_b).await.unwrap();
+
+    // Incoming has same name+date but third UUID (cross-device)
+    let incoming = cross_device_booth(&dup_a);
+    let incoming_vendor = create_test_vendor(&incoming, "V3");
+    let incoming_purchase = create_test_purchase(&incoming, &incoming_vendor.vendor_id);
+
+    // Step 1: merge the duplicates first (canonical = dup_a, other = dup_b)
+    merge_service.merge_booths(&dup_a.id, &dup_b.id).await.unwrap();
+
+    // dup_b should be gone
+    assert!(booth_repo.find_by_id(&dup_b.id).await.unwrap().is_none());
+    // dup_a should still exist with both vendors
+    let merged_vendors = vendor_repo.find_by_booth(&dup_a.id).await.unwrap();
+    assert_eq!(merged_vendors.len(), 2);
+
+    // Step 2: import the incoming file — should now find Single(ByNameAndDate) for dup_a
+    let summary = service
+        .import_booth_backup(
+            BoothBackupData {
+                version: BACKUP_FORMAT_VERSION,
+                created_at: Utc::now(),
+                app_version: "device-c".to_string(),
+                checksum: None,
+                device_info: None,
+                booth: incoming.clone(),
+                vendors: vec![incoming_vendor],
+                purchases: vec![incoming_purchase],
+            },
+            ConflictStrategy::Merge,
+        )
+        .await
+        .unwrap();
+
+    // Only one booth — the canonical dup_a
+    assert_eq!(booth_repo.find_all().await.unwrap().len(), 1);
+    assert!(booth_repo.find_by_id(&dup_a.id).await.unwrap().is_some());
+
+    // Three vendors total (V1, V2, V3) under dup_a
+    let final_vendors = vendor_repo.find_by_booth(&dup_a.id).await.unwrap();
+    assert_eq!(final_vendors.len(), 3);
+
+    // Three purchases total under dup_a
+    let final_purchases = purchase_repo.find_by_booth(&dup_a.id).await.unwrap();
+    assert_eq!(final_purchases.len(), 3);
+
+    assert!(summary.skipped_records.is_empty());
+}
+
+// 10.4: idempotency — merge-then-import twice → second run finds Single, proceeds normally
+#[wasm_bindgen_test]
+async fn merge_then_import_is_idempotent() {
+    let (booth_repo, vendor_repo, purchase_repo, service, merge_service) =
+        build_service_with_merge().await;
+
+    let dup_a = create_test_booth("Festival 2026");
+    let dup_b = create_test_booth("Festival 2026");
+    let vendor_a = create_test_vendor(&dup_a, "V1");
+    let purchase_a = create_test_purchase(&dup_a, &vendor_a.vendor_id);
+
+    booth_repo.save(&dup_a).await.unwrap();
+    booth_repo.save(&dup_b).await.unwrap();
+    vendor_repo.save(&vendor_a).await.unwrap();
+    purchase_repo.save(&purchase_a).await.unwrap();
+
+    let incoming = cross_device_booth(&dup_a);
+    let incoming_vendor = create_test_vendor(&incoming, "V2");
+    let incoming_purchase = create_test_purchase(&incoming, &incoming_vendor.vendor_id);
+
+    let backup = BoothBackupData {
+        version: BACKUP_FORMAT_VERSION,
+        created_at: Utc::now(),
+        app_version: "device-b".to_string(),
+        checksum: None,
+        device_info: None,
+        booth: incoming.clone(),
+        vendors: vec![incoming_vendor.clone()],
+        purchases: vec![incoming_purchase.clone()],
+    };
+
+    // First run: merge + import
+    merge_service.merge_booths(&dup_a.id, &dup_b.id).await.unwrap();
+    let summary1 = service
+        .import_booth_backup(backup.clone(), ConflictStrategy::Merge)
+        .await
+        .unwrap();
+    assert!(summary1.skipped_records.is_empty());
+
+    // Second run: no merge needed (dup_b is gone), import finds Single → no duplicate
+    let summary2 = service
+        .import_booth_backup(backup, ConflictStrategy::Merge)
+        .await
+        .unwrap();
+    assert!(summary2.skipped_records.is_empty());
+
+    // Still only one booth
+    assert_eq!(booth_repo.find_all().await.unwrap().len(), 1);
+    // Vendors still 2 (V1 and V2, no duplicate V2)
+    let vendors = vendor_repo.find_by_booth(&dup_a.id).await.unwrap();
+    assert_eq!(vendors.len(), 2);
+    // Purchases still 2 (purchase_a and incoming_purchase, no duplicate)
+    let purchases = purchase_repo.find_by_booth(&dup_a.id).await.unwrap();
+    assert_eq!(purchases.len(), 2);
+}

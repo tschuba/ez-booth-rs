@@ -73,16 +73,16 @@
 - [x] 9.5 Implement simple modal (Mode 1): global strategy selector with corrected labels + archived restore confirmation checkbox
 - [x] 9.6 Implement conflict wizard (Mode 2): Step 0 overview, Steps 1..N per `Ambiguous` booth (candidate cards, "Advanced" disclosure, "Don't import this event" option), `Single(archived)` step cards, final summary step
 - [x] 9.7 Wire the write phase: collect all wizard decisions into `Vec<(BoothId, BoothResolution, ConflictStrategy)>` before any writes, execute single transactional pass
-- [ ] 9.8 Add wizard-specific locale keys (EN + DE): step 0 overview, source badges, diff format, skip label, final step strategy label, archived restore card copy, cancel toast
+- [x] 9.8 Add wizard-specific locale keys (EN + DE): step 0 overview, source badges, diff format, skip label, final step strategy label, archived restore card copy, cancel toast
 - [x] 9.9 Update `docs/user-guides/MULTI_DEVICE_MERGE_GUIDE.md`: remove "no manual conflict-resolution UI" from limitations, add section on full backup vs. single-booth backup for multi-device workflows
 - [x] 9.10 Update `docs/technical/ADR_DEVICE_TO_DEVICE_TRANSFER.md`: update context scope note to reflect per-event reconciliation is now supported
 
 ## 10. Merge-then-Import Path (Issue 5)
 
-- [ ] 10.1 Wire the "Advanced" option in wizard `Ambiguous` step cards: amber styling, below divider, outside radio group, consequence statement showing which booth survives and which is deleted
-- [ ] 10.2 Implement the write phase for "Advanced" selections: call `MergeService::merge_booths`, then re-run `resolve_canonical_booth` on the incoming booth (pre-wizard candidate is stale after merge), then execute import write
-- [ ] 10.3 Write WASM integration test: merge-then-import with two local duplicates → duplicate removed, import succeeds, data correct
-- [ ] 10.4 Write WASM integration test: idempotency — run merge-then-import twice → second run finds `Single` match, import proceeds normally
+- [x] 10.1 Wire the "Advanced" option in wizard `Ambiguous` step cards: amber styling, below divider, outside radio group, consequence statement showing which booth survives and which is deleted
+- [x] 10.2 Implement the write phase for "Advanced" selections: call `MergeService::merge_booths`, then re-run `resolve_canonical_booth` on the incoming booth (pre-wizard candidate is stale after merge), then execute import write
+- [x] 10.3 Write WASM integration test: merge-then-import with two local duplicates → duplicate removed, import succeeds, data correct
+- [x] 10.4 Write WASM integration test: idempotency — run merge-then-import twice → second run finds `Single` match, import proceeds normally
 
 ## 11. Cleanup — Planning Docs
 
