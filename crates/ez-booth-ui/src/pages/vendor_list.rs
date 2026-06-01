@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+
 use crate::components::pagination::Pagination;
 use crate::components::pagination_prefs::use_pagination_preference;
 use crate::components::*;

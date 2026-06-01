@@ -1,3 +1,5 @@
+#![allow(clippy::clone_on_copy)]
+
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;

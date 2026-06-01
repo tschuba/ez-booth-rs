@@ -227,7 +227,7 @@ impl OmissionRule {
             Self::Exact(value) => Ok(vendor_id == value),
             Self::Wildcard(pattern) => wildcard_matches(pattern, vendor_id),
             Self::Regex(pattern) => Ok(pattern
-                .get_or_compile(|value| build_safe_regex(value))?
+                .get_or_compile(build_safe_regex)?
                 .is_match(vendor_id)),
             // Range matching parses vendor IDs as u32 integers.
             // Leading zeros are stripped ("007" becomes 7), and values outside u32 do not match.

@@ -1,3 +1,9 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::let_unit_value)]
+
 use crate::booth_ordering::{sort_booths, split_booths};
 use crate::components::*;
 use crate::error_translator::translate_domain_error;

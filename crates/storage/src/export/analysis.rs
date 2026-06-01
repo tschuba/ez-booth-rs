@@ -40,6 +40,7 @@ pub enum BoothResolution {
 
 /// Input to import and analysis operations, replacing the UI-private ParsedImportData
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum ImportPayload {
     Full(BackupData),
     Booth(BoothBackupData),

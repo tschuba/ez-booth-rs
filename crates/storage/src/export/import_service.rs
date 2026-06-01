@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use domain::{
-    Booth, BoothId, BoothRepository, Purchase, PurchaseId, PurchaseRepository, Vendor, VendorId,
+    Booth, BoothId, BoothRepository, Purchase, PurchaseRepository, Vendor, VendorId,
     VendorRepository,
 };
 use js_sys;
@@ -428,6 +428,7 @@ impl ImportService {
     }
 
     /// Resolve + apply one booth write. Returns outcome for subordinate remapping.
+    #[allow(dead_code)]
     async fn resolve_and_apply_booth(
         &self,
         incoming: &Booth,

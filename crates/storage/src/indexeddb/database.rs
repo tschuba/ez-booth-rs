@@ -159,7 +159,7 @@ impl TrackedTransaction {
 pub struct Database {
     inner: RawDatabase,
     on_write: Option<Rc<dyn Fn()>>,
-    #[cfg(test)]
+    #[cfg(any(test, debug_assertions))]
     fail_writes: std::cell::Cell<bool>,
 }
 
@@ -179,12 +179,12 @@ impl Database {
         Ok(Self {
             inner: RawDatabase::new_with_name(db_name).await?,
             on_write,
-            #[cfg(test)]
+            #[cfg(any(test, debug_assertions))]
             fail_writes: std::cell::Cell::new(false),
         })
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, debug_assertions))]
     pub fn set_fail_writes(&self, fail: bool) {
         self.fail_writes.set(fail);
     }
@@ -202,7 +202,7 @@ impl Database {
         store_names: &[&str],
         mode: TransactionMode,
     ) -> Result<TrackedTransaction, StorageError> {
-        #[cfg(test)]
+        #[cfg(any(test, debug_assertions))]
         if self.fail_writes.get() {
             return Err(StorageError::DatabaseError(
                 "test: forced write failure".to_string(),

@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_locals)]
+
 use leptos::*;
 
 /// Button variant styles

@@ -14,8 +14,8 @@ use crate::state::use_app_state;
 use crate::t;
 use crate::utils::current_device_info;
 use ez_booth_storage::export::{
-    BoothCandidate, BoothMatchKind, BoothResolution, ConflictStrategy, ImportAnalysis, ImportError,
-    ImportPayload, ImportSummary, ImportValidator, ValidationFailure,
+    BoothCandidate, BoothResolution, ConflictStrategy, ImportAnalysis, ImportError, ImportPayload,
+    ImportSummary, ImportValidator, ValidationFailure,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -59,6 +59,7 @@ impl ImportCandidate {
 #[derive(Clone, Debug, PartialEq)]
 enum WizardChoice {
     UseCandidate(BoothId),
+    #[allow(dead_code)]
     ImportAsNew,
     Skip,
     /// Merge canonical into other locally first, then import under canonical
@@ -105,25 +106,18 @@ pub fn ImportButton(
 
     let validator = Rc::new(ImportValidator::new());
 
-    let open_file_picker = {
-        let input_ref = input_ref.clone();
-        move || {
-            if is_reading.get_untracked() || is_importing.get_untracked() {
-                return;
-            }
+    let open_file_picker = move || {
+        if is_reading.get_untracked() || is_importing.get_untracked() {
+            return;
+        }
 
-            if let Some(input) = input_ref.get() {
-                input.set_value("");
-                input.click();
-            }
+        if let Some(input) = input_ref.get() {
+            input.set_value("");
+            input.click();
         }
     };
 
     let reset_results = {
-        let set_candidates = set_candidates;
-        let set_selected_file_names = set_selected_file_names;
-        let set_import_progress = set_import_progress;
-        let set_import_results = set_import_results;
         move || {
             set_candidates.set(Vec::new());
             set_selected_file_names.set(Vec::new());
@@ -134,7 +128,6 @@ pub fn ImportButton(
 
     let log_error_for_file_change = log_error.clone();
     let on_file_change = {
-        let input_ref = input_ref.clone();
         let validator = Rc::clone(&validator);
         move |_ev: Event| {
             let Some(input) = input_ref.get() else {
@@ -161,7 +154,6 @@ pub fn ImportButton(
             let candidates_signal = set_candidates;
             let show_modal_signal = set_show_modal;
             let reading_signal = set_is_reading;
-            let toast = toast.clone();
             let log_error = log_error_for_file_change.clone();
             let validator_for_parse = Rc::clone(&validator);
 
@@ -1074,7 +1066,7 @@ fn apply_wizard_decisions_to_payload(
     payload: ImportPayload,
     decisions: &std::collections::HashMap<String, WizardChoice>,
 ) -> ImportPayload {
-    use ez_booth_storage::export::{BackupData, BoothBackupData};
+    use ez_booth_storage::export::BoothBackupData;
 
     if decisions.is_empty() {
         return payload;

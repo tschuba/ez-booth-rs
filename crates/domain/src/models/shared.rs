@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_vendor_id_numeric_sorting() {
-        let mut ids = vec![
+        let mut ids = [
             VendorId::new("100".to_string()),
             VendorId::new("2".to_string()),
             VendorId::new("30".to_string()),
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_vendor_id_mixed_sorting() {
-        let mut ids = vec![
+        let mut ids = [
             VendorId::new("A10".to_string()),
             VendorId::new("5".to_string()),
             VendorId::new("B2".to_string()),

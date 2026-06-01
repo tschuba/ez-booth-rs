@@ -122,9 +122,9 @@ impl MergeService {
                 Some(existing) => {
                     // Apply payout_correction merge rules: keep canonical's if set
                     let merged_correction = if existing.payout_correction.is_some() {
-                        existing.payout_correction.clone()
+                        existing.payout_correction
                     } else {
-                        remapped.payout_correction.clone()
+                        remapped.payout_correction
                     };
                     let merged_note = if existing.payout_correction_note.is_some() {
                         existing.payout_correction_note.clone()
@@ -201,9 +201,9 @@ impl MergeService {
                 }
                 Some(existing) => {
                     let merged_correction = if existing.payout_correction.is_some() {
-                        existing.payout_correction.clone()
+                        existing.payout_correction
                     } else {
-                        remapped.payout_correction.clone()
+                        remapped.payout_correction
                     };
                     let merged_note = if existing.payout_correction_note.is_some() {
                         existing.payout_correction_note.clone()

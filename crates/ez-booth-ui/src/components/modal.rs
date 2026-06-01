@@ -1,3 +1,5 @@
+#![allow(clippy::clone_on_copy)]
+
 use leptos::*;
 use wasm_bindgen::{closure::Closure, JsCast};
 

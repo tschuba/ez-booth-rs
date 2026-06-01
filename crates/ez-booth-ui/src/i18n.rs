@@ -1,3 +1,7 @@
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::while_let_on_iterator)]
+#![allow(clippy::map_identity)]
+
 use leptos::*;
 use serde::Deserialize;
 use std::collections::HashMap;

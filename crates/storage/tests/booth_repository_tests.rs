@@ -1,3 +1,5 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 // Integration tests for BoothRepository
 // These tests run in a real browser environment using wasm-bindgen-test
 
@@ -51,7 +53,7 @@ async fn test_save_and_find_booth() {
     let repo = IndexedDbBoothRepository::new(db);
 
     let booth = create_test_booth("Test Booth 1");
-    let booth_id = booth.id.clone();
+    let booth_id = booth.id;
 
     // Save the booth
     let save_result = repo.save(&booth).await;
@@ -107,7 +109,7 @@ async fn test_update_booth() {
     let repo = IndexedDbBoothRepository::new(db);
 
     let mut booth = create_test_booth("Original Description");
-    let booth_id = booth.id.clone();
+    let booth_id = booth.id;
 
     // Save initial booth
     repo.save(&booth).await.unwrap();
@@ -171,7 +173,7 @@ async fn test_delete_booth() {
     let repo = IndexedDbBoothRepository::new(db);
 
     let booth = create_test_booth("To Be Deleted");
-    let booth_id = booth.id.clone();
+    let booth_id = booth.id;
 
     // Save the booth
     repo.save(&booth).await.unwrap();

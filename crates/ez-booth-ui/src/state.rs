@@ -42,6 +42,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub async fn new_with_callback(on_write: Option<Rc<dyn Fn()>>) -> Result<Self, String> {
         // Initialize IndexedDB
         let db = Database::new_with_callback("ez_booth_v1", on_write)

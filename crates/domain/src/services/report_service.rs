@@ -339,7 +339,7 @@ mod tests {
     fn create_test_vendor(booth_id: &BoothId, vendor_id: &str) -> Vendor {
         Vendor {
             vendor_id: VendorId::new(vendor_id.to_string()),
-            booth_id: booth_id.clone(),
+            booth_id: *booth_id,
             created_at: Utc::now(),
             payout_correction: None,
             payout_correction_note: None,
@@ -362,7 +362,7 @@ mod tests {
 
         // Add some purchases
         let purchase1 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![
                 PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap(),
                 PurchaseItem::new(dec!(5.00), vendor1.vendor_id.clone()).unwrap(),
@@ -370,7 +370,7 @@ mod tests {
         )
         .unwrap();
         let purchase2 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()).unwrap()],
         )
         .unwrap();
@@ -421,7 +421,7 @@ mod tests {
 
         // Add purchases for vendor
         let purchase1 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![
                 PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()).unwrap(),
                 PurchaseItem::new(dec!(5.00), vendor.vendor_id.clone()).unwrap(),
@@ -429,7 +429,7 @@ mod tests {
         )
         .unwrap();
         let purchase2 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(8.00), vendor.vendor_id.clone()).unwrap()],
         )
         .unwrap();
@@ -467,12 +467,12 @@ mod tests {
 
         // Add purchases (vendor2 has no purchases)
         let purchase1 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap()],
         )
         .unwrap();
         let purchase2 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(20.00), vendor3.vendor_id.clone()).unwrap()],
         )
         .unwrap();
@@ -507,21 +507,21 @@ mod tests {
         let two_hours_ago = now - chrono::Duration::hours(2);
 
         let mut purchase1 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(10.00), vendor.vendor_id.clone()).unwrap()],
         )
         .unwrap();
         purchase1.timestamp = two_hours_ago;
 
         let mut purchase2 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(20.00), vendor.vendor_id.clone()).unwrap()],
         )
         .unwrap();
         purchase2.timestamp = one_hour_ago;
 
         let mut purchase3 = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![PurchaseItem::new(dec!(30.00), vendor.vendor_id.clone()).unwrap()],
         )
         .unwrap();
@@ -562,7 +562,7 @@ mod tests {
 
         // Create a purchase with items from both vendors
         let mixed_purchase = Purchase::new(
-            booth.id.clone(),
+            booth.id,
             vec![
                 PurchaseItem::new(dec!(10.00), vendor1.vendor_id.clone()).unwrap(),
                 PurchaseItem::new(dec!(20.00), vendor2.vendor_id.clone()).unwrap(),
@@ -650,21 +650,21 @@ mod tests {
 
         purchase_repo.add(
             Purchase::new(
-                booth.id.clone(),
+                booth.id,
                 vec![PurchaseItem::new(dec!(100.00), vendor1.vendor_id.clone()).unwrap()],
             )
             .unwrap(),
         );
         purchase_repo.add(
             Purchase::new(
-                booth.id.clone(),
+                booth.id,
                 vec![PurchaseItem::new(dec!(518.11), vendor2.vendor_id.clone()).unwrap()],
             )
             .unwrap(),
         );
         purchase_repo.add(
             Purchase::new(
-                booth.id.clone(),
+                booth.id,
                 vec![PurchaseItem::new(dec!(75.25), vendor3.vendor_id.clone()).unwrap()],
             )
             .unwrap(),
