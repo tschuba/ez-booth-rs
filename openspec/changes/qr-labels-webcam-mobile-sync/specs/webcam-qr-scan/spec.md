@@ -77,11 +77,12 @@ Every `CheckoutItem` and `StoredCheckoutItem` SHALL carry a `source: ItemSource`
 ---
 
 ### Requirement: Duplicate scan suppression
-A QR payload decoded within 2000 ms of the same payload's last decode MUST be suppressed (not added to the cart again). The dedup clock MUST use `web_sys::Performance::now()` (not `std::time::Instant`, which is unavailable in WASM). The suppression MUST trigger a visual pulse highlight (~300 ms CSS animation) on the existing matching cart row. The scan success sound MUST NOT play on a suppressed duplicate.
+A QR payload decoded within 2000 ms of the same payload's last decode MUST be suppressed (not added to the cart again). The dedup key is the **full payload string** (e.g. `v=42&p=300`) — not just the vendor ID. The dedup clock MUST use `web_sys::Performance::now()` (not `std::time::Instant`, which is unavailable in WASM). The suppression MUST trigger a visual pulse highlight (~300 ms CSS animation) on the **most recent cart row whose full decoded payload matches**. The scan success sound MUST NOT play on a suppressed duplicate.
 
 #### Scenario: Same sticker scanned twice quickly
-- **WHEN** the cashier scans the same QR sticker twice within 500 ms
-- **THEN** only one cart row is added; the second scan highlights the existing row; no sound plays
+
+- **WHEN** the cashier scans the same QR sticker (payload `v=42&p=300`) twice within 500 ms
+- **THEN** only one cart row is added; the most recent cart row with payload `v=42&p=300` is highlighted; no sound plays
 
 #### Scenario: Same sticker scanned after dedup window
 - **WHEN** the cashier scans the same QR sticker 2500 ms after the first scan

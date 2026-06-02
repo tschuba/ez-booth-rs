@@ -127,13 +127,20 @@ The Mobile-App "Exportieren" function SHALL download pending purchases as a `.js
 ---
 
 ### Requirement: Event removal safeguard
-The Mobile-App SHALL warn the helper before removing an event if any batches remain in `pending` state. Events with all batches in `server_uploaded` or `file_exported` state MUST be removable without warning.
+The Mobile-App SHALL warn the helper before removing an event if any batches remain in `pending` state. For events with `file_exported` (but not `server_uploaded`) batches, a deletion-time confirmation MUST be shown, distinct from the export-time acknowledgement. Events with all batches in `server_uploaded` state MUST be removable without warning.
 
 #### Scenario: Removing event with pending batches
+
 - **WHEN** the helper attempts to remove an event that has 2 pending batches
 - **THEN** a warning is shown: "Dieser Event hat noch 2 nicht übertragene Batches. Trotzdem entfernen?"
 
+#### Scenario: Removing event with only file_exported batches
+
+- **WHEN** the helper removes an event where all batches are `file_exported` but none are `server_uploaded`
+- **THEN** a confirmation is shown: "Du hast Daten exportiert, aber nicht über den Server synchronisiert. Wenn die Datei nicht importiert wurde, gehen die Daten verloren. Trotzdem löschen?"
+
 #### Scenario: Removing fully synced event
+
 - **WHEN** the helper removes an event where all batches are server_uploaded
 - **THEN** the event is removed without warning
 
@@ -168,5 +175,16 @@ The Kassen-App Sync button SHALL trigger `POST /api/sync` (upload) followed by `
 - **THEN** the POST step is skipped (last_upload_ok is true); only GET is retried
 
 #### Scenario: Paginated download
+
 - **WHEN** the server returns exactly 500 purchases on the first GET
 - **THEN** the Kassen-App issues a second GET with the updated since cursor, up to 20 iterations total
+
+#### Scenario: Cross-session retry — POST re-sent after page reload
+
+- **WHEN** POST succeeds and GET fails, then the cashier reloads the page and taps "Synchronisieren" again
+- **THEN** POST is re-sent (because `last_upload_ok` reset to false on reload); the server silently deduplicates via `ON CONFLICT DO NOTHING`; no duplicate purchases appear in the register
+
+#### Scenario: GET returns purchases with mismatched event_code
+
+- **WHEN** the Kassen-App downloads purchases via GET /api/sync and receives items whose `event_code` does not match the active booth's `event_code`
+- **THEN** those purchases are displayed with a warning indicator and are not automatically merged; the cashier sees a count: "N Käufe mit abweichendem Event-Code empfangen — bitte prüfen"

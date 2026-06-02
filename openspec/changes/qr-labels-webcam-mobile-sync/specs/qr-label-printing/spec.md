@@ -72,8 +72,9 @@ Soft warning (printing allowed with acknowledgement): total label must be ≥ 40
 - **THEN** the print button remains enabled
 
 #### Scenario: Warning dismissed persists for session
+
 - **WHEN** a vendor dismisses the soft warning
-- **THEN** the warning is not shown again during the same browser session for the same dimension range
+- **THEN** the warning is not shown again for the remainder of the browser session, regardless of the exact dimensions entered, as long as dimensions remain in the soft-warning tier (< 40×25 mm total but ≥ 25×25 mm QR region)
 
 #### Scenario: Worst-case payload validation
 - **WHEN** vendor ID is 999 and a price of €9999.99 (999999 cents) is being encoded
