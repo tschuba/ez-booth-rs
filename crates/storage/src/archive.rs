@@ -235,10 +235,7 @@ impl ArchiveService {
         Ok(())
     }
 
-    pub async fn delete_booth_with_cascade(
-        &self,
-        booth_id: &BoothId,
-    ) -> Result<(), StorageError> {
+    pub async fn delete_booth_with_cascade(&self, booth_id: &BoothId) -> Result<(), StorageError> {
         let transaction = self.db.transaction(
             &["booths", "vendors", "purchases"],
             TransactionMode::ReadWrite,
