@@ -133,11 +133,31 @@ The dialog SHALL display an elevated warning for iOS browsers. Detection MUST us
 
 - **WHEN** the user expands the details tier on iOS
 - **THEN** the details MUST include a plain-language explanation: "Apple's browser engine on iOS deletes stored data for apps that haven't been opened in 7 days. There is no way to prevent this."
+- **THEN** the details MUST include a mitigation note: "To protect your data on iPhone or iPad: open the app at least once a week, and export a backup regularly. No iOS browser can avoid this restriction — switching browsers on iPhone will not help."
 
 #### Scenario: Non-iOS browser detected
 
 - **WHEN** the dialog is shown on a non-iOS device
 - **THEN** no iOS-specific content SHALL appear in either tier
+
+### Requirement: macOS Safari browser recommendation
+
+When the user is on macOS Safari (not iOS), the details tier SHALL recommend switching to a desktop browser that does not have the 7-day eviction restriction.
+
+#### Scenario: macOS Safari detected — details tier
+
+- **WHEN** the user expands the details tier and the browser is macOS Safari (detected via `detect_browser()` returning `"Safari"` on a non-iOS platform)
+- **THEN** the details MUST include: "On Mac, switching to Chrome or Firefox removes this restriction — those browsers do not evict stored data based on inactivity."
+
+#### Scenario: Non-Safari macOS browser
+
+- **WHEN** the dialog is shown on macOS Chrome, Firefox, or Edge
+- **THEN** no browser recommendation SHALL appear; the standard storage risk explanation is sufficient
+
+#### Scenario: iOS browser (any)
+
+- **WHEN** the dialog is shown on iOS
+- **THEN** the iOS mitigation note (weekly open + export) MUST appear instead of a browser-switch recommendation, since no iOS browser alternative avoids the restriction
 
 ### Requirement: Accessible dialog implementation
 

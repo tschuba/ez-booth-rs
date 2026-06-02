@@ -25,7 +25,10 @@
 - [ ] 4.4 Implement the headline as a semantic `<h2>` element; it must carry the full risk message in one sentence (e.g. "Your data exists only in this browser — if it is lost, it cannot be recovered")
 - [ ] 4.5 Implement the summary tier: headline + at most 2 one-line bullets; on iOS the first bullet MUST be "Safari and all iOS browsers may delete your data if you don't open the app for 7 days"
 - [ ] 4.6 Implement the disclosure toggle as a `<button>` with `aria-expanded` (false/true) and `aria-controls` pointing to the details panel id; use a contextual label — "How browser storage works" on non-iOS, "Why this matters on iPhone & iPad" on iOS
-- [ ] 4.7 Implement the collapsible details panel: quota benchmarks section (with `aria-live="polite"` and `aria-atomic="true"` live region, pre-existing in DOM before data loads), fuller explanation of browser storage mechanics, and on iOS a plain-language eviction explanation ("Apple's browser engine on iOS deletes stored data for apps that haven't been opened in 7 days. There is no way to prevent this.")
+- [ ] 4.7 Implement the collapsible details panel: quota benchmarks section (with `aria-live="polite"` and `aria-atomic="true"` live region, pre-existing in DOM before data loads), fuller explanation of browser storage mechanics, and platform-specific mitigation copy:
+  - **iOS**: plain-language eviction explanation + mitigation note ("open the app at least once a week, export regularly — no iOS browser can avoid this restriction")
+  - **macOS Safari**: browser recommendation ("switching to Chrome or Firefox removes this restriction")
+  - **Other browsers**: standard storage risk explanation only
 - [ ] 4.8 Populate the `aria-live` quota region only when the details panel is expanded AND `storage.estimate()` has resolved with non-null, non-zero values; skip the section entirely otherwise
 - [ ] 4.9 On mount, fire `storage.persist()` async; update a local signal with `PersistResult`; if `Granted` on non-iOS, add a moderating note to the details tier ("Your browser has granted this app protected storage, reducing eviction risk")
 - [ ] 4.10 On mount, fire `storage.estimate()` async; store result in local signal; render in quota live region when details expand
@@ -43,12 +46,13 @@
 - [ ] 6.1 Clear localStorage, launch app on desktop Chrome — dialog appears, blocks interaction, shows 1 headline + 2 bullets, details collapsed, no iOS bullet
 - [ ] 6.2 Dismiss dialog — timestamp written; relaunch within 90 days — dialog does not appear
 - [ ] 6.3 Set `ez-booth-storage-warning-dismissed-at` to 91 days ago — dialog reappears on launch
-- [ ] 6.4 Test on iOS device or iOS simulator — iOS-specific first bullet visible, 7-day threshold applies, details show plain-language eviction text
-- [ ] 6.5 Test on desktop Chrome with UA-spoof to iOS — iOS branch fires (platform detection, not UA string)
-- [ ] 6.6 Expand details — quota figures appear with "browser-allocated quota" label; interpretive text present; loading spinner shown before resolve
-- [ ] 6.7 Test with `storage.estimate()` returning null/0 — quota section omitted, no "0 bytes" shown
-- [ ] 6.8 Test `storage.persist()` granted (Chrome/Edge) — moderating note appears in details tier
-- [ ] 6.9 Screen reader test (VoiceOver on Safari): dialog name announced on open, ESC does nothing but description explains why, details toggle announces expanded/collapsed state, quota figures announced when details expand
-- [ ] 6.10 Keyboard-only test: Tab cycles between toggle and button only; Shift+Tab reverses; background content unreachable
-- [ ] 6.11 Simulate localStorage unavailability (private mode) — dialog appears, app does not crash, no error surfaced
-- [ ] 6.12 Run `cargo check` and WASM build — no new warnings or errors
+- [ ] 6.4 Test on iOS device or iOS simulator — iOS-specific first bullet visible, 7-day threshold applies, details show plain-language eviction text + "no iOS browser can avoid this" mitigation note; NO browser-switch recommendation shown
+- [ ] 6.5 Test on macOS Safari — details show "switching to Chrome or Firefox removes this restriction"; no iOS-specific text shown
+- [ ] 6.6 Test on desktop Chrome with UA-spoof to iOS — iOS branch fires (platform detection, not UA string)
+- [ ] 6.7 Expand details — quota figures appear with "browser-allocated quota" label; interpretive text present; loading spinner shown before resolve
+- [ ] 6.8 Test with `storage.estimate()` returning null/0 — quota section omitted, no "0 bytes" shown
+- [ ] 6.9 Test `storage.persist()` granted (Chrome/Edge) — moderating note appears in details tier
+- [ ] 6.10 Screen reader test (VoiceOver on Safari): dialog name announced on open, ESC does nothing but description explains why, details toggle announces expanded/collapsed state, quota figures announced when details expand
+- [ ] 6.11 Keyboard-only test: Tab cycles between toggle and button only; Shift+Tab reverses; background content unreachable
+- [ ] 6.12 Simulate localStorage unavailability (private mode) — dialog appears, app does not crash, no error surfaced
+- [ ] 6.13 Run `cargo check` and WASM build — no new warnings or errors
