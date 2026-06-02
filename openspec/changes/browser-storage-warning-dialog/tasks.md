@@ -1,42 +1,54 @@
 # Tasks: browser-storage-warning-dialog
 
-## 1. localStorage Utilities
+## 1. Platform & Browser Detection
 
-- [ ] 1.1 Add `get_storage_warning_dismissed_at() -> Option<DateTime<Utc>>` helper that reads `ez-booth-storage-warning-dismissed-at` from localStorage, returning `None` if absent or unreadable (try/catch wrapper)
-- [ ] 1.2 Add `set_storage_warning_dismissed_at(now: DateTime<Utc>)` helper that writes the ISO 8601 timestamp to `ez-booth-storage-warning-dismissed-at`, silently ignoring write failures
-- [ ] 1.3 Add `should_show_storage_warning() -> bool` function that returns `true` when the key is absent or the elapsed time since dismissal is >= 30 days
+- [ ] 1.1 Implement iOS platform detection helper: `is_ios() -> bool` using `'WebKit' in window && navigator.maxTouchPoints > 0` — covers all iOS browsers (Chrome, Firefox, Safari), not just Safari UA
+- [ ] 1.2 If `detect_browser()` / `is_safari()` are private to `storage_warning.rs`, extract them to a shared module (e.g. `crates/ez-booth-ui/src/browser.rs`); update existing callers and import in the new dialog
 
-## 2. Storage Quota API Binding
+## 2. localStorage Utilities
 
-- [ ] 2.1 Wire `navigator.storage.estimate()` via `web-sys` — return a `(used: u64, quota: u64)` tuple from an async Rust function `estimate_storage_quota() -> Option<(u64, u64)>`
-- [ ] 2.2 Add human-readable byte formatting utility (e.g., `4.2 MB`, `500 MB`) for display in the dialog
+- [ ] 2.1 Add `get_storage_warning_dismissed_at() -> Option<DateTime<Utc>>` helper that reads `ez-booth-storage-warning-dismissed-at` from localStorage, returning `None` if absent or unreadable (try/catch wrapper)
+- [ ] 2.2 Add `set_storage_warning_dismissed_at(now: DateTime<Utc>)` helper that writes the ISO 8601 timestamp, silently ignoring write failures
+- [ ] 2.3 Add `should_show_storage_warning(is_ios: bool) -> bool` that returns `true` when the key is absent OR elapsed time >= 90 days (non-iOS) / >= 7 days (iOS)
 
-## 3. Dialog Component
+## 3. Storage API Calls
 
-- [ ] 3.1 Create `StorageRiskWarningDialog` Dioxus component in `crates/ez-booth-ui/src/components/storage_risk_warning_dialog.rs`
-- [ ] 3.2 Implement full-screen backdrop overlay that blocks pointer events on the underlying UI
-- [ ] 3.3 Implement the summary tier: headline + at most 3 one-line bullets conveying the critical risk (no quota figures here)
-- [ ] 3.4 Implement the "Show details" disclosure toggle and collapsible details tier containing quota benchmarks and deeper browser storage explanation; defaults to collapsed
-- [ ] 3.5 Add Safari/iOS variant: one-line bullet in the summary tier + expanded ITP eviction explanation in the details tier, both rendered conditionally via `detect_browser()`
-- [ ] 3.5 Add "I Understand" CTA button that calls `set_storage_warning_dismissed_at()` and closes the dialog; ensure no other dismiss path exists (no ESC, no backdrop click, no X button)
-- [ ] 3.6 On mount, fire the async `estimate_storage_quota()` call and update a local signal with the result; render loading spinner until resolved or failed
+- [ ] 3.1 Wire `navigator.storage.persist()` via `web-sys` — call on dialog open; return a `PersistResult` enum (`Granted`, `Denied`, `Unsupported`); on iOS always return `Denied` regardless of API result (WebKit no-op)
+- [ ] 3.2 Wire `navigator.storage.estimate()` via `web-sys` — return `Option<(used: u64, quota: u64)>`; treat 0/null/undefined `usage` or `quota` as `None`
+- [ ] 3.3 Add human-readable byte formatting utility (e.g. `format_bytes(n: u64) -> String` → "4.2 MB") for quota display
 
-## 4. Root Integration
+## 4. Dialog Component
 
-- [ ] 4.1 In the app shell / root component, evaluate `should_show_storage_warning()` on startup and store the result in a reactive signal
-- [ ] 4.2 Conditionally render `<StorageRiskWarningDialog>` at the root level when the signal is `true`, overlaying all other content
-- [ ] 4.3 Wire the dialog's on-dismiss callback to set the signal to `false` so the dialog disappears after confirmation
+- [ ] 4.1 Create `StorageRiskWarningDialog` Dioxus component in `crates/ez-booth-ui/src/components/storage_risk_warning_dialog.rs`
+- [ ] 4.2 Implement full-screen backdrop overlay; apply `inert` attribute to the app root element when the dialog is open (use `web-sys` to set/remove the attribute on mount/unmount)
+- [ ] 4.3 Implement ARIA semantics on the dialog container: `role="dialog"`, `aria-modal="true"`, `aria-labelledby` (headline id), `aria-describedby` (accessible description id including "This notice must be acknowledged before continuing"); add `tabindex="-1"` and move focus to the container on open
+- [ ] 4.4 Implement the headline as a semantic `<h2>` element; it must carry the full risk message in one sentence (e.g. "Your data exists only in this browser — if it is lost, it cannot be recovered")
+- [ ] 4.5 Implement the summary tier: headline + at most 2 one-line bullets; on iOS the first bullet MUST be "Safari and all iOS browsers may delete your data if you don't open the app for 7 days"
+- [ ] 4.6 Implement the disclosure toggle as a `<button>` with `aria-expanded` (false/true) and `aria-controls` pointing to the details panel id; use a contextual label — "How browser storage works" on non-iOS, "Why this matters on iPhone & iPad" on iOS
+- [ ] 4.7 Implement the collapsible details panel: quota benchmarks section (with `aria-live="polite"` and `aria-atomic="true"` live region, pre-existing in DOM before data loads), fuller explanation of browser storage mechanics, and on iOS a plain-language eviction explanation ("Apple's browser engine on iOS deletes stored data for apps that haven't been opened in 7 days. There is no way to prevent this.")
+- [ ] 4.8 Populate the `aria-live` quota region only when the details panel is expanded AND `storage.estimate()` has resolved with non-null, non-zero values; skip the section entirely otherwise
+- [ ] 4.9 On mount, fire `storage.persist()` async; update a local signal with `PersistResult`; if `Granted` on non-iOS, add a moderating note to the details tier ("Your browser has granted this app protected storage, reducing eviction risk")
+- [ ] 4.10 On mount, fire `storage.estimate()` async; store result in local signal; render in quota live region when details expand
+- [ ] 4.11 Implement confirmation button with a label that restates the risk (e.g. "Got it — my data stays on this device"); on click: call `set_storage_warning_dismissed_at(now)` and signal parent to close; ensure no other dismiss path exists (no ESC handler, no backdrop click handler, no X button)
+- [ ] 4.12 Implement focus trap: Tab cycles between disclosure toggle and confirmation button only; Shift+Tab reverses; use `keydown` interception on the dialog container
 
-## 5. Browser Detection Refactor (if needed)
+## 5. Root Integration
 
-- [ ] 5.1 If `detect_browser()` / `is_safari()` are private to `storage_warning.rs`, extract them to a shared module (e.g., `crates/ez-booth-ui/src/browser.rs`) and update existing callers
-- [ ] 5.2 Import the shared detection function in `StorageRiskWarningDialog`
+- [ ] 5.1 In the app shell / root component, call `should_show_storage_warning(is_ios())` on startup and store result in a reactive signal
+- [ ] 5.2 Conditionally render `<StorageRiskWarningDialog>` at the root level when the signal is `true`
+- [ ] 5.3 Wire the dialog's on-dismiss callback to set the signal to `false`
 
 ## 6. Verification
 
-- [ ] 6.1 Manually test: clear localStorage, launch app — dialog appears, blocks interaction, shows quota figures
-- [ ] 6.2 Manually test: dismiss dialog — timestamp written, relaunch within 30 days — dialog does not appear
-- [ ] 6.3 Manually test: artificially set `ez-booth-storage-warning-dismissed-at` to 31 days ago — dialog reappears on launch
-- [ ] 6.4 Manually test Safari (or UA-spoof): Safari warning section is visible; on other browsers it is absent
-- [ ] 6.5 Manually test: simulate localStorage unavailability (private mode or mock) — dialog appears, app does not crash
-- [ ] 6.6 Run `cargo check` and WASM build — no new warnings or errors
+- [ ] 6.1 Clear localStorage, launch app on desktop Chrome — dialog appears, blocks interaction, shows 1 headline + 2 bullets, details collapsed, no iOS bullet
+- [ ] 6.2 Dismiss dialog — timestamp written; relaunch within 90 days — dialog does not appear
+- [ ] 6.3 Set `ez-booth-storage-warning-dismissed-at` to 91 days ago — dialog reappears on launch
+- [ ] 6.4 Test on iOS device or iOS simulator — iOS-specific first bullet visible, 7-day threshold applies, details show plain-language eviction text
+- [ ] 6.5 Test on desktop Chrome with UA-spoof to iOS — iOS branch fires (platform detection, not UA string)
+- [ ] 6.6 Expand details — quota figures appear with "browser-allocated quota" label; interpretive text present; loading spinner shown before resolve
+- [ ] 6.7 Test with `storage.estimate()` returning null/0 — quota section omitted, no "0 bytes" shown
+- [ ] 6.8 Test `storage.persist()` granted (Chrome/Edge) — moderating note appears in details tier
+- [ ] 6.9 Screen reader test (VoiceOver on Safari): dialog name announced on open, ESC does nothing but description explains why, details toggle announces expanded/collapsed state, quota figures announced when details expand
+- [ ] 6.10 Keyboard-only test: Tab cycles between toggle and button only; Shift+Tab reverses; background content unreachable
+- [ ] 6.11 Simulate localStorage unavailability (private mode) — dialog appears, app does not crash, no error surfaced
+- [ ] 6.12 Run `cargo check` and WASM build — no new warnings or errors
