@@ -120,6 +120,66 @@ Before the lock, a strong warning is shown on any edit attempt: *"Changing the e
 
 **Fallback:** If `rxing` fails the spike, use `ZXing-wasm` via `wasm-bindgen`. This introduces a JS dependency but is the only viable alternative.
 
+**Spike — crate structure:**
+
+```text
+crates/ez-booth-prototype/
+├── Cargo.toml         # cdylib; leptos, rxing (wasm feature), qrcode, web-sys, js-sys, gloo-timers
+├── index.html         # trunk entry point; Tesseract.js <script> tag
+└── src/
+    ├── lib.rs         # app root; ScanMode signal; log_entries RwSignal; mounts QrGenerator, Scanner, Log
+    ├── qr_gen.rs      # QR Generator component
+    ├── qr_scan.rs     # QR Scanner component (rxing + webcam frame loop)
+    └── ocr_scan.rs    # OCR Scanner component (Tesseract.js interop + webcam)
+```
+
+**Spike — page layout** (single scrollable page, no router):
+
+```text
+┌──────────────────────────────────────┐
+│  ez-booth prototype — feasibility    │
+├──────────────────────────────────────┤
+│  § QR GENERATOR                      │
+│  Vendor ID: [__]  Price (¢): [____]  │
+│  [Generate QR]                       │
+│  [canvas — QR image]                 │
+├──────────────────────────────────────┤
+│  § SCANNER                           │
+│  [QR Scan] [OCR Scan]  ← toggle      │
+│  [video — webcam feed]               │
+│  [canvas — hidden, frame extraction] │
+│  Result: …  Confidence: …%           │
+│  → AUTO-ACCEPT / NEEDS CONFIRMATION  │
+├──────────────────────────────────────┤
+│  § LOG                               │
+│  [scrolling text of decode attempts] │
+└──────────────────────────────────────┘
+```
+
+**Spike — shared webcam lifecycle:** One `<video>` element is shared between QR Scan and OCR Scan modes. `getUserMedia` is called once when the Scanner section mounts. The frame loop (100 ms via `gloo_timers::callback::Interval`) feeds the hidden `<canvas>` and dispatches to whichever mode is active. Camera is stopped (`MediaStream.getTracks()[0].stop()`) on unmount.
+
+**Spike — `qr_gen.rs`:** Inputs `vendor_id: String`, `price_cents: u32`. Encodes `format!("v={vendor_id}&p={price_cents}")`. Uses `qrcode` crate to produce a pixel matrix; renders to `<canvas>` via `web_sys::CanvasRenderingContext2d`. Validates inputs (non-empty vendor_id, price > 0) before generating.
+
+**Spike — `qr_scan.rs`:** Shares `<video>` via Leptos `NodeRef`. Frame loop: `gloo_timers::callback::Interval::new(100, ...)`. Each tick: copy frame to canvas → `ImageData` → luma buffer → `rxing`. Dedup: `HashMap<String, f64>` with `Performance::now()`, suppress within 2000 ms. Displays decoded payload, parsed `v=`/`p=` fields, and decode latency (ms). On failure: logs to LOG section.
+
+**Spike — key dependencies:**
+
+| Crate | Purpose | Notes |
+| --- | --- | --- |
+| `rxing` | QR decode (pure Rust) | Enable `wasm` feature |
+| `qrcode` | QR encode | Pure Rust, no WASM feature needed |
+| `gloo-timers` | 100 ms frame loop | Check if already in workspace |
+| `wasm-bindgen-futures` | Async Tesseract.js calls | Likely already present |
+| `js-sys` | Tesseract.js JS interop | Likely already present |
+
+**Spike — verification:**
+```bash
+cd crates/ez-booth-prototype && trunk serve
+# 1. QR Generator: vendor_id=42, price_cents=300 → scan with phone → "v=42&p=300"
+# 2. QR Scan: hold QR to webcam → decoded payload appears in DOM
+# 3. Check LOG for decode latency
+```
+
 ---
 
 ### §6 — Dedup timing in WASM
@@ -265,6 +325,25 @@ pending
 
 **Gate:** Requires the feasibility spike to confirm that `wasm-bindgen`/`js-sys` interop with Tesseract.js does not block the UI thread. If it does, a Web Worker wrapper is required. If interop is infeasible entirely, Phase 4 is deferred until a pure-Rust OCR crate is viable, or falls back to server-side `/api/ocr` (Coolify only).
 
+**Spike — `ocr_scan.rs`:** Same webcam feed and frame loop as `qr_scan.rs`. Tesseract.js interop via `#[wasm_bindgen]` extern block:
+
+```rust
+#[wasm_bindgen]
+extern "C" {
+    type TesseractWorker;
+    // recognize(imageData, lang) -> Promise<{data: {text, confidence}}>
+}
+```
+
+Tesseract.js loaded lazily on first OCR attempt (avoids 15 MB download at startup). Injected via `<script>` tag in `index.html`; language hint: `"deu"`. OCR called via `wasm_bindgen_futures::spawn_local`. If `spawn_local` still blocks despite being async, the LOG section records this — confirming a Web Worker is required for Phase 4.
+
+**Spike — verification:**
+
+```bash
+# 3. OCR Scan: hold handwritten "42 / 3,50" to webcam → text + confidence % appear
+# 4. Check LOG for interop errors or UI-blocking indicators
+```
+
 **Confidence flow:**
 - Confidence ≥ 85% + validation OK → auto-accept (no dialog)
 - Confidence < 85% or validation error → confirmation dialog
@@ -344,8 +423,10 @@ The three preset sizes (Klein 48×30 mm, Mittel 64×34 mm, Groß 70×50 mm) all 
 
 | Risk | Mitigation |
 |------|------------|
-| `rxing` WASM binary too large or decode > 200ms/frame | Phase 2 spike gates this. Fallback: `ZXing-wasm`. Update ADR §5 if switched. |
+| `rxing` WASM binary too large or decode > 200ms/frame | Phase 2 spike gates this. Fallback: `ZXing-wasm`. Update design.md §5 if switched. |
 | Tesseract.js JS interop blocks UI thread | `spawn_local` + Web Worker investigation in spike. Phase 4 deferred if not feasible. |
+| Tesseract.js not callable via `wasm-bindgen` extern at all | Phase 4 deferred until a pure-Rust OCR crate is viable; server-side `/api/ocr` promoted to primary path. |
+| OCR confidence < 85% on clean handwriting | Threshold needs adjustment; consider 70% or manual-only fallback. Update design.md §14. |
 | `ez-booth-mobile` reimplements UI components already in `ez-booth-ui` | Accepted duplication. Mobile crate is intentionally decoupled. |
 | event_code mismatch between registers discovered mid-event | Recovery procedure documented in §4. Organisers trained on pre-event coordination workflow. |
 | Server-side event_code collision interleaves financial data | Deployment constraint: one organiser per Coolify instance. Server logs collision warning. Organisers cross-check totals before payout. |

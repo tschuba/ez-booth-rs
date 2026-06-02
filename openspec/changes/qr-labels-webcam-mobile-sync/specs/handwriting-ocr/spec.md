@@ -75,5 +75,32 @@ If OCR returns an empty result or a result that fails all price validation after
 When enabled in settings, the Kassen-App SHALL send the captured image frame to `POST /api/ocr` instead of running Tesseract.js locally. This endpoint is available in Coolify deployments only. The response format MUST include `{ text: String, confidence: f64 }`. The same confidence threshold and dialog logic applies.
 
 #### Scenario: Server OCR enabled in settings
+
 - **WHEN** server OCR is enabled and the cashier holds a label to the camera
 - **THEN** the image is sent to /api/ocr and the result is processed with the same confidence logic
+
+---
+
+### Requirement: Feasibility spike validates Tesseract.js interop
+
+Before Phase 4 implementation begins, the `ez-booth-prototype` spike SHALL demonstrate that Tesseract.js is callable from Leptos WASM and that recognition does not block the UI thread.
+
+#### Scenario: Tesseract.js callable without compile error
+
+- **WHEN** the `#[wasm_bindgen]` extern block for Tesseract.js is compiled in `crates/ez-booth-prototype`
+- **THEN** `trunk build` completes without errors and `recognize()` is callable from Rust
+
+#### Scenario: OCR quality meets threshold on clean handwriting
+
+- **WHEN** clearly handwritten "42" and "3,50" on white paper are held to the webcam
+- **THEN** Tesseract.js returns confidence ≥ 85% and the result is labelled AUTO-ACCEPT
+
+#### Scenario: OCR shows NEEDS CONFIRMATION on messy handwriting
+
+- **WHEN** small or messy handwriting is held to the webcam
+- **THEN** confidence is < 85% and the result is labelled NEEDS CONFIRMATION in red
+
+#### Scenario: UI remains responsive during OCR
+
+- **WHEN** the OCR recognition call is in progress via `spawn_local`
+- **THEN** the rest of the spike UI (buttons, inputs) remains interactive and is not frozen

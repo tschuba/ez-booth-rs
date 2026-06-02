@@ -87,3 +87,28 @@ The checkout page SHALL display a "QR-Code für Mobile" button that renders the 
 #### Scenario: Generating the onboarding QR
 - **WHEN** the cashier clicks "QR-Code für Mobile"
 - **THEN** the onboarding QR is displayed and `event_code` editing is locked for this booth
+
+---
+
+### Requirement: Feasibility spike validates rxing in WASM
+Before Phase 2 implementation begins, the `ez-booth-prototype` spike SHALL demonstrate that `rxing` compiles to WASM and meets performance criteria. The spike MUST be run in Chrome with a live webcam.
+
+#### Scenario: rxing WASM compilation
+
+- **WHEN** `rxing` is added to `crates/ez-booth-prototype/Cargo.toml` with the `wasm` feature
+- **THEN** `trunk build` completes without errors
+
+#### Scenario: Live QR decode within 500 ms
+
+- **WHEN** a printed QR sticker is held to the webcam
+- **THEN** the decoded payload appears in the DOM within 500 ms
+
+#### Scenario: Decode latency per frame
+
+- **WHEN** the spike logs decode timing for each frame
+- **THEN** reported decode time is < 100 ms per frame
+
+#### Scenario: Generated QR is scannable
+
+- **WHEN** vendor_id=42 and price_cents=300 are entered in the QR Generator and the Generate button is clicked
+- **THEN** the resulting canvas QR code is scannable by a smartphone camera app and yields "v=42&p=300"

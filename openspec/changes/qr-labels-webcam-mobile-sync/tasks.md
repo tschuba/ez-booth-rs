@@ -4,8 +4,8 @@
 - [ ] 0.2 Implement `qr_gen.rs` — encode `v={vendor_id}&p={price_cents}` via `qrcode` crate, render to `<canvas>` via `CanvasRenderingContext2d`
 - [ ] 0.3 Implement `qr_scan.rs` — webcam frame loop (100 ms via `gloo_timers`), luma buffer to `rxing` decoder, dedup via `Performance::now()`
 - [ ] 0.4 Implement `ocr_scan.rs` — `#[wasm_bindgen]` extern block for Tesseract.js, lazy load via `spawn_local`, confidence threshold display
-- [ ] 0.5 Run spike against all success criteria in `docs/technical/prototypes/QR_OCR_FEASIBILITY_SPIKE.md`
-- [ ] 0.6 Record spike outcomes: update ADR §5 (rxing result) and §14 (Tesseract.js result)
+- [ ] 0.5 Run spike: verify all success criteria from `specs/webcam-qr-scan/spec.md` (rxing requirement) and `specs/handwriting-ocr/spec.md` (Tesseract.js requirement)
+- [ ] 0.6 Record spike outcomes: update design.md §5 (rxing result) and §14 (Tesseract.js result)
 - [ ] 0.7 Gate decision: if `rxing` decode > 200ms/frame → switch to `zxing-wasm` and update design.md §5
 
 ## 1. Domain Model
