@@ -50,7 +50,7 @@
     <p style="color:var(--muted); margin:0 0 8px;">Testsitzung 2026-05-21 · TG 1,00 € · UA 15 % · RS 0,50 € (kaufm. Rundung)</p>
     <div class="formula">
       theoretical_net = brutto − 1,00 − brutto × 0,15<br>
-      net = commercial_round(theoretical_net, 0,50) &nbsp; [0,5 rundet hoch, floor bei 0,00 €]<br>
+      net = commercial_round(theoretical_net, 0,50) &nbsp; [0,5 rundet hoch]<br>
       gebühren = brutto − net
     </div>
     <p style="margin:0; font-weight:700;">Aktives Szenario: ☐ AC &nbsp;&nbsp; ☐ BC</p>
@@ -88,8 +88,8 @@
         <tr><td>V4</td><td class="soll">67,00 €</td><td class="soll">56,00 €</td><td class="soll">11,00 €</td></tr>
         <tr><td>V5</td><td class="soll">73,50 €</td><td class="soll">61,50 €</td><td class="soll">12,00 €</td></tr>
         <tr><td>V6</td><td class="soll">202,50 €</td><td class="soll">171,00 €</td><td class="soll">31,50 €</td></tr>
-        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">0,00 €</td><td class="soll">0,50 €</td></tr>
-        <tr class="total-row"><td>Gesamt B</td><td>581,00 €</td><td>487,50 €</td><td>93,50 €</td></tr>
+        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">-0,50 €</td><td class="soll">1,00 €</td></tr>
+        <tr class="total-row"><td>Gesamt B</td><td>581,00 €</td><td>487,00 €</td><td>94,00 €</td></tr>
       </tbody>
     </table>
   </div>
@@ -109,8 +109,8 @@
         <tr><td>V5</td><td class="soll">672,50 €</td><td class="soll">570,50 €</td><td class="soll">102,00 €</td></tr>
         <tr><td>V6</td><td class="soll">799,50 €</td><td class="soll">678,50 €</td><td class="soll">121,00 €</td></tr>
         <tr class="edge-row"><td>V7</td><td class="soll">1,00 €</td><td class="soll">0,00 €</td><td class="soll">1,00 €</td></tr>
-        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">0,00 €</td><td class="soll">0,50 €</td></tr>
-        <tr class="total-row"><td>Gesamt C</td><td>4.205,50 €</td><td>3.567,50 €</td><td>638,00 €</td></tr>
+        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">-0,50 €</td><td class="soll">1,00 €</td></tr>
+        <tr class="total-row"><td>Gesamt C</td><td>4.205,50 €</td><td>3.567,00 €</td><td>638,50 €</td></tr>
       </tbody>
     </table>
   </div>
@@ -133,8 +133,8 @@
         <tr><td>V5</td><td class="soll">750,50 €</td><td class="soll">637,00 €</td><td class="soll">113,50 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
         <tr><td>V6</td><td class="soll">970,00 €</td><td class="soll">823,50 €</td><td class="soll">146,50 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
         <tr class="edge-row"><td>V7</td><td class="soll">2,00 €</td><td class="soll">0,50 €</td><td class="soll">1,50 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
-        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">0,00 €</td><td class="soll">0,50 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
-        <tr class="total-row"><td>Gesamt AC</td><td>4.775,00 €</td><td>4.051,00 €</td><td>724,00 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
+        <tr class="edge-row"><td>V8</td><td class="soll">0,50 €</td><td class="soll">-0,50 €</td><td class="soll">1,00 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
+        <tr class="total-row"><td>Gesamt AC</td><td>4.775,00 €</td><td>4.050,50 €</td><td>724,50 €</td><td class="blank"></td><td class="blank"></td><td>☐</td></tr>
       </tbody>
     </table>
   </div>

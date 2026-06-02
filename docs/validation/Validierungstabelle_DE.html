@@ -57,7 +57,7 @@
     <p style="color:var(--muted); margin:0 0 8px;">Testsitzung 2026-05-21 · TG 1,00 € · UA 15 % · RS 0,50 € (kaufm. Rundung)</p>
     <div class="formula">
       theoretical_net = brutto − 1,00 − brutto × 0,15<br>
-      net = commercial_round(theoretical_net, 0,50) &nbsp; [0,5 rundet HOCH, floor bei 0,00 €]<br>
+      net = commercial_round(theoretical_net, 0,50) &nbsp; [0,5 rundet HOCH]<br>
       gebühren = brutto − net
     </div>
   </div>
@@ -96,8 +96,8 @@
         <tr><td>V4</td><td class="soll">67,00 €</td><td class="soll">56,00 €</td><td class="soll">11,00 €</td></tr>
         <tr><td>V5</td><td class="soll">73,50 €</td><td class="soll">61,50 €</td><td class="soll">12,00 €</td></tr>
         <tr><td>V6</td><td class="soll">202,50 €</td><td class="soll">171,00 €</td><td class="soll">31,50 €</td></tr>
-        <tr class="edge-row"><td><strong>V8</strong> ⚠️ Netto=0</td><td class="soll">0,50 €</td><td class="soll">0,00 €</td><td class="soll">0,50 €</td></tr>
-        <tr class="total-row"><td>Gesamt B</td><td>581,00 €</td><td>487,50 €</td><td>93,50 €</td></tr>
+        <tr class="edge-row"><td><strong>V8</strong> ⚠️ Netto&lt;0</td><td class="soll">0,50 €</td><td class="soll">-0,50 €</td><td class="soll">1,00 €</td></tr>
+        <tr class="total-row"><td>Gesamt B</td><td>581,00 €</td><td>487,00 €</td><td>94,00 €</td></tr>
       </tbody>
     </table>
     <p style="font-size:11px; color:var(--muted);">Probe: 569,50 + 581,00 = 1.150,50 € (Brutto gesamt) ✓</p>
@@ -168,21 +168,21 @@
         </tr>
         <tr class="edge-row">
           <td>V8 ⚠️</td>
-          <td class="soll">0,50 €</td><td class="soll">0,00 €</td><td class="soll">0,50 €</td>
+          <td class="soll">0,50 €</td><td class="soll">-0,50 €</td><td class="soll">1,00 €</td>
           <td class="blank"></td><td class="blank"></td><td class="blank"></td>
           <td class="blank"></td><td class="blank"></td><td class="blank"></td>
           <td>☐</td>
         </tr>
         <tr class="total-row">
           <td><strong>Gesamt</strong></td>
-          <td>1.150,50 €</td><td>970,50 €</td><td>180,00 €</td>
+          <td>1.150,50 €</td><td>970,00 €</td><td>180,50 €</td>
           <td class="blank"></td><td class="blank"></td><td class="blank"></td>
           <td class="blank"></td><td class="blank"></td><td class="blank"></td>
           <td>☐</td>
         </tr>
       </tbody>
     </table>
-    <p style="font-size:11px; color:var(--muted);">Probe: 477,50 (A) + 487,50 (B) ≠ 970,50 (Merge) — korrekt, Netto wird auf kombinierter Brutto-Basis berechnet. V5 kombiniert: 151,50 − 1,00 − 22,725 = 127,775 → round(255,55) = 256 × 0,50 = 128,00 €</p>
+    <p style="font-size:11px; color:var(--muted);">Probe: 477,50 (A) + 487,00 (B) ≠ 970,00 (Merge) — korrekt, Netto wird auf kombinierter Brutto-Basis berechnet. V5 kombiniert: 151,50 − 1,00 − 22,725 = 127,775 → round(255,55) = 256 × 0,50 = 128,00 €</p>
   </div>
 
   <div class="card">
