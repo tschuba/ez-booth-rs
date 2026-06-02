@@ -15,6 +15,6 @@
 ## 3. Verifikation
 
 - [x] 3.1 `cargo build --target wasm32-unknown-unknown` — Kompilierung ohne Fehler
-- [ ] 3.2 App starten, `geraet_a_vor_merge.json` importieren → 7 Käufe, 569,50 € Gesamtumsatz, Verkäufer V1–V7 prüfen
-- [ ] 3.3 Veranstaltung löschen, dieselbe Datei erneut importieren → immer noch 7 Käufe, 569,50 € — keine Doppelzählung
-- [ ] 3.4 Bestehende UUID-Fix-Änderungen auf derselben Branch committen (testdata + cascade-delete in einem Commit)
+- [x] 3.2 App starten, `geraet_a_vor_merge.json` importieren → 7 Käufe, 569,50 € Gesamtumsatz, Verkäufer V1–V7 prüfen
+- [x] 3.3 Veranstaltung löschen, dieselbe Datei erneut importieren → immer noch 7 Käufe, 569,50 € — keine Doppelzählung
+- [x] 3.4 Bestehende UUID-Fix-Änderungen auf derselben Branch committen (testdata + cascade-delete in einem Commit)
