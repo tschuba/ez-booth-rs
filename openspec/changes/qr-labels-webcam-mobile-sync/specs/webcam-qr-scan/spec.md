@@ -29,8 +29,29 @@ In Scan mode, the checkout page SHALL activate the device webcam and run a frame
 - **THEN** no item is added and no error is shown (silent no-op)
 
 #### Scenario: Camera permission denied
+
 - **WHEN** the browser denies camera access
 - **THEN** Scan mode is unavailable and a message is shown: "Kamerazugriff verweigert — bitte Browserberechtigungen prüfen."
+
+#### Scenario: Webcam stopped when switching away from Scan mode
+
+- **WHEN** the cashier switches from Scan mode to Manual mode via the toolbar toggle
+- **THEN** `MediaStream.getTracks().forEach(t => t.stop())` is called and the browser camera indicator turns off
+
+#### Scenario: Webcam restarted when switching back to Scan mode
+
+- **WHEN** the cashier switches from Manual mode back to Scan mode
+- **THEN** `getUserMedia` is called again and the webcam feed resumes
+
+#### Scenario: Frame loop paused when tab is hidden
+
+- **WHEN** the cashier switches to another browser tab or app while Scan mode is active
+- **THEN** the frame loop is paused via the Page Visibility API (`document.hidden === true`) and the camera stream is not actively read
+
+#### Scenario: Frame loop resumed when tab becomes visible
+
+- **WHEN** the cashier returns to the checkout tab while Scan mode is active
+- **THEN** the frame loop resumes
 
 ---
 

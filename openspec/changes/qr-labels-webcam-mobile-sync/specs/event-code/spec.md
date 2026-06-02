@@ -76,8 +76,14 @@ After the lock, the edit field is disabled and the warning is replaced by a noti
 The Kassen-App event creation confirmation screen SHALL display the `event_code` prominently with the instruction: *"Teile diesen Code mit allen Kassen, bevor die Veranstaltung beginnt."* The mobile onboarding QR (`ez-booth://onboard?e={event_code}&n={name}`) SHALL be displayed on the same screen. Scanning this QR on another Kassen-App MUST pre-fill that register's `event_code` field in its event creation form.
 
 #### Scenario: Second register scans onboarding QR
+
 - **WHEN** the cashier on a second register scans the onboarding QR from the first register
 - **THEN** the event_code field in the second register's event creation form is pre-filled with the scanned code
+
+#### Scenario: QR scan would overwrite existing non-empty event_code
+
+- **WHEN** the cashier scans an onboarding QR and the event_code field already contains a different non-empty value
+- **THEN** a confirmation dialog is shown: "Der gescannte Code (FM-0526) weicht vom eingetragenen Code (GH-1026) ab. Code übernehmen?" before overwriting
 
 ---
 
@@ -90,8 +96,15 @@ The design MUST document a recovery procedure for the case where a mismatch is d
 5. Any purchases synced to the mismatched register before correction must be re-exported and re-imported to the correct register
 
 #### Scenario: Mismatched register corrected mid-event
+
 - **WHEN** a cashier updates the event_code on a mismatched register to match the leading register
 - **THEN** subsequent mobile sync imports from helpers are routed correctly to that register
+
+#### Scenario: Override lock for mismatch recovery on a locked register
+
+- **WHEN** a cashier on a mismatched register attempts mismatch recovery but `onboarding_qr_shown_at` is already set (field is locked)
+- **THEN** an "Override lock" action is available with a strong confirmation: "Achtung: Dieser Register hat bereits mobile Geräte eingebunden. Das Ändern des Codes bricht die Synchronisation für alle bisher eingebundenen Geräte. Trotzdem ändern?"
+- **THEN** on confirmation the field becomes editable for one change, the new code is saved, and the lock re-engages immediately
 
 ---
 

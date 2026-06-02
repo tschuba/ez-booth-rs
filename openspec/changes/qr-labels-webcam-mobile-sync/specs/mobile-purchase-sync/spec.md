@@ -13,16 +13,44 @@ The Mobile-App (`crates/ez-booth-mobile`) SHALL include a `manifest.json` with `
 
 ---
 
+### Requirement: IndexedDB availability check on startup
+
+On startup the Mobile-App SHALL verify that IndexedDB is available and not in a restricted mode. If IndexedDB is unavailable (e.g. private browsing on iOS), a blocking error MUST be shown. All subsequent IndexedDB write paths MUST catch `QuotaExceededError` and surface a persistent export prompt.
+
+#### Scenario: IndexedDB unavailable (private mode)
+
+- **WHEN** a helper opens the Mobile-App in a private/incognito browser window on iOS
+- **THEN** a blocking message is shown: "Diese App kann in diesem Modus keine Daten speichern. Bitte öffne sie in einem normalen Browserfenster." and no purchases can be recorded
+
+#### Scenario: Storage quota exceeded during scan
+
+- **WHEN** a helper scans a purchase and the IndexedDB write fails with a `QuotaExceededError`
+- **THEN** a persistent banner is shown: "Gerätespeicher fast voll — exportiere jetzt" and the file export dialog is triggered automatically
+
+---
+
 ### Requirement: Cache staleness detection
-On each startup the Mobile-App SHALL compare an embedded build-version constant against a `version.json` endpoint on the same static host. If the check fails (device is offline) and the last-opened timestamp is more than 6 days ago, a banner MUST be displayed.
+On each startup the Mobile-App SHALL compare an embedded build-version constant against `/version.json` at the app root. If the fetch fails (device is offline) and the last-opened timestamp is more than 6 days ago, a banner MUST be displayed. The staleness threshold is strictly greater than 6 days (not ≥ 6).
 
 #### Scenario: App used after 7 days of inactivity (offline)
+
 - **WHEN** the Mobile-App starts on a device that has been offline for 8 days since the last open
 - **THEN** a banner is shown: "Dein Offline-Speicher könnte veraltet sein. Vor dem Event kurz neu laden."
 
 #### Scenario: App used within 6 days, online
+
 - **WHEN** the Mobile-App starts and the device is online with a fresh cache
-- **THEN** no staleness banner is shown
+- **THEN** no staleness banner is shown (check succeeds via HTTP, day count irrelevant)
+
+#### Scenario: Exactly 6 days offline — no banner
+
+- **WHEN** the Mobile-App starts offline and the last-opened timestamp is exactly 6 days ago
+- **THEN** no staleness banner is shown (threshold is strictly > 6 days)
+
+#### Scenario: 7 days offline — banner shown
+
+- **WHEN** the Mobile-App starts offline and the last-opened timestamp is 7 days ago
+- **THEN** the staleness banner is shown
 
 ---
 

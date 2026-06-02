@@ -91,7 +91,7 @@ Examples: `"Flohmarkt Mai 2026"` → `FM-0526`, `"Großer Herbstmarkt"` → `GH-
 
 **Local collision avoidance:** When the Kassen-App generates an event_code suggestion, it checks all existing `booth.event_code` values. If a match exists, it appends `-2` (incrementing until unique) and notifies the organiser.
 
-**Lock trigger — amended from ADR:** The `event_code` field is locked **when the mobile onboarding QR is first rendered on screen** (not on first sync received, which was asymmetric — the leading register never receives a sync). Implementation: `onboarding_qr_shown_at: Option<DateTime<Utc>>` stored per booth; once set, the edit field is disabled with a warning. This covers the leading register symmetrically.
+**Lock trigger — amended from ADR:** The `event_code` field is locked **when the mobile onboarding QR is first rendered on screen** (not on first sync received, which was asymmetric — the leading register never receives a sync). Implementation: `onboarding_qr_shown_at: Option<DateTime<Utc>>` added as a field on the `Booth` struct, serialised to localStorage as part of the `Booth` JSON object. Once set, the edit field is disabled with a warning. This covers the leading register symmetrically.
 
 Before the lock, a strong warning is shown on any edit attempt: *"Changing the event code breaks any mobile device that has already configured this event."*
 
@@ -117,6 +117,7 @@ Before the lock, a strong warning is shown on any edit attempt: *"Changing the e
 **Gate:** This is unverified. Phase 2 must not begin until the feasibility spike (`crates/ez-booth-prototype`) confirms:
 - `trunk build` succeeds with `rxing` in Cargo.toml
 - Live QR decode latency < 200ms/frame in-browser
+- `rxing` WASM contribution to the bundle is < 500 KB (measured via artifact size diff before/after adding `rxing`)
 
 **Fallback:** If `rxing` fails the spike, use `ZXing-wasm` via `wasm-bindgen`. This introduces a JS dependency but is the only viable alternative.
 
@@ -231,13 +232,21 @@ enum InputMode { Manual, Scan }  // Phase 2
 
 **Complete Kassen-App localStorage key schema:**
 
-| Key | Type | Lifecycle | Max size |
-|-----|------|-----------|----------|
-| `StoredCheckoutForm` | JSON (booth_id, vendor_id, amount, items) | Per-event, cleared on close | ~50 KB |
-| `completed_purchases` | JSON array of UUID strings | Per-event, cleared on close | ~500 KB |
-| `last_sync_sequence` | integer | Per-booth, persists | 8 bytes |
-| `last_upload_ok` | boolean | Session (reset on page load) | 1 byte |
-| `input_mode` | string enum | Persists across reloads | < 20 bytes |
+"Cleared on close" means cleared when the cashier explicitly closes/ends the event via the UI, or when a new event is created on the same device.
+
+| Key (actual string) | Type | Lifecycle | Max size |
+| --- | --- | --- | --- |
+| `ez-booth-checkout-draft` | JSON `StoredCheckoutForm` (booth_id, vendor_id, amount, items with `source`) | Per-event; cleared on event close | ~50 KB |
+| `completed_purchases` | JSON array of UUID strings | Per-event; cleared on event close | ~500 KB |
+| `last_sync_sequence` | integer | Per-booth; persists across events | 8 bytes |
+| `input_mode` | string enum (`"Manual"` / `"Scan"` / `"OcrScan"`) | Persists across reloads | < 20 bytes |
+| `ez-booth-checkout-keyboard-visible` | boolean | Persists | 1 byte |
+| `ez-booth-checkout-amount-input-mode` | string enum (existing `AmountInputMode`) | Persists | < 20 bytes |
+| `ez-booth-checkout-error-sound-enabled` | boolean | Persists | 1 byte |
+
+**Note:** `last_upload_ok` is runtime in-memory state only — it must NOT be stored in localStorage. If it were persisted, it would incorrectly skip the POST after a page reload. The Sync button initialises it as `false` on each page load.
+
+**Note:** `onboarding_qr_shown_at` and `event_code_confirmed` are fields on the `Booth` struct, serialised within the `Booth` JSON object in localStorage (not standalone keys). See §21 for `event_code_confirmed`.
 
 ---
 
@@ -271,9 +280,9 @@ Response: { purchases: [...], next_sequence: 42 }
 
 Returns `purchase_upserted` events with `sequence > since`, up to 500 per request.
 
-**Pagination contract:** The Kassen-App loops `GET /api/sync?since={next_sequence}` while `purchases.length == 500`. Loop terminates when the response has fewer than 500 items or `next_sequence` equals the previously received value. Maximum 20 iterations (safety guard). `last_sync_sequence` in localStorage stores the cursor.
+**Pagination contract:** The Kassen-App loops `GET /api/sync?since={next_sequence}` while `purchases.length == 500`. Loop terminates only when the response has fewer than 500 items. Maximum 20 iterations (safety guard — if reached, surface a sync error, do not silently stop). The server guarantees `next_sequence > since` whenever `purchases.length > 0`. `last_sync_sequence` in localStorage stores the cursor.
 
-**POST + GET error handling:** The Sync button displays split status: "Upload: OK / Download: fehlgeschlagen" as independent indicators. `last_upload_ok` is stored in localStorage independently from `last_sync_sequence`. If POST succeeded but GET failed, the next Sync attempt skips POST (data is already on the server) and retries GET only.
+**POST + GET error handling:** The Sync button displays split status: "Upload: OK / Download: fehlgeschlagen" as independent indicators. `last_upload_ok` is **in-memory runtime state only** (not stored in localStorage — see §9). If POST succeeded but GET failed, the next Sync attempt within the same page session skips POST and retries GET only. After a page reload, `last_upload_ok` resets to `false` and POST is re-sent; this is safe because the server deduplicates via `ON CONFLICT DO NOTHING`.
 
 **Threat model:** `POST /api/sync` provides no protection against a participant who scanned the onboarding QR and submits fabricated purchase data after the fact. The `event_code` is predictable from the public event name. **Organisers must cross-check server-synced totals against register totals before vendor payout.**
 
@@ -315,7 +324,9 @@ pending
 
 **iOS limitation:** Safari purges SW cache and IndexedDB after ~7 days of inactivity.
 
-**Cache staleness detection (in-app):** On startup, the Mobile-App compares an embedded build-version constant against a lightweight `version.json` endpoint on the same static host. If the check fails (offline) and the last-opened timestamp is > 6 days old, it displays a banner: *"Dein Offline-Speicher könnte veraltet sein. Vor dem Event kurz neu laden."*
+**Cache staleness detection (in-app):** On startup, the Mobile-App compares an embedded build-version constant against a lightweight `version.json` at `/version.json` relative to the app root. If the fetch fails (offline) and the last-opened timestamp is > 6 days old, it displays a banner: *"Dein Offline-Speicher könnte veraltet sein. Vor dem Event kurz neu laden."*
+
+**`version.json` generation:** Trunk emits this file via a post-build hook or `build.rs`. Minimum content: `{ "version": "<git_sha_short>" }`. The file is deployed alongside the WASM bundle at the app root. The SW cache manifest does **not** precache it — it must always be fetched live to reflect the latest build.
 
 ---
 
@@ -323,19 +334,22 @@ pending
 
 **Decision:** Tesseract.js (JavaScript library, ~15 MB model) for client-side OCR.
 
-**Gate:** Requires the feasibility spike to confirm that `wasm-bindgen`/`js-sys` interop with Tesseract.js does not block the UI thread. If it does, a Web Worker wrapper is required. If interop is infeasible entirely, Phase 4 is deferred until a pure-Rust OCR crate is viable, or falls back to server-side `/api/ocr` (Coolify only).
+**Gate:** Requires the feasibility spike to confirm that the `wasm-bindgen`/`js-sys` extern block can drive Tesseract.js's **Worker-mode API** (`createWorker()`) from Rust. Worker mode is the only Tesseract.js configuration that avoids blocking the main JS thread — `spawn_local` alone is insufficient because Tesseract.js v4+ runs inference synchronously inside the Promise executor unless explicitly initialised as a Web Worker. The spike question is not *whether* a worker is needed (it is), but *whether* `wasm-bindgen` can call the Worker API.
 
-**Spike — `ocr_scan.rs`:** Same webcam feed and frame loop as `qr_scan.rs`. Tesseract.js interop via `#[wasm_bindgen]` extern block:
+If Worker-mode interop is infeasible, Phase 4 is deferred until a pure-Rust OCR crate is viable, or falls back to server-side `/api/ocr` (Coolify only).
+
+**Spike — `ocr_scan.rs`:** Same webcam feed and frame loop as `qr_scan.rs`. Tesseract.js interop via `#[wasm_bindgen]` extern block targeting `createWorker()`:
 
 ```rust
 #[wasm_bindgen]
 extern "C" {
     type TesseractWorker;
-    // recognize(imageData, lang) -> Promise<{data: {text, confidence}}>
+    // createWorker(lang) -> Promise<TesseractWorker>
+    // worker.recognize(imageData) -> Promise<{data: {text, confidence}}>
 }
 ```
 
-Tesseract.js loaded lazily on first OCR attempt (avoids 15 MB download at startup). Injected via `<script>` tag in `index.html`; language hint: `"deu"`. OCR called via `wasm_bindgen_futures::spawn_local`. If `spawn_local` still blocks despite being async, the LOG section records this — confirming a Web Worker is required for Phase 4.
+Tesseract.js loaded lazily on first OCR attempt (avoids 15 MB download at startup). Injected via `<script>` tag in `index.html`; language hint: `"deu"`. Recognition dispatched via `wasm_bindgen_futures::spawn_local` awaiting the Worker Promise. If the Worker API is not callable via `wasm-bindgen` extern syntax, the LOG section records the compile/runtime error.
 
 **Spike — verification:**
 
@@ -413,7 +427,9 @@ The three preset sizes (Klein 48×30 mm, Mittel 64×34 mm, Groß 70×50 mm) all 
 2. Backfill: apply the derivation algorithm to `(description, date)` for each existing row — the algorithm is deterministic and safe to run server-side in SQL or a one-off migration script
 3. Set `NOT NULL` constraint after backfill
 
-**Post-migration UX:** If a booth's `event_code` was generated by backfill and never confirmed by the organiser, the Kassen-App shows a one-time prompt on first open: *"Bitte überprüfe und bestätige deinen Event-Code, bevor du mobile Geräte einrichtest."*
+**`event_code_confirmed: bool` field:** Added to the `Booth` struct alongside `onboarding_qr_shown_at`, serialised within the `Booth` JSON object. Defaults to `false`. Set to `true` when the organiser explicitly confirms the code.
+
+**Post-migration UX:** If a booth's `event_code_confirmed` is `false` (all backfilled booths start with `false`), the Kassen-App shows a one-time prompt on first open: *"Bitte überprüfe und bestätige deinen Event-Code, bevor du mobile Geräte einrichtest."* On confirmation, `event_code_confirmed` is set to `true` and the prompt is not shown again.
 
 **Rollback:** Remove `NOT NULL` constraint and set column nullable; existing data is unaffected.
 
@@ -433,6 +449,7 @@ The three preset sizes (Klein 48×30 mm, Mittel 64×34 mm, Groß 70×50 mm) all 
 | iOS Safari purges SW cache after 7 days of inactivity | In-app staleness banner + user reminder to open app before event. |
 | File export is fire-and-forget — Kassen-App import not confirmed | `file_exported` batch status marks transfer as user-accepted-responsibility. Removal warning is suppressed. |
 | Two registers derive different event_codes from slightly different event names | Pre-event coordination workflow on creation screen. Local collision check appends suffix. |
+| Mobile-App IndexedDB quota exceeded on low-storage device | Wrap all IndexedDB writes in `QuotaExceededError` catch; show persistent banner "Gerätespeicher fast voll — exportiere jetzt"; auto-trigger file export dialog if `navigator.storage.estimate()` shows < 5 MB remaining for origin. |
 
 ---
 

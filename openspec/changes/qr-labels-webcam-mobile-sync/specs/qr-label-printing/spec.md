@@ -1,5 +1,26 @@
 ## ADDED Requirements
 
+### Requirement: labels-url setting must be configured before label links are available
+
+The Kassen-App SHALL require the "Public app URL" (`labels-url`) to be configured in Settings before label links can be generated or copied. When `labels-url` is unset, the "Label-Link" column, "Link kopieren" buttons, and "Alle Vendor-Links exportieren" button MUST be disabled, and a guidance message MUST direct the organiser to configure the setting.
+
+#### Scenario: labels-url not configured
+
+- **WHEN** the organiser opens the vendor list without having configured the Public app URL in Settings
+- **THEN** the "Label-Link" column shows a "URL nicht konfiguriert — Einstellungen öffnen" prompt instead of QR icons and copy buttons, and the bulk-export button is disabled
+
+#### Scenario: labels-url configured
+
+- **WHEN** the organiser has configured `https://labels.example.com` as the Public app URL
+- **THEN** the label link for vendor 42 resolves to `https://labels.example.com/?v=42&e={event_code}` and all label-link controls are enabled
+
+#### Scenario: Bulk export with empty vendor list
+
+- **WHEN** the organiser clicks "Alle Vendor-Links exportieren" with zero vendors configured
+- **THEN** the button is disabled and a message is shown: "Keine Verkäufer vorhanden."
+
+---
+
 ### Requirement: Label-App browser capability check
 The Label-App SHALL verify that the browser supports `WebAssembly`, `CanvasRenderingContext2D`, and `window.print` before initialising the WASM module. If any capability is missing, a plain-language error message MUST be displayed and no WASM initialisation SHALL be attempted.
 
