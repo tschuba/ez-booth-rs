@@ -124,6 +124,8 @@ The storage quota figures (used bytes, total quota from `navigator.storage.estim
 
 The dialog SHALL display an elevated warning for iOS browsers. Detection MUST use platform detection (not user-agent string matching), since all iOS browsers — including Chrome and Firefox — use WebKit and are subject to the same storage eviction policy. The warning text MUST describe the user behaviour that triggers eviction, not the technical mechanism.
 
+iOS detection MUST use: `/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)`. The `maxTouchPoints > 1` threshold (not `> 0`) avoids false positives on touchscreen Windows laptops and the emerging touchscreen MacBook; the `MacIntel` + `maxTouchPoints` clause catches iPads that report macOS platform strings (iPadOS 13+).
+
 #### Scenario: iOS platform detected — summary tier
 
 - **WHEN** the dialog is shown on an iOS device (detected via platform, not user-agent)
@@ -133,7 +135,7 @@ The dialog SHALL display an elevated warning for iOS browsers. Detection MUST us
 
 - **WHEN** the user expands the details tier on iOS
 - **THEN** the details MUST include a plain-language explanation: "Apple's browser engine on iOS deletes stored data for apps that haven't been opened in 7 days. There is no way to prevent this."
-- **THEN** the details MUST include a mitigation note: "To protect your data on iPhone or iPad: open the app at least once a week, and export a backup regularly. No iOS browser can avoid this restriction — switching browsers on iPhone will not help."
+- **THEN** the details MUST include a mitigation note: "To protect your data on iPhone or iPad: actively launch the app at least once a week, and export a backup regularly. This is a system-level restriction that applies to all browsers on iPhone and iPad."
 
 #### Scenario: Non-iOS browser detected
 
@@ -147,17 +149,17 @@ When the user is on macOS Safari (not iOS), the details tier SHALL recommend swi
 #### Scenario: macOS Safari detected — details tier
 
 - **WHEN** the user expands the details tier and the browser is macOS Safari (detected via `detect_browser()` returning `"Safari"` on a non-iOS platform)
-- **THEN** the details MUST include: "On Mac, switching to Chrome or Firefox removes this restriction — those browsers do not evict stored data based on inactivity."
+- **THEN** the details MUST include: "On Mac, any non-Safari browser (Chrome, Firefox, Brave, Edge, etc.) removes this restriction — those browsers do not evict stored data based on inactivity."
 
 #### Scenario: Non-Safari macOS browser
 
-- **WHEN** the dialog is shown on macOS Chrome, Firefox, or Edge
+- **WHEN** the dialog is shown on macOS Chrome, Firefox, Brave, Edge, or any Chromium-based browser
 - **THEN** no browser recommendation SHALL appear; the standard storage risk explanation is sufficient
 
 #### Scenario: iOS browser (any)
 
 - **WHEN** the dialog is shown on iOS
-- **THEN** the iOS mitigation note (weekly open + export) MUST appear instead of a browser-switch recommendation, since no iOS browser alternative avoids the restriction
+- **THEN** the iOS mitigation note (weekly launch + export) MUST appear instead of a browser-switch recommendation; this is a system-level restriction that applies to all iOS browsers
 
 ### Requirement: Accessible dialog implementation
 

@@ -2,7 +2,7 @@
 
 ## 1. Platform & Browser Detection
 
-- [ ] 1.1 Implement iOS platform detection helper: `is_ios() -> bool` using `'WebKit' in window && navigator.maxTouchPoints > 0` — covers all iOS browsers (Chrome, Firefox, Safari), not just Safari UA
+- [ ] 1.1 Implement iOS platform detection helper: `is_ios() -> bool` using `/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)` — covers all iOS/iPadOS browsers including iPads that report `MacIntel`; `> 1` avoids false positives on touchscreen Windows laptops and touchscreen MacBook Pro
 - [ ] 1.2 If `detect_browser()` / `is_safari()` are private to `storage_warning.rs`, extract them to a shared module (e.g. `crates/ez-booth-ui/src/browser.rs`); update existing callers and import in the new dialog
 
 ## 2. localStorage Utilities
@@ -26,8 +26,8 @@
 - [ ] 4.5 Implement the summary tier: headline + at most 2 one-line bullets; on iOS the first bullet MUST be "Safari and all iOS browsers may delete your data if you don't open the app for 7 days"
 - [ ] 4.6 Implement the disclosure toggle as a `<button>` with `aria-expanded` (false/true) and `aria-controls` pointing to the details panel id; use a contextual label — "How browser storage works" on non-iOS, "Why this matters on iPhone & iPad" on iOS
 - [ ] 4.7 Implement the collapsible details panel: quota benchmarks section (with `aria-live="polite"` and `aria-atomic="true"` live region, pre-existing in DOM before data loads), fuller explanation of browser storage mechanics, and platform-specific mitigation copy:
-  - **iOS**: plain-language eviction explanation + mitigation note ("open the app at least once a week, export regularly — no iOS browser can avoid this restriction")
-  - **macOS Safari**: browser recommendation ("switching to Chrome or Firefox removes this restriction")
+  - **iOS**: plain-language eviction explanation + mitigation note ("actively launch the app at least once a week, export regularly — this is a system-level restriction that applies to all browsers on iPhone and iPad")
+  - **macOS Safari**: browser recommendation ("any non-Safari browser — Chrome, Firefox, Brave, Edge, etc. — removes this restriction"); add code comment `// Verify against WebKit ITP release notes annually`
   - **Other browsers**: standard storage risk explanation only
 - [ ] 4.8 Populate the `aria-live` quota region only when the details panel is expanded AND `storage.estimate()` has resolved with non-null, non-zero values; skip the section entirely otherwise
 - [ ] 4.9 On mount, fire `storage.persist()` async; update a local signal with `PersistResult`; if `Granted` on non-iOS, add a moderating note to the details tier ("Your browser has granted this app protected storage, reducing eviction risk")
@@ -47,7 +47,7 @@
 - [ ] 6.2 Dismiss dialog — timestamp written; relaunch within 90 days — dialog does not appear
 - [ ] 6.3 Set `ez-booth-storage-warning-dismissed-at` to 91 days ago — dialog reappears on launch
 - [ ] 6.4 Test on iOS device or iOS simulator — iOS-specific first bullet visible, 7-day threshold applies, details show plain-language eviction text + "no iOS browser can avoid this" mitigation note; NO browser-switch recommendation shown
-- [ ] 6.5 Test on macOS Safari — details show "switching to Chrome or Firefox removes this restriction"; no iOS-specific text shown
+- [ ] 6.5 Test on macOS Safari — details show "any non-Safari browser (Chrome, Firefox, Brave, Edge, etc.) removes this restriction"; no iOS-specific text shown
 - [ ] 6.6 Test on desktop Chrome with UA-spoof to iOS — iOS branch fires (platform detection, not UA string)
 - [ ] 6.7 Expand details — quota figures appear with "browser-allocated quota" label; interpretive text present; loading spinner shown before resolve
 - [ ] 6.8 Test with `storage.estimate()` returning null/0 — quota section omitted, no "0 bytes" shown

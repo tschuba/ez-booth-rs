@@ -59,14 +59,15 @@ The system runs as a WASM app in the browser. State persistence is done through 
 
 ### 4. iOS platform detection (not user-agent Safari matching)
 
-**Decision:** Detect iOS via platform check (`'WebKit' in window && navigator.maxTouchPoints > 0`) rather than matching the user-agent string for "Safari".
+**Decision:** Detect iOS using: `/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)`.
 
 **Alternatives considered:**
 
+- `'WebKit' in window && navigator.maxTouchPoints > 0`: Too broad — `maxTouchPoints > 0` fires on touchscreen Windows laptops and the new touchscreen MacBook Pro (2025). Using `> 1` filters these out since standard laptop trackpads report 1 touch point.
 - UA string matching for "Safari": Chrome and Firefox on iOS both use WebKit and are subject to the same eviction policy, but neither reports "Safari" in their UA string. Matching "Safari" leaves Chrome/iOS users without the warning.
-- `navigator.userAgentData.platform`: Not yet reliable across all targets
+- `navigator.userAgentData.platform`: Not yet reliable across all targets.
 
-**Rationale:** All iOS browsers share the WebKit engine and the 7-day eviction behavior. The warning must cover all of them.
+**Rationale:** The regex covers iPhone, iPad, and iPod touch directly. The `MacIntel` + `maxTouchPoints > 1` clause catches iPads on iPadOS 13+ which report `MacIntel` as their platform string — a known Apple quirk. Together these cover all current iOS/iPadOS devices without false-positiving on touch-enabled Macs or Windows tablets.
 
 ### 5. Storage quota display: details-only, validated, correctly labelled
 
@@ -132,7 +133,8 @@ The system runs as a WASM app in the browser. State persistence is done through 
 - **`navigator.storage.estimate()` on Safari/iOS returns 0 or null** → Validate before display; skip the quota section if values are missing. Already specced.
 - **`persist()` is a no-op on Safari** → Treat all iOS results as denied and show full warning regardless. Already specced.
 - **localStorage cleared with browser data** → Warning re-appears as first-use. This is correct behavior — document it so future developers don't "fix" it.
-- **iOS platform detection heuristic** → `'WebKit' in window && navigator.maxTouchPoints > 0` can produce false positives on touch-enabled macOS devices. This is acceptable — showing the iOS warning on a MacBook with a touchscreen is a minor over-warning, not a harmful under-warning.
+- **iOS platform detection heuristic** → Updated to `/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)`. Touchscreen MacBook Pro (2025) is an emerging edge case; `maxTouchPoints > 1` mitigates it. Review if Apple changes platform strings.
+- **macOS Safari copy may age** → The statement "any non-Safari browser removes this restriction" is accurate today. If Apple changes Safari's storage eviction policy in a future ITP release, this copy becomes inaccurate. Add a code comment in the component: `// Verify against WebKit ITP release notes annually: https://webkit.org/blog/category/privacy/`.
 - **User annoyance for active iOS users** → 7-day recurrence for iOS is frequent. Acceptable: the risk window is 7 days; the footer provides daily-use reminders; the dialog is short and requires one tap.
 
 ## Migration Plan
