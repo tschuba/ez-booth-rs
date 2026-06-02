@@ -235,6 +235,25 @@ impl ArchiveService {
         Ok(())
     }
 
+    pub async fn delete_booth_with_cascade(&self, booth_id: &BoothId) -> Result<(), StorageError> {
+        let transaction = self.db.transaction(
+            &["booths", "vendors", "purchases"],
+            TransactionMode::ReadWrite,
+        )?;
+
+        delete_vendors_from_transaction(&transaction, booth_id).await?;
+        delete_purchases_from_transaction(&transaction, booth_id).await?;
+
+        let store = transaction.store("booths").map_err(database_error)?;
+        store
+            .delete(JsValue::from_str(&booth_id.as_str()))
+            .await
+            .map_err(database_error)?;
+
+        transaction.done().await?;
+        Ok(())
+    }
+
     pub async fn list_audit_events(&self) -> Result<Vec<ArchiveAuditEvent>, StorageError> {
         let transaction = self
             .db

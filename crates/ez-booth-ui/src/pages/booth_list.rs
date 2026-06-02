@@ -412,7 +412,11 @@ pub fn BoothListPage() -> impl IntoView {
         spawn_local(async move {
             if let Some(Ok(state)) = state_result {
                 if let Some(booth) = booth_to_delete {
-                    match state.booth_repository.delete(&booth.id).await {
+                    match state
+                        .archive_service
+                        .delete_booth_with_cascade(&booth.id)
+                        .await
+                    {
                         Ok(_) => {
                             if expanded_booth_id.get_untracked() == Some(booth.id) {
                                 set_expanded_booth_id.set(None);
