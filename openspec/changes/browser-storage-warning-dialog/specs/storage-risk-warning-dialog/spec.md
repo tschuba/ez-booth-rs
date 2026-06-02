@@ -37,31 +37,63 @@ The dialog SHALL require an explicit user action to dismiss. No passive dismiss 
 - **WHEN** the dialog is visible and the user clicks outside the dialog panel
 - **THEN** the dialog MUST remain open and no dismissal timestamp SHALL be recorded
 
+### Requirement: Concise summary layout
+
+The dialog SHALL present information in two tiers to prevent cognitive overload and reduce the chance of dismissal without reading. The summary tier MUST be readable in under 10 seconds.
+
+#### Scenario: Dialog opens for the first time
+
+- **WHEN** the dialog is displayed
+- **THEN** only the summary tier SHALL be visible: a short headline and at most 3 one-line bullet points conveying the critical risk
+- **THEN** a "Show details" toggle or section MUST be present but collapsed
+
+#### Scenario: User expands details
+
+- **WHEN** the user activates the "Show details" control
+- **THEN** the details tier MUST expand in-place beneath the summary, showing storage quota benchmarks, a fuller explanation of browser storage mechanics, and (if Safari) the elevated eviction risk explanation
+
+#### Scenario: Details section defaults to collapsed
+
+- **WHEN** the dialog is displayed on any subsequent appearance (recurrence after 30 days)
+- **THEN** the details tier MUST default to collapsed, not expanded
+
 ### Requirement: Storage quota benchmark display
-The dialog SHALL display live storage capacity figures retrieved from `navigator.storage.estimate()` so the user can see the concrete quota constraints of their browser.
 
-#### Scenario: Storage estimate resolves successfully
-- **WHEN** the dialog is displayed and `navigator.storage.estimate()` resolves
-- **THEN** the dialog MUST show used storage bytes and total quota bytes in a human-readable format (e.g., "4.2 MB used of 500 MB available")
+The storage quota figures (used bytes, total quota from `navigator.storage.estimate()`) SHALL be shown inside the collapsible details tier only — not in the summary.
 
-#### Scenario: Storage estimate not yet resolved
-- **WHEN** the dialog is displayed and `navigator.storage.estimate()` has not yet resolved
-- **THEN** the dialog MUST show a loading indicator in place of the quota figures until the promise resolves
+#### Scenario: Storage estimate resolves and details are expanded
+
+- **WHEN** the user expands the details tier and `navigator.storage.estimate()` has resolved
+- **THEN** the details MUST show used storage and total quota in a human-readable format (e.g., "4.2 MB used of 500 MB available")
+
+#### Scenario: Storage estimate not yet resolved when details are expanded
+
+- **WHEN** the user expands the details tier before `navigator.storage.estimate()` resolves
+- **THEN** a loading indicator MUST appear in place of the quota figures until the promise settles
 
 #### Scenario: Storage estimate fails or is unavailable
-- **WHEN** `navigator.storage.estimate()` rejects or is unavailable in the browser
-- **THEN** the dialog MUST still be displayed without the quota section (graceful degradation), and no error SHALL be surfaced to the user
+
+- **WHEN** `navigator.storage.estimate()` rejects or is unavailable
+- **THEN** the details tier MUST still render without the quota figures; no error SHALL be surfaced to the user
 
 ### Requirement: Safari / iOS elevated warning variant
-The dialog SHALL display an elevated, Safari-specific warning section when the current browser is detected as Safari or iOS WebKit, using the same detection logic (`detect_browser()`) already used by the footer component.
 
-#### Scenario: Safari browser detected
+When the current browser is detected as Safari or iOS WebKit (via `detect_browser()`), the dialog SHALL include a Safari-specific warning in both tiers.
+
+#### Scenario: Safari detected — summary tier
+
 - **WHEN** the dialog is shown and `detect_browser()` returns `"Safari"`
-- **THEN** the dialog MUST include a dedicated Safari warning section explaining the 7-day eviction policy and the elevated risk of data loss compared to other browsers
+- **THEN** one of the summary bullet points MUST flag the 7-day eviction risk in a single, scannable line
+
+#### Scenario: Safari detected — details tier
+
+- **WHEN** the user expands the details tier on a Safari browser
+- **THEN** the details MUST include a fuller explanation of Safari's ITP-driven eviction policy and its concrete implications for data loss
 
 #### Scenario: Non-Safari browser detected
+
 - **WHEN** the dialog is shown and `detect_browser()` does not return `"Safari"`
-- **THEN** the dialog MUST NOT display the Safari-specific section
+- **THEN** no Safari-specific content SHALL appear in either tier
 
 ### Requirement: Resilience when localStorage is unavailable
 The system SHALL handle environments where `localStorage` is inaccessible (e.g., private/incognito mode) without crashing.

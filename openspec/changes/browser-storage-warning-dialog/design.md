@@ -69,6 +69,17 @@ The system runs as a WASM app in the browser. State persistence is done through 
 
 **Rationale:** The dialog's purpose is to ensure awareness, not to be convenient to skip. Removing escape hatches (ESC key, backdrop click, X button) reinforces that this is a required acknowledgment.
 
+### 7. Progressive disclosure: summary + collapsible details
+
+**Decision:** The dialog presents a two-tier layout. The summary tier (always visible) contains a headline and at most 3 one-line bullets — readable in under 10 seconds. A "Show details" disclosure control reveals a second tier with storage quota benchmarks and deeper explanations.
+
+**Alternatives considered:**
+
+- Show everything at once: Users faced with a wall of text are more likely to dismiss without reading — the opposite of the intent.
+- Hide all technical detail: Loses the benchmark requirement and gives power users no path to understand the concrete risk.
+
+**Rationale:** Progressive disclosure lets casual users get the key message quickly while preserving access to the technical detail for users who want it. The Safari-specific bullet appears in both tiers: as a one-liner in the summary, with full ITP explanation in the details.
+
 ## Risks / Trade-offs
 
 - **`navigator.storage.estimate()` reliability on Safari** → The Storage API is supported on Safari 15.2+ but quota figures may be lower or less precise due to ITP. Mitigation: show the numbers but add a note that Safari may report reduced capacity.

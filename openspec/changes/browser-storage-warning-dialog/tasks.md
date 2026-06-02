@@ -1,3 +1,5 @@
+# Tasks: browser-storage-warning-dialog
+
 ## 1. localStorage Utilities
 
 - [ ] 1.1 Add `get_storage_warning_dismissed_at() -> Option<DateTime<Utc>>` helper that reads `ez-booth-storage-warning-dismissed-at` from localStorage, returning `None` if absent or unreadable (try/catch wrapper)
@@ -13,8 +15,9 @@
 
 - [ ] 3.1 Create `StorageRiskWarningDialog` Dioxus component in `crates/ez-booth-ui/src/components/storage_risk_warning_dialog.rs`
 - [ ] 3.2 Implement full-screen backdrop overlay that blocks pointer events on the underlying UI
-- [ ] 3.3 Implement the dialog panel with: title, explanatory text about browser-local storage risk, and the storage quota section (loading state → figures)
-- [ ] 3.4 Add Safari/iOS variant section: conditionally rendered using `detect_browser()`, with stronger language about the 7-day eviction policy
+- [ ] 3.3 Implement the summary tier: headline + at most 3 one-line bullets conveying the critical risk (no quota figures here)
+- [ ] 3.4 Implement the "Show details" disclosure toggle and collapsible details tier containing quota benchmarks and deeper browser storage explanation; defaults to collapsed
+- [ ] 3.5 Add Safari/iOS variant: one-line bullet in the summary tier + expanded ITP eviction explanation in the details tier, both rendered conditionally via `detect_browser()`
 - [ ] 3.5 Add "I Understand" CTA button that calls `set_storage_warning_dismissed_at()` and closes the dialog; ensure no other dismiss path exists (no ESC, no backdrop click, no X button)
 - [ ] 3.6 On mount, fire the async `estimate_storage_quota()` call and update a local signal with the result; render loading spinner until resolved or failed
 
