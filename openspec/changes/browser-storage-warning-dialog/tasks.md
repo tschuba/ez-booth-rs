@@ -23,7 +23,10 @@
 - [ ] 4.2 Implement full-screen backdrop overlay; apply `inert` attribute to the app root element when the dialog is open (use `web-sys` to set/remove the attribute on mount/unmount)
 - [ ] 4.3 Implement ARIA semantics on the dialog container: `role="dialog"`, `aria-modal="true"`, `aria-labelledby` (headline id), `aria-describedby` (accessible description id including "This notice must be acknowledged before continuing"); add `tabindex="-1"` and move focus to the container on open
 - [ ] 4.4 Implement the headline as a semantic `<h2>` element; it must carry the full risk message in one sentence (e.g. "Your data exists only in this browser — if it is lost, it cannot be recovered")
-- [ ] 4.5 Implement the summary tier: headline + at most 2 one-line bullets; on iOS the first bullet MUST be "Safari and all iOS browsers may delete your data if you don't open the app for 7 days"
+- [ ] 4.5 Implement the summary tier: headline + at most 2 one-line bullets; platform-specific first bullet:
+  - **iOS**: "Safari and all iOS browsers may delete your data if you don't open the app for 7 days" (red styling)
+  - **macOS Safari**: "Safari may delete your data if you don't open the app for 7 days" (amber styling)
+  - **Other browsers**: no platform-specific bullet; standard risk bullets only
 - [ ] 4.6 Implement the disclosure toggle as a `<button>` with `aria-expanded` (false/true) and `aria-controls` pointing to the details panel id; use a contextual label — "How browser storage works" on non-iOS, "Why this matters on iPhone & iPad" on iOS
 - [ ] 4.7 Implement the collapsible details panel: quota benchmarks section (with `aria-live="polite"` and `aria-atomic="true"` live region, pre-existing in DOM before data loads), fuller explanation of browser storage mechanics, and platform-specific mitigation copy:
   - **iOS**: plain-language eviction explanation + mitigation note ("actively launch the app at least once a week, export regularly — this is a system-level restriction that applies to all browsers on iPhone and iPad")
@@ -47,7 +50,7 @@
 - [ ] 6.2 Dismiss dialog — timestamp written; relaunch within 90 days — dialog does not appear
 - [ ] 6.3 Set `ez-booth-storage-warning-dismissed-at` to 91 days ago — dialog reappears on launch
 - [ ] 6.4 Test on iOS device or iOS simulator — iOS-specific first bullet visible, 7-day threshold applies, details show plain-language eviction text + "no iOS browser can avoid this" mitigation note; NO browser-switch recommendation shown
-- [ ] 6.5 Test on macOS Safari — details show "any non-Safari browser (Chrome, Firefox, Brave, Edge, etc.) removes this restriction"; no iOS-specific text shown
+- [ ] 6.5 Test on macOS Safari — first summary bullet warns "Safari may delete your data if you don't open the app for 7 days" (amber); details show "any non-Safari browser (Chrome, Firefox, Brave, Edge, etc.) removes this restriction"; no iOS-specific text shown
 - [ ] 6.6 Test on desktop Chrome with UA-spoof to iOS — iOS branch fires (platform detection, not UA string)
 - [ ] 6.7 Expand details — quota figures appear with "browser-allocated quota" label; interpretive text present; loading spinner shown before resolve
 - [ ] 6.8 Test with `storage.estimate()` returning null/0 — quota section omitted, no "0 bytes" shown

@@ -1,3 +1,5 @@
+# Spec: storage-risk-warning-dialog
+
 ## ADDED Requirements
 
 ### Requirement: First-use warning dialog
@@ -59,7 +61,7 @@ The dialog SHALL require an explicit user action to dismiss. No passive dismiss 
 
 ### Requirement: Concise summary layout
 
-The dialog SHALL present information in two tiers. The summary tier MUST consist of exactly one short headline sentence stating the core risk, plus at most 2 supporting one-line bullets. It MUST be readable in under 10 seconds. On iOS, the iOS-specific eviction bullet MUST be the first bullet point.
+The dialog SHALL present information in two tiers. The summary tier MUST consist of exactly one short headline sentence stating the core risk, plus at most 2 supporting one-line bullets. It MUST be readable in under 10 seconds. On iOS and macOS Safari, the platform-specific 7-day eviction bullet MUST be the first bullet point.
 
 #### Scenario: Dialog opens — summary tier visible, details collapsed
 
@@ -144,7 +146,12 @@ iOS detection MUST use: `/iPhone|iPad|iPod/.test(navigator.userAgent) || (naviga
 
 ### Requirement: macOS Safari browser recommendation
 
-When the user is on macOS Safari (not iOS), the details tier SHALL recommend switching to a desktop browser that does not have the 7-day eviction restriction.
+When the user is on macOS Safari (not iOS), the dialog SHALL surface the 7-day eviction risk in the summary tier and recommend switching browsers in the details tier.
+
+#### Scenario: macOS Safari detected — summary tier
+
+- **WHEN** the dialog is shown and `detect_browser()` returns `"Safari"` on a non-iOS platform
+- **THEN** the first summary bullet MUST state: "Safari may delete your data if you don't open the app for 7 days"
 
 #### Scenario: macOS Safari detected — details tier
 
