@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Purchase batch upload
-The server SHALL accept `POST /api/sync` with a JSON body `{ purchases: [...], client_id: "<uuid>" }`. Each purchase object MUST include `id` (UUID), `vendor_id`, `price_cents`, `occurred_at`, and `event_code`. The server MUST insert accepted purchases using `ON CONFLICT DO NOTHING` based on the dedup index on `entity_id`. The server MUST return HTTP 200 with `{ accepted: <count> }` on success.
+The server SHALL accept `POST /api/sync` with a JSON body `{ purchases: [...], client_id: "<uuid>" }`. Each purchase object MUST include `id` (UUID), `vendor_id`, `price_cents`, `occurred_at`, and `event_code`. The server MUST insert accepted purchases using `ON CONFLICT DO NOTHING` based on the dedup index on `entity_id`. The server MUST return HTTP 200 with `{ accepted: <count> }` on success. In builds compiled with `--features multi-tenant`, `/api/sync` MUST require a valid `AuthContext` (any role) so the target tenant schema can be resolved from the key; in single-tenant builds, whether `/api/sync` requires auth is deferred per `design.md`'s Open Questions.
 
 #### Scenario: Upload new purchases
 - **WHEN** a mobile client POSTs 5 purchases with unique UUIDs
@@ -18,6 +18,10 @@ The server SHALL accept `POST /api/sync` with a JSON body `{ purchases: [...], c
 #### Scenario: Upload empty purchase list
 - **WHEN** a client POSTs `{ purchases: [], client_id: "..." }`
 - **THEN** the server returns HTTP 200 with `{ "accepted": 0 }`
+
+#### Scenario: Multi-tenant upload without auth
+- **WHEN** the server is built with `--features multi-tenant` and a client POSTs to `/api/sync` without a valid `Authorization` header
+- **THEN** the server returns HTTP 401, since tenant schema resolution requires an `AuthContext`
 
 ---
 

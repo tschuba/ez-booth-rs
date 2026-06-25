@@ -31,9 +31,8 @@ The mobile sync and multi-device coordination features planned in `qr-labels-web
 **Code**
 - New crate: `crates/ez-booth-server/` (axum, sqlx, clap, tokio)
 - `Cargo.toml` workspace — new member `crates/ez-booth-server`
-- `crates/ez-booth-server/migrations/0001_initial.sql` — events, api_keys, pairing_codes tables
+- `crates/ez-booth-server/migrations/0001_initial.sql` — events, api_keys, pairing_codes tables (includes `event_code` directly; no separate migration needed)
 - `crates/ez-booth-server/migrations/0002_purchase_dedup_index.sql` — moved from `qr-labels-webcam-mobile-sync` tasks 2.1
-- `crates/ez-booth-server/migrations/0003_booth_event_code.sql` — moved from `qr-labels-webcam-mobile-sync` tasks 2.2
 
 **Dependencies (new, server-only)**
 - `axum` — HTTP framework
@@ -48,6 +47,6 @@ The mobile sync and multi-device coordination features planned in `qr-labels-web
 - New CI workflow: `server.yml` (separate from WASM build); `Server Build` required check; `server-v*` tag triggers image build and push
 
 **Relationship to `qr-labels-webcam-mobile-sync`**
-- Tasks 2.1, 2.2, 6.1–6.4 from that change move here
+- Task 2.1 (dedup index migration) and tasks 6.1–6.4 from that change move here. Task 2.2 (`ALTER TABLE booths ADD COLUMN event_code`) is dropped, not moved — `events.event_code` already ships as part of this change's migration 0001, and there is no `booths` table in this schema
 - That change retains client-side sync UI (tasks 6.5–6.7) and file import/export
 - `qr-labels-webcam-mobile-sync` must list `ez-booth-server` as a prerequisite

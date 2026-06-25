@@ -10,15 +10,15 @@
 
 - [ ] 2.1 Create `crates/ez-booth-server/migrations/0001_initial.sql` — tables: `events` (id, entity_id, event_type, payload, sequence, client_id, event_code, created_at), `api_keys` (id, key_hash, tenant_id, role, label, created_at, last_used_at, revoked_at), `pairing_codes` (code, key_id, expires_at, used_at)
 - [ ] 2.2 Create `crates/ez-booth-server/migrations/0002_purchase_dedup_index.sql` — `CREATE UNIQUE INDEX idx_events_purchase_dedup ON events (entity_id) WHERE event_type = 'purchase_upserted'` (moved from qr-labels-webcam-mobile-sync task 2.1)
-- [ ] 2.3 Create `crates/ez-booth-server/migrations/0003_booth_event_code.sql` — `ALTER TABLE events ADD COLUMN IF NOT EXISTS event_code TEXT`; backfill from payload; add NOT NULL constraint (moved from qr-labels-webcam-mobile-sync task 2.2)
 
 ## 3. Sync API Routes
 
-- [ ] 3.1 Create `crates/ez-booth-server/src/routes/mod.rs` — register all routes on an `axum::Router`; attach CORS layer from `tower-http`; attach request tracing layer
+- [ ] 3.1 Create `crates/ez-booth-server/src/routes/mod.rs` — register all routes on an `axum::Router`; attach CORS layer from `tower-http`; attach request tracing layer; apply the auth middleware (task 4.4) to `/api/sync` only — `/health` and `/api/pair` stay unauthenticated by design (mandatory in multi-tenant builds per task 4.5; optional in single-tenant per design.md Open Questions)
 - [ ] 3.2 Create `crates/ez-booth-server/src/routes/sync.rs` — implement `POST /api/sync`: deserialize body `{ purchases, client_id }`, insert via `ON CONFLICT DO NOTHING`, log collision warning when two `client_id` values share `event_code` in the same calendar month, return `{ accepted: <count> }`
 - [ ] 3.3 Implement `GET /api/sync?since={seq}` in `routes/sync.rs` — query `events` where `sequence > since` and `event_type = 'purchase_upserted'`, limit 500, return `{ purchases, next_sequence }`; guarantee `next_sequence > since` when result is non-empty
 - [ ] 3.4 Create `crates/ez-booth-server/src/routes/health.rs` — implement `GET /health`; check DB connectivity; return `{ "status": "ok" }` (200) or `{ "status": "degraded", "detail": "..." }` (503)
 - [ ] 3.5 Create `crates/ez-booth-server/src/routes/pair.rs` — implement unauthenticated `POST /api/pair`; validate code exists, is unexpired, and unused; mark `used_at`; return `{ key, role }`; return 410 for expired/used, 404 for unknown
+- [ ] 3.6 Add rate limiting to `POST /api/pair` — per-IP attempt counter (e.g. `tower-http` or a small in-memory limiter); return HTTP 429 after a small number of failed attempts within a short window, to prevent brute-forcing the 6-digit code within its 15-minute TTL
 
 ## 4. Auth Middleware
 
@@ -63,5 +63,5 @@
 ## 10. Adapt qr-labels-webcam-mobile-sync
 
 - [ ] 10.1 Update `openspec/changes/qr-labels-webcam-mobile-sync/proposal.md` — add "Requires: ez-booth-server change"; remove server crate from "What Changes" section
-- [ ] 10.2 Update `openspec/changes/qr-labels-webcam-mobile-sync/tasks.md` — remove tasks 2.1, 2.2 (migrations, now in ez-booth-server); remove tasks 6.1–6.4 (server crate, routes, route registration, now in ez-booth-server)
+- [ ] 10.2 Update `openspec/changes/qr-labels-webcam-mobile-sync/tasks.md` — remove task 2.1 (dedup index migration, now `ez-booth-server` migration 0002); **drop** task 2.2 (`ALTER TABLE booths ADD COLUMN event_code`) rather than "move" it — `events.event_code` already ships as part of `ez-booth-server` migration 0001, and there is no `booths` table in the server schema, so this task has no equivalent to move to; remove tasks 6.1–6.4 (server crate, routes, route registration, now in ez-booth-server)
 - [ ] 10.3 Update `openspec/changes/qr-labels-webcam-mobile-sync/design.md` §11 — replace server implementation details with reference to ez-booth-server change; retain client-side wire format (request/response shapes, pagination contract, error handling)

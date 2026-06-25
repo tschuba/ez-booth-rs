@@ -73,7 +73,7 @@ The CLI command `key pair --id <id>` SHALL generate a fresh short-lived pairing 
 ---
 
 ### Requirement: Pairing code exchange
-The server SHALL expose `POST /api/pair` as an unauthenticated endpoint. The request body MUST contain `{ "code": "<6-digit>" }`. If the code exists, is unexpired, and has not been used, the server MUST mark it as used, set `used_at`, and return `{ "key": "<plaintext_key>", "role": "<role>" }`. Expired or already-used codes MUST return HTTP 410 Gone.
+The server SHALL expose `POST /api/pair` as an unauthenticated endpoint. The request body MUST contain `{ "code": "<6-digit>" }`. If the code exists, is unexpired, and has not been used, the server MUST mark it as used, set `used_at`, and return `{ "key": "<plaintext_key>", "role": "<role>" }`. Expired or already-used codes MUST return HTTP 410 Gone. Because a 6-digit code has only 10^6 possible values and a successful guess returns a full plaintext key, the server MUST rate-limit `/api/pair` (e.g. a per-IP attempt counter) and return HTTP 429 after a small number of failed attempts within a short window.
 
 #### Scenario: Valid pairing code exchange
 - **WHEN** a Kassen-App POSTs a valid unexpired code to `/api/pair`
@@ -90,6 +90,10 @@ The server SHALL expose `POST /api/pair` as an unauthenticated endpoint. The req
 #### Scenario: Unknown code
 - **WHEN** a POST to `/api/pair` uses a code not in the database
 - **THEN** the server returns HTTP 404 Not Found
+
+#### Scenario: Pairing code brute-force rate limit
+- **WHEN** a client makes repeated `POST /api/pair` requests with incorrect codes from the same source within a short window
+- **THEN** the server returns HTTP 429 after a small number of failed attempts, before the attacker can exhaust the 6-digit code space within the 15-minute TTL
 
 ---
 

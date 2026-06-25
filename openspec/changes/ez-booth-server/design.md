@@ -155,6 +155,8 @@ App also accepts 6-digit numeric manual entry as a fallback — consistent with 
 
 Keys are always DB-backed (SQLite or Postgres). Revocation is immediate without server restart.
 
+**Rate limiting on `/api/pair`:** A 6-digit code has only 10^6 possibilities, the endpoint is unauthenticated, multiple outstanding codes per key are permitted, and a successful guess returns a full plaintext key — so `/api/pair` MUST be rate-limited (e.g. a per-IP attempt counter, returning HTTP 429 after a small number of failed attempts within a short window) to prevent brute-forcing a code inside its 15-minute TTL. This is enforced independently of the 15-minute TTL and single-use marking, which alone are not sufficient against an unthrottled guesser.
+
 ---
 
 ### §7 — CLI structure: service layer over adapters
@@ -180,12 +182,13 @@ Adding an HTTP provisioning endpoint later = new adapter in `routes/`, no servic
 **Decision:** `sqlx migrate` with numbered SQL files in `crates/ez-booth-server/migrations/`.
 
 ```
-0001_initial.sql          ← events, api_keys, pairing_codes
+0001_initial.sql          ← events, api_keys, pairing_codes (event_code ships as part of this table)
 0002_purchase_dedup_index.sql  ← partial unique index for ON CONFLICT DO NOTHING
-0003_booth_event_code.sql     ← event_code column + backfill
 ```
 
 Migrations run at startup (`sqlx::migrate!().run(&pool)`). For multi-tenant, tenant provisioning runs the same migration set against the new schema before activating it.
+
+Note: `event_code` is declared `NOT NULL` directly in the 0001 `events` table below — there is no separate backfill migration for it. (`qr-labels-webcam-mobile-sync` task 2.2, which alters a `booths` table to add `event_code`, does not carry over here; that table doesn't exist in this schema and the column is already covered by 0001. See proposal.md's relationship section.)
 
 **Initial schema (0001):**
 ```sql
@@ -277,6 +280,7 @@ Rollback: the server holds no data that is authoritative — all purchase data e
 
 ## Open Questions
 
-- **Mobile sync auth:** Should `POST /api/sync` from `ez-booth-mobile` require an API key (cashier role), or remain unauthenticated scoped by `event_code`? Deferred — resolved when adapting `qr-labels-webcam-mobile-sync` change.
+- **Mobile sync auth (single-tenant only):** In single-tenant/self-hosted mode, should `POST /api/sync` from `ez-booth-mobile` require an API key (cashier role), or remain unauthenticated? There is no tenant ambiguity in single-tenant mode, so either option is structurally valid. Deferred — resolved when adapting `qr-labels-webcam-mobile-sync` change.
+  In multi-tenant mode this is **not** open: `/api/sync` must use API-key auth. Schema routing (§3) resolves the target tenant schema from the key's `tenant_id` in `AuthContext`; with no `AuthContext` there is no input to route on, and `event_code` (a free-text, collision-prone field — see Risks) cannot stand in for it. Multi-tenant mode already requires auth at startup (§5), so this falls out of decisions made elsewhere in this document rather than needing a separate choice.
 - **`sequence` portability:** SQLite lacks `SEQUENCE`. Best approach for cross-DB compatible monotonic sequence? Options: `ROWID`-based, application-level via atomic counter, or a `sequences` auxiliary table.
 - **Key hash algorithm:** `bcrypt` or `argon2`? `argon2` is recommended for new systems; needs a Rust crate (`argon2` crate). Confirm acceptable latency for per-request key hash verification.
