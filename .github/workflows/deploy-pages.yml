@@ -52,7 +52,6 @@ jobs:
           if gh release download --pattern "wasm-bundle.zip" --dir /tmp/wasm-dl; then
             unzip -q /tmp/wasm-dl/wasm-bundle.zip -d _site/pos
             sed -i 's|</head>|<meta name="router-base" content="/ez-booth-rs/pos">\n</head>|' _site/pos/index.html
-            cp docs/pos/404.html _site/pos/404.html
           else
             echo "No wasm-bundle.zip found — /pos/ not included in this deploy."
           fi

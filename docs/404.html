@@ -1,0 +1,14 @@
+---
+title: Page Not Found
+permalink: /404.html
+---
+
+<script>
+  var p = location.pathname;
+  if (p.startsWith('/ez-booth-rs/pos/')) {
+    location.replace('/ez-booth-rs/pos/?p=' + encodeURIComponent(p + location.search));
+  }
+</script>
+
+<h1>404 – Page Not Found</h1>
+<p><a href="/ez-booth-rs/">Back to documentation</a></p>
