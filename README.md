@@ -7,6 +7,8 @@
 
 It helps event teams track vendor sales, calculate fees and payouts, print reports, and protect booth data with export and import workflows. The app is designed to stay fast, portable, and usable in offline event environments.
 
+![ez-booth Basar App Link](./ez-booth-qr.svg)
+
 ## Why ez-booth-rs?
 
 - runs as a browser-first app with no Java runtime or server setup required for normal use
